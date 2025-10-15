@@ -1,11 +1,16 @@
-<script setup></script>
+<script setup>
+</script>
 
 <template>
-  <h1>You did it!</h1>
-  <p>
-    Visit <a href="https://vuejs.org/" target="_blank" rel="noopener">vuejs.org</a> to read the
-    documentation
-  </p>
+  <h1>OWP FORUM</h1>
+  <div id="app">
+
+    <router-link to="/">Home</router-link> | | |
+    <router-link to="/login">login</router-link> | | |
+    <router-link to="/register">register</router-link> | | |
+    <router-link to="/profile">My Profile</router-link>
+    <router-view></router-view>
+  </div>
 </template>
 
 <style scoped></style>
