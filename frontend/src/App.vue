@@ -1,6 +1,9 @@
-<script setup></script>
+<script setup>
+import CSUSHeader from './components/CSUSHeader.vue'
+</script>
 
 <template>
+  <CSUSHeader />
   <h1>You did it!</h1>
   <p>
     Visit <a href="https://vuejs.org/" target="_blank" rel="noopener">vuejs.org</a> to read the
