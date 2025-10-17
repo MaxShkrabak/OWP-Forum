@@ -10,8 +10,8 @@ const route = useRoute()
 // auth simulation (replace later with real login state)
 const isAuthenticated = ref(false)
 
-const onLoginPage = computed(() => route.name === 'Log in')
-const onRegisterPage = computed(() => route.name === 'Create Account')
+const onLoginPage = computed(() => route.path.startsWith('/login'))
+const onRegisterPage = computed(() => route.path.startsWith('/register'))
 </script>
 
 <template>
