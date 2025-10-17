@@ -6,10 +6,10 @@
     import ForumUserProfile from '../views/UserProfile.vue';
 
     const routes = [
-      { path: '/', name: 'Home', component: HomePage },
+      { path: '/', name: 'ForumHome', component: HomePage },
       { path: '/login', name: 'Log in', component: LoginPage },
-      { path: '/register', name: 'Create Account', component: RegistrationPage },
-      { path: '/verify', component: VerifyPasscode }, 
+      { path: '/register', name: 'Register', component: RegistrationPage },
+      { path: '/verify', name: 'Verify', component: VerifyPasscode }, 
       { path: '/profile', name: 'User Profile', component: ForumUserProfile },
     ];
 
