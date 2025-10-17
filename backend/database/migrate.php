@@ -6,7 +6,7 @@ declare(strict_types=1);
 $server   = getenv('DB_SERVER')   ?: 'localhost';            
 $database = getenv('DB_DATABASE') ?: 'testdb';
 $user     = getenv('DB_USER')     ?: 'sa';
-$pass     = getenv('DB_PASS')     ?: 'YourStrong!Passw0rd';
+$pass     = getenv('DB_PASS')     ?: 'yourStrong(!)Password';
 $migrationsDir = __DIR__ . '/migrations';
 
 // ---------- CONNECT ----------
