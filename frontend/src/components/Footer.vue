@@ -61,11 +61,10 @@ import instagram from "@/assets/instagram.png"
 }
 .footer  {
     background-color: black;
-    position: static;
+    position: relative;
     bottom: 0%;
-    width: 100%;
     height: 200px;
-    padding: 4rem;
+    padding: 4em;
     font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif;
     font-size: 14px;
 

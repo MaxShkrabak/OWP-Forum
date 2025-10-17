@@ -19,6 +19,6 @@ import Footer from './components/Footer.vue';
 /* Used to calculate the footer so it sticks to the bottom.
    WILL NEED TO FIX LATER after we sort out the headers. */
 body {
-  min-height: calc(100vh - 450px);
+  min-height: calc(100vh - 400px);
 }
 </style>
