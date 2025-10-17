@@ -15,17 +15,19 @@ error_reporting(E_ALL);
 // IMPORTANT: vendor is one level up from /public
 require __DIR__ . '/../vendor/autoload.php';
 
+// Load the .env data
+$dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/../');
+$dotenv->load();
+
 $app = AppFactory::create();
 $app->addBodyParsingMiddleware();
 $app->addErrorMiddleware(true, true, true);
 
-// --- DB config (edit for your env) ---
-$server   = 'localhost,1433';         // Docker-mapped or local
-$database = 'testdb';
-$user     = 'sa';
-$pass     = 'yourStrong(!)Password';    // match your container/SQL setup
+$server   = $_ENV['DB_SERVER'];         // Docker-mapped or local
+$database = $_ENV['DB_DATABASE'];         // name of the database
+$user     = $_ENV['DB_USER'];             // db username
+$pass     = $_ENV['DB_PASS'];             // db password
 $dsn      = "sqlsrv:Server=$server;Database=$database;TrustServerCertificate=1";
-
 
 $makePdo = function () use ($dsn, $user, $pass): PDO {
     return new PDO($dsn, $user, $pass, [
