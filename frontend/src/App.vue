@@ -1,11 +1,13 @@
 <script setup>
 import CSUSHeader from './components/CSUSHeader.vue'
+import OWPHeader from './components/OWPHeader.vue';
+
 </script>
 
 <template>
   <CSUSHeader />
-  <h1>OWP FORUM</h1>
-    <router-view></router-view>
+  <OWPHeader />
+  <router-view />
 </template>
 
 <style scoped></style>
