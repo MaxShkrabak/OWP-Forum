@@ -39,9 +39,7 @@ async function onSubmit() {
 <template>
   <!-- ====================== HEADER (placeholder) ====================== -->
   <header class="site-header" role="banner" aria-label="Header">
-    <!-- Place header content here later -->
     <h1>LOG IN PAGE</h1>
-    <!--Navigation-->
     <nav class="inline-nav">
       <router-link to="/">Home</router-link> | | |
       <router-link to="/register">register</router-link> | | |
@@ -74,7 +72,6 @@ async function onSubmit() {
             <span v-else>Sending…</span>
           </button>
 
-          <!-- stacked helper lines -->
           <div id="email-help" class="help-stack">
             <p class="help">Enter the email address associated with your account and click</p>
             <p class="help"><em>Get passcode.</em> We’ll email you a passcode for a password-free login.</p>
@@ -99,15 +96,13 @@ async function onSubmit() {
   </section>
 
   <!-- ====================== FOOTER (placeholder) ====================== -->
-  <footer class="site-footer" role="contentinfo" aria-label="Footer">
-    <!-- Place footer content here later -->
-  </footer>
+  <footer class="site-footer" role="contentinfo" aria-label="Footer"></footer>
 </template>
 
 <style scoped>
-/* Header/Footer placeholders*/
-.site-header { /* header placeholder; */ }
-.site-footer { /* footer placeholder; */ }
+/* Header/Footer placeholders */
+.site-header {}
+.site-footer {}
 
 /* NAV */
 .inline-nav {
@@ -116,65 +111,80 @@ async function onSubmit() {
   font-size: 0.95rem;
 }
 
-/* BODY*/
+/* BODY */
 .login-wrap {
   background: #ffffff;
   width: 100%;
-  min-height: 70vh;
+  min-height: 62vh; /* was 70vh — slightly shorter */
   padding: 0;
   position: relative;
-
-  /*gutter that scales with screen size */
   --section-gutter: clamp(10px, 2vw, 24px);
 }
 
 .login-card {
-  background: #f5f6f7;
+  background: #EFF1F1;
   width: calc(100% - (var(--section-gutter) * 2));
-
-  /* Let content define height so it never over/underflows on zoom */
   height: auto;
   min-height: 0;
-
   margin: 23px auto 27px;
   max-width: none;
 
-  display: grid;
-  justify-items: center;
-  align-items: start;  /* keep content top-aligned */
-  padding: 0;
+  /* flex layout for left alignment */
+  display: flex;
+  justify-content: flex-start;
+  align-items: flex-start;
+  text-align: left;
+
+  /* ✅ symmetric left and right padding */
+  padding: 0 clamp(32px, 12vw, 320px);
+
   border: none;
   border-radius: 0;
   box-shadow: none;
+  box-sizing: border-box;
 }
 
-/* Form column: zoom-friendly, with top spacing */
+/* Form column */
 .form-inner {
-  width: 100%;
-  max-width: clamp(36rem, 48rem, 62rem);  /* rem-based so zoom scales it */
+  width: auto;
+  max-width: clamp(36rem, 48rem, 62rem);
   height: auto;
-  margin-top: clamp(0.75rem, 1.6vh, 2rem); 
+  margin-top: clamp(0.75rem, 1.6vh, 2rem);
   padding: 2.25rem 2.25rem 2.5rem;
   box-sizing: border-box;
+}
+
+/* Extra spacing before "First time here?" */
+.login-card .tiny {
+  margin-top: 8rem;
 }
 
 /* Mobile tweaks */
 @media (max-width: 768px) {
   .login-wrap { --section-gutter: clamp(8px, 4vw, 16px); }
-  .form-inner { max-width: 100%; margin-top: 1rem; padding: 1.25rem; }
+
+  .login-card {
+    padding: 0 var(--section-gutter);
+  }
+
+  .form-inner {
+    max-width: 100%;
+    margin-top: 1rem;
+    padding: 1.25rem;
+  }
 }
 
 /* Typography */
 .card-title {
-  margin: 0 0 3.75rem 0;  /* more space before Email */
-  font-size: 2.5rem;      /* bigger “Login” */
+  margin: 0 0 3.75rem 0;
+  font-size: 2.5rem;
   line-height: 1.2;
   font-weight: 800;
   color: #111827;
 }
 .label {
   display: block;
-  font-size: 1.2rem;      /* larger label */
+  font-size: 1.2rem;
   font-weight: 600;
   color: #374151;
   margin-bottom: 0.65rem;
@@ -182,10 +192,10 @@ async function onSubmit() {
 
 /* Inputs */
 .input {
-  display: block;                          /* button on next line */
+  display: block;
   width: 100%;
-  max-width: clamp(22rem, 55%, 35rem);     /* zoom-friendly, narrower than form */
-  font-size: 1.2rem;                       /* larger input text */
+  max-width: clamp(22rem, 55%, 35rem);
+  font-size: 1.2rem;
   line-height: 1.35;
   padding: 0.75rem 0.9rem;
   border: 1px solid #d1d5db;
@@ -193,7 +203,9 @@ async function onSubmit() {
   outline: none;
   transition: box-shadow 120ms ease, border-color 120ms ease;
 }
-@media (max-width: 480px) { .input { max-width: 100%; } }
+@media (max-width: 480px) {
+  .input { max-width: 100%; }
+}
 .input:focus {
   border-color: #14532d;
   box-shadow: 0 0 0 3px rgba(20, 83, 45, 0.18);
@@ -222,15 +234,15 @@ async function onSubmit() {
 .help-stack .help {
   margin: 0;
   color: #4b5563;
-  font-size: 1.15rem;     /* bigger helper text */
+  font-size: 1.15rem;
 }
 .help-stack .help + .help { margin-top: 0.5rem; }
 .help em { font-style: italic; }
 
 /* Tiny note & link emphasis */
 .tiny {
-  margin-top: 1.5rem;
-  font-size: 1.1rem;      /* larger tiny note */
+  margin-top: 2.5rem;
+  font-size: 1.1rem;
   color: #374151;
 }
 .tiny a {
@@ -247,10 +259,18 @@ async function onSubmit() {
   border-radius: 6px;
   font-size: 1.05rem;
 }
-.notice.success { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
-.notice.error  { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+.notice.success {
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+.notice.error {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
 
-/* Page heading*/
+/* Page heading */
 h1 {
   margin: 0 0 0.25rem 0;
   font-size: 1rem;

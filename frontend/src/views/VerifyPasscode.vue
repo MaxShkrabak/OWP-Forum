@@ -1,11 +1,11 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { useRoute } from 'vue-router';
-import { requestOtp, verifyOtp } from '@/api/auth'; // you already have this
+import { requestOtp, verifyOtp } from '@/api/auth';
 
 const route = useRoute();
-const email = ref(String(route.query.email || '')); // comes from login/register redirect
-const code  = ref('');
+const email = ref(String(route.query.email || ''));
+const code = ref('');
 
 const loading = ref(false);
 const message = ref('');
@@ -61,7 +61,6 @@ async function onSubmit() {
     if (res?.ok) {
       message.value = 'Verified! You are now signed in.';
       if (res.token) localStorage.setItem('token', res.token);
-      // TODO: this.$router.push('/') if desired
     } else {
       errorMsg.value = res?.message || 'Incorrect or expired code.';
     }
@@ -74,137 +73,202 @@ async function onSubmit() {
 </script>
 
 <template>
-  <div class="page">
-    <div class="panel">
-      <h1 class="title">Verify Passcode</h1>
+  <!-- Match login layout -->
+  <section class="verify-wrap" aria-label="Verify Passcode">
+    <div class="verify-card">
+      <div class="form-inner">
+        <h2 class="card-title">Verify Passcode</h2>
 
-      <form class="form" @submit.prevent="onSubmit">
-        <label class="label" for="code">Passcode</label>
-        <input
-          id="code"
-          class="input"
-          type="text"
-          maxlength="6"
-          placeholder="123456"
-          inputmode="numeric"
-          autocomplete="one-time-code"
-          v-model.trim="code"
-        />
+        <form class="form" @submit.prevent="onSubmit">
+          <label class="label" for="code">Passcode</label>
+          <input
+            id="code"
+            class="input"
+            type="text"
+            maxlength="6"
+            placeholder="123456"
+            inputmode="numeric"
+            autocomplete="one-time-code"
+            v-model.trim="code"
+          />
 
-        <button class="btn" type="submit" :disabled="!canSubmit || loading">
-          Submit
-        </button>
-      </form>
+          <button class="btn" type="submit" :disabled="!canSubmit || loading">
+            Submit
+          </button>
+        </form>
 
-      <p class="help">
-        Please enter the six digit passcode we emailed to you and click
-        <em>Submit</em>. If you copy and paste the passcode, be sure not to
-        include any spaces around or within the code.
-      </p>
+        <div class="help-stack">
+          <p class="help">
+            Please enter the six-digit passcode we emailed to you and click
+            <em>Submit</em>. If you copy and paste the passcode, be sure not to include any spaces around or within the code.
+          </p>
 
-      <p class="help small">
-        Haven’t received the email yet? Please make sure that you’ve entered the correct email address and that it is
-        registered with our site. The email you have entered is <strong>{{ email || '—' }}</strong>.
-        Be advised that the passcode can take up to a minute to be received.
-      </p>
+          <p class="help small">
+            Haven’t received the email yet? Please make sure that you’ve entered the correct email address and that it is registered with out site. The 
+            email you have entered is:
+            <strong>{{ email || '—' }}</strong>.
+          </p>
 
-      <p class="help small">
-        The passcode email is sent from the <em>noreply@owp.csus.edu</em> email address; please make sure that emails
-        from this address are not being sent to your spam or junk folder.
-      </p>
+          <p class="help small">
+            The email may take up to a minute and comes from
+            <em>noreply@owp.csus.edu</em>. Please check spam/junk folders.
+          </p>
+        </div>
 
-      <div class="resend">
-        <button class="link-btn" :disabled="secondsLeft>0 || loading" @click="onResend">
-          {{ secondsLeft > 0 ? `Resend in ${secondsLeft}s` : 'Resend passcode' }}
-        </button>
+        <div class="resend">
+          <button class="link-btn" :disabled="secondsLeft>0 || loading" @click="onResend">
+            {{ secondsLeft > 0 ? `Resend in ${secondsLeft}s` : 'Resend passcode' }}
+          </button>
+        </div>
+
+        <p v-if="message" class="notice success">{{ message }}</p>
+        <p v-if="errorMsg" class="notice error">{{ errorMsg }}</p>
       </div>
-
-      <p v-if="message" class="message ok">{{ message }}</p>
-      <p v-if="errorMsg" class="message err">{{ errorMsg }}</p>
     </div>
-  </div>
+  </section>
 </template>
 
 <style scoped>
-.page {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 24px 16px 48px;
+/* Match login design */
+.verify-wrap {
+  background: #ffffff;
+  width: 100%;
+  min-height: 62vh; /* same height as login */
+  padding: 0;
+  position: relative;
+  --section-gutter: clamp(10px, 2vw, 24px);
 }
-.panel {
-  background: #eef1f3;           /* light gray panel */
-  border-radius: 4px;
-  padding: 36px 28px 28px;
+
+.verify-card {
+  background: #EFF1F1;
+  width: calc(100% - (var(--section-gutter) * 2));
+  height: auto;
+  margin: 23px auto 27px;
+  display: flex;
+  justify-content: flex-start;
+  align-items: flex-start;
+  text-align: left;
+  padding: 0 clamp(32px, 12vw, 320px);
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  box-sizing: border-box;
 }
-.title {
-  font-size: 36px;
-  font-weight: 700;
-  margin: 0 0 28px 0;
-  color: #111;
+
+.form-inner {
+  width: auto;
+  max-width: clamp(36rem, 48rem, 62rem);
+  height: auto;
+  margin-top: clamp(0.75rem, 1.6vh, 2rem);
+  padding: 2.25rem 2.25rem 2.5rem;
+  box-sizing: border-box;
 }
-.form {
-  max-width: 460px;
-  margin: 0 0 16px 0;
+
+/* Typography */
+.card-title {
+  margin: 0 0 3.75rem 0;
+  font-size: 2.5rem;
+  line-height: 1.2;
+  font-weight: 800;
+  color: #111827;
 }
+
 .label {
   display: block;
-  font-size: 14px;
-  margin-bottom: 6px;
-  color: #222;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 0.65rem;
 }
+
 .input {
-  width: 320px;
-  max-width: 100%;
-  height: 36px;
-  padding: 6px 10px;
-  border: 1px solid #cfd6dc;
-  border-radius: 3px;
-  background: #fff;
+  display: block;
+  width: 100%;
+  max-width: clamp(22rem, 55%, 35rem);
+  font-size: 1.2rem;
+  line-height: 1.35;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
   outline: none;
+  transition: box-shadow 120ms ease, border-color 120ms ease;
 }
 .input:focus {
-  border-color: #2b5d34;         /* Sac State-ish green focus */
-  box-shadow: 0 0 0 2px rgba(43,93,52,0.15);
+  border-color: #14532d;
+  box-shadow: 0 0 0 3px rgba(20,83,45,0.18);
 }
+
 .btn {
-  margin-top: 12px;
-  height: 36px;
-  padding: 0 16px;
-  border: none;
-  border-radius: 4px;
-  background: #2b5d34;           /* green button */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1rem;
+  padding: 0.75rem 1.1rem;
+  border-radius: 6px;
+  border: 1px solid #14532d;
+  background: #1b5e20;
   color: #fff;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
+  transition: filter 120ms ease, opacity 120ms ease;
 }
-.btn:disabled {
-  opacity: 0.6;
-  cursor: default;
-}
+.btn:hover { filter: brightness(1.05); }
+.btn:disabled { opacity: 0.65; cursor: not-allowed; }
+
+/* Helper text */
+.help-stack { margin-top: 1.5rem; }
 .help {
-  margin-top: 14px;
+  margin: 0;
+  color: #4b5563;
+  font-size: 1.1rem;
   line-height: 1.55;
-  color: #333;
 }
-.help.small { font-size: 13px; color: #555; }
-.resend { margin-top: 8px; }
+.help.small { font-size: 1rem; color: #555; }
+.help em { font-style: italic; }
+.help + .help { margin-top: 0.5rem; }
+
+/* Resend section */
+.resend { margin-top: 1.25rem; }
 .link-btn {
   background: none;
   border: none;
-  color: #2b5d34;
-  font-weight: 600;
-  cursor: pointer;
-  padding: 0;
+  color: #14532d;
+  font-weight: 700;
   text-decoration: underline;
+  cursor: pointer;
 }
 .link-btn:disabled {
   color: #8aa293;
   text-decoration: none;
   cursor: default;
 }
-.message {
-  margin-top: 12px; font-size: 14px;
+
+/* Notices */
+.notice {
+  margin-top: 1.5rem;
+  padding: 0.8rem 0.95rem;
+  border-radius: 6px;
+  font-size: 1.05rem;
 }
-.message.ok { color: #1b7f2a; }
-.message.err { color: #b3261e; }
+.notice.success {
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+.notice.error {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .verify-wrap { --section-gutter: clamp(8px, 4vw, 16px); }
+  .verify-card { padding: 0 var(--section-gutter); }
+  .form-inner {
+    max-width: 100%;
+    margin-top: 1rem;
+    padding: 1.25rem;
+  }
+}
 </style>
