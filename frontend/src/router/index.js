@@ -9,8 +9,8 @@
       { path: '/', name: 'Home', component: HomePage },
       { path: '/login', name: 'Log in', component: LoginPage },
       { path: '/register', name: 'Create Account', component: RegistrationPage },
-      { path: '/verify', component: VerifyPasscode }, 
-      { path: '/profile', name: 'User Profile', component: ForumUserProfile },
+      { path: '/verify', name: 'VerifyPasscode', component: VerifyPasscode },
+      { path: '/profile', name: 'User Profile', component: ForumUserProfile, props:(route) => ({ email: route.query.email || '' }) },
     ];
 
     const router = createRouter({

@@ -1,5 +1,8 @@
 <script setup>
 import { ref } from "vue";
+import { useRouter } from "vue-router";
+
+const router = useRouter();
 
 const email = ref("");
 const sending = ref(false);
@@ -18,8 +21,12 @@ async function onSubmit() {
   }
   sending.value = true;
   try {
+    // TODO: replace with real API call that sends a passcode
     await new Promise((r) => setTimeout(r, 700));
     status.value = "sent";
+
+    // ✅ Navigate to verify screen, include the email for convenience
+    router.push({ name: "VerifyPasscode", query: { email: email.value } });
   } catch (e) {
     status.value = "error";
     errorMsg.value = e?.message || "Something went wrong. Please try again.";
@@ -32,9 +39,9 @@ async function onSubmit() {
 <template>
   <!-- ====================== HEADER (placeholder) ====================== -->
   <header class="site-header" role="banner" aria-label="Header">
-    <!-- Place your real header content here later -->
+    <!-- Place header content here later -->
     <h1>LOG IN PAGE</h1>
-    <!--Navigation (unchanged)-->
+    <!--Navigation-->
     <nav class="inline-nav">
       <router-link to="/">Home</router-link> | | |
       <router-link to="/register">register</router-link> | | |
@@ -93,23 +100,23 @@ async function onSubmit() {
 
   <!-- ====================== FOOTER (placeholder) ====================== -->
   <footer class="site-footer" role="contentinfo" aria-label="Footer">
-    <!-- Place your real footer content here later -->
+    <!-- Place footer content here later -->
   </footer>
 </template>
 
 <style scoped>
-/* ===== Header/Footer placeholders (no visual styles yet) ===== */
-.site-header { /* header placeholder; add real styles later if needed */ }
-.site-footer { /* footer placeholder; add real styles later if needed */ }
+/* Header/Footer placeholders*/
+.site-header { /* header placeholder; */ }
+.site-footer { /* footer placeholder; */ }
 
-/* NAV (unchanged) */
+/* NAV */
 .inline-nav {
   display: inline-block;
   margin-bottom: 1rem;
   font-size: 0.95rem;
 }
 
-/* BODY (~70vh, white) */
+/* BODY*/
 .login-wrap {
   background: #ffffff;
   width: 100%;
@@ -117,11 +124,10 @@ async function onSubmit() {
   padding: 0;
   position: relative;
 
-  /* Fluid gutter that scales with screen size */
+  /*gutter that scales with screen size */
   --section-gutter: clamp(10px, 2vw, 24px);
 }
 
-/* SECTION (gray) — height tracks inner content */
 .login-card {
   background: #f5f6f7;
   width: calc(100% - (var(--section-gutter) * 2));
@@ -147,7 +153,7 @@ async function onSubmit() {
   width: 100%;
   max-width: clamp(36rem, 48rem, 62rem);  /* rem-based so zoom scales it */
   height: auto;
-  margin-top: clamp(0.75rem, 1.6vh, 2rem); /* space from the top edge */
+  margin-top: clamp(0.75rem, 1.6vh, 2rem); 
   padding: 2.25rem 2.25rem 2.5rem;
   box-sizing: border-box;
 }
@@ -211,7 +217,7 @@ async function onSubmit() {
 .btn:hover { filter: brightness(1.05); }
 .btn:disabled { opacity: 0.65; cursor: not-allowed; }
 
-/* Helper text (bigger, stacked) */
+/* Helper text */
 .help-stack { margin-top: 1.1rem; }
 .help-stack .help {
   margin: 0;
@@ -244,7 +250,7 @@ async function onSubmit() {
 .notice.success { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
 .notice.error  { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
 
-/* Page heading (unchanged) */
+/* Page heading*/
 h1 {
   margin: 0 0 0.25rem 0;
   font-size: 1rem;
