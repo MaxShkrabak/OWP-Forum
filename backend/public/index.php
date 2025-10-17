@@ -23,7 +23,21 @@ $app = AppFactory::create();
 $app->addBodyParsingMiddleware();
 $app->addErrorMiddleware(true, true, true);
 
-$server   = $_ENV['DB_SERVER'];         // Docker-mapped or local
+// This allows requests from the frontend port to the backend port (if the ports are different)
+$app->add(function (Request $request, $handler) {
+    if (strtoupper($request->getMethod()) === 'OPTIONS') {
+        $resp = new \Slim\Psr7\Response(200);
+    } else {
+        $resp = $handler->handle($request);
+    }
+
+    return $resp
+        ->withHeader('Access-Control-Allow-Origin', 'http://localhost:5173')  // frontend port
+        ->withHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, Authorization, X-Requested-With')
+        ->withHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+});
+
+$server   = $_ENV['DB_SERVER'];           // Docker-mapped or local
 $database = $_ENV['DB_DATABASE'];         // name of the database
 $user     = $_ENV['DB_USER'];             // db username
 $pass     = $_ENV['DB_PASS'];             // db password
@@ -35,6 +49,8 @@ $makePdo = function () use ($dsn, $user, $pass): PDO {
         PDO::SQLSRV_ATTR_ENCODING => PDO::SQLSRV_ENCODING_UTF8
     ]);
 };
+
+require __DIR__ . '/../routes/verify-email.php'; // used for checking if email exists
 
 // Root
 $app->get('/', function (Request $req, Response $res) {
