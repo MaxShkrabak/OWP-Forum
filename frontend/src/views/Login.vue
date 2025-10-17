@@ -1,10 +1,8 @@
 <script setup>
 import { ref } from "vue";
+import { useRouter } from "vue-router";
 
-
-import axios from "axios";
-import { useRouter } from 'vue-router';
-
+const router = useRouter();
 
 const email = ref("");
 const sending = ref(false);

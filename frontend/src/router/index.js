@@ -10,7 +10,7 @@
       { path: '/login', name: 'Log in', component: LoginPage },
 
       { path: '/register', name: 'Register', component: RegistrationPage },
-      { path: '/verify', name: 'Verify', component: VerifyPasscode }, 
+      { path: '/verify', name: 'VerifyPasscode', component: VerifyPasscode, props: (route) => ({ email: route.query.email || '' }) },
       { path: '/profile', name: 'User Profile', component: ForumUserProfile },
     ];
 
