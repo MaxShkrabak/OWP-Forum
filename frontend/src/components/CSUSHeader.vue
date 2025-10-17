@@ -1,11 +1,10 @@
 <template>
   <header class="header">
-    <h1>{{ title }}</h1>
-    <nav>
-      <a href="#">Home</a>
-      <a href="#">About</a>
-      <a href="#">Contact</a>
-    </nav>
+    <img id="csus-logo" title="CSUS Logo" src="/csus-logo-horizontal.png"></img>
+    <div>
+      <input type="Search...">
+    <font-awesome-icon icon="fa-solid fa-search" />
+ </div>
   </header>
 </template>
 
@@ -15,21 +14,15 @@ const title = 'My Awesome Vue App'
 
 <style scoped>
 .header {
-  background-color: #42b983;
-  color: white;
-  padding: 1rem;
+  background-color: red;
+  color: black;
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-nav a {
-  color: white;
-  text-decoration: none;
-  margin-left: 1rem;
-}
-
-nav a:hover {
-  text-decoration: underline;
+#csus-logo {
+  width: 180px;
+  margin: 15px;
 }
 </style>
