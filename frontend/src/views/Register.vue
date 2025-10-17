@@ -33,61 +33,191 @@ async function createAccount() {
   }
     */
 }
+
 </script>
 
 <template>
-    <router-link to="/">Home</router-link> | | |
-    <router-link to="/login">login</router-link> | | |
-    <router-link to="/profile">My Profile</router-link>
-  <div class="page">
-    <div class="panel">
+  <div class="register-page">
+    <div class="page">
       <h1 class="title">Create Account</h1>
+      <router-link to="/login" class="login-link">↩️ User Login</router-link>
 
-      <div class="section-head">User Information</div>
+      <div class="panel">
+        <div class="section-head">User Information</div>
 
-      <form class="form" @submit.prevent="createAccount">
-        <label class="label" for="first">First Name</label>
-        <input id="first" v-model.trim="first" class="input" type="text" placeholder="First Name" />
+        <form class="form" @submit.prevent="createAccount">
+          <label for="first" class="label">First Name</label>
+          <input id="first" v-model.trim="first" type="text" placeholder="Joe" class="input" />
 
-        <label class="label" for="last" style="margin-top:10px;">Last Name</label>
-        <input id="last" v-model.trim="last" class="input" type="text" placeholder="Last Name" />
+          <label for="last" class="label">Last Name</label>
+          <input id="last" v-model.trim="last" type="text" placeholder="Hornet" class="input" />
 
-        <label class="label" for="email" style="margin-top:10px;">Email Address</label>
-        <input id="email" v-model.trim="email" class="input" type="email" placeholder="joe.hornet@owp.csus.edu" />
+          <div class="label-row">
+            <label for="ssn" class="label">Last 4 digits of your SSN/SIN</label>
+            <span class="note-inline">(Used for verification only)</span>
+          </div>
+          <input id="ssn" type="text" placeholder="1234" maxlength="4" class="input" />
 
-        <p class="note">(Your email will be your username)</p>
+          <div class="label-row">
+            <label for="email" class="label">Email Address</label>
+            <span class="note-inline">(Your email will be your username)</span>
+          </div>
+          <input
+            id="email"
+            v-model.trim="email"
+            type="email"
+            placeholder="joe.hornet@owp.csus.edu"
+            class="input"
+          />
 
-        <button
-          class="btn"
-          type="submit"
-          :disabled="loading || !first || !last || !/^\S+@\S+\.\S+$/.test(email)"
-        >
-          <span v-if="!loading">Create Account</span>
-          <span v-else class="spinner"></span>
-        </button>
-      </form>
+          <button
+            class="btn"
+            type="submit"
+            :disabled="loading || !first || !last || !/^\S+@\S+\.\S+$/.test(email)"
+          >
+            <span v-if="!loading">Create Account</span>
+            <span v-else class="spinner"></span>
+          </button>
+        </form>
+      </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-.page{max-width:1200px;margin:0 auto;padding:24px 16px 48px;}
-.panel{background:#eef1f3;border-radius:4px;padding:36px 28px 28px;}
-.title{font-size:32px;font-weight:700;margin:0 0 18px;color:#111}
-.section-head{background:#5a786e;color:#fff;padding:8px 12px;border-radius:3px;display:inline-block;margin-bottom:16px}
-.form{max-width:560px}
-.label{display:block;font-size:14px;margin-bottom:6px;color:#222}
-.input{width:420px;height:36px;padding:6px 10px;border:1px solid #cfd6dc;border-radius:3px;background:#fff;outline:none}
-.input:focus{border-color:#2b5d34;box-shadow:0 0 0 2px rgba(43,93,52,.15)}
-.note{font-size:12px;color:#a4683a;margin:6px 0 10px}
-.btn{margin-top:8px;height:36px;padding:0 16px;border:none;border-radius:4px;background:#2b5d34;color:#fff;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
-.btn:disabled{opacity:.6;cursor:default}
-.spinner{
-  width:20px;height:20px;
-  border:3px solid #ffffff50;
-  border-top-color:#fff;
-  border-radius:50%;
-  animation:spin 0.8s linear infinite;
+/* === Page Layout === */
+.page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 50px 32px 100px; 
+  font-family: "Helvetica Neue", Arial, sans-serif;
 }
-@keyframes spin { to { transform: rotate(360deg); } }
+
+.register-page {
+  background: #f2f4f4;
+  border: 1px solid #d0d6d5;
+}
+
+/* === Title === */
+.title {
+  font-size: 36px;
+  font-weight: 700;
+  color: #111;
+  margin: 0 0 4px;
+}
+
+/* === Login link (below title) === */
+.login-link {
+  display: inline-block;
+  margin-bottom: 24px;
+  color: #2b5d34;
+  font-weight: 600;
+  font-size: 15px;
+  text-decoration: none;
+}
+.login-link:hover {
+  text-decoration: underline;
+}
+
+/* === Panel === */
+.panel {
+  border-radius: 0;
+  padding: 0;
+}
+
+/* === Section Head === */
+.section-head {
+  background: #5a786e;
+  color: #fff;
+  padding: 10px 18px;
+  font-weight: 600;
+  font-size: 17px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* === Form === */
+.form {
+  padding: 26px 32px 40px;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Labels */
+.label {
+  font-size: 15px;
+  color: #222;
+  margin-top: 10px;
+  margin-bottom: 6px;
+  display: block;
+}
+
+.label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+  margin-bottom: 6px;
+}
+
+/* Inputs (smaller height now) */
+.input {
+  width: 100%;
+  height: 32px; /* reduced from 38px */
+  border: 1px solid #cfd6dc;
+  border-radius: 2px;
+  padding: 4px 8px; /* tighter padding */
+  font-size: 15px;
+  background: #fff;
+}
+.input:focus {
+  outline: none;
+  border-color: #2b5d34;
+  box-shadow: 0 0 0 2px rgba(43, 93, 52, 0.15);
+}
+
+/* Inline notes */
+.note-inline {
+  font-size: 13px;
+  color: #a4683a;
+}
+
+/* Button */
+.btn {
+  margin-top: 18px;
+  height: 34px; /* slightly smaller button to match inputs */
+  width: fit-content;
+  background: #2b5d34;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-weight: 600;
+  padding: 0 16px;
+  cursor: pointer;
+}
+.btn:hover:not(:disabled) {
+  background: #007A4C;
+}
+.btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* Spinner */
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 3px solid #ffffff50;
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
 </style>
+
