@@ -36,6 +36,9 @@ async function createAccount() {
 </script>
 
 <template>
+    <router-link to="/">Home</router-link> | | |
+    <router-link to="/login">login</router-link> | | |
+    <router-link to="/profile">My Profile</router-link>
   <div class="page">
     <div class="panel">
       <h1 class="title">Create Account</h1>
