@@ -40,8 +40,7 @@ async function createAccount() {
   <div class="register-page">
     <div class="page">
       <h1 class="title">Create Account</h1>
-      <router-link to="/login" class="login-link">↩️ User Login</router-link>
-
+      <router-link to="/login" class="login-link"><i class="fa fa-sign-in" aria-hidden="true"></i><span>User Login</span></router-link>
       <div class="panel">
         <div class="section-head">User Information</div>
 
@@ -89,7 +88,7 @@ async function createAccount() {
 .page {
   max-width: 1300px;
   margin: 0 auto;
-  padding: 50px 32px 100px; 
+  padding: 25px 32px 100px; 
   font-family: "Helvetica Neue", Arial, sans-serif;
 }
 
@@ -101,7 +100,7 @@ async function createAccount() {
 /* === Title === */
 .title {
   font-size: 36px;
-  font-weight: 700;
+  font-weight: 400;
   color: #111;
   margin: 0 0 4px;
 }
@@ -109,11 +108,20 @@ async function createAccount() {
 /* === Login link (below title) === */
 .login-link {
   display: inline-block;
-  margin-bottom: 24px;
-  color: #2b5d34;
+  margin-bottom: 5px;
+  color: #008453;
   font-weight: 600;
-  font-size: 15px;
   text-decoration: none;
+}
+.login-link span {
+  text-decoration: underline;
+  padding-left: 3px;
+  font-size: 17px;
+}
+.login-link i {
+  width: 17px;
+  height: 17px;
+  font-size: 20px;
 }
 .login-link:hover {
   text-decoration: underline;
@@ -129,8 +137,8 @@ async function createAccount() {
 .section-head {
   background: #5a786e;
   color: #fff;
-  padding: 10px 18px;
-  font-weight: 600;
+  padding: 10px 10px;
+  font-weight: 200;
   font-size: 17px;
   width: 100%;
   box-sizing: border-box;
@@ -185,8 +193,8 @@ async function createAccount() {
 
 /* Inline notes */
 .note-inline {
-  font-size: 13px;
-  color: #a4683a;
+  font-size: 17px;
+  color: #c6671d;
 }
 
 /* Button */
