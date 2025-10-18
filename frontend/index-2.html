@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <link rel="stylesheet" href="stylesheet.css">
+        <link rel="icon" type="image/x-icon" href="/img/svg/owp-symbol-2color.svg">
+        <title>OWP Web Style Guide</title>
+        <link rel="stylesheet" href="media.css">
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap" rel="stylesheet">
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    </head>
+    <body>
+        <nav class="navbar bg-body-tertiary" id="nav-header">
+            <div class="container">
+              <a class="navbar-brand" href="#">
+                <img src="img/svg/sac-state-logo-3Color.svg" alt="Sacramento State" width="160" height="">
+              </a>
+            </div>
+        </nav>
+        <nav class="navbar sticky-top navbar-expand-lg bg-body-tertiary" id="nav-menu">
+            <div class="container">
+              <a class="navbar-brand" href="#">
+                <img src="img/svg/owp-logo-horizontal-WHT-2color.svg" alt="Bootstrap" width="280" height="">
+              </a>
+              <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavAltMarkup" aria-controls="navbarNavAltMarkup" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+              </button>
+              <div class="collapse navbar-collapse justify-content-end" id="navbarNavAltMarkup">
+                <div class="navbar-nav">
+                  <a class="nav-link" href="#logo">Logo</a>
+                  <a class="nav-link" href="#colors">Colors</a>
+                  <a class="nav-link" href="#type">Typography</a>
+                  <a class="nav-link" href="#bttns">Buttons & Links</a>
+                  <a class="nav-link" href="#inputs">Inputs</a>
+                  <!--
+                  <a class="nav-link" href="#layout">Layout</a>
+                  <a class="nav-link" href="#modals">Modals</a>
+                  -->
+                </div>
+              </div>
+            </div>
+        </nav>
+        <div class="container" id="dg-main">
+            <div class="container">
+                <div class="row">
+                    <div class="col" style="padding-left: 27px;">
+                        <H1 class="txt-drk-teal">OWP Design Guide</H1>
+                    </div>
+                </div>
+                <div class="row bg-body-row justify-content-evenly" id="logo">
+                    <h2 class="txt-drk-teal">Logo</h2>
+                    <div class="row align-items-center justify-content-evenly px-0">
+                        <div class="col-sm-4 px-0 text-center">
+                            <img class="image logo-img" src="img/svg/owp-logo-horizontal-2color.svg" style="width: 100%;"><br>
+                            <p>Common</p>
+                        </div>
+                        <div class="col-sm-4 px-0 text-center">
+                            <img class="image logo-img" src="img/svg/owp-logo-abbreviated-horizontal-2color.svg"><br>
+                            <p>Abbreviated</p>
+                        </div>
+                        <div class="col-sm-4 px-0 text-center">
+                            <img class="image logo-img" src="img/svg/owp-symbol-2color.svg"><br>
+                            <p>Icon/Symbol</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="row bg-body-row" id="colors">
+                    <h2 class="txt-drk-teal">Colors</h2>
+                        <div class="col justify-content-between" id="color-col">
+                            <div class="card" id="color-card-m">
+                                <div class="square" style="background-color:#004750;">
+                                    <h5 class="card-title">Dark Teal</h5>
+                                </div>
+                                <div class="card-body color-card-btn">
+                                    <p>HEX: #004750&emsp;RGB: 0, 71, 80<br>.bg-drk-teal</p>
+                                </div>
+                            </div>
+                            <div class="card" id="color-card-m">
+                                <div class="square" style="background-color:#007C8A;">
+                                    <h5 class="card-title">Teal</h5>
+                                </div>
+                                <div class="card-body color-card-btn">
+                                    <p>HEX: #007C8A&emsp;RGB: 0, 124, 138<br>.bg-teal</p>
+                                </div>
+                            </div>
+                            <div class="card" id="color-card-m">
+                                <div class="square" style="background-color:#00A5B5;">
+                                    <h5 class="card-title">Light Teal</h5>
+                                </div>
+                                <div class="card-body color-card-btn">
+                                    <p>HEX: #00A5B5&emsp;RGB: 0, 165, 181<br>.bg-lt-teal</p>
+                                </div>
+                            </div>
+                            <div class="card" id="color-card-m">
+                                <div class="square" style="background-color:#6DBE4B;">
+                                    <h5 class="card-title">Light Green</h5>
+                                </div>
+                                <div class="card-body color-card-btn">
+                                    <p>HEX: #6DBE4B&emsp;RGB: 109, 190, 75<br>.bg-lt-green</p>
+                                </div>
+                            </div>
+                            <div class="card" id="color-card-m">
+                                <div class="square" style="background-color: #737373;">
+                                    <h5 class="card-title">Gray 70</h5>
+                                </div>
+                                <div class="card-body color-card-btn">
+                                    <p>HEX: #737373&emsp;RGB: 115, 115, 115<br>.bg-gray70</p>
+                                </div>
+                            </div>
+                            <div class="card" id="color-card-m">
+                                <div class="square" style="background-color:#A3A3A3;">
+                                    <h5 class="card-title">Gray 50</h5>
+                                </div>
+                                <div class="card-body color-card-btn">
+                                    <p>HEX: #A3A3A3&emsp;RGB: 163, 163, 163<br>.bg-gray50</p>
+                                </div>
+                            </div>
+                            <div class="card" id="color-card-m">
+                                <div class="square" style="background-color:#E5E5E5;">
+                                    <h5 class="card-title">Gray 30</h5>
+                                </div>
+                                <div class="card-body color-card-btn">
+                                    <p>HEX: #E5E5E5&emsp;RGB: 229, 229, 229<br>.bg-gray30</p>
+                                </div>
+                            </div>
+                            <div class="card" id="color-card-m">
+                                <div class="square" style="background-color:#F5F5F5;">
+                                    <h5 class="card-title" style="color:#9E9E9E;">Gray 15</h5>
+                                </div>
+                                <div class="card-body color-card-btn">
+                                    <p>HEX: #F5F5F5&emsp;RGB: 245, 245, 245<br>.bg-gray15</p>
+                                </div>
+                            </div>
+                            <div class="card" id="color-card-m">
+                                <div class="square" style="background-color: #D97A27;">
+                                    <h5 class="card-title">Orange</h5>
+                                </div>
+                                <div class="card-body color-card-btn">
+                                    <p>HEX: #D97A27&emsp;RGB: 217, 122, 39<br>.bg-orange</p>
+                                </div>
+                            </div>
+                            <div class="card" id="color-card-m">
+                                <div class="square" style="background-color:#9F3323;">
+                                    <h5 class="card-title">Red</h5>
+                                </div>
+                                <div class="card-body color-card-btn">
+                                    <p>HEX: #9F3323&emsp;RGB: 159, 51, 35<br>.bg-red</p>
+                                </div>
+                            </div>
+                            <div class="card" id="color-card-m">
+                                <div class="square" style="background-color:#262626;">
+                                    <h5 class="card-title">Black</h5>
+                                </div>
+                                <div class="card-body color-card-btn">
+                                    <p>HEX: #262626&emsp;RGB: 38, 38, 38<br>.bg-bk</p>
+                                </div>
+                            </div>
+                            <div class="card" id="color-card-m">
+                                <div class="square" style="background-color:white; border: solid 1px #9E9E9E;">
+                                    <h5 class="card-title" style="color: #9E9E9E;">White</h5>
+                                </div>
+                                <div class="card-body color-card-btn">
+                                    <p>HEX: #9E9E9E&emsp;RGB: 255, 255, 255<br>.bg-white</p>
+                                </div>
+                            </div>
+                        </div>
+                        <hr><br>
+                        <div class="col justify-content-between" id="color-col">
+                            <div class="card" id="color-card-txt">
+                                <br><h5 class="txt-drk-teal">.txt-drk-teal</h5><br>
+                            </div>
+                            <div class="card" id="color-card-txt">
+                                <br><h5 class="txt-teal">.txt-teal</h5><br>
+                            </div>
+                            <div class="card" id="color-card-txt">
+                                <br><h5 class="txt-lt-teal">.txt-lt-teal</h5><br>
+                            </div>
+                            <div class="card" id="color-card-txt">
+                                <br><h5 class="txt-lt-green">.txt-lt-green</h5><br>
+                            </div>
+                            <div class="card" id="color-card-txt">
+                                <br><h5 class="txt-gray70">.txt-gray70</h5><br>
+                            </div>
+                            <div class="card" id="color-card-txt">
+                                <br><h5 class="txt-gray50">.txt-gray50</h5><br>
+                            </div>
+                            <div class="card" id="color-card-txt">
+                                <br><h5 class="txt-gray30">.txt-gray30</h5><br>
+                            </div>
+                            <div class="card" id="color-card-txt">
+                                <br><h5 class="txt-gray15">.txt-gray15</h5><br>
+                            </div>
+                            <div class="card" id="color-card-txt">
+                                <br><h5 class="txt-orange">.txt-orange</h5><br>
+                            </div>
+                            <div class="card" id="color-card-txt">
+                                <br><h5 class="txt-red">.txt-red</h5><br>
+                            </div>
+                            <div class="card" id="color-card-txt">
+                                <br><h5 class="txt-black">.txt-black</h5><br>
+                            </div>
+                            <div class="card bg-gray50" id="color-card-txt">
+                                <br><h5 class="txt-white">.txt-white</h5><br>
+                            </div>
+                        </div>
+                </div>
+                <div class="row bg-body-row justify-content-evenly" id="type">
+                    <h2 class="txt-drk-teal">Typography</h2>
+                    <div class="row align-items-center">
+                        <div class="col-sm-4 py-3">
+                            <h1 class="card-title txt-gray70" style="margin: 0 !important;">Roboto</h1>
+                        </div>
+                        <div class="col-sm-2 py-3">
+                            <p class="card-text">Font Family</p>
+                        </div>
+                        <div class="col-sm-6 py-3">
+                            <p class="card-text">font-family: "Roboto", Arial, Helvetica, sans-serif;</p>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row align-items-center">
+                        <div class="col-sm-4">
+                            <h1 class="card-title txt-gray70" style="margin: 0 !important;">H1 Header</h1>
+                        </div>
+                        <div class="col-sm-2 py-3">
+                            <p class="card-text">Page Heading</p>
+                            <p class="card-text">To be used for the main heading or title of a page.</p>
+                        </div>
+                        <div class="col-sm-6 py-3">
+                            <p class="card-text">
+                                font-size: 40px;&ensp;
+                                font-weight: 700;&ensp;
+                                line-height: 46px;&ensp;
+                                margin-bottom: 20px;
+                            </p>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row align-items-center">
+                        <div class="col-sm-4">
+                            <h2 class="card-title txt-gray70" style="margin: 0 !important;">H2 Header</h2>
+                        </div>
+                        <div class="col-sm-2 py-3">
+                            <p class="card-text">Page Heading 2/ Modal</p>
+                            <p class="card-text">Used for the main heading or title of a page when there are 2 or more levels.
+                                Used for the main heading of a modal.
+                            </p>
+                        </div>
+                        <div class="col-sm-6 py-3">
+                            <p class="card-text">
+                                font-size: 32px;&ensp;
+                                font-weight: 700;&ensp;
+                                line-height: 38px;&ensp;
+                                margin-bottom: 20px;
+                            </p>
+                        </div>
+                    </div>    
+                    <hr>
+                    <div class="row align-items-center">
+                        <div class="col-sm-4">
+                            <h3 class="card-title txt-gray70" style="margin: 0 !important;">H3 Header</h3>
+                        </div>
+                        <div class="col-sm-2 py-3">
+                            <p class="card-text">Section Title</p>
+                            <p class="card-text">Used for titles of sections within a page. Examples include "Water System Information" or "Key Personnel" within the main water system page.</p>
+                        </div>
+                        <div class="col-sm-6 py-3">
+                            <p class="card-text">
+                                font-size: 28px;&ensp;font-weight: 700;&ensp;line-height: 34px;&ensp;
+                                margin-bottom: 20px;
+                            </p>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row align-items-center">
+                        <div class="col-sm-4">
+                            <h4 class="card-title txt-gray70" style="margin: 0 !important;">H4 Header</h4>
+                        </div>
+                        <div class="col-sm-2 py-3">
+                            <p class="card-text">Subsection Title</p>
+                            <p class="card-text">Used for subsection titles. These are sections like "Main Phone" or "Address" within the "Water System Information" section.</p>
+                        </div>
+                        <div class="col-sm-6 py-3">
+                            <p class="card-text">
+                                font-size: 24px;&ensp;font-weight: 700;&ensp;line-height: 30px;&ensp;
+                                margin-bottom: 20px;
+                            </p>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row align-items-center">
+                        <div class="col-sm-4">
+                            <h5 class="card-title txt-gray70" style="margin: 0 !important;">H5 Header</h5>
+                        </div>
+                        <div class="col-sm-2 py-3">
+                            <p class="card-text">Subsection Title</p>
+                            <p class="card-text">Used for subsection titles. These are sections like "Main Phone" or "Address" within the "Water System Information" section.</p>
+                        </div>
+                        <div class="col-sm-6 py-3">
+                            <p class="card-text">
+                                font-size: 20px;&ensp;font-weight: 600;&ensp;line-height: 26px;&ensp;
+                                margin-bottom: 12px;
+                            </p>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row align-items-center">
+                        <div class="col-sm-4">
+                            <p class="card-title text-lg" style="margin: 0 !important;">Text Large</p>
+                        </div>
+                        <div class="col-sm-2 py-3">
+                            <p class="card-text">Public Pages/ Modal</p>
+                            <p class="card-text">Used for text on modals or body text on public facing pages to increase readability.</p>
+                        </div>
+                        <div class="col-sm-6 py-3">
+                            <p class="card-text">
+                                <b>.text-lg</b><br>
+                                font-size: 19px;&ensp;line-height: 25px;&ensp;font-weight: 500;
+                            </p>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row align-items-center">
+                        <div class="col-sm-4">
+                            <p class="card-title text-md" style="margin: 0 !important;">Text Medium</p>
+                        </div>
+                        <div class="col-sm-2 py-3">
+                            <p class="card-text">Body/General</p>
+                            <p class="card-text">For main body text on most pages.</p>
+                        </div>
+                        <div class="col-sm-6 py-3">
+                            <p class="card-text">
+                                <b>.text-md</b><br>
+                                font-size: 16px;&ensp;line-height: 22px;&ensp;font-weight: 500;
+                            </p>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row align-items-center">
+                        <div class="col-sm-4">
+                            <p class="card-title text-sm" style="margin: 0 !important;">Text Small</p>
+                        </div>
+                        <div class="col-sm-2 py-3">
+                            <p class="card-text">Explanatory Text/ Buttons</p>
+                            <p class="card-text">For text that is explanatory or lower in hierarchy to the main text. For most regular buttons.</p>
+                        </div>
+                        <div class="col-sm-6 py-3">
+                            <p class="card-text">
+                                <b>.text-sm</b><br>
+                                font-size: 13px;&ensp;line-height: 18px;&ensp;font-weight: 500;
+                            </p>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row align-items-center">
+                        <div class="col-sm-4">
+                            <p class="card-title body-md text-gray-50" style="margin: 0 !important;">Uneditable Text</p>
+                        </div>
+                        <div class="col-sm-2 py-3">
+                            <p class="card-text">Fixed/Disabled Fields</p>
+                            <p class="card-text">For text that is uneditable or disabled.</p>
+                        </div>
+                        <div class="col-sm-6 py-3">
+                            <p class="card-text">
+                                <b>.text-gray-50</b><br>
+                                color: #A3A3A3;
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="row bg-body-row justify-content-evenly" id="bttns">
+                    <h2 class="txt-drk-teal">Buttons & Links</h2>
+                    <div class="row align-items-center">
+                        <div class="col-sm-4 py-3">
+                            <div class="card" id="side-nav-bttn">
+                                <div class="side-nav-samp" style="background-color:#004750;">
+                                    <a class="card-title body-md m-nav-link header5" style="margin: 0 !important;">Top Menu</a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-sm-2">
+                            <p class="card-text"><b>Main Nav</b><br>
+                            Look and style of page links in the main navigation menu.
+                            </p>
+                        </div>
+                        <div class="col-sm-6 py-3">
+                            <p class="card-text">
+                                <b>Menu Item</b><br>
+                                background-color: #004750;&ensp;color: White;&ensp;font-size:16px;&ensp;font-weight: 500;<br>
+                                <b>On hover:</b> color: #00A5B5;<br><br>
+                            </p>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row align-items-center">
+                        <div class="col-sm-4 py-3">
+                            <a class="card-title txt-lg link-ext" style="margin: 0 !important;">External Links</a>
+                        </div>
+                        <div class="col-sm-2">
+                            <p class="card-text"><b>External Links</b><br>
+                            Look and style of links that go to another page or a page out of the main site.
+                            </p>
+                        </div>
+                        <div class="col-sm-6 py-3">
+                            <p class="card-text">
+                                <b>.link-ext</b><br>
+                                color: #737373;&ensp;font-weight: 700;&ensp;text-decoration: none;<br>
+                                <b>On hover:</b> color: #6DBE4B;&ensp;text-decoration: underline;<br><br>
+                            </p>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row align-items-center">
+                        <div class="col-sm-4 py-3">
+                            <button type="button" class="btn btn-primary">Save</button>&emsp;
+                            <button type="button" class="btn btn-primary-sm">Save</button>
+                        </div>
+                        <div class="col-sm-2 py-3">
+                            <p class="card-text"><b>Primary</b><br>
+                            Primary actions/Call to action. Used to grab users attention towards a desired action.
+                            </p>
+                        </div>
+                        <div class="col-sm-6 py-3">
+                            <p class="card-text">
+                                <b>.btn-primary</b><br>
+                                border-radius: 980px;&ensp;background-color: #00A5B5;&ensp;border: none;&ensp;margin: 0 5px;&ensp;
+                                height: 40px;&ensp;width: 120px;&ensp;font-size: 14px;&ensp;font-weight: 500;&ensp;letter-spacing: .02rem;<br>
+                                <b>On hover:</b> color: #007C8A;<br><br>
+                                <b>.btn-primary-sm</b><br>
+                                border-radius: 980px;&ensp;background-color: #00A5B5;&ensp;border: none;&ensp;margin: 0 5px;&ensp;
+                                height: 30px;&ensp;width: 80px;&ensp;font-size: 13px;&ensp;font-weight: 500;&ensp;letter-spacing: .02rem;<br>
+                                <b>On hover:</b> color: #007C8A;
+                            </p>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row align-items-center">
+                        <div class="col-sm-4 py-3">
+                            <button type="button" class="btn btn-secondary">Secondary</button>&emsp;
+                            <button type="button" class="btn btn-secondary-sm">Clear All</button>
+                        </div>
+                        <div class="col-sm-2">
+                            <p class="card-text"><b>Secondary</b><br>
+                            Outline button. For secondary options/info. Important, but not the primary action.  
+                            </p>
+                        </div>
+                        <div class="col-sm-6 py-3">
+                            <p class="card-text">
+                                <b>.btn-secondary</b><br>
+                                border-radius: 980px;&ensp;color: #737373;&ensp;background-color: #FFFFFF;&ensp;border: 1px solid #737373;&ensp;margin: 0 5px;&ensp;
+                                height: 40px;&ensp;width: 120px;&ensp;font-size: 14px;&ensp;font-weight: 500;&ensp;letter-spacing: .02rem;<br>
+                                <b>On hover:</b> color: #FFFFFF;&ensp;background-color: #737373;<br><br>
+                                <b>.btn-secondary-sm</b><br>
+                                border-radius: 980px;&ensp;color: #737373;&ensp;background-color: #FFFFFF;&ensp;border: 1px solid #737373;&ensp;padding: 5px 12px;&ensp;margin: 0 5px;&ensp;
+                                height: 30px;&ensp;width: 90px;&ensp;font-size: 13px;&ensp;font-weight: 500;&ensp;letter-spacing: .02rem;<br>
+                                <b>On hover:</b> color: #FFFFFF;&ensp;background-color: #737373;
+                            </p>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row align-items-center">
+                        <div class="col-sm-4 py-3">
+                            <button type="button" class="btn btn-primary-disabled" disabled>Disabled</button>
+                        </div>
+                        <div class="col-sm-2">
+                            <p class="card-text"><b>Disabled</b><br>
+                            Used for disabled buttons.
+                            </p>
+                        </div>
+                        <div class="col-sm-6 py-3">
+                            <p class="card-text">
+                                <b>.btn-primary-disabled</b><br>
+                                border-radius: 980px;&ensp;background-color: #F5F5F5;&ensp;border: none;&ensp;margin: 0 5px;&ensp;
+                                height: 40px;&ensp;width: 120px;&ensp;font-size: 14px;&ensp;font-weight: 500;&ensp;letter-spacing: .02rem;&ensp;color: #A3A3A3;
+                            </p>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row align-items-center">
+                        <div class="col-sm-4 py-3">
+                            <button type="button" class="btn btn-texted">Verify Address</button>
+                            <button type="button" class="btn btn-texted-gray">Same as Physical</button>
+                        </div>
+                        <div class="col-sm-2">
+                            <p class="card-text"><b>Texted</b><br>
+                            Used for simple actions that don't require attention. Styles are specific to these examples only, used in address form fields. 
+                            </p>
+                        </div>
+                        <div class="col-sm-6 py-3">
+                            <p class="card-text">
+                                <b>.btn-texted</b><br>
+                                border-radius: 980px;&ensp;color: #00A5B5;&ensp;border: none;&ensp;margin: 0 5px;&ensp;
+                                height: 30px;&ensp;padding: 0px 16px;&ensp;font-size: 14px;&ensp;font-weight: 500;&ensp;letter-spacing: .02rem;<br>
+                                <b>On hover:</b> background-color: rgba(33,177,171,.125);<br><br>
+                                <b>.btn-texted-gray</b><br>
+                                border-radius: 980px;&ensp;color: #737373;&ensp;border: none;&ensp;margin: 0 5px;&ensp;
+                                height: 30px;&ensp;padding: 0px 16px;&ensp;font-size: 14px;&ensp;font-weight: 500;&ensp;letter-spacing: .02rem;<br>
+                                <b>On hover:</b> background-color: #F5F5F5;
+                            </p>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row align-items-center">
+                        <div class="col-sm-4 py-3">
+                            <button type="button" class="btn btn-icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" fill="currentColor" class="bi bi-plus-circle" viewBox="0 0 16 16">
+                                    <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
+                                    <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4"/>
+                                </svg>
+                            </button>
+                            <button type="button" class="btn btn-icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" fill="currentColor" class="bi bi-arrow-right-circle" viewBox="0 0 16 16">
+                                    <path fill-rule="evenodd" d="M1 8a7 7 0 1 0 14 0A7 7 0 0 0 1 8m15 0A8 8 0 1 1 0 8a8 8 0 0 1 16 0M4.5 7.5a.5.5 0 0 0 0 1h5.793l-2.147 2.146a.5.5 0 0 0 .708.708l3-3a.5.5 0 0 0 0-.708l-3-3a.5.5 0 1 0-.708.708L10.293 7.5z"/>
+                                </svg>
+                            </button>
+                            <button type="button" class="btn btn-icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" fill="currentColor" class="bi bi-person-circle" viewBox="0 0 16 16">
+                                    <path d="M11 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0"/>
+                                    <path fill-rule="evenodd" d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8m8-7a7 7 0 0 0-5.468 11.37C3.242 11.226 4.805 10 8 10s4.757 1.225 5.468 2.37A7 7 0 0 0 8 1"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="col-sm-2">
+                            <p class="card-text"><b>Icon Buttons</b><br>
+                            Examples of icon buttons used through out the site.
+                            </p>
+                        </div>
+                        <div class="col-sm-6 py-3">
+                            <p class="card-text">
+                                <b>.btn-icon</b><br>
+                                background-color: white;&ensp;color: #00A5B5;&ensp;margin: 0 5px;&ensp;height: 30px;&ensp;width: 30px;&ensp;
+                                font-weight: 500;&ensp;padding: 0;&ensp;fill: #00A5B5;<br>
+                                <b>On hover:</b> color: #007C8A;&ensp;fill: #007C8A;<br><br>
+                            </p>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row align-items-center">
+                        <div class="col-sm-4 py-3">
+                            <button type="button" class="btn btn-icon-x">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="inherit" height="inherit" fill="currentColor" class="bi bi-x" viewBox="0 0 16 16">
+                                    <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708"/>
+                                  </svg>
+                            </button>
+                        </div>
+                        <div class="col-sm-2">
+                            <p class="card-text"><b>Exit/Close</b><br>
+                            Button used to exit/close a modal window.
+                            </p>
+                        </div>
+                        <div class="col-sm-6 py-3">
+                            <p class="card-text">
+                                <b>.btn-icon-x</b><br>
+                                background-color: none;&ensp;border-radius: 25px;&ensp;color: #737373;&ensp;margin: 0 5px;&ensp;height: 32px;&ensp;
+                                width: 32px;&ensp;font-weight: 500;&ensp;padding: 0;<br>
+                                <b>On hover:</b> background-color: #E5E5E5;&ensp;border-radius: 25px;<br><br>
+                            </p>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row align-items-center">
+                        <div class="col-sm-4 py-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" value="" id="flexCheckDefault">
+                                <label class="form-check-label" for="flexCheckDefault">Checkbox</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" value="" id="flexCheckChecked" checked>
+                                <label class="form-check-label" for="flexCheckChecked">Checked checkbox</label>
+                            </div>
+                        </div>
+                        <div class="col-sm-2">
+                            <p class="card-text">Checkbox</p>
+                        </div>
+                        <div class="col-sm-6 py-3">
+                            <p class="card-text">
+                                <b>.form-check-input:checked</b><br>
+                                background-color: #00A5B5;&ensp;border-color: #00A5B5;<br>
+                            </p>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row align-items-center">
+                        <div class="col-sm-4 py-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="flexRadioDefault" id="flexRadioDefault1">
+                                <label class="form-check-label" for="flexRadioDefault1">Radio</label>
+                              </div>
+                              <div class="form-check">
+                                <input class="form-check-input" type="radio" name="flexRadioDefault" id="flexRadioDefault2" checked>
+                                <label class="form-check-label" for="flexRadioDefault2">Checked radio</label>
+                              </div>
+                        </div>
+                        <div class="col-sm-2">
+                            <p class="card-text">Radio</p>
+                        </div>
+                        <div class="col-sm-6 py-3">
+                            <p class="card-text">
+                                <b>.form-check-input:checked</b><br>
+                                background-color: #00A5B5;&ensp;border-color: #00A5B5;
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="row bg-body-row justify-content-evenly" id="inputs">
+                    <h2 class="txt-drk-teal">Inputs</h2>
+                    <div class="row align-items-center py-2">
+                        <div class="col-sm-4 py-3">
+                            <label for="exampleInputEmail1" class="form-label">Email address</label>
+                            <input type="email" class="form-control" id="exampleInputEmail1" aria-describedby="emailHelp">
+                        </div>
+                        <div class="col-sm-2">
+                            <p class="card-text">General</p>
+                        </div>
+                        <div class="col-sm-6 py-3">
+                            <p class="card-text">
+                                <b>.form-label</b><br>
+                                padding-left: 4px; color: #737373; font-size: 13px; font-weight: 500;<br><br>
+                                <b>.form-control</b><br>
+                                border-radius: 8px !important; border: 1px solid #737373 !important; color: #737373 !important; margin-bottom: 10px;<br><br>
+                                <b>.form-control:focus</b><br>
+                                border-color: #00A5B5 !important; box-shadow: 0 0 0 0.25rem rgba(0,165,181,.125) !important;
+                                <br><br>
+                            </p>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row align-items-center py-2">
+                        <div class="col-sm-4 py-3">
+                            <label for="exampleInputEmail1" class="form-label">Disabled Input</label>
+                            <input type="text" class="form-control" id="disabledTextInput" placeholder="Disabled input" disabled>
+                        </div>
+                        <div class="col-sm-2">
+                            <p class="card-text">Disabled General</p>
+                        </div>
+                        <div class="col-sm-6 py-3">
+                            <p class="card-text">
+                                <b>"Disabled" attribute</b>
+                            </p>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row align-items-center py-2">
+                        <div class="col-sm-4 py-3">
+                            <label for="exampleInputEmail1" class="form-label">Select</label>
+                            <select class="form-select" aria-label="Default select example">
+                                <option selected>Select menu</option>
+                                <option value="1">One</option>
+                                <option value="2">Two</option>
+                                <option value="3">Three</option>
+                            </select>
+                        </div>
+                        <div class="col-sm-2">
+                            <p class="card-text">General Select</p>
+                        </div>
+                        <div class="col-sm-6 py-3">
+                            <p class="card-text">
+                                <b>.form-select</b><br>
+                                border-radius: 8px !important; border: 1px solid #737373 !important; color: #737373 !important;<br><br>
+                                <b>.form-select:focus</b><br>
+                                border-color: #00A5B5 !important; box-shadow: 0 0 0 0.25rem rgba(0,165,181,.125) !important;
+    
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!--
+                <div class="row bg-body-row justify-content-evenly" id="layout">
+                    <h2 class="txt-drk-teal">General Layout</h2>
+                    <div class="row align-items-center justify-content-between px-0">
+                        <div class="col-sm-7 px-0">
+                            <img class="image" src="assets/Margins-Padding.png">
+                        </div>
+                        <div class="col-sm-4 py-3">
+                            <p class="card-text">
+                                <b>Heading</b><br>
+                                Margin-left: 2 rem<br><br>
+                                <b>Section Containers</b><br>
+                                Margin-top: 1.25 rem (First only)<br>
+                                Margin-bottom: 1.25 rem<br>
+                                Padding: 2 rem<br>
+                                Border-radius: 0.75 rem<br>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row bg-body-row justify-content-evenly" id="modals">
+                    <h2 class="txt-drk-teal">Modals</h2>
+                    <div class="row align-items-center justify-content-between px-0">
+                        <div class="col-sm-7 px-0">
+                            <img class="image" src="assets/pfas-modal-notice.png">
+                        </div>
+                        <div class="col-sm-4 py-3">
+                            <p class="card-text">
+                                <b>Simple Modal - Centered</b><br>
+                                H2 Heading<br>Body Text - Text Large<br>Container max-width - 600px<br>Container - Padding: 32px;<br><br>
+                                Used for modals with short and brief messages like notices or acknowledgements.
+                            </p>
+                        </div>
+                    </div>
+                    
+                </div>
+                -->
+                
+            </div>
+        </div>
+        <footer>
+            <div class="container">
+                <div class="row align-items-top justify-content-between">
+                    <div class="col-sm-2 text-center">
+                        <a class="" href="https://www.owp.csus.edu">
+                            <img src="img/svg/owp-logo-abbreviated-horizontal-2color.svg" alt="Office of Water Programs" width="100%" height=""><br>
+                        </a>
+                        <a class="" href="">
+                            <img class="socials" src="img/svg/linked-logo-525252.svg" alt="LinkedIn" width="10%">
+                        </a>
+                        <a class="" href="">
+                            <img class="socials" src="img/svg/x-logo-525252.svg" alt="X" width="10%">
+                        </a>
+                        <a class="" href="">
+                            <img class="socials" src="img/svg/fb-logo-525252.svg" alt="Facebook" width="10%">
+                        </a>
+                        <a class="" href="">
+                            <img class="socials" src="img/svg/ig-logo-525252.svg" alt="Instagram" width="10%">
+                        </a>
+                        <a class="" href="">
+                            <img class="socials" src="img/svg/youtube-logo-525252.svg" alt="YouTube" width="14%">
+                        </a>    
+                    </div>
+                    <div class="col-sm-8 text-start text-sm foot-col">
+                        Office of Water Programs<br>
+                        3020 State University Drive<br>
+                        Modoc Hall Suite 1001<br>
+                        Sacramento, CA 95819<br><br>
+                        916.278.6142<br>
+                        wateroffice@owp.csus.edu<br><br><br>
+                        Copyright © 2025 Office of Water Programs. All Rights Reserved.
+                    </div>
+                    <div class="col-sm-2 text-start text-sm foot-col">
+                        <h4 class="footer-af-section-title">Affiliates</h4>
+                        <ul class="footer-af-col-list">
+                            <li class="footer-af-col-list-item">
+                                <a class="" href="">
+                                    Environmental Finance Center at Sacramento State
+                                </a><br>
+                            </li>
+                            <li class="footer-af-col-list-item">    
+                                <a class="" href="">
+                                    Lead Testing in Child Care Centers
+                                </a><br>
+                            </li>
+                            <li class="footer-af-col-list-item">    
+                                <a class="" href="">
+                                    PFAS Testing
+                                </a>
+                            </li>    
+                        </ul>
+                    </div>
+                    <!--
+                    <div class="col-sm-2 text-start text-sm affiliates">
+                        Affiliates:
+                        <a class="" href="">
+                            <img class="" src="img/svg/efc-logo-short-3color.svg" alt="Environmental Finance Center" width="100%">
+                        </a>
+                    </div>
+                    <div class="col-sm-2 text-center text-sm affiliates">
+                        <a class="" href="">
+                            <img class="af-logo" src="img/svg/ab2370-logo.svg" alt="AB2370 Lead Testing" width="100%">
+                        </a>
+                    </div>
+                    <div class="col-sm-2 text-center text-sm affiliates">
+                        <a class="" href="">
+                            <img class="af-logo" src="img/svg/pfas-hrz-layout-3color.svg" alt="PFAS Testing" width="100%">
+                        </a>
+                    </div>
+                    -->
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>
