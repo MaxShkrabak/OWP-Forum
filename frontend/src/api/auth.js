@@ -37,6 +37,20 @@ export async function verifyEmail(email) {
   return res.data;
 }
 
+/**
+ * Sends data
+ * @param {*} payload 
+ * @returns 
+ */
+export async function registerUser(payload) {
+  const res = await axios.post(
+    `${API}/api/register-new-user`, 
+    payload ,
+    { headers: { "Content-Type": "application/json" } }
+    );
+    return res.data;
+}
+
 export function logout() {
   AuthStatus.value = false;
 }

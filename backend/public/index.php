@@ -50,8 +50,9 @@ $makePdo = function () use ($dsn, $user, $pass): PDO {
     ]);
 };
 
-require __DIR__ . '/../routes/verify-email.php'; // used for checking if email exists
-require __DIR__ . '/../routes/password-auth.php'; // used for password authentication
+require __DIR__ . '/../routes/verify-email.php';      // used for checking if email exists
+require __DIR__ . '/../routes/password-auth.php';     // used for password authentication
+require __DIR__ . '/../routes/register-new-user.php'; // used for registering new user 
 
 // Root
 $app->get('/', function (Request $req, Response $res) {

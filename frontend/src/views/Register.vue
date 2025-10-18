@@ -1,7 +1,8 @@
 <script setup>
+
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { requestOtp } from '@/api/auth';
+import { registerUser } from '@/api/auth';
 
 const router = useRouter();
 const first = ref('');
@@ -12,7 +13,33 @@ const loading = ref(false);
 async function createAccount() {
   if (!first.value || !last.value || !/^\S+@\S+\.\S+$/.test(email.value)) return;
 
-  router.push({ path: '/verify', query: { email: email.value.trim() } });
+  loading.value = true;
+  
+  try {
+    // Load users data into payload for backend
+    const payload = {
+      first: first.value,
+      last: last.value,
+      email: email.value,
+    }
+
+    // Send the data to backend and store repsonse in res
+    const res = await registerUser(payload);
+
+    // User was succesfuly stored in database and routes to OTP page
+    if (res.ok) {
+      router.push({ path: '/verify', query: { email: payload.email } });
+    }
+  } catch (err) {
+    // User email already exists or something else went wrong
+    if (err.response && err.response.data) {
+      alert(err.response.data.message);
+    } else {
+      alert("Something went wrong. Please try again later.");
+    }
+  } finally {
+    loading.value = false;
+  }
 
   /*
   loading.value = true;
