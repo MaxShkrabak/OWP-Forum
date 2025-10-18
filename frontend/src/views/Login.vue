@@ -1,6 +1,8 @@
 <script setup>
 import { ref } from "vue";
 import { useRouter } from "vue-router";
+import axios from "axios";
+import { verifyEmail } from "@/api/auth";
 
 const router = useRouter();
 
@@ -14,19 +16,31 @@ const isValidEmail = (val) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val ?? "");
 async function onSubmit() {
   errorMsg.value = "";
   status.value = "idle";
+
   if (!isValidEmail(email.value)) {
     errorMsg.value = "Please enter a valid email address.";
     status.value = "error";
     return;
   }
-  sending.value = true;
-  try {
-    // TODO: replace with real API call that sends a passcode
-    await new Promise((r) => setTimeout(r, 700));
-    status.value = "sent";
 
-    // ✅ Navigate to verify screen, include the email for convenience
-    router.push({ name: "VerifyPasscode", query: { email: email.value } });
+  sending.value = true;
+
+  try {
+    const data = await verifyEmail(email.value); // calls backend to verify if email exists
+    const exists = data?.emailExists ?? false;  // true if email exists, false otherwise
+
+    // Handles the response from the backend
+    if (data.ok && exists) {
+      status.value = "sent";
+      router.push("/verify");
+    } else if (data.ok && !exists) {
+      status.value = "error";
+      errorMsg.value = "This email has not been registered. Please register first.";
+    } else {
+      status.value = "error";
+      errorMsg.value = "Something went wrong. Please contact the OWP support team or try again"
+    }
+
   } catch (e) {
     status.value = "error";
     errorMsg.value = e?.message || "Something went wrong. Please try again.";
