@@ -77,7 +77,6 @@ export default {
 
 /* Header */
 .csus-bar {
-  width: 100%;
   background: #ffffff;
   color: var(--ink);
   border-bottom: 1px solid #e5e7eb;

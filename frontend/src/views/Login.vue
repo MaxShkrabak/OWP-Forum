@@ -32,7 +32,7 @@ async function onSubmit() {
     // Handles the response from the backend
     if (data.ok && exists) {
       status.value = "sent";
-      router.push("/verify");
+      router.push({ name: "VerifyPasscode", query: { email: email.value } });
     } else if (data.ok && !exists) {
       status.value = "error";
       errorMsg.value = "This email has not been registered. Please register first.";

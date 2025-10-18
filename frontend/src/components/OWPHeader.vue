@@ -4,11 +4,12 @@ import cart from '@/assets/cart.svg'
 
 import { ref, computed } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
+import { AuthStatus } from '@/api/auth'
 
 const route = useRoute()
 
 // auth simulation (replace later with real login state)
-const isAuthenticated = ref(false)
+const isAuthenticated = AuthStatus
 
 const onLoginPage = computed(() => route.path.startsWith('/login'))
 const onRegisterPage = computed(() => route.path.startsWith('/register'))
@@ -61,6 +62,14 @@ const onRegisterPage = computed(() => route.path.startsWith('/register'))
           Create account
         </RouterLink>
 
+        <!--
+        <RouterLink 
+          v-if="!isAuthenticated && !onRegisterPage" 
+          to="/register"
+        >
+          Logout
+        </RouterLink> -->
+        
         <button 
           v-else-if="isAuthenticated" 
           @click="isAuthenticated = false" 
