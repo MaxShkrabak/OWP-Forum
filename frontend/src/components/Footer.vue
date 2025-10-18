@@ -1,7 +1,10 @@
 <script setup>
-import logo from '@/assets/SacState-whitelogo.png'
-import instagram from "@/assets/instagram.png"
-import efcSacState from "@/assets/efc-sac-state.png"
+import logo from '@/assets/img/png/sac-state-whitelogo.png'
+import instagram from "@/assets/img/svg/Instagram-Glyph-White-Logo.wine.svg"
+import efcSacState from "@/assets/img/png/efc-sac-state.png"
+import facebook from "@/assets/img/svg/Facebook-f_Logo-White-Logo.wine.svg"
+import linkedin from "@/assets/img/svg/linked-logo-wht.svg"
+
 </script>
 
 <template>
@@ -31,6 +34,8 @@ import efcSacState from "@/assets/efc-sac-state.png"
           <a href="mailto:wateroffice@owp.csus.edu">wateroffice@owp.csus.edu</a>
         </p>
         <a href="#" class="social-icon">
+          <img :src="facebook" alt="Facebook"/>
+          <img :src="linkedin" alt="LinkedIn"/>
           <img :src="instagram" alt="Instagram" />
         </a>
         <p class="copyright">
@@ -88,7 +93,7 @@ import efcSacState from "@/assets/efc-sac-state.png"
 
 .footer-logo {
   width: 100%;
-  max-width: 140px;
+  max-width: 200px;
 }
 
 .footer-divider {
@@ -113,8 +118,8 @@ a {
 }
 
 .social-icon img {
-  width: 18px;
-  height: 18px;
+  width: 24px;
+  height: 24px;
   margin-top: 0.5em;
 }
 

@@ -1,18 +1,24 @@
 <script setup>
-import owpLogo from '@/assets/owpLogo.svg'
-import cart from '@/assets/cart.svg'
+import owpLogo from '@/assets/img/svg/owp-logo-horizontal-WHT-2color.svg'
+import cart from '@/assets/img/svg/cart.svg'
 
 import { ref, computed } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
-import { AuthStatus } from '@/api/auth'
+import { AuthStatus, logout } from '@/api/auth'
 
 const route = useRoute()
 
 // auth simulation (replace later with real login state)
-const isAuthenticated = AuthStatus
+//const isAuthenticated = AuthStatus
 
 const onLoginPage = computed(() => route.path.startsWith('/login'))
 const onRegisterPage = computed(() => route.path.startsWith('/register'))
+
+const handleLogout = () => {
+      logout();
+    };
+
+
 </script>
 
 <template>
@@ -49,14 +55,14 @@ const onRegisterPage = computed(() => route.path.startsWith('/register'))
       <!-- auth links -->
       <li id="userLogin" class="auth">
         <RouterLink 
-          v-if="!isAuthenticated && !onLoginPage" 
+          v-if="!AuthStatus && !onLoginPage" 
           to="/login"
         >
           Login
         </RouterLink>
 
         <RouterLink 
-          v-if="!isAuthenticated && !onRegisterPage" 
+          v-if="!AuthStatus && !onRegisterPage" 
           to="/register"
         >
           Create account
@@ -70,13 +76,14 @@ const onRegisterPage = computed(() => route.path.startsWith('/register'))
           Logout
         </RouterLink> -->
         
-        <button 
-          v-else-if="isAuthenticated" 
-          @click="isAuthenticated = false" 
-          class="logout"
+        <RouterLink
+          v-else-if="AuthStatus" 
+          @click="handleLogout"
+          class="logout" to="/login" 
         >
+        
           Logout
-        </button>
+      </Routerlink>
       </li>
     </ul>
   </header>

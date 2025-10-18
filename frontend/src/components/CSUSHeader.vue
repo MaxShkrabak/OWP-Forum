@@ -10,42 +10,26 @@
           decoding="async"
         />
       </div>
-
       <!-- Search -->
-      <form class="search" @submit.prevent="goSearch">
-        <input
-          v-model="query"
-          type="search"
-          class="search-box"
-          placeholder="Search..."
-          aria-label="Search Sacramento State"
-        />
-        <button class="icon-btn" type="submit" aria-label="Submit search">
-          <svg viewBox="0 0 24 24" class="icon" aria-hidden="true">
-            <circle
-              cx="11"
-              cy="11"
-              r="7"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            />
-            <path
-              d="M20 20l-4.2-4.2"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-            />
-          </svg>
-        </button>
+      <form class="searchComp" @submit.prevent="goSearch">
+          <input
+            v-model="query"
+            type="search"
+            class="search-box search"
+            placeholder="Search..."
+            aria-label="Search Sacramento State"
+          />
+          <button class="icon-btn" type="submit" aria-label="Submit search">
+          </button>
+          <img src="@/assets/img/svg/search-icon.svg" alt="search" class="icon">
       </form>
+      
     </div>
   </header>
 </template>
 
 <script>
-import defaultLogo from '@/assets/Primary_Horizontal_3_Color_gld_hnd_hires.png'
+import defaultLogo from '@/assets/img/svg/sac-state-logo-3Color.svg'
 
 export default {
   name: 'HeaderCSUS',
@@ -80,18 +64,17 @@ export default {
   background: #ffffff;
   color: var(--ink);
   border-bottom: 1px solid #e5e7eb;
-  height: 70px;
+  height: 71px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 24px;
+  padding-left: 0.3em;
   box-sizing: border-box;
 }
 
 .csus-wrap {
   width: 100%;
   margin: 0;
-  padding: 8px 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -107,36 +90,39 @@ export default {
 }
 .csus-bar .logo {
   height: 55px;
-  width: auto;
-  margin: 8px 0;
 }
 
 /* Search */
+.searchComp {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding-right: 1em;
+}
+
 .search {
   display: flex;
   align-items: center;
   background: #ffffff;
   border: 1.5px solid #ccc;
   border-radius: 6px;
+  margin-right: 3px;
+  height: 39px;
   padding: 2px 8px;
   min-width: 250px;
-  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-.search:focus-within {
-  border-color: var(--csus-green);
-  box-shadow: 0 0 0 2px rgba(4, 57, 39, 0.15);
-}
-
-.search input {
-  border: none;
+.search:focus {
+  box-shadow: 0 0 0 2px rgba(204, 204, 204, 0.22);
+  border-color: rgb(0, 0, 0, .5);
   outline: none;
-  font-size: 0.95rem;
   width: 14rem;
   max-width: 40vw;
-  color: var(--ink);
+  color: rgb(46, 46, 46);
   background: transparent;
+  transition: .2s;
 }
+
 .search input::placeholder {
   color: #9aa2a9;
 }
@@ -156,8 +142,9 @@ export default {
   color: #006633;
 }
 .icon {
-  width: 22px;
-  height: 22px;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
 }
 
 /* Responsive */

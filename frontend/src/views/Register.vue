@@ -47,16 +47,16 @@ async function createAccount() {
 
         <form class="form" @submit.prevent="createAccount">
           <label for="first" class="label">First Name</label>
-          <input id="first" v-model.trim="first" type="text" placeholder="Joe" class="input" />
+          <input id="first" v-model.trim="first" type="text" placeholder="Joe" class="form-label form-control" />
 
           <label for="last" class="label">Last Name</label>
-          <input id="last" v-model.trim="last" type="text" placeholder="Hornet" class="input" />
+          <input id="last" v-model.trim="last" type="text" placeholder="Hornet" class="form-label form-control" />
 
           <div class="label-row">
             <label for="ssn" class="label">Last 4 digits of your SSN/SIN</label>
             <span class="note-inline">(Used for verification only)</span>
           </div>
-          <input id="ssn" type="text" placeholder="1234" maxlength="4" class="input" />
+          <input id="ssn" type="text" placeholder="1234" maxlength="4" class="form-label form-control" />
 
           <div class="label-row">
             <label for="email" class="label">Email Address</label>
@@ -67,7 +67,7 @@ async function createAccount() {
             v-model.trim="email"
             type="email"
             placeholder="joe.hornet@owp.csus.edu"
-            class="input"
+            class="form-label form-control"
           />
 
           <button
@@ -87,7 +87,7 @@ async function createAccount() {
 <style scoped>
 /* === Page Layout === */
 .page {
-  max-width: 900px;
+  max-width: 1300px;
   margin: 0 auto;
   padding: 50px 32px 100px; 
   font-family: "Helvetica Neue", Arial, sans-serif;
@@ -138,8 +138,8 @@ async function createAccount() {
 
 /* === Form === */
 .form {
-  padding: 26px 32px 40px;
   display: flex;
+  padding-top: 2em;
   flex-direction: column;
   width: 100%;
   box-sizing: border-box;
@@ -150,7 +150,6 @@ async function createAccount() {
   font-size: 15px;
   color: #222;
   margin-top: 10px;
-  margin-bottom: 6px;
   display: block;
 }
 
@@ -163,6 +162,12 @@ async function createAccount() {
 }
 
 /* Inputs (smaller height now) */
+
+.form-control {
+  margin: .2em 0em;
+  padding: .8em;
+}
+
 .input {
   width: 100%;
   height: 32px; /* reduced from 38px */

@@ -37,6 +37,10 @@ export async function verifyEmail(email) {
   return res.data;
 }
 
+export function logout() {
+  AuthStatus.value = false;
+}
+
 export function checkAuthStatus() {
   return AuthStatus.value;
 }

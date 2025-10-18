@@ -53,7 +53,7 @@ RouterLink {
 /* Container for forum header */
 .forum-header {
     margin-top: .7em;              /* margin from top header */
-    padding-left: 20%;             /* space between left edge and text */
+    padding-left: 10%;             /* space between left edge and text */
     padding-top: 1em;              /* space between top edge and text */
     padding-bottom: 1em;           /* space between bottom edge and text */
     text-align: left;
