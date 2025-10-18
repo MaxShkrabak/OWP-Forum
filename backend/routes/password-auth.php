@@ -2,7 +2,7 @@
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
-$app->post('/api/password-auth', function(Request $req, Response $res)) use ($makePdo) {
+$app->post('/api/password-auth', function(Request $req, Response $res) use ($makePdo) {
     $data = $req->getParsedBody() ?? [];
     $email = strtolower(trim((string)($data['email'] ?? '')));
     $password = (string)($data['password'] ?? '');
@@ -29,3 +29,4 @@ $app->post('/api/password-auth', function(Request $req, Response $res)) use ($ma
         $res->getBody()->write(json_encode(['ok' => false, 'error' => 'Database error']));
         return $res->withStatus(500)->withHeader('Content-Type', 'application/json');
     }
+});
