@@ -25,8 +25,9 @@ export async function verifyOtp(email, code) {
 /**
  * Checks if users email exists in the backend database.
  * The post request is sent to /api/verify-email with the users email
+ * 
  * @param {string} email - The email user is trying to sign-in with
- * @returns the status of the request and if email exists, for example { ok: true, emailExists: true}
+ * @returns the result of the request and if email exists, for example { ok: true, emailExists: true}
  */
 export async function verifyEmail(email) {
   const res = await axios.post(
@@ -38,9 +39,11 @@ export async function verifyEmail(email) {
 }
 
 /**
- * Sends data
- * @param {*} payload 
- * @returns 
+ * Sends users registration data to the backend
+ * If email doesn't already exist in database, stores the new user in database
+ * 
+ * @param {*} payload is the users data to store in database for registration {first,last,email}
+ * @returns the result of the request
  */
 export async function registerUser(payload) {
   const res = await axios.post(
