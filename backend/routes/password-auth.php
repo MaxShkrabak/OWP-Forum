@@ -26,7 +26,7 @@ $app->post('/auth/login', function(Request $req, Response $res) use ($makePdo) {
        return $res->withHeader('Content-Type', 'application/json');
     }
 
-    $expectedOtp = $_ENV['GLOBAL_OTP'] ?? '' '123456';
+    $expectedOtp = $_ENV['GLOBAL_OTP'] ?? '123456';
     if(!hash_equals($expectedOtp, $otp)) {
         $res->getBody()->write(json_encode(['ok' => false, 'error' => 'Invalid credentials']));
         return $res->withHeader('Content-Type', 'application/json');
@@ -34,5 +34,11 @@ $app->post('/auth/login', function(Request $req, Response $res) use ($makePdo) {
     if((int)($user['EmailVerified'] ?? 0) === 0) {
         $pdo->prepare('UPDATE dbo.Users SET EmailVerified = 1, LastLogin=SYSDATETIME() WHERE User_ID = :uid')
             ->execute([':uid' => $user['User_ID']]);
+    } else {
+        $pdo->prepare('UPDATE dbo.Users SET LastLogin=SYSDATETIME() WHERE User_ID = :uid')
+            ->execute([':uid' => $user['User_ID']]);
     }
+
+    $res->getBody()->write(json_encode(['ok' => true]));
+    return $res->withHeader('Content-Type', 'application/json');
 });
