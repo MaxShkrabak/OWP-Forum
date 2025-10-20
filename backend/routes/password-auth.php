@@ -2,31 +2,37 @@
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
-$app->post('/api/password-auth', function(Request $req, Response $res) use ($makePdo) {
+$app->post('/auth/login', function(Request $req, Response $res) use ($makePdo) {
     $data = $req->getParsedBody() ?? [];
     $email = strtolower(trim((string)($data['email'] ?? '')));
-    $password = (string)($data['password'] ?? '');
+    $otp = trim((string)($data['otp'] ?? ''));
 
-    if($email === ''|| !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    if($email =='' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $res->getBody()->write(json_encode(['ok' => false, 'error' => 'Valid email required']));
         return $res->withStatus(400)->withHeader('Content-Type', 'application/json');
     }
-    if ($password === '') {
+    if ($otp === '') {
         $res->getBody()->write(json_encode(['ok' => false, 'error' => 'Password required']));
         return $res->withStatus(400)->withHeader('Content-Type', 'application/json');
     }
 
-    try{
-        $pdo = $makePdo();
-        $stmt = $pdo->prepare('SELECT password_hash FROM dbo.Users WHERE Email = :email');
-        $stmt->execute([':email' => $email]);
-        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    $pdo = $makePdo();
+    $stmt = $pdo->prepare('SELECT User_ID, EmailVerified FROM dbo.Users WHERE Email = :email');
+    $stmt->execute([':email' => $email]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    if(!$user){
+       $res->getBody()->write(json_encode(['ok' => false, 'error' => 'Invalid credentials']));
+       return $res->withHeader('Content-Type', 'application/json');
+    }
 
-        $ok = $row && password_verify($password, $row['password_hash'] ?? '');
-        $res->getBody()->write(json_encode(['ok' => $ok, 'error' => $ok ? null : 'Invalid credentials']));
+    $expectedOtp = $_ENV['GLOBAL_OTP'] ?? '' '123456';
+    if(!hash_equals($expectedOtp, $otp)) {
+        $res->getBody()->write(json_encode(['ok' => false, 'error' => 'Invalid credentials']));
         return $res->withHeader('Content-Type', 'application/json');
-    } catch (PDOException $e) {
-        $res->getBody()->write(json_encode(['ok' => false, 'error' => 'Database error']));
-        return $res->withStatus(500)->withHeader('Content-Type', 'application/json');
+    }
+    if((int)($user['EmailVerified'] ?? 0) === 0) {
+        $pdo->prepare('UPDATE dbo.Users SET EmailVerified = 1, LastLogin=SYSDATETIME() WHERE User_ID = :uid')
+            ->execute([':uid' => $user['User_ID']]);
     }
 });
