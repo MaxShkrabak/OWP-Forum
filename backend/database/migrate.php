@@ -2,11 +2,17 @@
 
 declare(strict_types=1);
 
+require __DIR__ . '/../vendor/autoload.php';
+
+// Load the .env data
+$dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/../');
+$dotenv->load();
+
 // ---------- CONFIG ----------
-$server   = getenv('DB_SERVER')   ?: 'localhost';            
-$database = getenv('DB_DATABASE') ?: 'testdb';
-$user     = getenv('DB_USER')     ?: 'sa';
-$pass     = getenv('DB_PASS')     ?: 'yourStrong(!)Password';
+$server   = $_ENV['DB_SERVER'];           // Docker-mapped or local
+$database = $_ENV['DB_DATABASE'];         // name of the database
+$user     = $_ENV['DB_USER'];             // db username
+$pass     = $_ENV['DB_PASS'];             // db password
 $migrationsDir = __DIR__ . '/migrations';
 
 // ---------- CONNECT ----------
