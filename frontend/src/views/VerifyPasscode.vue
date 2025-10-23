@@ -1,17 +1,19 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { useRoute } from 'vue-router';
-import { requestOtp, verifyOtp } from '@/api/auth';
+import { useRouter } from 'vue-router';
+import { verifyOtp } from '@/api/auth';
 
 const route = useRoute();
+const router = useRouter();
 const email = ref(String(route.query.email || ''));
-const code = ref('');
+const otp = ref('');
 
 const loading = ref(false);
 const message = ref('');
 const errorMsg = ref('');
 
-const canSubmit = computed(() => code.value.trim().length === 6 && !!email.value);
+const canSubmit = computed(() => otp.value.trim().length === 6 && !!email.value);
 
 const secondsLeft = ref(0);
 let timerId = null;
@@ -25,6 +27,10 @@ function startTimer(s = 60) {
   }, 1000);
 }
 
+/**
+ * TODO: Implement or remove this
+ * We should implement this if we switch to random generated passcode
+ * 
 async function onResend() {
   errorMsg.value = '';
   message.value = '';
@@ -47,6 +53,7 @@ async function onResend() {
     loading.value = false;
   }
 }
+*/
 
 async function onSubmit() {
   errorMsg.value = '';
@@ -57,10 +64,12 @@ async function onSubmit() {
   }
   try {
     loading.value = true;
-    const res = await verifyOtp(email.value.trim(), code.value.trim());
+    const res = await verifyOtp(email.value.trim(), otp.value.trim());
+    
+    // User entered the correct passcode
     if (res?.ok) {
+      router.push({ name: "ForumHome" });
       message.value = 'Verified! You are now signed in.';
-      if (res.token) localStorage.setItem('token', res.token);
     } else {
       errorMsg.value = res?.message || 'Incorrect or expired code.';
     }
@@ -82,14 +91,14 @@ async function onSubmit() {
         <form class="form" @submit.prevent="onSubmit">
           <label class="label" for="code">Passcode</label>
           <input
-            id="code"
+            id="otp"
             class="input"
             type="text"
             maxlength="6"
             placeholder="123456"
             inputmode="numeric"
             autocomplete="one-time-code"
-            v-model.trim="code"
+            v-model.trim="otp"
           />
 
           <button class="btn" type="submit" :disabled="!canSubmit || loading">

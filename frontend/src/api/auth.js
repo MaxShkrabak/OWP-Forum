@@ -2,31 +2,27 @@ import axios from "axios";
 
 const API = import.meta.env.VITE_API_BASE || 'http://localhost:8080'; // Port 8080 for php
 
-const AuthStatus = false
-
-export async function requestOtp(email) {
-  const res = await fetch(`${API}/auth/request-otp`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email })
-  });
-  return res.json();
-}
-
-export async function verifyOtp(email, code) {
-  const res = await fetch(`${API}/auth/verify-otp`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, code })
-  });
-  return res.json();
+/**
+ * Sends OTP verification request to the backend for given user email
+ * 
+ * @param {string} email - The users email address
+ * @param {string} otp - The global OTP
+ * @returns the result of the request 
+ */
+export async function verifyOtp(email, otp) {
+  const res = await axios.post(
+    `${API}/api/login`,
+    { email, otp },
+    { headers: { "Content-Type": "application/json" }}
+  );
+  return res.data;
 }
 
 /**
  * Checks if users email exists in the backend database.
  * The post request is sent to /api/verify-email with the users email
  * 
- * @param {string} email - The email user is trying to sign-in with
+ * @param {string} email - The email address user is trying to sign-in with
  * @returns the result of the request and if email exists, for example { ok: true, emailExists: true}
  */
 export async function verifyEmail(email) {
