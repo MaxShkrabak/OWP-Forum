@@ -2,6 +2,17 @@ import axios from "axios";
 
 const API = import.meta.env.VITE_API_BASE || 'http://localhost:8080'; // Port 8080 for php
 
+const AuthStatus = false
+
+export async function requestOtp(email) {
+  const res = await fetch(`${API}/auth/request-otp`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email })
+  });
+  return res.json();
+}
+
 /**
  * Sends OTP verification request to the backend for given user email
  * 
