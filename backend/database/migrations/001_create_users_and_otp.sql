@@ -28,6 +28,19 @@ BEGIN
     ON dbo.OTP_Codes(User_ID, Is_Used, Expires_At);
 END;
 
+-- Table for storing user sessions
+IF OBJECT_ID('dbo.Sessions', 'U') IS NULL
+BEGIN
+  CREATE TABLE dbo.Sessions (
+    Session_ID   INT IDENTITY(1,1) PRIMARY KEY,
+    User_ID      INT NOT NULL FOREIGN KEY REFERENCES dbo.Users(User_ID),
+    Token_Hash   CHAR(64) NOT NULL,
+    Expires      DATETIME2 NOT NULL
+  );
+
+  CREATE UNIQUE INDEX IX_Sessions_TokenHash ON dbo.Sessions(Token_Hash);
+END;
+
 -- Optional: track schema versions for migrate.php
 IF OBJECT_ID('dbo.SchemaVersions', 'U') IS NULL
 BEGIN
