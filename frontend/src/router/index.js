@@ -30,12 +30,10 @@
           const res = await axios.get(`${API}/api/me`, { withCredentials: true });
           if (res.data.ok) {
             next(); // user is logged in, route to page
-          } else {
-            next({ name: '/', query: { redirect: to.fullPath } }); // user is NOT logged in, route to home
           }
         } catch (e) {
-          // Backend is down or some other issue, redirect to home
-          next({ name: '/', query: { redirect: to.fullPath } });
+          // User isn't logged in or some other issue, route to login page
+          next('/login');
         }
       } else {
         next(); // no auth is needed for that page
