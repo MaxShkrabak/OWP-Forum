@@ -79,9 +79,9 @@ async function logout() {
 
       <!-- auth links -->
       <li id="userLogin" class="auth">
-        <tempalte v-if="isLoggedIn">
+        <template v-if="isLoggedIn">
           <button class="logout" @click="logout">Logout</button>
-        </tempalte>
+        </template>
         <template v-else>
           <RouterLink v-if="!onLoginPage" to="/login">Login</RouterLink>
           <RouterLink v-if="!onRegisterPage" to="/register">Create Account</RouterLink>
