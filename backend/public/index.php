@@ -38,11 +38,14 @@ $makePdo = function () use ($dsn, $user, $pass): PDO {
 
 // Middleware
 $app->add(require __DIR__ . '/../middleware/cors.php');
+$app->add(require __DIR__ . '/../middleware/session-auth.php');
 
 // Routes
 require __DIR__ . '/../routes/verify-email.php';      // Checks if email exists
 require __DIR__ . '/../routes/password-auth.php';     // Password authentication
 require __DIR__ . '/../routes/register-new-user.php'; // Registering new user
+require __DIR__ . '/../routes/logout.php';            // Logs user out and clears session
+require __DIR__ . '/../routes/me.php';                // User details for auth
 
 // Root
 $app->get('/', function (Request $req, Response $res) {
