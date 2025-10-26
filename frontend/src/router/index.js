@@ -6,12 +6,14 @@
     import ForumUserProfile from '../views/UserProfile.vue';
     import axios from 'axios';
 
+    const API = import.meta.env.VITE_API_BASE || 'http://localhost:8080';
+
     const routes = [
       { path: '/', name: 'ForumHome', component: HomePage },
       { path: '/login', name: 'Log in', component: LoginPage },
-
       { path: '/register', name: 'Register', component: RegistrationPage },
       { path: '/verify', name: 'VerifyPasscode', component: VerifyPasscode, props: (route) => ({ email: route.query.email || '' }) },
+      
       { path: '/profile', name: 'User Profile', component: ForumUserProfile, meta: { requiresAuth: true } },
     ];
 

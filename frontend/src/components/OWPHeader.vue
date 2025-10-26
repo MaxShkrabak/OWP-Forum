@@ -1,19 +1,49 @@
 <script setup>
-import owpLogo from '@/assets/img/svg/owp-logo-horizontal-WHT-2color.svg'
-import cart from '@/assets/img/svg/cart.svg'
+import owpLogo from '@/assets/img/svg/owp-logo-horizontal-WHT-2color.svg';
+import cart from '@/assets/img/svg/cart.svg';
+import { useRoute, useRouter, RouterLink } from 'vue-router';
+import { ref, computed, onMounted, watch } from 'vue';
+import axios from 'axios';
 
-import { ref, computed } from 'vue'
-import { RouterLink, useRoute } from 'vue-router'
+const route = useRoute();
+const router = useRouter();
 
-const route = useRoute()
+const API = import.meta.env.VITE_API_BASE || 'http://localhost:8080';
+const isLoggedIn = ref(false);
 
-const onLoginPage = computed(() => route.path.startsWith('/login'))
-const onRegisterPage = computed(() => route.path.startsWith('/register'))
+const onLoginPage = computed(() => route.path.startsWith('/login'));
+const onRegisterPage = computed(() => route.path.startsWith('/register'));
 
-const handleLogout = () => {
-      logout();
-    };
+// Check login status
+async function checkAuth() {
+  try {
+    const res = await axios.get(`${API}/api/me`, { withCredentials: true });
+    isLoggedIn.value = res.data.ok || false;
+  } catch {
+    isLoggedIn.value = false;
+  }
+}
 
+// Ensures auth status is set correctly
+onMounted(() => {
+  checkAuth();
+});
+
+// Re-check auth when routing to different page
+watch(route, () => {
+  checkAuth();
+});
+
+// Function to log user out
+async function logout() {
+  try {
+    await axios.post(`${API}/api/logout`, {}, { withCredentials: true });
+    isLoggedIn.value = false;
+    router.push('/login');
+  } catch (e) {
+    errorMsg.value = 'Something went wrong.';
+  }
+}
 </script>
 
 <template>
@@ -49,31 +79,13 @@ const handleLogout = () => {
 
       <!-- auth links -->
       <li id="userLogin" class="auth">
-        <RouterLink 
-          v-if="!onLoginPage" 
-          to="/login"
-        >
-          Login
-        </RouterLink>
-
-        <RouterLink 
-          v-if="!onRegisterPage" 
-          to="/register"
-        >
-          Create account
-        </RouterLink>
-
-        <!--
-        <RouterLink 
-          v-if="!isAuthenticated && !onRegisterPage" 
-          to="/register"
-        >
-          Logout
-        </RouterLink> -->
-        
-        <RouterLink>
-          Logout
-      </Routerlink>
+        <tempalte v-if="isLoggedIn">
+          <button class="logout" @click="logout">Logout</button>
+        </tempalte>
+        <template v-else>
+          <RouterLink v-if="!onLoginPage" to="/login">Login</RouterLink>
+          <RouterLink v-if="!onRegisterPage" to="/register">Create Account</RouterLink>
+        </template>
       </li>
     </ul>
   </header>
@@ -155,5 +167,8 @@ ul {
   color: #fff; 
   text-decoration: underline; 
   line-height: 1.2; 
+  background: none;
+  border: none;
+  padding: 0;
 }
 </style>
