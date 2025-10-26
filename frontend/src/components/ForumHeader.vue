@@ -1,4 +1,5 @@
 <script setup>
+import { isLoggedIn } from "@/api/auth";
 </script>
 
 <template>
@@ -7,7 +8,8 @@
         <h1 class = "title">Forum</h1>
         <!-- Description under title -->
         <p class = "subtitle">Learn, ask, and share with the OWP community.</p>
-        <RouterLink to="/register" class="btn">
+        <!-- Sign up button only shows if user is not signed in -->
+        <RouterLink v-if="!isLoggedIn" to="/register" class="btn">
                 <span class="roboto-medium">Sign up to participate!</span>
         </RouterLink>
         

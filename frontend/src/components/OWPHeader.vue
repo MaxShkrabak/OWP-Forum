@@ -3,26 +3,13 @@ import owpLogo from '@/assets/img/svg/owp-logo-horizontal-WHT-2color.svg';
 import cart from '@/assets/img/svg/cart.svg';
 import { useRoute, useRouter, RouterLink } from 'vue-router';
 import { ref, computed, onMounted, watch } from 'vue';
-import axios from 'axios';
+import { isLoggedIn, checkAuth, logout } from "@/api/auth";
 
 const route = useRoute();
 const router = useRouter();
 
-const API = import.meta.env.VITE_API_BASE || 'http://localhost:8080';
-const isLoggedIn = ref(false);
-
 const onLoginPage = computed(() => route.path.startsWith('/login'));
 const onRegisterPage = computed(() => route.path.startsWith('/register'));
-
-// Check login status
-async function checkAuth() {
-  try {
-    const res = await axios.get(`${API}/api/me`, { withCredentials: true });
-    isLoggedIn.value = res.data.ok || false;
-  } catch {
-    isLoggedIn.value = false;
-  }
-}
 
 // Ensures auth status is set correctly
 onMounted(() => {
@@ -35,10 +22,9 @@ watch(route, () => {
 });
 
 // Function to log user out
-async function logout() {
+async function handleLogout() {
   try {
-    await axios.post(`${API}/api/logout`, {}, { withCredentials: true });
-    isLoggedIn.value = false;
+    await logout();
     router.push('/login');
   } catch (e) {
     errorMsg.value = 'Something went wrong.';
@@ -80,7 +66,7 @@ async function logout() {
       <!-- auth links -->
       <li id="userLogin" class="auth">
         <template v-if="isLoggedIn">
-          <button class="logout" @click="logout">Logout</button>
+          <button class="logout" @click="handleLogout">Logout</button>
         </template>
         <template v-else>
           <RouterLink v-if="!onLoginPage" to="/login">Login</RouterLink>

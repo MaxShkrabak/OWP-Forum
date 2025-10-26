@@ -1,6 +1,10 @@
 import axios from "axios";
+import { ref } from 'vue';
 
 const API = import.meta.env.VITE_API_BASE || 'http://localhost:8080'; // Port 8080 for php
+
+export const isLoggedIn = ref(false);
+export const checkingAuth = ref(false);
 
 export async function requestOtp(email) {
   const res = await fetch(`${API}/auth/request-otp`, {
@@ -63,4 +67,29 @@ export async function registerUser(payload) {
     }
     );
     return res.data;
+}
+
+// Checks if user is authenticated if so sets isLoggedIn to true
+export async function checkAuth() {
+  checkingAuth.value = true;
+  try {
+    const res = await axios.get(`${API}/api/me`, { withCredentials: true });
+    isLoggedIn.value = Boolean(res?.data?.ok || res?.data?.user);
+    return res.data;
+  } catch (e) {
+    isLoggedIn.value = false;
+  } finally {
+    checkingAuth.value = false;
+  }
+}
+
+// Function to log user out
+export async function logout() {
+  try {
+    await axios.post(`${API}/api/logout`, {}, { withCredentials: true });
+    isLoggedIn.value = false;
+    return { ok: true };
+  } catch (e) {
+    errorMsg.value = 'Something went wrong';
+  }
 }
