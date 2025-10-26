@@ -4,12 +4,8 @@ import cart from '@/assets/img/svg/cart.svg'
 
 import { ref, computed } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
-import { AuthStatus, logout } from '@/api/auth'
 
 const route = useRoute()
-
-// auth simulation (replace later with real login state)
-//const isAuthenticated = AuthStatus
 
 const onLoginPage = computed(() => route.path.startsWith('/login'))
 const onRegisterPage = computed(() => route.path.startsWith('/register'))
@@ -17,7 +13,6 @@ const onRegisterPage = computed(() => route.path.startsWith('/register'))
 const handleLogout = () => {
       logout();
     };
-
 
 </script>
 
@@ -55,14 +50,14 @@ const handleLogout = () => {
       <!-- auth links -->
       <li id="userLogin" class="auth">
         <RouterLink 
-          v-if="!AuthStatus && !onLoginPage" 
+          v-if="!onLoginPage" 
           to="/login"
         >
           Login
         </RouterLink>
 
         <RouterLink 
-          v-if="!AuthStatus && !onRegisterPage" 
+          v-if="!onRegisterPage" 
           to="/register"
         >
           Create account
@@ -76,12 +71,7 @@ const handleLogout = () => {
           Logout
         </RouterLink> -->
         
-        <RouterLink
-          v-else-if="AuthStatus" 
-          @click="handleLogout"
-          class="logout" to="/login" 
-        >
-        
+        <RouterLink>
           Logout
       </Routerlink>
       </li>

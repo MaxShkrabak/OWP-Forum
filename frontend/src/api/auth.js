@@ -2,8 +2,6 @@ import axios from "axios";
 
 const API = import.meta.env.VITE_API_BASE || 'http://localhost:8080'; // Port 8080 for php
 
-const AuthStatus = false
-
 export async function requestOtp(email) {
   const res = await fetch(`${API}/auth/request-otp`, {
     method: 'POST',
@@ -66,13 +64,3 @@ export async function registerUser(payload) {
     );
     return res.data;
 }
-
-export function logout() {
-  AuthStatus.value = false;
-}
-
-export function checkAuthStatus() {
-  return AuthStatus.value;
-}
-
-export { AuthStatus };

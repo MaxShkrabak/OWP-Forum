@@ -1,8 +1,4 @@
 <script setup>
-import { AuthStatus } from '@/api/auth';
-
-const Auth = AuthStatus
-
 </script>
 
 <template>
@@ -11,7 +7,7 @@ const Auth = AuthStatus
         <h1 class = "title">Forum</h1>
         <!-- Description under title -->
         <p class = "subtitle">Learn, ask, and share with the OWP community.</p>
-        <RouterLink v-if="!Auth" to="/register" class="btn">
+        <RouterLink to="/register" class="btn">
                 <span class="roboto-medium">Sign up to participate!</span>
         </RouterLink>
         
