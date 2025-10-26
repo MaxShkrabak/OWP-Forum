@@ -1,24 +1,35 @@
 <script setup>
-import owpLogo from '@/assets/img/svg/owp-logo-horizontal-WHT-2color.svg'
-import cart from '@/assets/img/svg/cart.svg'
+import owpLogo from '@/assets/img/svg/owp-logo-horizontal-WHT-2color.svg';
+import cart from '@/assets/img/svg/cart.svg';
+import { useRoute, useRouter, RouterLink } from 'vue-router';
+import { ref, computed, onMounted, watch } from 'vue';
+import { isLoggedIn, checkAuth, logout } from "@/api/auth";
 
-import { ref, computed } from 'vue'
-import { RouterLink, useRoute } from 'vue-router'
-import { AuthStatus, logout } from '@/api/auth'
+const route = useRoute();
+const router = useRouter();
 
-const route = useRoute()
+const onLoginPage = computed(() => route.path.startsWith('/login'));
+const onRegisterPage = computed(() => route.path.startsWith('/register'));
 
-// auth simulation (replace later with real login state)
-//const isAuthenticated = AuthStatus
+// Ensures auth status is set correctly
+onMounted(() => {
+  checkAuth();
+});
 
-const onLoginPage = computed(() => route.path.startsWith('/login'))
-const onRegisterPage = computed(() => route.path.startsWith('/register'))
+// Re-check auth when routing to different page
+watch(route, () => {
+  checkAuth();
+});
 
-const handleLogout = () => {
-      logout();
-    };
-
-
+// Function to log user out
+async function handleLogout() {
+  try {
+    await logout();
+    router.push('/login');
+  } catch (e) {
+    errorMsg.value = 'Something went wrong.';
+  }
+}
 </script>
 
 <template>
@@ -54,36 +65,13 @@ const handleLogout = () => {
 
       <!-- auth links -->
       <li id="userLogin" class="auth">
-        <RouterLink 
-          v-if="!AuthStatus && !onLoginPage" 
-          to="/login"
-        >
-          Login
-        </RouterLink>
-
-        <RouterLink 
-          v-if="!AuthStatus && !onRegisterPage" 
-          to="/register"
-        >
-          Create account
-        </RouterLink>
-
-        <!--
-        <RouterLink 
-          v-if="!isAuthenticated && !onRegisterPage" 
-          to="/register"
-        >
-          Logout
-        </RouterLink> -->
-        
-        <RouterLink
-          v-else-if="AuthStatus" 
-          @click="handleLogout"
-          class="logout" to="/login" 
-        >
-        
-          Logout
-      </Routerlink>
+        <template v-if="isLoggedIn">
+          <button class="logout" @click="handleLogout">Logout</button>
+        </template>
+        <template v-else>
+          <RouterLink v-if="!onLoginPage" to="/login">Login</RouterLink>
+          <RouterLink v-if="!onRegisterPage" to="/register">Create Account</RouterLink>
+        </template>
       </li>
     </ul>
   </header>
@@ -165,5 +153,8 @@ ul {
   color: #fff; 
   text-decoration: underline; 
   line-height: 1.2; 
+  background: none;
+  border: none;
+  padding: 0;
 }
 </style>

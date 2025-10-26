@@ -23,20 +23,6 @@ $app = AppFactory::create();
 $app->addBodyParsingMiddleware();
 $app->addErrorMiddleware(true, true, true);
 
-// This allows requests from the frontend port to the backend port (if the ports are different)
-$app->add(function (Request $request, $handler) {
-    if (strtoupper($request->getMethod()) === 'OPTIONS') {
-        $resp = new \Slim\Psr7\Response(200);
-    } else {
-        $resp = $handler->handle($request);
-    }
-
-    return $resp
-        ->withHeader('Access-Control-Allow-Origin', 'http://localhost:5173')  // frontend port
-        ->withHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, Authorization, X-Requested-With')
-        ->withHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-});
-
 $server   = $_ENV['DB_SERVER'];           // Docker-mapped or local
 $database = $_ENV['DB_DATABASE'];         // name of the database
 $user     = $_ENV['DB_USER'];             // db username
@@ -50,9 +36,16 @@ $makePdo = function () use ($dsn, $user, $pass): PDO {
     ]);
 };
 
+// Middleware
+$app->add(require __DIR__ . '/../middleware/cors.php');
+$app->add(require __DIR__ . '/../middleware/session-auth.php');
+
+// Routes
 require __DIR__ . '/../routes/verify-email.php';      // Checks if email exists
 require __DIR__ . '/../routes/password-auth.php';     // Password authentication
 require __DIR__ . '/../routes/register-new-user.php'; // Registering new user
+require __DIR__ . '/../routes/logout.php';            // Logs user out and clears session
+require __DIR__ . '/../routes/me.php';                // User details for auth
 
 // Root
 $app->get('/', function (Request $req, Response $res) {
