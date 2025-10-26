@@ -24,7 +24,9 @@ export async function verifyOtp(email, otp) {
   const res = await axios.post(
     `${API}/api/login`,
     { email, otp },
-    { headers: { "Content-Type": "application/json" }}
+    { headers: { "Content-Type": "application/json" },
+      withCredentials: true  // allow cookies
+    }
   );
   return res.data;
 }
@@ -40,7 +42,9 @@ export async function verifyEmail(email) {
   const res = await axios.post(
     `${API}/api/verify-email`,
     { email },
-    { headers:  { "Content-Type": "application/json" } }
+    { headers:  { "Content-Type": "application/json" },
+      withCredentials: true,
+    }
   );
   return res.data;
 }
@@ -56,7 +60,9 @@ export async function registerUser(payload) {
   const res = await axios.post(
     `${API}/api/register-new-user`, 
     payload ,
-    { headers: { "Content-Type": "application/json" } }
+    { headers: { "Content-Type": "application/json" },
+      withCredentials: true,
+    }
     );
     return res.data;
 }
