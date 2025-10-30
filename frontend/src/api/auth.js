@@ -93,3 +93,12 @@ export async function logout() {
     errorMsg.value = 'Something went wrong';
   }
 }
+
+// Function to get user's full name
+export async function getName() {
+  const res = await axios.get(`${API}/api/me`, { withCredentials: true });
+  const data = res?.data;
+  if (data?.ok && data?.user){
+    return data.user.FirstName + ' ' + data.user.LastName;
+  } 
+}

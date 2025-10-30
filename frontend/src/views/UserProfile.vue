@@ -3,20 +3,27 @@ import ForumHeader from '../components/ForumHeader.vue';
 import PostIcon from '../assets/img/svg/posts-icon.svg';
 import LikeIcon from '../assets/img/svg/like-icon.svg';
 import CommIcon from '../assets/img/svg/comment-icon.svg';
-import { ref } from 'vue';
 
+import { ref, onMounted } from 'vue';
+import { getName } from '@/api/auth';
 
 const role = "Admin";
-const fullName = "John Smith";
+const fullName = ref(localStorage.getItem('fullName'));
 const postsCount = 0;
 const likesCount = 0;
 const commentsCount = 0;
 const activeTab = ref('yourPosts');
 
+onMounted(async () => {
+  if (!fullName.value) {
+    fullName.value = await getName();
+    localStorage.setItem('fullName', fullName.value);
+  }
+});
+
 </script>
 
 <template>
-  
   <body>
     <ForumHeader />
     <h1>PROFILE PAGE</h1>
@@ -105,8 +112,6 @@ const activeTab = ref('yourPosts');
         </div>
       </div>
   </body>
-    
-    
 </template>
 
 <style scoped>
