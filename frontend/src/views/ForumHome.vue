@@ -13,7 +13,10 @@ import ForumHeader from '../components/ForumHeader.vue';
                         <div class="card-body d-flex gap-3 align-items-center">
                             <div class="avatar bg-secondary-subtle rounded-circle flex-shrink-0"></div>
                             <div class="flex-grow-1">
-                                <div class="fw-semibold text-dark">Joe Hornet</div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="fw-semibold text-dark">Joe Hornet</div>
+                                    <span class="badge role-badge student">Student</span>
+                                </div>
                                 <div class="small text-secondary">Posts: <b>23</b> &nbsp; Likes: <b>235</b> &nbsp; Comments: <b>59</b></div>
                             </div>
                         </div>
@@ -73,6 +76,7 @@ import ForumHeader from '../components/ForumHeader.vue';
                         <div class="list-group list-group-flush">
                             <div class="list-group-item px-0 py-3">
                                 <div class="d-flex align-items-start gap-3">
+                                    <div class="like-pill"><i class="pi pi-thumbs-up me-1"></i>323</div>
                                     <i class="pi pi-megaphone text-secondary fs-5"></i>
                                     <div class="flex-grow-1">
                                         <div class="d-flex flex-wrap align-items-center gap-2">
@@ -89,7 +93,7 @@ import ForumHeader from '../components/ForumHeader.vue';
                                     </div>
                                     <div class="text-nowrap text-end small text-secondary">
                                         <div class="mb-1">2 hrs ago</div>
-                                        <div class="d-flex align-items-center gap-1 justify-content-end"><i class="pi pi-user"></i><span>OWP Administration</span></div>
+                                        <div class="d-flex align-items-center gap-2 justify-content-end"><i class="pi pi-user"></i><span>OWP Administration</span><span class="badge role-badge admin">Admin</span></div>
                                     </div>
                                 </div>
                             </div>
@@ -102,6 +106,7 @@ import ForumHeader from '../components/ForumHeader.vue';
                         <div class="list-group list-group-flush">
                             <div class="list-group-item px-0 py-3">
                                 <div class="d-flex align-items-start gap-3">
+                                    <div class="like-pill"><i class="pi pi-thumbs-up me-1"></i>8</div>
                                     <i class="pi pi-book text-secondary fs-5"></i>
                                     <div class="flex-grow-1">
                                         <a href="#" class="post-link">Upgrading old and outdated equipment</a>
@@ -115,7 +120,7 @@ import ForumHeader from '../components/ForumHeader.vue';
                                     </div>
                                     <div class="text-nowrap text-end small text-secondary">
                                         <div class="mb-1">3 days ago</div>
-                                        <div class="d-flex align-items-center gap-1 justify-content-end"><i class="pi pi-user"></i><span>Joe Smith</span></div>
+                                        <div class="d-flex align-items-center gap-2 justify-content-end"><i class="pi pi-user"></i><span>Joe Smith</span><span class="badge role-badge moderator">Moderator</span></div>
                                     </div>
                                 </div>
                             </div>
@@ -128,6 +133,7 @@ import ForumHeader from '../components/ForumHeader.vue';
                         <div class="list-group list-group-flush">
                             <div class="list-group-item px-0 py-3">
                                 <div class="d-flex align-items-start gap-3">
+                                    <div class="like-pill"><i class="pi pi-thumbs-up me-1"></i>25</div>
                                     <i class="pi pi-chart-line text-secondary fs-5"></i>
                                     <div class="flex-grow-1">
                                         <a href="#" class="post-link">Real-time water quality monitoring</a>
@@ -139,7 +145,7 @@ import ForumHeader from '../components/ForumHeader.vue';
                                     </div>
                                     <div class="text-nowrap text-end small text-secondary">
                                         <div class="mb-1">3 weeks ago</div>
-                                        <div class="d-flex align-items-center gap-1 justify-content-end"><i class="pi pi-user"></i><span>Johnny Hornet</span></div>
+                                        <div class="d-flex align-items-center gap-2 justify-content-end"><i class="pi pi-user"></i><span>Johnny Hornet</span><span class="badge role-badge student">Student</span></div>
                                     </div>
                                 </div>
                             </div>
@@ -152,6 +158,7 @@ import ForumHeader from '../components/ForumHeader.vue';
                         <div class="list-group list-group-flush">
                             <div class="list-group-item px-0 py-3">
                                 <div class="d-flex align-items-start gap-3">
+                                    <div class="like-pill"><i class="pi pi-thumbs-up me-1"></i>2</div>
                                     <i class="pi pi-question-circle text-secondary fs-5"></i>
                                     <div class="flex-grow-1">
                                         <a href="#" class="post-link">How to use SCADA</a>
@@ -163,13 +170,14 @@ import ForumHeader from '../components/ForumHeader.vue';
                                     </div>
                                     <div class="text-nowrap text-end small text-secondary">
                                         <div class="mb-1">10 mins. ago</div>
-                                        <div class="d-flex align-items-center gap-1 justify-content-end"><i class="pi pi-user"></i><span>Donald McRonald</span></div>
+                                        <div class="d-flex align-items-center gap-2 justify-content-end"><i class="pi pi-user"></i><span>Donald McRonald</span><span class="badge role-badge user">User</span></div>
                                     </div>
                                 </div>
                             </div>
 
                             <div class="list-group-item px-0 py-3">
                                 <div class="d-flex align-items-start gap-3">
+                                    <div class="like-pill"><i class="pi pi-thumbs-up me-1"></i>13</div>
                                     <i class="pi pi-question-circle text-secondary fs-5"></i>
                                     <div class="flex-grow-1">
                                         <a href="#" class="post-link">How to effectively run a water treatment plant</a>
@@ -182,13 +190,14 @@ import ForumHeader from '../components/ForumHeader.vue';
                                     </div>
                                     <div class="text-nowrap text-end small text-secondary">
                                         <div class="mb-1">1 day ago</div>
-                                        <div class="d-flex align-items-center gap-1 justify-content-end"><i class="pi pi-user"></i><span>Timothy Hornet</span></div>
+                                        <div class="d-flex align-items-center gap-2 justify-content-end"><i class="pi pi-user"></i><span>Timothy Hornet</span><span class="badge role-badge student">Student</span></div>
                                     </div>
                                 </div>
                             </div>
 
                             <div class="list-group-item px-0 py-3">
                                 <div class="d-flex align-items-start gap-3">
+                                    <div class="like-pill"><i class="pi pi-thumbs-up me-1"></i>91</div>
                                     <i class="pi pi-question-circle text-secondary fs-5"></i>
                                     <div class="flex-grow-1">
                                         <a href="#" class="post-link">How to properly measure and verify chemical readings</a>
@@ -200,13 +209,14 @@ import ForumHeader from '../components/ForumHeader.vue';
                                     </div>
                                     <div class="text-nowrap text-end small text-secondary">
                                         <div class="mb-1">1 week ago</div>
-                                        <div class="d-flex align-items-center gap-1 justify-content-end"><i class="pi pi-user"></i><span>Gerald Hornet</span></div>
+                                        <div class="d-flex align-items-center gap-2 justify-content-end"><i class="pi pi-user"></i><span>Gerald Hornet</span><span class="badge role-badge user">User</span></div>
                                     </div>
                                 </div>
                             </div>
 
                             <div class="list-group-item px-0 py-3">
                                 <div class="d-flex align-items-start gap-3">
+                                    <div class="like-pill"><i class="pi pi-thumbs-up me-1"></i>102</div>
                                     <i class="pi pi-question-circle text-secondary fs-5"></i>
                                     <div class="flex-grow-1">
                                         <a href="#" class="post-link">Where can I get information on properly maintaining and calibrating instruments...</a>
@@ -218,7 +228,7 @@ import ForumHeader from '../components/ForumHeader.vue';
                                     </div>
                                     <div class="text-nowrap text-end small text-secondary">
                                         <div class="mb-1">1 mo. ago</div>
-                                        <div class="d-flex align-items-center gap-1 justify-content-end"><i class="pi pi-user"></i><span>Victoria Smith</span></div>
+                                        <div class="d-flex align-items-center gap-2 justify-content-end"><i class="pi pi-user"></i><span>Victoria Smith</span><span class="badge role-badge moderator">Moderator</span></div>
                                     </div>
                                 </div>
                             </div>
@@ -248,4 +258,15 @@ import ForumHeader from '../components/ForumHeader.vue';
 .post-link:hover { text-decoration:underline; }
 
 .list-group-item { border: 0; border-bottom:1px solid #E0E0E0; background:transparent; }
+
+/* Role badges */
+.role-badge { border-radius: 12px; padding: 2px 8px; font-weight:700; font-size: .70rem; }
+.role-badge.student { background:#E6F2FF; color:#1E6FDB; }
+.role-badge.admin { background:#FFE8E8; color:#C03B3B; }
+.role-badge.moderator { background:#FFF5DB; color:#A87400; }
+.role-badge.user { background:#EDEDED; color:#555; }
+.role-badge.teacher { background:#EAF8EE; color:#2E6C44; }
+
+/* Likes */
+.like-pill { background:#F6F7F8; color:#666; border:1px solid #E0E0E0; border-radius:10px; padding:2px 8px; font-weight:700; font-size:.8rem; display:flex; align-items:center; }
 </style>
