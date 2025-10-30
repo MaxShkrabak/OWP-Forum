@@ -1,5 +1,7 @@
 <script setup>
 import ForumHeader from '../components/ForumHeader.vue';
+import pfpModal from '@/components/UserPfpModal.vue';
+
 import PostIcon from '../assets/img/svg/posts-icon.svg';
 import LikeIcon from '../assets/img/svg/like-icon.svg';
 import CommIcon from '../assets/img/svg/comment-icon.svg';
@@ -31,10 +33,18 @@ onMounted(async () => {
     <router-link to="/login">login</router-link> | | |
     <router-link to="/register">register</router-link>
     <router-view></router-view>
+
+    <pfpModal/>
+    
       <div class="container-fluid text-center">
+        
         <div class="row">
-          <div class="col-2"> <!--User Card-->
-            <img src="@\assets\img\svg\fb-logo-525252.svg" class="w-80 object-fit-fill" alt="yes"><br>
+          <div class="col-md-2 user-card"> <!--User Card-->
+            <button class="user-pfp-btn" data-bs-toggle="modal" data-bs-target="#pfpChange">
+              <div class="user-icon-cont">
+                <img src="@\assets\img\user-pfps-premade\pfp-4.png" class="img-fluid user-icon" alt="yes">
+            </div>
+            </button> <br><br>
             <Role v-if="role === 'Admin'">
               <h5 class="badge text-bg-danger roboto-medium">Admin</h5>
             </Role>
@@ -49,18 +59,14 @@ onMounted(async () => {
             </Role>
             <br><br>
             <h2 class="roboto-medium">{{ fullName }}</h2><br>
-            <div class="row text-center">
+            <div class="row text-start justify-content-evenly roboto-medium">
               <div class="col-1"></div> <!--Filler to help align icons-->
-              <div class="col-3 text-end">
-                <span><img :src=PostIcon class="icon" alt="Post icon"></span> <br>
-                <span><img :src=LikeIcon class="icon" alt="Like icon"></span> <br>
-                <span><img :src=CommIcon class="icon" alt="comment icon"></span> <br>
+              <div class="col-md-auto">
+                <span><img :src=PostIcon class="icon" alt="Post icon"> Posts: </span> <br>
+                <span><img :src=LikeIcon class="icon" alt="Like icon"> Likes:</span> <br>
+                <span><img :src=CommIcon class="icon" alt="comment icon"> Comments:</span>
               </div>
-              <div class="col-md-auto text-start roboto-medium"> 
-                Posts: <br> 
-                Likes: <br> 
-                Comments: </div>
-              <div class="col-md-auto text-start">
+              <div class="col-md-auto">
                  {{ postsCount }} <br>
                  {{ likesCount }} <br>
                  {{ commentsCount }}
@@ -75,27 +81,32 @@ onMounted(async () => {
               </button>
             </div>
           </div>
-          <div class="col-1"></div><!--Filler between User Card and Posts/Content-->
-          <div class="col-9 text-center">
-            <div class="row filter"> <!--Filter bar-->
-              <button class="col" @click="activeTab = 'yourPosts'">
-                <h3>Your Posts</h3>
+          <div class="col-md-1"></div><!--Filler between User Card and Posts/Content-->
+          <div class="col-md-9 text-center">
+            <div class="row justify-content-evenly filter"> <!--Filter bar-->
+              <button class="col-md-auto" @click="activeTab = 'yourPosts'">
+                <h4>Your Posts</h4>
               </button>
-              <button class="col" @click="activeTab = 'followedPosts'">
-                <h3>Followed Posts</h3>
+              <button class="col-md-auto" @click="activeTab = 'followedPosts'">
+                <h4>Followed Posts</h4>
               </button>
-              <button class="col" @click="activeTab = 'likedPosts'">
-                <h3>Liked Posts</h3>
+              <button class="col-md-auto" @click="activeTab = 'likedPosts'">
+                <h4>Liked Posts</h4>
               </button>
-              <h4 class="col-1 text-end">Sort By:</h4>
-              <div class="col-md-auto text-start">
+              <div class="col-md-auto">
+                <div class="filter-divider"></div>
+              </div>
+              <div class="col-md-auto"><div class="row"><div class="col-md-auto text-center">
+                <h5>Sort By:</h5>
+              </div>
+              <div class="col-md-auto text-center">
                 <select class="form-select" aria-label="Sort By Selector">
                   <option selected>Latest</option>
                   <option value="1">Likes</option>
                   <option value="2">Comments</option>
                 </select>
               </div>
-              <div class="col-1">thing</div> <!--Sort by in ASC or DESC-->
+              <div class="col-md-auto">thing</div> <!--Sort by in ASC or DESC--></div></div>
             </div>
             <div class="row"> <!--Shows the content for the selected filter-->
               <div v-show="activeTab === 'yourPosts'">
@@ -115,16 +126,37 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.user-pfp-btn {
+  border: none;
+  background-color: transparent;
+}
+
+.user-icon {
+  border-radius: 50%;
+  transition: border-radius 0.3s ease-out;
+}
+img.user-icon:hover {
+  border-radius: 25%;
+  border: 5px solid rgb(45, 149, 209);
+  transition: border-radius 0.3s ease-in, border 0.2s ease-in-out;
+}
 .filter {
   background-color: white;
   border-radius: 10px;
   padding-top: 1%;
+  padding-bottom: 1%;
+  margin-top: 10px;
 }
 .filter button {
   background-color: white;
   border: none;
   border-radius: 10px;
   cursor: pointer;
+}
+.filter-divider {
+  width: 1px;
+  background-color: black;
+  height: 85%;
 }
 
 .btn {
@@ -156,9 +188,15 @@ body {
   padding-top: 3%;
   padding-bottom: 5%;
 }
-.col-2{
-  background-color: white;
+.user-card{
+  background-color: rgb(255, 255, 255);
   border-radius: 10px;
   padding: 1%;
+}
+
+@media (max-width: 770px) {
+  .user-icon {
+  max-width: 50%;
+}
 }
 </style>
