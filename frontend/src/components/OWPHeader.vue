@@ -1,7 +1,7 @@
 <script setup>
 import { useRoute, useRouter, RouterLink } from 'vue-router';
 import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue';
-import { isLoggedIn, checkAuth, logout } from "@/api/auth";
+import { isLoggedIn, checkAuth, logout, getName } from "@/api/auth";
 
 // Image imports
 import owpLogo from '@/assets/img/svg/owp-logo-horizontal-WHT-2color.svg';
@@ -11,21 +11,31 @@ import cart from '@/assets/img/svg/cart.svg';
 const route = useRoute();
 const router = useRouter();
 
+const width = ref(window.innerWidth);
+const fullName = ref('');
+
 const onLoginPage = computed(() => route.path.startsWith('/login'));
 const onRegisterPage = computed(() => route.path.startsWith('/register'));
 const logoType = computed(() => (width.value <= 584 ? owpSymbol : owpLogo));
-
-const width = ref(window.innerWidth);
-const fname = ref('Name'); // TODO: Setup logic to update with users actual first name
+const fname = computed(() => fullName.value.split(' ')[0] || ''); // First name only
 
 function handleResize() {
   width.value = window.innerWidth;
 }
 
+// Helper function to store users name in cache
+async function loadName() {
+  if (!isLoggedIn.value) { return; }
+  fullName.value = localStorage.getItem('fullName') || (await getName());
+  localStorage.setItem('fullName', fullName.value);
+}
+
 // Ensures auth status is set correctly
-onMounted(() => {
-  checkAuth();
+onMounted(async () => {
   window.addEventListener('resize', handleResize);
+  await checkAuth();
+  await loadName();
+  
 });
 
 onBeforeUnmount(() => {
@@ -33,14 +43,16 @@ onBeforeUnmount(() => {
 });
 
 // Re-check auth when routing to different page
-watch(route, () => {
-  checkAuth();
+watch(route, async () => {
+  await checkAuth();
+  await loadName();
 });
 
 // Function to log user out
 async function handleLogout() {
   try {
     await logout();
+    localStorage.removeItem('fullName');
     router.push('/login');
   } catch (e) {
     errorMsg.value = 'Something went wrong.';
