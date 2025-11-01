@@ -14,7 +14,7 @@
       { path: '/register', name: 'Register', component: RegistrationPage },
       { path: '/verify', name: 'VerifyPasscode', component: VerifyPasscode, props: (route) => ({ email: route.query.email || '' }) },
       
-      { path: '/profile', name: 'User Profile', component: ForumUserProfile, meta: { requiresAuth: false } },
+      { path: '/profile', name: 'User Profile', component: ForumUserProfile, meta: { requiresAuth: true } },
     ];
 
     const router = createRouter({

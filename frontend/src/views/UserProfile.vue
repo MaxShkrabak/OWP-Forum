@@ -84,14 +84,17 @@ onMounted(async () => {
           <div class="col-md-1"></div><!--Filler between User Card and Posts/Content-->
           <div class="col-md-9 text-center">
             <div class="row justify-content-evenly filter"> <!--Filter bar-->
-              <button class="col-md-auto" @click="activeTab = 'yourPosts'">
+              <button class="col-md-auto active" @click="activeTab = 'yourPosts'">
                 <h4>Your Posts</h4>
+                <div class="activeLine" v-show="activeTab === 'yourPosts'"></div>
               </button>
-              <button class="col-md-auto" @click="activeTab = 'followedPosts'">
+              <button class="col-md-auto active" @click="activeTab = 'followedPosts'">
                 <h4>Followed Posts</h4>
+                <div class="activeLine" v-show="activeTab === 'followedPosts'"></div>
               </button>
-              <button class="col-md-auto" @click="activeTab = 'likedPosts'">
+              <button class="col-md-auto active" @click="activeTab = 'likedPosts'">
                 <h4>Liked Posts</h4>
+                <div class="activeLine align-top" v-show="activeTab === 'likedPosts'"></div>
               </button>
               <div class="col-md-auto">
                 <div class="filter-divider"></div>
@@ -126,6 +129,13 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.activeLine {
+  background-color: blue;
+  width: 100%;
+  height: 3px;
+  border-radius: 30%;
+}
+
 .user-pfp-btn {
   border: none;
   background-color: transparent;
@@ -148,8 +158,8 @@ img.user-icon:hover {
   margin-top: 10px;
 }
 .filter button {
-  background-color: white;
-  border: none;
+  background-color: transparent;
+  border: transparent;
   border-radius: 10px;
   cursor: pointer;
 }

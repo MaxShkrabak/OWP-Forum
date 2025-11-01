@@ -1,8 +1,10 @@
 <script setup>
 import { computed } from 'vue';
 
-// Import all images from the 'src/assets/images' folder
+
+// Import all images from the 'src/assets/img/user-pfps-premade/' folder
 const allImages = import.meta.glob('../assets/img/user-pfps-premade/*.(png|jpeg|jpg|svg)', { eager: true });
+
 
 // Extract the image paths for use in the template
 const images = computed(() => {
@@ -19,7 +21,9 @@ const images = computed(() => {
           </div>
           <div class="modal-body">
             <div class="row">
-                <img v-for="(image, index) in images" :key="index" :src="image" class="pfp" alt="Image from folder">
+              <button class="img-btn" v-for="(image, index) in images" :key="index" >
+                <img :src="image" class="pfp" alt="Image from folder"></button>
+               
             </div>
           </div>
           <div class="modal-footer">
@@ -30,11 +34,19 @@ const images = computed(() => {
       </div>
     </div>
 </template>
-<style scoped> 
+<style scoped>
+.img-btn {
+  padding: 0;
+  width: fit-content;
+  border: none;
+  background-color: transparent;
+  border-radius: 20%;
+  margin: 1em;
+}
 img.pfp{
     padding: 0;
     width: 128px;
-    margin: 1em;
+    margin: 0;
     border-radius: 20%;
 }
 img.pfp:hover {
