@@ -1,19 +1,35 @@
 <script setup>
-import owpLogo from '@/assets/img/svg/owp-logo-horizontal-WHT-2color.svg';
-import cart from '@/assets/img/svg/cart.svg';
 import { useRoute, useRouter, RouterLink } from 'vue-router';
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue';
 import { isLoggedIn, checkAuth, logout } from "@/api/auth";
+
+// Image imports
+import owpLogo from '@/assets/img/svg/owp-logo-horizontal-WHT-2color.svg';
+import owpSymbol from '@/assets/img/svg/owp-symbol-2color.svg';
+import cart from '@/assets/img/svg/cart.svg';
 
 const route = useRoute();
 const router = useRouter();
 
 const onLoginPage = computed(() => route.path.startsWith('/login'));
 const onRegisterPage = computed(() => route.path.startsWith('/register'));
+const logoType = computed(() => (width.value <= 584 ? owpSymbol : owpLogo));
+
+const width = ref(window.innerWidth);
+const fname = ref('Name'); // TODO: Setup logic to update with users actual first name
+
+function handleResize() {
+  width.value = window.innerWidth;
+}
 
 // Ensures auth status is set correctly
 onMounted(() => {
   checkAuth();
+  window.addEventListener('resize', handleResize);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleResize);
 });
 
 // Re-check auth when routing to different page
@@ -37,16 +53,16 @@ async function handleLogout() {
     <ul>
       <!-- menu icon -->
       <li id="menu" @click="console.log('open menu')">
-        <span>☰ Menu</span>
+        <span class="menu-icon">☰</span>
+        <span class="menu-text">Menu</span>
       </li>
 
       <!-- logo -->
       <li id="owp-logo">
         <RouterLink to="/">
           <img 
-            :src="owpLogo" 
-            alt="water programs, sac state logo" 
-            class="logo" 
+            :src="logoType" 
+            alt="water programs, sac state logo"  
           />
         </RouterLink>
       </li>
@@ -66,7 +82,9 @@ async function handleLogout() {
       <!-- auth links -->
       <li id="userLogin" class="auth">
         <template v-if="isLoggedIn">
-          <button class="logout" @click="handleLogout">Logout</button>
+          <span class="greeting">Hello, {{ fname }}!</span>
+          <RouterLink to="" class="account-action">My Account</RouterLink> <!-- Doesn't actually route anywhere, just to match UI -->
+          <button class="account-action" @click="handleLogout">Logout</button>
         </template>
         <template v-else>
           <RouterLink v-if="!onLoginPage" to="/login">Login</RouterLink>
@@ -81,39 +99,37 @@ async function handleLogout() {
 /* general header */
 #water-program { 
   background: #143f36; 
-  color: #fff; 
+  color: #fff;
+  padding: 1em;
+  font-family: "Arial", "Helvetica", sans-serif; 
 }
 
 /* header layout */
 ul { 
   display: flex; 
   align-items: center; 
-  justify-content: space-between; 
   list-style: none; 
   margin: 0; 
-  padding: 0 20px; 
-  height: 110px; 
+  padding: 0;
+  gap: 8px;
 }
 
-/* menu */
-#menu { 
-  cursor: pointer; 
-  font-family: "Arial", "Helvetica", sans-serif; 
-  font-size: 18px; 
-  font-weight: 700; 
-  color: #fff; 
-  display: flex; 
-  align-items: center; 
-  gap: 6px; 
+/* menu icon */
+#menu .menu-icon {
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  margin-right: 2px;
+}
+.menu-text {
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 14px;
 }
 
-/* logo */
-#owp-logo { 
-  margin-left: 30px; 
-}
-
-#owp-logo img.logo { 
-  height: 55px; 
+/* OWP logo */
+#owp-logo img { 
+  height: 50px; 
   width: auto; 
 }
 
@@ -122,39 +138,43 @@ ul {
   flex: 1; 
 }
 
-/* cart */
-#cart { 
-  margin-right: 20px; 
+/* cart icon */
+#cart {
+  margin-right: 16px;
+  font-weight: 700;
 }
-
 .cart-icon { 
   width: 40px; 
-  height: 50px; 
+  height: 40px;
 }
 
-/* auth links */
-.auth { 
-  display: flex; 
-  flex-direction: column; 
-  justify-content: center; 
-  align-items: flex-start; 
-  gap: 4px; 
-  min-height: 110px; 
-  width: 120px; 
-  white-space: nowrap; 
-  font-family: "Arial", "Helvetica", sans-serif; 
-  font-weight: 500; 
-  font-size: 16px; 
-  text-align: left; 
+/* auth/login */
+#userLogin a{
+  display: flex;
+  color: #fff;
+  font-size: 14px;
+  white-space: nowrap;
+  flex-direction: column;
+  padding-right: 14px;
+  line-height: 1.2;
+  font-family: 'Lato';
 }
 
-.auth a, 
-.logout { 
-  color: #fff; 
-  text-decoration: underline; 
-  line-height: 1.2; 
+/* Account Buttons: My Account, Logout */
+.account-action{
+  color: #fff;
+  font-size: 14px;
   background: none;
-  border: none;
+  display: flex;
+  text-decoration: none;
   padding: 0;
+  border: none;
+}
+
+/* Text displaying: Hello, {user}!*/
+.greeting {
+  color: #ccc;
+  font-size: 14px;
+  line-height: 1.2;
 }
 </style>
