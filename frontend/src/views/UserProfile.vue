@@ -7,7 +7,6 @@ import LikeIcon from '../assets/img/svg/like-icon.svg';
 import CommIcon from '../assets/img/svg/comment-icon.svg';
 
 import { ref, onMounted } from 'vue';
-import { getName } from '@/api/auth';
 
 const role = "Admin";
 const fullName = ref(localStorage.getItem('fullName'));
@@ -102,7 +101,9 @@ const activeTab = ref('yourPosts');
                   <option value="2">Comments</option>
                 </select>
               </div>
-              <div class="col-md-auto">thing</div> <!--Sort by in ASC or DESC--></div></div>
+              <!-- <div class="col-md-auto">thing</div>   Sort by in ASC or DESC-->
+            </div>
+          </div>
             </div>
             <div class="row"> <!--Shows the content for the selected filter-->
               <div v-show="activeTab === 'yourPosts'">
