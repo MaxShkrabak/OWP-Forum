@@ -1,0 +1,12 @@
+
+IF OBJECT_ID('dbo.Tags','U') IS NULL
+BEGIN
+    CREATE TABLE dbo.Tags
+    (
+        TagID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_Tags PRIMARY KEY,
+        Name  NVARCHAR(100) NOT NULL CONSTRAINT UX_Tags_Name UNIQUE,
+        useableBy INT NOT NULL
+            CONSTRAINT FK_Tags_MinRole FOREIGN KEY REFERENCES dbo.Roles(RoleID)
+    );
+END;
+GO

@@ -1,8 +1,10 @@
 <script setup>
 import { computed, ref, onMounted } from 'vue';
 
-// Import all images from the 'src/assets/images' folder
+
+// Import all images from the 'src/assets/img/user-pfps-premade/' folder
 const allImages = import.meta.glob('../assets/img/user-pfps-premade/*.(png|jpeg|jpg|svg)', { eager: true });
+
 
 // Extract the image paths for use in the template
 const images = computed(() => {
