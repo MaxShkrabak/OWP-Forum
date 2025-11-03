@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { useRouter } from 'vue-router';
 import { verifyOtp } from '@/api/auth';
+import '/src/assets/style.css'
 
 const route = useRoute();
 const router = useRouter();
@@ -83,8 +84,8 @@ async function onSubmit() {
 
 <template>
   <!-- Match login layout -->
-  <section class="verify-wrap" aria-label="Verify Passcode">
-    <div class="verify-card">
+  <section class="auth-wrap" aria-label="Verify Passcode">
+    <div class="auth-card">
       <div class="form-inner">
         <h2 class="card-title">Verify Passcode</h2>
 
@@ -138,74 +139,7 @@ async function onSubmit() {
 </template>
 
 <style scoped>
-/* Match login design */
-.verify-wrap {
-  background: #ffffff;
-  width: 100%;
-  min-height: 62vh; /* same height as login */
-  padding: 0;
-  position: relative;
-  --section-gutter: clamp(10px, 2vw, 24px);
-}
 
-.verify-card {
-  background: #EFF1F1;
-  width: calc(100% - (var(--section-gutter) * 2));
-  height: auto;
-  margin: 23px auto 27px;
-  display: flex;
-  justify-content: flex-start;
-  align-items: flex-start;
-  text-align: left;
-  padding: 0 clamp(32px, 12vw, 320px);
-  border: none;
-  border-radius: 0;
-  box-shadow: none;
-  box-sizing: border-box;
-}
-
-.form-inner {
-  width: auto;
-  max-width: clamp(36rem, 48rem, 62rem);
-  height: auto;
-  margin-top: clamp(0.75rem, 1.6vh, 2rem);
-  padding: 2.25rem 2.25rem 2.5rem;
-  box-sizing: border-box;
-}
-
-/* Typography */
-.card-title {
-  margin: 0 0 3.75rem 0;
-  font-size: 2.5rem;
-  line-height: 1.2;
-  font-weight: 800;
-  color: #111827;
-}
-
-.label {
-  display: block;
-  font-size: 1.2rem;
-  font-weight: 600;
-  color: #374151;
-  margin-bottom: 0.65rem;
-}
-
-.input {
-  display: block;
-  width: 100%;
-  max-width: clamp(22rem, 55%, 35rem);
-  font-size: 1.2rem;
-  line-height: 1.35;
-  padding: 0.75rem 0.9rem;
-  border: 1px solid #d1d5db;
-  border-radius: 4px;
-  outline: none;
-  transition: box-shadow 120ms ease, border-color 120ms ease;
-}
-.input:focus {
-  border-color: #14532d;
-  box-shadow: 0 0 0 3px rgba(20,83,45,0.18);
-}
 
 .btn {
   display: inline-flex;
@@ -224,17 +158,6 @@ async function onSubmit() {
 .btn:hover { filter: brightness(1.05); }
 .btn:disabled { opacity: 0.65; cursor: not-allowed; }
 
-/* Helper text */
-.help-stack { margin-top: 1.5rem; }
-.help {
-  margin: 0;
-  color: #4b5563;
-  font-size: 1.1rem;
-  line-height: 1.55;
-}
-.help.small { font-size: 1rem; color: #555; }
-.help em { font-style: italic; }
-.help + .help { margin-top: 0.5rem; }
 
 /* Resend section */
 .resend { margin-top: 1.25rem; }
@@ -252,32 +175,4 @@ async function onSubmit() {
   cursor: default;
 }
 
-/* Notices */
-.notice {
-  margin-top: 1.5rem;
-  padding: 0.8rem 0.95rem;
-  border-radius: 6px;
-  font-size: 1.05rem;
-}
-.notice.success {
-  background: #ecfdf5;
-  color: #065f46;
-  border: 1px solid #a7f3d0;
-}
-.notice.error {
-  background: #fef2f2;
-  color: #991b1b;
-  border: 1px solid #fecaca;
-}
-
-/* Mobile */
-@media (max-width: 768px) {
-  .verify-wrap { --section-gutter: clamp(8px, 4vw, 16px); }
-  .verify-card { padding: 0 var(--section-gutter); }
-  .form-inner {
-    max-width: 100%;
-    margin-top: 1rem;
-    padding: 1.25rem;
-  }
-}
 </style>

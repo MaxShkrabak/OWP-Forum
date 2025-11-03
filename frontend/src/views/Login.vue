@@ -3,6 +3,7 @@ import { ref } from "vue";
 import { useRouter } from "vue-router";
 import axios from "axios";
 import { verifyEmail } from "@/api/auth";
+import '/src/assets/style.css'
 
 const router = useRouter();
 
@@ -64,10 +65,10 @@ async function onSubmit() {
   <router-view></router-view>
 
   <!-- ====================== BODY ====================== -->
-  <section class="login-wrap" aria-label="Login">
-    <div class="login-card" role="region" aria-labelledby="login-title">
+  <section class="auth-wrap" aria-label="Login">
+    <div class="auth-card" role="region" aria-labelledby="login-title">
       <div class="form-inner">
-        <h2 id="login-title" class="card-title">Login</h2>
+        <h2 class="card-title">Login</h2>
 
         <form @submit.prevent="onSubmit" novalidate>
           <label class="label" for="email">Email</label>
@@ -125,104 +126,13 @@ async function onSubmit() {
   font-size: 0.95rem;
 }
 
-/* BODY */
-.login-wrap {
-  background: #ffffff;
-  width: 100%;
-  min-height: 62vh; /* was 70vh — slightly shorter */
-  padding: 0;
-  position: relative;
-  --section-gutter: clamp(10px, 2vw, 24px);
-}
-
-.login-card {
-  background: #EFF1F1;
-  width: calc(100% - (var(--section-gutter) * 2));
-  height: auto;
-  min-height: 0;
-  margin: 23px auto 27px;
-  max-width: none;
-
-  /* flex layout for left alignment */
-  display: flex;
-  justify-content: flex-start;
-  align-items: flex-start;
-  text-align: left;
-
-  /* ✅ symmetric left and right padding */
-  padding: 0 clamp(32px, 12vw, 320px);
-
-  border: none;
-  border-radius: 0;
-  box-shadow: none;
-  box-sizing: border-box;
-}
-
-/* Form column */
-.form-inner {
-  width: auto;
-  max-width: clamp(36rem, 48rem, 62rem);
-  height: auto;
-  margin-top: clamp(0.75rem, 1.6vh, 2rem);
-  padding: 2.25rem 2.25rem 2.5rem;
-  box-sizing: border-box;
-}
-
 /* Extra spacing before "First time here?" */
-.login-card .tiny {
+.auth-card .tiny {
   margin-top: 8rem;
 }
 
-/* Mobile tweaks */
-@media (max-width: 768px) {
-  .login-wrap { --section-gutter: clamp(8px, 4vw, 16px); }
-
-  .login-card {
-    padding: 0 var(--section-gutter);
-  }
-
-  .form-inner {
-    max-width: 100%;
-    margin-top: 1rem;
-    padding: 1.25rem;
-  }
-}
-
-/* Typography */
-.card-title {
-  margin: 0 0 3.75rem 0;
-  font-size: 2.5rem;
-  line-height: 1.2;
-  font-weight: 800;
-  color: #111827;
-}
-.label {
-  display: block;
-  font-size: 1.2rem;
-  font-weight: 600;
-  color: #374151;
-  margin-bottom: 0.65rem;
-}
-
-/* Inputs */
-.input {
-  display: block;
-  width: 100%;
-  max-width: clamp(22rem, 55%, 35rem);
-  font-size: 1.2rem;
-  line-height: 1.35;
-  padding: 0.75rem 0.9rem;
-  border: 1px solid #d1d5db;
-  border-radius: 4px;
-  outline: none;
-  transition: box-shadow 120ms ease, border-color 120ms ease;
-}
 @media (max-width: 480px) {
   .input { max-width: 100%; }
-}
-.input:focus {
-  border-color: #14532d;
-  box-shadow: 0 0 0 3px rgba(20, 83, 45, 0.18);
 }
 
 /* Button */
@@ -243,16 +153,6 @@ async function onSubmit() {
 .btn:hover { filter: brightness(1.05); }
 .btn:disabled { opacity: 0.65; cursor: not-allowed; }
 
-/* Helper text */
-.help-stack { margin-top: 1.1rem; }
-.help-stack .help {
-  margin: 0;
-  color: #4b5563;
-  font-size: 1.15rem;
-}
-.help-stack .help + .help { margin-top: 0.5rem; }
-.help em { font-style: italic; }
-
 /* Tiny note & link emphasis */
 .tiny {
   margin-top: 2.5rem;
@@ -266,29 +166,4 @@ async function onSubmit() {
 }
 .tiny a:hover { text-decoration-thickness: 2px; }
 
-/* Notices */
-.notice {
-  margin-top: 1rem;
-  padding: 0.8rem 0.95rem;
-  border-radius: 6px;
-  font-size: 1.05rem;
-}
-.notice.success {
-  background: #ecfdf5;
-  color: #065f46;
-  border: 1px solid #a7f3d0;
-}
-.notice.error {
-  background: #fef2f2;
-  color: #991b1b;
-  border: 1px solid #fecaca;
-}
-
-/* Page heading */
-h1 {
-  margin: 0 0 0.25rem 0;
-  font-size: 1rem;
-  font-weight: 700;
-  color: #374151;
-}
 </style>

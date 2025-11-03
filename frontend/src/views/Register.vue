@@ -1,8 +1,8 @@
 <script setup>
-
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { registerUser } from '@/api/auth';
+import '/src/assets/style.css'
 
 const router = useRouter();
 const first = ref('');
@@ -66,7 +66,7 @@ async function createAccount() {
 <template>
   <div class="register-page">
     <div class="page">
-      <h1 class="title">Create Account</h1>
+      <h2 class="card-title">Create Account</h2>
       <router-link to="/login" class="login-link"><i class="fa fa-sign-in" aria-hidden="true"></i><span>User Login</span></router-link>
       <div class="panel">
         <div class="section-head">User Information</div>
@@ -122,14 +122,6 @@ async function createAccount() {
 .register-page {
   background: #f2f4f4;
   border: 1px solid #d0d6d5;
-}
-
-/* === Title === */
-.title {
-  font-size: 36px;
-  font-weight: 400;
-  color: #111;
-  margin: 0 0 4px;
 }
 
 /* === Login link (below title) === */
@@ -227,7 +219,7 @@ async function createAccount() {
 /* Button */
 .btn {
   margin-top: 18px;
-  height: 34px; /* slightly smaller button to match inputs */
+  height: 40px; /* slightly smaller button to match inputs */
   width: fit-content;
   background: #2b5d34;
   color: #fff;
