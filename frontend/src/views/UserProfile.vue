@@ -1,12 +1,19 @@
 <script setup>
 import ForumHeader from '../components/ForumHeader.vue';
 import pfpModal from '@/components/UserPfpModal.vue';
+import UserSettings from '@/components/UserSettings.vue';
 
 import PostIcon from '../assets/img/svg/posts-icon.svg';
 import LikeIcon from '../assets/img/svg/like-icon.svg';
 import CommIcon from '../assets/img/svg/comment-icon.svg';
 
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
+  
+// Import all images to get default avatar
+const allImages = import.meta.glob('../assets/img/user-pfps-premade/*.(png|jpeg|jpg|svg)', { eager: true });
+const images = computed(() => {
+  return Object.values(allImages).map((module) => module.default);
+});
 
 const role = "Admin";
 const fullName = ref(localStorage.getItem('fullName'));
@@ -14,6 +21,31 @@ const postsCount = 0;
 const likesCount = 0;
 const commentsCount = 0;
 const activeTab = ref('yourPosts');
+
+// Load avatar from localStorage or use default
+const currentAvatar = ref('');
+
+const loadAvatar = () => {
+  const savedAvatar = localStorage.getItem('userAvatar');
+  if (savedAvatar) {
+    currentAvatar.value = savedAvatar;
+  } else {
+    // Default to pfp-4.png (index 3) if available
+    currentAvatar.value = images.value[3] || images.value[0] || '';
+  }
+};
+
+onMounted(async () => {
+  loadAvatar();
+  
+  // Listen for settings updates
+  window.addEventListener('settingsUpdated', loadAvatar);
+});
+
+// Clean up event listener
+onUnmounted(() => {
+  window.removeEventListener('settingsUpdated', loadAvatar);
+});
 
 </script>
 
@@ -27,6 +59,7 @@ const activeTab = ref('yourPosts');
     <router-view></router-view>
 
     <pfpModal/>
+    <UserSettings/>
     
       <div class="container-fluid text-center">
         
@@ -34,7 +67,8 @@ const activeTab = ref('yourPosts');
           <div class="col-md-2 user-card"> <!--User Card-->
             <button class="user-pfp-btn" data-bs-toggle="modal" data-bs-target="#pfpChange">
               <div class="user-icon-cont">
-                <img src="@\assets\img\user-pfps-premade\pfp-4.png" class="img-fluid user-icon" alt="yes">
+                <img v-if="currentAvatar" :src="currentAvatar" class="img-fluid user-icon" alt="User avatar">
+                <img v-else src="@\assets\img\user-pfps-premade\pfp-4.png" class="img-fluid user-icon" alt="Default avatar">
             </div>
             </button> <br><br>
             <Role v-if="role === 'Admin'">
@@ -66,7 +100,7 @@ const activeTab = ref('yourPosts');
               <br>
             </div>
             <div class="container text-center align-center"> <br>
-              <button class="btn text-center"> <!--Edit Profile button-->
+              <button class="btn text-center" data-bs-toggle="modal" data-bs-target="#userSettingsModal"> <!--Edit Profile button-->
                 <span class="roboto-medium text-center">
                   Edit Profile
                 </span>
