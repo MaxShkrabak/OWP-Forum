@@ -2,25 +2,33 @@
 import { ref, computed, onMounted } from "vue";
 import Editor from "primevue/editor";
 
+const API = (import.meta.env.VITE_API_URL ?? "") + "/api";
 const MAX = 120;
+const MAX_TAGS = 5;
 
 // Form fields
 const title = ref("");
-const category = ref("");
+const categoryId = ref(0);
 const content = ref("");
-const tags = ref([]);
+const tagIds = ref([]);
 
 // User state
 const currentUser = ref(null);
 const loadingUser = ref(false);
 const userError = ref(null);
 
+//Backend Options
+const category = ref([]);
+const tags = ref([]);
+const loading = ref(false);
+const loadError = ref("");
+
 // Simulated user load (API not yet connected)
 async function loadMe() {
   loadingUser.value = true;
   userError.value = null;
   try {
-    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/me`, {
+    const res = await fetch(`${API}/me`, {
       credentials: "include",
     });
     if (!res.ok) throw new Error(`Failed /api/me: ${res.status}`);
@@ -32,13 +40,49 @@ async function loadMe() {
     loadingUser.value = false;
   }
 }
-onMounted(loadMe);
+
+//load categories and tags from backend
+async function loadOptions() {
+  loading.value = true;
+  loadError.value = "";
+  try {
+    const [cRes, tRes]= await Promise.all([
+      fetch(`${API}/categories`, { credentials: "include" }),
+      fetch(`${API}/tags`, { credentials: "include" }),
+    ]);
+
+    const cJson = await cRes.json();
+    const tJson = await tRes.json();
+    
+    if (!cRes.ok || !cJson.ok) throw new Error(cJson.error || `Failed /api/categories: ${cRes.status}`);
+    if (!tRes.ok || !tJson.ok) throw new Error(tJson.error || `Failed /api/tags: ${tRes.status}`)
+
+    category.value = cJson.items ?? [];
+    tags.value = tJson.items ?? [];
+
+  } catch (e) {
+    loadError.value = e.message || "Unable to load post options";
+    category.value = [];
+    tags.value = [];
+  } finally {
+    loading.value = false;
+  }
+}
+
+onMounted(() => {
+  loadMe();
+  loadOptions();
+});
 
 // Validation
 const len = computed(() => title.value.trim().length);
-const valid = computed(() => len.value > 0 && len.value <= MAX);
+const validTitle = computed(() => len.value > 0 && len.value <= MAX);
+const validContent = computed(() => content.value.trim().length > 0);
+const validCategory = computed(() => Number.isInteger(categoryId.value) && categoryId.value > 0);
+const validTags = computed(() => Array.isArray(tagIds.value) && tagIds.value.length <= MAX_TAGS);
+
 const canPublish = computed(
-  () => !!currentUser.value && valid.value && content.value.trim().length > 0
+  () => !!currentUser.value && validTitle.value && validContent.value && validCategory.value && validTags.value
 );
 
 // Utility
@@ -50,45 +94,45 @@ function initials(name = "") {
 // Actions
 function onCancel() {
   title.value = "";
-  category.value = "";
+  categoryId.value = 0;
   content.value = "";
-  tags.value = [];
+  tagIds.value = [];
 }
 async function onPublish() {
   if (!canPublish.value) return;
   const body = {
     title: title.value.trim(),
-    category: category.value || null,
-    tags: tags.value,
     content: content.value,
+    categoryId: categoryId.value,
+    tagIds: tagIds.value
   };
-  const res = await fetch(`${import.meta.env.VITE_API_URL}/api/posts`, {
+  const res = await fetch(`${API}/posts`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
     body: JSON.stringify(body),
   });
-  if (!res.ok) {
-    const t = await res.text();
-    alert(t || `HTTP ${res.status}`);
-    return;
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok || !json.ok) {
+   alert(json.error || `Failed to create post: ${res.status}`);
+   return;
   }
   onCancel();
-  alert("Post published!");
+  alert("Post published successfully!");
 }
 </script>
 
 <template>
   <section class="frame">
     <div class="post-card">
-      <div class="title-group" :class="{ bad: !valid && len > 0 }">
+      <div class="title-group" :class="{ bad: !validTitle && len > 0 }">
         <div class="title-field">
           <input
             id="post-title"
             v-model.trim="title"
             type="text"
             :maxlength="MAX + 20"
-            :aria-invalid="!valid && len > 0"
+            :aria-invalid="!validTitle && len > 0"
             placeholder=" "
           />
           <label class="inline-label" for="post-title">
@@ -123,21 +167,31 @@ async function onPublish() {
         <div class="controls-row">
           <div class="control">
             <span class="label">Category:</span>
-            <select v-model="category" class="select-compact">
-              <option value="">Select</option>
-              <option>Announcements & News</option>
-              <option>Training Courses</option>
-              <option>Research Projects</option>
-              <option>Help</option>
+            <select v-model.number="categoryId" class="select-compact" required :disabled="loading">
+              <option :value="0" disabled>Select</option>
+              <option v-for="cat in category" :key="cat.id" :value="cat.id">
+                {{ cat.name }}
+              </option>
             </select>
           </div>
 
           <div class="control tags">
             <div class="top-row">
               <span class="label">Tags:</span>
-              <button type="button" class="tag-add" title="Add tag">+</button>
+              <span class="tag-hint">{{ tagIds.length }} / {{ MAX_TAGS }}</span>
             </div>
-            <span class="tag-hint">1 – 5</span>
+
+            <select
+              v-model="tagIds"
+              multiple
+              size="5"
+              class="select-compact"
+              :disabled="loading"
+              @change="tagIds = Array.isArray(tagIds) ? tagIds.slice(0, MAX_TAGS) : []"
+            >
+              <option v-for="tag in tags" :key="tag.id" :value="tag.id">
+                {{ tag.name }}</option>
+            </select>
           </div>
         </div>
       </div>
