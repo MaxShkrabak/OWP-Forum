@@ -25,7 +25,7 @@ watch(route, () => {
 async function handleLogout() {
   try {
     await logout();
-    localStorage.clear();
+    localStorage.removeItem('fullName');
     router.push('/login');
   } catch (e) {
     errorMsg.value = 'Something went wrong.';

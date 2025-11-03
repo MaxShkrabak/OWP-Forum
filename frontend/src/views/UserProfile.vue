@@ -16,13 +16,6 @@ const likesCount = 0;
 const commentsCount = 0;
 const activeTab = ref('yourPosts');
 
-onMounted(async () => {
-  if (!fullName.value) {
-    fullName.value = await getName();
-    localStorage.setItem('fullName', fullName.value);
-  }
-});
-
 </script>
 
 <template>
