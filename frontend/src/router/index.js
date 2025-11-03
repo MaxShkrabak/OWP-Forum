@@ -4,6 +4,7 @@
     import RegistrationPage from '../views/Register.vue';
     import VerifyPasscode from '../views/VerifyPasscode.vue';
     import ForumUserProfile from '../views/UserProfile.vue';
+    import CreatePost from '../views/CreatePost.vue';
     import axios from 'axios';
 
     const API = import.meta.env.VITE_API_BASE || 'http://localhost:8080';
@@ -13,7 +14,7 @@
       { path: '/login', name: 'Log in', component: LoginPage },
       { path: '/register', name: 'Register', component: RegistrationPage },
       { path: '/verify', name: 'VerifyPasscode', component: VerifyPasscode, props: (route) => ({ email: route.query.email || '' }) },
-      
+      { path: '/create-post', name: 'CreatePost', component: CreatePost, meta: { requiresAuth: true } },
       { path: '/profile', name: 'User Profile', component: ForumUserProfile, meta: { requiresAuth: true } },
     ];
 

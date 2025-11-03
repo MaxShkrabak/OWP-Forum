@@ -1,4 +1,5 @@
 <script setup>
+import CreatePostButton from '@/components/CreatePostButton.vue';
 import ForumHeader from '../components/ForumHeader.vue';
 </script>
 
@@ -7,8 +8,11 @@ import ForumHeader from '../components/ForumHeader.vue';
   <h1>HOME PAGE</h1>
     <router-link to="/login">login</router-link> | | |
     <router-link to="/register">register</router-link> | | |
+    <router-link to="/create-post">create post</router-link> | | |
     <router-link to="/profile">My Profile</router-link>
     <router-view></router-view>
+
+    <CreatePostButton/>
 </template>
 
 <style scoped></style>
