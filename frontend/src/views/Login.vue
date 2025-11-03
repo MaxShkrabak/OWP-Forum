@@ -114,10 +114,6 @@ async function onSubmit() {
 </template>
 
 <style scoped>
-/* Header/Footer placeholders */
-.site-header {}
-.site-footer {}
-
 /* NAV */
 .inline-nav {
   display: inline-block;
@@ -216,6 +212,8 @@ async function onSubmit() {
   border-radius: 4px;
   outline: none;
   transition: box-shadow 120ms ease, border-color 120ms ease;
+  background-color: #ffffff;
+  color: #111827;
 }
 @media (max-width: 480px) {
   .input { max-width: 100%; }

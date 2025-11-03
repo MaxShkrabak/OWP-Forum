@@ -1,5 +1,39 @@
 <script setup>
+import { ref, onMounted, watch } from 'vue';
+import { RouterLink } from 'vue-router';
 import ForumHeader from '../components/ForumHeader.vue';
+import { isLoggedIn, checkAuth } from '@/api/auth';
+import axios from 'axios';
+
+const API = import.meta.env.VITE_API_BASE || 'http://localhost:8080';
+const user = ref(null);
+
+// Fetch user data if logged in
+async function fetchUserData() {
+  if (isLoggedIn.value) {
+    try {
+      const res = await axios.get(`${API}/api/me`, { withCredentials: true });
+      if (res.data.ok && res.data.user) {
+        user.value = res.data.user;
+      }
+    } catch (e) {
+      console.error('Error fetching user data:', e);
+      user.value = null;
+    }
+  } else {
+    user.value = null;
+  }
+}
+
+// Watch for auth state changes
+watch(isLoggedIn, async () => {
+  await fetchUserData();
+});
+
+onMounted(async () => {
+  await checkAuth();
+  await fetchUserData();
+});
 </script>
 
 <template>
@@ -7,14 +41,17 @@ import ForumHeader from '../components/ForumHeader.vue';
     <div class="forum-home py-3">
         <div class="container-xl">
             <div class="row g-4">
-                <!-- Left Sidebar -->
-                <div class="col-12 col-lg-3 order-2 order-lg-1">
+                <!-- User Cards -->
+                <div class="col-12 col-lg-3">
+                    <!-- Logged In User Card -->
                     <div class="card border-0 shadow-sm rounded-2 mb-3 profile-card">
                         <div class="card-body d-flex gap-3 align-items-center">
-                            <div class="avatar bg-secondary-subtle rounded-circle flex-shrink-0"></div>
+                            <div class="avatar bg-secondary-subtle rounded-circle flex-shrink-0 d-flex align-items-center justify-content-center">
+                                <i class="pi pi-user text-secondary"></i>
+                            </div>
                             <div class="flex-grow-1">
                                 <div class="d-flex align-items-center gap-2">
-                                    <div class="fw-semibold text-dark">Joe Hornet</div>
+                                    <div class="fw-semibold text-dark">{{ user ? `${user.FirstName} ${user.LastName}` : 'Joe Hornet' }}</div>
                                     <span class="badge role-badge student">Student</span>
                                 </div>
                                 <div class="small text-secondary">Posts: <b>23</b> &nbsp; Likes: <b>235</b> &nbsp; Comments: <b>59</b></div>
@@ -22,214 +59,17 @@ import ForumHeader from '../components/ForumHeader.vue';
                         </div>
                     </div>
 
-                    <button class="btn btn-success w-100 mb-3 create-post-btn">
-                        CREATE
-                        <span class="d-none d-sm-inline"> POST</span>
-                    </button>
-
-                    <div class="card border-0 shadow-sm rounded-2">
-                        <div class="card-body">
-                            <div class="fw-semibold mb-2">Filter By Tags</div>
-                            <div class="d-flex flex-column gap-2">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="tagEducation">
-                                    <label class="form-check-label" for="tagEducation"><span class="badge rounded-pill tag-badge">Education</span></label>
-                                </div>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="tagInformational">
-                                    <label class="form-check-label" for="tagInformational"><span class="badge rounded-pill tag-badge">Informational</span></label>
-                                </div>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="tagEvents">
-                                    <label class="form-check-label" for="tagEvents"><span class="badge rounded-pill tag-badge">Events</span></label>
-                                </div>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="tagQuestion">
-                                    <label class="form-check-label" for="tagQuestion"><span class="badge rounded-pill tag-badge">Question</span></label>
-                                </div>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="tagData">
-                                    <label class="form-check-label" for="tagData"><span class="badge rounded-pill tag-badge">Data Analysis</span></label>
-                                </div>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="tagResearch">
-                                    <label class="form-check-label" for="tagResearch"><span class="badge rounded-pill tag-badge">Research</span></label>
-                                </div>
+                    <!-- Guest/Not Logged In User Card -->
+                    <div class="card border-0 shadow-sm rounded-2 mb-3 profile-card guest-card">
+                        <div class="card-body d-flex gap-3 align-items-start">
+                            <div class="avatar-guest bg-secondary-subtle rounded-circle flex-shrink-0 d-flex align-items-center justify-content-center">
+                                <i class="pi pi-user text-secondary"></i>
                             </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Main Content -->
-                <div class="col-12 col-lg-9 order-1 order-lg-2">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <div class="small text-secondary">7 posts</div>
-                        <div class="d-flex align-items-center gap-2 small">
-                            <span class="text-secondary">Sort by:</span>
-                            <div class="sort-pill">Latest</div>
-                        </div>
-                    </div>
-
-                    <!-- Section: Official Announcements -->
-                    <div class="section mb-4">
-                        <div class="section-title">Official Announcements & Updates</div>
-                        <div class="list-group list-group-flush">
-                            <div class="list-group-item px-0 py-3">
-                                <div class="d-flex align-items-start gap-3">
-                                    <div class="like-pill"><i class="pi pi-thumbs-up me-1"></i>323</div>
-                                    <i class="pi pi-megaphone text-secondary fs-5"></i>
-                                    <div class="flex-grow-1">
-                                        <div class="d-flex flex-wrap align-items-center gap-2">
-                                            <a href="#" class="post-link">Managing California’s Groundwater</a>
-                                            <span class="badge text-bg-warning rounded-pill small fw-semibold ms-1">Official</span>
-                                        </div>
-                                        <div class="d-flex flex-wrap gap-1 mt-2">
-                                            <span class="badge rounded-pill tag-badge">Education</span>
-                                            <span class="badge rounded-pill tag-badge">Informational</span>
-                                            <span class="badge rounded-pill tag-badge">Events</span>
-                                            <span class="badge rounded-pill tag-badge">Networking</span>
-                                        </div>
-                                        <div class="small text-secondary mt-1">Closed comments</div>
-                                    </div>
-                                    <div class="text-nowrap text-end small text-secondary">
-                                        <div class="mb-1">2 hrs ago</div>
-                                        <div class="d-flex align-items-center gap-2 justify-content-end"><i class="pi pi-user"></i><span>OWP Administration</span><span class="badge role-badge admin">Admin</span></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Section: Design & Operations -->
-                    <div class="section mb-4">
-                        <div class="section-title">Design & Operations</div>
-                        <div class="list-group list-group-flush">
-                            <div class="list-group-item px-0 py-3">
-                                <div class="d-flex align-items-start gap-3">
-                                    <div class="like-pill"><i class="pi pi-thumbs-up me-1"></i>8</div>
-                                    <i class="pi pi-book text-secondary fs-5"></i>
-                                    <div class="flex-grow-1">
-                                        <a href="#" class="post-link">Upgrading old and outdated equipment</a>
-                                        <div class="d-flex flex-wrap gap-1 mt-2">
-                                            <span class="badge rounded-pill tag-badge">Education</span>
-                                            <span class="badge rounded-pill tag-badge">Informational</span>
-                                            <span class="badge rounded-pill tag-badge">Events</span>
-                                            <span class="badge rounded-pill tag-badge">Networking</span>
-                                        </div>
-                                        <div class="small text-secondary mt-1">4 comments</div>
-                                    </div>
-                                    <div class="text-nowrap text-end small text-secondary">
-                                        <div class="mb-1">3 days ago</div>
-                                        <div class="d-flex align-items-center gap-2 justify-content-end"><i class="pi pi-user"></i><span>Joe Smith</span><span class="badge role-badge moderator">Moderator</span></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Section: Research -->
-                    <div class="section mb-4">
-                        <div class="section-title">Research</div>
-                        <div class="list-group list-group-flush">
-                            <div class="list-group-item px-0 py-3">
-                                <div class="d-flex align-items-start gap-3">
-                                    <div class="like-pill"><i class="pi pi-thumbs-up me-1"></i>25</div>
-                                    <i class="pi pi-chart-line text-secondary fs-5"></i>
-                                    <div class="flex-grow-1">
-                                        <a href="#" class="post-link">Real-time water quality monitoring</a>
-                                        <div class="d-flex flex-wrap gap-1 mt-2">
-                                            <span class="badge rounded-pill tag-badge">Research</span>
-                                            <span class="badge rounded-pill tag-badge">Data Analysis</span>
-                                        </div>
-                                        <div class="small text-secondary mt-1">8 comments</div>
-                                    </div>
-                                    <div class="text-nowrap text-end small text-secondary">
-                                        <div class="mb-1">3 weeks ago</div>
-                                        <div class="d-flex align-items-center gap-2 justify-content-end"><i class="pi pi-user"></i><span>Johnny Hornet</span><span class="badge role-badge student">Student</span></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Section: Questions -->
-                    <div class="section mb-4">
-                        <div class="section-title">Questions</div>
-                        <div class="list-group list-group-flush">
-                            <div class="list-group-item px-0 py-3">
-                                <div class="d-flex align-items-start gap-3">
-                                    <div class="like-pill"><i class="pi pi-thumbs-up me-1"></i>2</div>
-                                    <i class="pi pi-question-circle text-secondary fs-5"></i>
-                                    <div class="flex-grow-1">
-                                        <a href="#" class="post-link">How to use SCADA</a>
-                                        <div class="d-flex flex-wrap gap-1 mt-2">
-                                            <span class="badge rounded-pill tag-badge">Education</span>
-                                            <span class="badge rounded-pill tag-badge">Informational</span>
-                                        </div>
-                                        <div class="small text-secondary mt-1">1 comment</div>
-                                    </div>
-                                    <div class="text-nowrap text-end small text-secondary">
-                                        <div class="mb-1">10 mins. ago</div>
-                                        <div class="d-flex align-items-center gap-2 justify-content-end"><i class="pi pi-user"></i><span>Donald McRonald</span><span class="badge role-badge user">User</span></div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="list-group-item px-0 py-3">
-                                <div class="d-flex align-items-start gap-3">
-                                    <div class="like-pill"><i class="pi pi-thumbs-up me-1"></i>13</div>
-                                    <i class="pi pi-question-circle text-secondary fs-5"></i>
-                                    <div class="flex-grow-1">
-                                        <a href="#" class="post-link">How to effectively run a water treatment plant</a>
-                                        <div class="d-flex flex-wrap gap-1 mt-2">
-                                            <span class="badge rounded-pill tag-badge">Education</span>
-                                            <span class="badge rounded-pill tag-badge">Informational</span>
-                                            <span class="badge rounded-pill tag-badge">Question</span>
-                                        </div>
-                                        <div class="small text-secondary mt-1">5 comments</div>
-                                    </div>
-                                    <div class="text-nowrap text-end small text-secondary">
-                                        <div class="mb-1">1 day ago</div>
-                                        <div class="d-flex align-items-center gap-2 justify-content-end"><i class="pi pi-user"></i><span>Timothy Hornet</span><span class="badge role-badge student">Student</span></div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="list-group-item px-0 py-3">
-                                <div class="d-flex align-items-start gap-3">
-                                    <div class="like-pill"><i class="pi pi-thumbs-up me-1"></i>91</div>
-                                    <i class="pi pi-question-circle text-secondary fs-5"></i>
-                                    <div class="flex-grow-1">
-                                        <a href="#" class="post-link">How to properly measure and verify chemical readings</a>
-                                        <div class="d-flex flex-wrap gap-1 mt-2">
-                                            <span class="badge rounded-pill tag-badge">Education</span>
-                                            <span class="badge rounded-pill tag-badge">Informational</span>
-                                        </div>
-                                        <div class="small text-secondary mt-1">29 comments</div>
-                                    </div>
-                                    <div class="text-nowrap text-end small text-secondary">
-                                        <div class="mb-1">1 week ago</div>
-                                        <div class="d-flex align-items-center gap-2 justify-content-end"><i class="pi pi-user"></i><span>Gerald Hornet</span><span class="badge role-badge user">User</span></div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="list-group-item px-0 py-3">
-                                <div class="d-flex align-items-start gap-3">
-                                    <div class="like-pill"><i class="pi pi-thumbs-up me-1"></i>102</div>
-                                    <i class="pi pi-question-circle text-secondary fs-5"></i>
-                                    <div class="flex-grow-1">
-                                        <a href="#" class="post-link">Where can I get information on properly maintaining and calibrating instruments...</a>
-                                        <div class="d-flex flex-wrap gap-1 mt-2">
-                                            <span class="badge rounded-pill tag-badge">Education</span>
-                                            <span class="badge rounded-pill tag-badge">Informational</span>
-                                        </div>
-                                        <div class="small text-secondary mt-1">42 comments</div>
-                                    </div>
-                                    <div class="text-nowrap text-end small text-secondary">
-                                        <div class="mb-1">1 mo. ago</div>
-                                        <div class="d-flex align-items-center gap-2 justify-content-end"><i class="pi pi-user"></i><span>Victoria Smith</span><span class="badge role-badge moderator">Moderator</span></div>
-                                    </div>
+                            <div class="flex-grow-1 guest-content">
+                                <div class="fw-semibold text-dark mb-2">Guest</div>
+                                <div class="welcome-text">
+                                    <div class="mb-1">Welcome!</div>
+                                    <div class="small">Here, you will find your activity report, once you <RouterLink to="/login" class="sign-in-link">sign in!</RouterLink></div>
                                 </div>
                             </div>
                         </div>
@@ -244,20 +84,31 @@ import ForumHeader from '../components/ForumHeader.vue';
 .forum-home { background: #F0F2F3; }
 
 .profile-card .avatar { width: 56px; height: 56px; }
+.profile-card .avatar i { font-size: 1.5rem; }
 
-.create-post-btn { background:#2E6C44; border-color:#2E6C44; font-weight:700; }
-.create-post-btn:hover { background:#275d3a; border-color:#275d3a; }
+.guest-card .avatar-guest { width: 64px; height: 64px; }
+.guest-card .avatar-guest i { font-size: 2rem; }
 
-.tag-badge { background:#E7EFE5; color:#2E6C44; font-weight:600; }
+.guest-content {
+  display: flex;
+  flex-direction: column;
+}
 
-.sort-pill { background:#E7EFE5; color:#2E6C44; padding:4px 10px; border-radius:12px; font-weight:600; }
+.welcome-text {
+  color: #374151;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
 
-.section-title { display:inline-block; background:#2E6C44; color:#fff; padding:6px 12px; border-radius:8px; font-weight:700; font-size:0.95rem; }
+.sign-in-link {
+  color: #2E6C44;
+  font-weight: 700;
+  text-decoration: none;
+}
 
-.post-link { color:#2B2B2B; text-decoration:none; font-weight:600; }
-.post-link:hover { text-decoration:underline; }
-
-.list-group-item { border: 0; border-bottom:1px solid #E0E0E0; background:transparent; }
+.sign-in-link:hover {
+  text-decoration: underline;
+}
 
 /* Role badges */
 .role-badge { border-radius: 12px; padding: 2px 8px; font-weight:700; font-size: .70rem; }
@@ -266,7 +117,4 @@ import ForumHeader from '../components/ForumHeader.vue';
 .role-badge.moderator { background:#FFF5DB; color:#A87400; }
 .role-badge.user { background:#EDEDED; color:#555; }
 .role-badge.teacher { background:#EAF8EE; color:#2E6C44; }
-
-/* Likes */
-.like-pill { background:#F6F7F8; color:#666; border:1px solid #E0E0E0; border-radius:10px; padding:2px 8px; font-weight:700; font-size:.8rem; display:flex; align-items:center; }
 </style>
