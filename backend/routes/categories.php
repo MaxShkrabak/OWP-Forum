@@ -2,11 +2,7 @@
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
-<?php
-use Psr\Http\Message\ResponseInterface as Response;
-use Psr\Http\Message\ServerRequestInterface as Request;
-
-$app->get('/api/tags', function(Request $req, Response $res) use ($makePdo) {
+$app->get('/api/categories', function(Request $req, Response $res) use ($makePdo) {
    try {
         $pdo = $makePdo();
         $userId = (int)($req->getAttribute('user_id') ?? 0);
@@ -25,7 +21,7 @@ $app->get('/api/tags', function(Request $req, Response $res) use ($makePdo) {
         $sql = 'SELECT CategoryID AS id, 
             Name AS name 
             FROM dbo.Categories 
-            WHERE useableByRoleID <= :roleID 
+            WHERE UsableByRoleID <= :roleID 
             ORDER BY Name';
         
         $stmt = $pdo->prepare($sql);
@@ -38,7 +34,7 @@ $app->get('/api/tags', function(Request $req, Response $res) use ($makePdo) {
             ->withHeader('Cache-Control', 'public, max-age=300');
 
     } catch (Throwable $e) {
-        $res->getBody()->write(json_encode(['ok' => false, 'error' => 'Failed to fetch tags']));
+        $res->getBody()->write(json_encode(['ok' => false, 'error' => 'Failed to fetch categories']));
         return $res->withStatus(500)->withHeader('Content-Type', 'application/json');
     }
 });
