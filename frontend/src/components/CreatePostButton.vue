@@ -4,7 +4,7 @@ import { RouterLink } from 'vue-router';
 </script>
 
 <template>
-    <RouterLink v-show="!isLoggedIn" to="/create-post" class="btn"> <!-- Will show only if logged in -->
+    <RouterLink v-show="isLoggedIn" to="/create-post" class="btn"> <!-- Will show only if logged in -->
         <span class="roboto-bold">CREATE<br>POST</br></span>
     </RouterLink>
 </template>
