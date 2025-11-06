@@ -2,7 +2,7 @@
 import CSUSHeader from './components/CSUSHeader.vue'
 import OWPHeader from './components/OWPHeader.vue';
 import Footer from './components/Footer.vue';
-
+// import Category from './components/Category.vue';
 </script>
 
 <template>
@@ -10,6 +10,7 @@ import Footer from './components/Footer.vue';
   <OWPHeader />
   <router-view />
   <Footer />
+  <!-- <Category/> -->
 </template>
 
 <style scoped>
