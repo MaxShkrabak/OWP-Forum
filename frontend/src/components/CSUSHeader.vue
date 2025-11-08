@@ -1,43 +1,15 @@
-<template>
-  <header class="csus-bar" role="banner">
-    <div class="csus-wrap">
-      <!-- CSUS wordmark -->
-      <div class="left">
-        <img
-          class="logo"
-          :src="logoSrc"
-          alt="Sacramento State"
-          decoding="async"
-        />
-      </div>
-      <!-- Search -->
-      <form class="searchComp" @submit.prevent="goSearch">
-          <input
-            v-model="query"
-            type="search"
-            class="search-box search"
-            placeholder="Search..."
-            aria-label="Search Sacramento State"
-          />
-          <button class="icon-btn" type="submit" aria-label="Submit search">
-          </button>
-          <img src="@/assets/img/svg/search-icon.svg" alt="search" class="icon">
-      </form>
-      
-    </div>
-  </header>
-</template>
-
 <script>
 import defaultLogo from '@/assets/img/svg/sac-state-logo-3Color.svg'
+import smallLogo from '@/assets/img/png/logo-horizontal-small.png'
 
 export default {
   name: 'HeaderCSUS',
-  props: {
-    logoSrc: { type: String, default: () => defaultLogo }
-  },
   data() {
     return { query: '' }
+  },
+  computed: {
+    defaultLogo: () => defaultLogo,
+    smallLogo: () => smallLogo
   },
   methods: {
     goSearch() {
@@ -52,6 +24,34 @@ export default {
   }
 }
 </script>
+
+<template>
+  <header class="csus-bar" role="banner">
+    <div class="csus-wrap">
+      <!-- CSUS wordmark -->
+      <div class="left">
+        <picture>
+          <source :srcset="smallLogo" media="(max-width: 464px)"/>
+          <img class="logo" :src="defaultLogo" alt="Sacramento State Logo" decoding="async"/>
+        </picture>
+      </div>
+
+      <!-- Search -->
+      <form class="searchComp" @submit.prevent="goSearch">
+          <input
+            v-model="query"
+            type="search"
+            class="search-box search"
+            placeholder="Search..."
+            aria-label="Search Sacramento State"
+          />
+          <button class="icon-btn" type="submit" aria-label="Submit search">
+          </button>
+          <img src="@/assets/img/svg/search-icon.svg" alt="search" class="icon">
+      </form>
+    </div>
+  </header>
+</template>
 
 <style scoped>
 :root {
@@ -166,6 +166,14 @@ export default {
   .search input {
     width: 10rem;
     max-width: 50vw;
+  }
+}
+/* Small Sac State logo */
+@media (max-width: 464px) {
+  .csus-bar .logo {
+    height: 35px;
+    width: auto;
+    padding-left: 10px;
   }
 }
 
