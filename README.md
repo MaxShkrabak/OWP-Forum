@@ -7,3 +7,4 @@ water programs and initiatives.
 ## Contributors
 
 - Maksim Shkrabak
+- Daniel Ivanilov
