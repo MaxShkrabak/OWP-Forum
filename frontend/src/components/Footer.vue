@@ -21,17 +21,15 @@ import linkedin from "@/assets/img/svg/linked-logo-wht.svg"
 
       <!-- Middle Info Section -->
       <div class="footer-middle">
-        <p><strong>Office of Water Programs</strong></p>
-        <p>
+        <p><strong>Office of Water Programs</strong> <br />
           3020 State University Drive<br />
           Modoc Hall Suite 1001<br />
-          Sacramento, CA 95819
-        </p>
-        <p>
+          Sacramento, CA 95819 <br />
+        
           Phone: (916) 278-6142<br />
           Fax: (916) 278-5959<br />
           Email:
-          <a href="mailto:wateroffice@owp.csus.edu">wateroffice@owp.csus.edu</a>
+          <a class="email" href="mailto:wateroffice@owp.csus.edu">wateroffice@owp.csus.edu</a>
         </p>
         <a href="#" class="social-icon">
           <img :src="facebook" alt="Facebook"/>
@@ -140,6 +138,10 @@ a {
   font-family: 'Lato', Arial, Helvetica, sans-serif;
   font-weight: 700;
 }
+.email {
+  color: rgb(0, 132, 83);
+  text-decoration: underline;
+}
 
 a:hover {
   color: #ffffff;
@@ -150,6 +152,10 @@ a:hover {
   margin-top: 1em;
   font-size: 13px;
   color: #d3d3d3;
+}
+
+p {
+  color: white;
 }
 
 /* Responsive adjustments */
@@ -172,6 +178,14 @@ a:hover {
 
   .footer-right ul {
     padding-top: 1em;
+  }
+}
+
+/* Adjust padding for smaller devices*/
+@media (max-width: 360px) {
+  .footer {
+    padding-left: 1em;
+    padding-right: 1em;
   }
 }
 </style>
