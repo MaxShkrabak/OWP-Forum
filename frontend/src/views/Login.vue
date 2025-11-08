@@ -115,10 +115,6 @@ async function onSubmit() {
 </template>
 
 <style scoped>
-/* Header/Footer placeholders */
-.site-header {}
-.site-footer {}
-
 /* NAV */
 .inline-nav {
   display: inline-block;
@@ -131,6 +127,55 @@ async function onSubmit() {
   margin-top: 8rem;
 }
 
+<<<<<<< HEAD
+=======
+/* Mobile tweaks */
+@media (max-width: 768px) {
+  .login-wrap { --section-gutter: clamp(8px, 4vw, 16px); }
+
+  .login-card {
+    padding: 0 var(--section-gutter);
+  }
+
+  .form-inner {
+    max-width: 100%;
+    margin-top: 1rem;
+    padding: 1.25rem;
+  }
+}
+
+/* Typography */
+.card-title {
+  margin: 0 0 3.75rem 0;
+  font-size: 2.5rem;
+  line-height: 1.2;
+  font-weight: 800;
+  color: #111827;
+}
+.label {
+  display: block;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 0.65rem;
+}
+
+/* Inputs */
+.input {
+  display: block;
+  width: 100%;
+  max-width: clamp(22rem, 55%, 35rem);
+  font-size: 1.2rem;
+  line-height: 1.35;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  outline: none;
+  transition: box-shadow 120ms ease, border-color 120ms ease;
+  background-color: #ffffff;
+  color: #111827;
+}
+>>>>>>> 63b020a2f0c1e4cea085826cf90ea40944ca7892
 @media (max-width: 480px) {
   .input { max-width: 100%; }
 }
