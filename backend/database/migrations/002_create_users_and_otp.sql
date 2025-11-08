@@ -4,14 +4,16 @@ BEGIN
   CREATE TABLE dbo.Users (
     User_ID        INT IDENTITY(1,1) PRIMARY KEY,
     Email          NVARCHAR(255) NOT NULL UNIQUE,
-    FirstName           NVARCHAR(120) NULL,
-    LastName           NVARCHAR(120) NULL,
-    Role           NVARCHAR(50)  NULL,
+    FirstName      NVARCHAR(120) NULL,
+    LastName       NVARCHAR(120) NULL,
+    RoleID         INT NULL FOREIGN KEY REFERENCES dbo.Roles(RoleID),
+    Avatar         VARCHAR(100) NOT NULL DEFAULT'guest-user-icon.png',
     EmailVerified  BIT NOT NULL DEFAULT(0),
     Created        DATETIME2(0) NOT NULL DEFAULT(SYSDATETIME()),
     LastLogin      DATETIME2(0) NULL
   );
 END;
+
 
 -- OTP codes (single-use)
 IF OBJECT_ID('dbo.OTP_Codes', 'U') IS NULL
@@ -28,6 +30,7 @@ BEGIN
     ON dbo.OTP_Codes(User_ID, Is_Used, Expires_At);
 END;
 
+
 -- Table for storing user sessions
 IF OBJECT_ID('dbo.Sessions', 'U') IS NULL
 BEGIN
@@ -38,8 +41,10 @@ BEGIN
     Expires      DATETIME2 NOT NULL
   );
 
+
   CREATE UNIQUE INDEX IX_Sessions_TokenHash ON dbo.Sessions(Token_Hash);
 END;
+
 
 -- Optional: track schema versions for migrate.php
 IF OBJECT_ID('dbo.SchemaVersions', 'U') IS NULL

@@ -1,4 +1,4 @@
-
+-- Role types table
 IF OBJECT_ID('dbo.Roles','U') IS NULL
 BEGIN
     CREATE TABLE dbo.Roles
@@ -11,9 +11,9 @@ BEGIN
 END;
 GO
 
+
 MERGE dbo.Roles AS t
 USING (VALUES (N'user'), (N'student'), (N'moderator'), (N'admin')) AS s(Name)
     ON t.Name = s.Name
 WHEN NOT MATCHED BY TARGET THEN INSERT (Name) VALUES (s.Name);
 GO
-
