@@ -30,8 +30,8 @@ const loadAvatar = () => {
   if (savedAvatar) {
     currentAvatar.value = savedAvatar;
   } else {
-    // Default to pfp-4.png (index 3) if available
-    currentAvatar.value = images.value[3] || images.value[0] || '';
+    // Default to pfp-0.png (index 0) if available
+    currentAvatar.value = images.value[0] || '';
   }
 };
 
@@ -46,7 +46,6 @@ onMounted(async () => {
 onUnmounted(() => {
   window.removeEventListener('settingsUpdated', loadAvatar);
 });
-
 </script>
 
 <template>
@@ -68,7 +67,7 @@ onUnmounted(() => {
             <button class="user-pfp-btn" data-bs-toggle="modal" data-bs-target="#pfpChange">
               <div class="user-icon-cont">
                 <img v-if="currentAvatar" :src="currentAvatar" class="img-fluid user-icon" alt="User avatar">
-                <img v-else src="@\assets\img\user-pfps-premade\pfp-4.png" class="img-fluid user-icon" alt="Default avatar">
+                <img v-else src="@\assets\img\user-pfps-premade\pfp-0.png" class="img-fluid user-icon" alt="Default avatar">
             </div>
             </button> <br><br>
             <Role v-if="role === 'Admin'">

@@ -5,7 +5,7 @@ import { RouterLink } from "vue-router";
 import ForumHeader from "../components/ForumHeader.vue";
 import { isLoggedIn, checkAuth } from "@/api/auth";
 import axios from "axios";
-import UserIcon from "@/assets/img/png/guest-user-icon.png";
+import UserIcon from "@/assets/img/user-pfps-premade/pfp-0.png";
 
 const role = ref("Admin");
 

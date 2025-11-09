@@ -17,7 +17,7 @@ const loadAvatar = () => {
   if (savedAvatar) {
     selectedAvatar.value = savedAvatar;
   } else {
-    selectedAvatar.value = images.value[3] || '';
+    selectedAvatar.value = images.value[0] || '';
   }
 };
 

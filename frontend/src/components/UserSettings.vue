@@ -12,7 +12,7 @@ const images = computed(() => {
 
 // Load saved settings from localStorage
 const loadSettings = () => {
-  const savedAvatar = localStorage.getItem('userAvatar') || images.value[3] || ''; // Default to pfp-4.png (index 3)
+  const savedAvatar = localStorage.getItem('userAvatar') || images.value[0] || ''; // Default to pfp-0.png (index 0)
   const savedNotifications = localStorage.getItem('notificationPreferences');
   
   selectedAvatar.value = savedAvatar;

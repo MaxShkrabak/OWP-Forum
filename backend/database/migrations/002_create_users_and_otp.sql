@@ -7,7 +7,7 @@ BEGIN
     FirstName      NVARCHAR(120) NULL,
     LastName       NVARCHAR(120) NULL,
     RoleID         INT NULL FOREIGN KEY REFERENCES dbo.Roles(RoleID),
-    Avatar         VARCHAR(100) NOT NULL DEFAULT'guest-user-icon.png',
+    Avatar         VARCHAR(100) NOT NULL DEFAULT'pfp-0.png',
     EmailVerified  BIT NOT NULL DEFAULT(0),
     Created        DATETIME2(0) NOT NULL DEFAULT(SYSDATETIME()),
     LastLogin      DATETIME2(0) NULL
