@@ -102,3 +102,16 @@ export async function getName() {
     return data.user.FirstName + ' ' + data.user.LastName;
   } 
 }
+
+// Function to store users icon type in database
+export async function updateUserAvatar(avatarPath) {
+  const res = await axios.post(
+    `${API}/api/user/avatar`,
+    { avatar: avatarPath },
+    {
+      headers: { "Content-Type": "application/json" },
+      withCredentials: true,
+    }
+  );
+  return res.data;
+}

@@ -1,5 +1,7 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
+import { updateUserAvatar } from '@/api/auth';
+import { userAvatar } from '@/stores/userStore';
 
 // Import all images from the 'src/assets/images' folder
 const allImages = import.meta.glob('../assets/img/user-pfps-premade/*.(png|jpeg|jpg|svg)', { eager: true });
@@ -11,7 +13,7 @@ const images = computed(() => {
 
 // Load saved settings from localStorage
 const loadSettings = () => {
-  const savedAvatar = localStorage.getItem('userAvatar') || images.value[3] || ''; // Default to pfp-4.png (index 3)
+  const savedAvatar = localStorage.getItem('userAvatar') || images.value[0] || ''; // Default to pfp-0.png (index 0)
   const savedNotifications = localStorage.getItem('notificationPreferences');
   
   selectedAvatar.value = savedAvatar;
@@ -26,37 +28,51 @@ const loadSettings = () => {
   }
 };
 
-// Save settings to localStorage
-const saveSettings = () => {
-  localStorage.setItem('userAvatar', selectedAvatar.value);
-  localStorage.setItem('notificationPreferences', JSON.stringify(notificationPrefs.value));
-  
-  // Close modal using Bootstrap
-  const modalElement = document.getElementById('userSettingsModal');
-  if (modalElement) {
-    // Try different ways to access Bootstrap Modal
-    let modal = null;
-    if (window.bootstrap && window.bootstrap.Modal) {
-      modal = window.bootstrap.Modal.getInstance(modalElement);
-    } else if (window.Bootstrap && window.Bootstrap.Modal) {
-      modal = window.Bootstrap.Modal.getInstance(modalElement);
+// Save settings to localStorage and database
+const saveSettings = async () => {
+  try {
+    const fullPath = selectedAvatar.value;
+    const filename = fullPath.split('/').pop();
+    const result = await updateUserAvatar(filename);
+
+    if (!result.ok) {
+      alert('Could not save your icon, please try again later.');
+      return;
     }
+
+    // Store icon in localstorage
+    localStorage.setItem('userAvatar', selectedAvatar.value);
+    localStorage.setItem('notificationPreferences', JSON.stringify(notificationPrefs.value));
+    userAvatar.value = selectedAvatar.value; // update store
     
-    if (modal) {
-      modal.hide();
-    } else {
-      // Fallback: use jQuery/bootstrap event or just remove show class
-      modalElement.classList.remove('show');
-      modalElement.setAttribute('aria-hidden', 'true');
-      modalElement.style.display = 'none';
-      document.body.classList.remove('modal-open');
-      const backdrop = document.querySelector('.modal-backdrop');
-      if (backdrop) backdrop.remove();
+    // Close modal using Bootstrap
+    const modalElement = document.getElementById('userSettingsModal');
+    if (modalElement) {
+      // Try different ways to access Bootstrap Modal
+      let modal = null;
+      if (window.bootstrap && window.bootstrap.Modal) {
+        modal = window.bootstrap.Modal.getInstance(modalElement);
+      } else if (window.Bootstrap && window.Bootstrap.Modal) {
+        modal = window.Bootstrap.Modal.getInstance(modalElement);
+      }
+      
+      if (modal) {
+        modal.hide();
+      } else {
+        // Fallback: use jQuery/bootstrap event or just remove show class
+        modalElement.classList.remove('show');
+        modalElement.setAttribute('aria-hidden', 'true');
+        modalElement.style.display = 'none';
+        document.body.classList.remove('modal-open');
+        const backdrop = document.querySelector('.modal-backdrop');
+        if (backdrop) backdrop.remove();
+      }
     }
-  }
-  
-  // Trigger a custom event to notify UserProfile to update
-  window.dispatchEvent(new CustomEvent('settingsUpdated'));
+  } catch (e) {
+    // Something went wrong
+    const errorMsg = e.message || 'An error occured.';
+    alert(errorMsg);
+  } 
 };
 
 const selectedAvatar = ref('');
@@ -67,6 +83,11 @@ const notificationPrefs = ref({
   postLikes: true,
   newFollowers: true,
   mentions: true
+});
+
+// Watch for changes in store
+watch(userAvatar, (newAvatar) => {
+  selectedAvatar.value = newAvatar;
 });
 
 onMounted(() => {
@@ -356,4 +377,3 @@ const selectAvatar = (imagePath) => {
   }
 }
 </style>
-

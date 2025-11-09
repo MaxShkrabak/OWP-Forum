@@ -1,36 +1,40 @@
 <script setup>
-import { computed, ref, onMounted } from 'vue';
-
+import { computed, ref, watch } from 'vue';
+import { updateUserAvatar } from '@/api/auth';
+import { userAvatar } from '@/stores/userStore';
 
 // Import all images from the 'src/assets/img/user-pfps-premade/' folder
 const allImages = import.meta.glob('../assets/img/user-pfps-premade/*.(png|jpeg|jpg|svg)', { eager: true });
-
 
 // Extract the image paths for use in the template
 const images = computed(() => {
   return Object.values(allImages).map((module) => module.default);
 });
 
-const selectedAvatar = ref('');
+const selectedAvatar = ref(userAvatar.value); // set icon from the store
 
-// Load current avatar
-onMounted(() => {
-  const savedAvatar = localStorage.getItem('userAvatar');
-  if (savedAvatar) {
-    selectedAvatar.value = savedAvatar;
-  } else {
-    // Default to pfp-4.png (index 3) if available
-    selectedAvatar.value = images.value[3] || images.value[0] || '';
-  }
+// Watch for changes in store
+watch(userAvatar, (newAvatar) => {
+  selectedAvatar.value = newAvatar;
 });
 
 const selectAvatar = (imagePath) => {
   selectedAvatar.value = imagePath;
 };
 
-const saveAvatar = () => {
-  if (selectedAvatar.value) {
+const saveAvatar = async () => {
+  try {
+    const fullPath = selectedAvatar.value;
+    const filename = fullPath.split('/').pop();
+    const result = await updateUserAvatar(filename);
+
+    if (!result.ok) {
+      alert('Could not save your icon, please try again later.');
+      return;
+    }
+
     localStorage.setItem('userAvatar', selectedAvatar.value);
+    userAvatar.value = selectedAvatar.value; // update the store
     
     // Close modal using Bootstrap
     const modalElement = document.getElementById('pfpChange');
@@ -55,12 +59,14 @@ const saveAvatar = () => {
         if (backdrop) backdrop.remove();
       }
     }
-    
-    // Trigger event to update avatar display in UserProfile
-    window.dispatchEvent(new CustomEvent('settingsUpdated'));
+  } catch (e) {
+    // Something went wrong
+    const errorMsg = e.message || 'An error occured.';
+    alert(errorMsg);
   }
 };
 </script>
+
 <template>
     <div class="modal fade" id="pfpChange" tabindex="-1" aria-labelledby="pfpChangeModal" aria-hidden="true">
       <div class="modal-dialog modal-dialog-centered modal-xl">

@@ -1,7 +1,7 @@
 <script setup>
 import { useRoute, useRouter, RouterLink } from 'vue-router';
-import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue';
-import { isLoggedIn, checkAuth, logout, getName } from "@/api/auth";
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
+import { isLoggedIn, fullName, logoutUser } from '@/stores/userStore';
 
 // Image imports
 import owpLogo from '@/assets/img/svg/owp-logo-horizontal-WHT-2color.svg';
@@ -12,7 +12,6 @@ const route = useRoute();
 const router = useRouter();
 
 const width = ref(window.innerWidth);
-const fullName = ref('');
 
 const onLoginPage = computed(() => route.path.startsWith('/login'));
 const onRegisterPage = computed(() => route.path.startsWith('/register'));
@@ -23,40 +22,19 @@ function handleResize() {
   width.value = window.innerWidth;
 }
 
-// Helper function to store users name in cache
-async function loadName() {
-  if (!isLoggedIn.value) { return; }
-  fullName.value = localStorage.getItem('fullName') || (await getName());
-  localStorage.setItem('fullName', fullName.value);
-}
-
 // Ensures auth status is set correctly
 onMounted(async () => {
   window.addEventListener('resize', handleResize);
-  await checkAuth();
-  await loadName();
-  
 });
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', handleResize);
 });
 
-// Re-check auth when routing to different page
-watch(route, async () => {
-  await checkAuth();
-  await loadName();
-});
-
 // Function to log user out
 async function handleLogout() {
-  try {
-    await logout();
-    localStorage.removeItem('fullName');
-    router.push('/login');
-  } catch (e) {
-    errorMsg.value = 'Something went wrong.';
-  }
+  await logoutUser();
+  router.push('/login'); // TODO: pushes to login page, I think home would be better. Adjust later
 }
 </script>
 

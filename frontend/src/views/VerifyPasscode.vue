@@ -1,8 +1,8 @@
 <script setup>
 import { ref, computed } from 'vue';
-import { useRoute } from 'vue-router';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { verifyOtp } from '@/api/auth';
+import { syncProfileOnLoad } from '@/stores/userStore';
 import '/src/assets/style.css'
 
 const route = useRoute();
@@ -16,59 +16,22 @@ const errorMsg = ref('');
 
 const canSubmit = computed(() => otp.value.trim().length === 6 && !!email.value);
 
-const secondsLeft = ref(0);
-let timerId = null;
-
-function startTimer(s = 60) {
-  clearInterval(timerId);
-  secondsLeft.value = s;
-  timerId = setInterval(() => {
-    secondsLeft.value = Math.max(0, secondsLeft.value - 1);
-    if (secondsLeft.value === 0) clearInterval(timerId);
-  }, 1000);
-}
-
-/**
- * TODO: Implement or remove this
- * We should implement this if we switch to random generated passcode
- * 
-async function onResend() {
-  errorMsg.value = '';
-  message.value = '';
-  if (!/^\S+@\S+\.\S+$/.test(email.value)) {
-    errorMsg.value = 'Please enter a valid email.';
-    return;
-  }
-  try {
-    loading.value = true;
-    const res = await requestOtp(email.value.trim());
-    if (res?.ok) {
-      message.value = 'A new code was sent to your email.';
-      startTimer(60);
-    } else {
-      errorMsg.value = res?.message || 'Failed to send code.';
-    }
-  } catch {
-    errorMsg.value = 'Network error while sending code.';
-  } finally {
-    loading.value = false;
-  }
-}
-*/
-
 async function onSubmit() {
   errorMsg.value = '';
   message.value = '';
+
   if (!canSubmit.value) {
     errorMsg.value = 'Enter your email and the 6-digit passcode.';
     return;
   }
+
   try {
     loading.value = true;
     const res = await verifyOtp(email.value.trim(), otp.value.trim());
     
     // User entered the correct passcode
     if (res?.ok) {
+      await syncProfileOnLoad(); // get user data
       router.push({ name: "ForumHome" });
       message.value = 'Verified! You are now signed in.';
     } else {
