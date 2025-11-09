@@ -11,7 +11,6 @@ BEGIN
 END;
 GO
 
-
 -- Posts table
 IF OBJECT_ID('dbo.Posts','U') IS NULL
 BEGIN
@@ -29,13 +28,11 @@ BEGIN
         UpdatedAt   DATETIME2(0)       NULL
     );
 
-
     CREATE INDEX IX_Posts_CategoryID ON dbo.Posts(CategoryID);
     CREATE INDEX IX_Posts_AuthorID   ON dbo.Posts(AuthorID);
     CREATE INDEX IX_Posts_CreatedAt  ON dbo.Posts(CreatedAt DESC);
 END;
 GO
-
 
 /* Auto-stamp UpdatedAt on UPDATEs */
 IF OBJECT_ID('dbo.tr_Posts_SetUpdatedAt','TR') IS NOT NULL

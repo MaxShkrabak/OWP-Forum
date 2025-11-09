@@ -1,5 +1,6 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { updateUserAvatar } from '@/api/auth';
 
 // Import all images from the 'src/assets/images' folder
 const allImages = import.meta.glob('../assets/img/user-pfps-premade/*.(png|jpeg|jpg|svg)', { eager: true });
@@ -26,37 +27,51 @@ const loadSettings = () => {
   }
 };
 
-// Save settings to localStorage
-const saveSettings = () => {
-  localStorage.setItem('userAvatar', selectedAvatar.value);
-  localStorage.setItem('notificationPreferences', JSON.stringify(notificationPrefs.value));
-  
-  // Close modal using Bootstrap
-  const modalElement = document.getElementById('userSettingsModal');
-  if (modalElement) {
-    // Try different ways to access Bootstrap Modal
-    let modal = null;
-    if (window.bootstrap && window.bootstrap.Modal) {
-      modal = window.bootstrap.Modal.getInstance(modalElement);
-    } else if (window.Bootstrap && window.Bootstrap.Modal) {
-      modal = window.Bootstrap.Modal.getInstance(modalElement);
+// Save settings to localStorage and database
+const saveSettings = async () => {
+  try {
+    const result = await updateUserAvatar(selectedAvatar.value);
+
+    if (!result.ok) {
+      alert('Could not save your icon, please try again later.');
+      return;
+    }
+
+    // Store icon in localstorage
+    localStorage.setItem('userAvatar', selectedAvatar.value);
+    localStorage.setItem('notificationPreferences', JSON.stringify(notificationPrefs.value));
+    
+    // Close modal using Bootstrap
+    const modalElement = document.getElementById('userSettingsModal');
+    if (modalElement) {
+      // Try different ways to access Bootstrap Modal
+      let modal = null;
+      if (window.bootstrap && window.bootstrap.Modal) {
+        modal = window.bootstrap.Modal.getInstance(modalElement);
+      } else if (window.Bootstrap && window.Bootstrap.Modal) {
+        modal = window.Bootstrap.Modal.getInstance(modalElement);
+      }
+      
+      if (modal) {
+        modal.hide();
+      } else {
+        // Fallback: use jQuery/bootstrap event or just remove show class
+        modalElement.classList.remove('show');
+        modalElement.setAttribute('aria-hidden', 'true');
+        modalElement.style.display = 'none';
+        document.body.classList.remove('modal-open');
+        const backdrop = document.querySelector('.modal-backdrop');
+        if (backdrop) backdrop.remove();
+      }
     }
     
-    if (modal) {
-      modal.hide();
-    } else {
-      // Fallback: use jQuery/bootstrap event or just remove show class
-      modalElement.classList.remove('show');
-      modalElement.setAttribute('aria-hidden', 'true');
-      modalElement.style.display = 'none';
-      document.body.classList.remove('modal-open');
-      const backdrop = document.querySelector('.modal-backdrop');
-      if (backdrop) backdrop.remove();
-    }
-  }
-  
-  // Trigger a custom event to notify UserProfile to update
-  window.dispatchEvent(new CustomEvent('settingsUpdated'));
+    // Trigger a custom event to notify UserProfile to update
+    window.dispatchEvent(new CustomEvent('settingsUpdated'));
+  } catch (e) {
+    // Something went wrong
+    const errorMsg = e.message || 'An error occured.';
+    alert(errorMsg);
+  } 
 };
 
 const selectedAvatar = ref('');
@@ -71,6 +86,11 @@ const notificationPrefs = ref({
 
 onMounted(() => {
   loadSettings();
+  window.addEventListener('settingsUpdated', loadSettings);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('settingsUpdated', loadSettings);
 });
 
 const selectAvatar = (imagePath) => {
@@ -356,4 +376,3 @@ const selectAvatar = (imagePath) => {
   }
 }
 </style>
-

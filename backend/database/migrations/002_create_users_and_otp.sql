@@ -14,7 +14,6 @@ BEGIN
   );
 END;
 
-
 -- OTP codes (single-use)
 IF OBJECT_ID('dbo.OTP_Codes', 'U') IS NULL
 BEGIN
@@ -30,7 +29,6 @@ BEGIN
     ON dbo.OTP_Codes(User_ID, Is_Used, Expires_At);
 END;
 
-
 -- Table for storing user sessions
 IF OBJECT_ID('dbo.Sessions', 'U') IS NULL
 BEGIN
@@ -41,10 +39,8 @@ BEGIN
     Expires      DATETIME2 NOT NULL
   );
 
-
   CREATE UNIQUE INDEX IX_Sessions_TokenHash ON dbo.Sessions(Token_Hash);
 END;
-
 
 -- Optional: track schema versions for migrate.php
 IF OBJECT_ID('dbo.SchemaVersions', 'U') IS NULL

@@ -1,10 +1,9 @@
 <script setup>
-import { computed, ref, onMounted } from 'vue';
-
+import { computed, ref, onMounted, onUnmounted } from 'vue';
+import { updateUserAvatar } from '@/api/auth';
 
 // Import all images from the 'src/assets/img/user-pfps-premade/' folder
 const allImages = import.meta.glob('../assets/img/user-pfps-premade/*.(png|jpeg|jpg|svg)', { eager: true });
-
 
 // Extract the image paths for use in the template
 const images = computed(() => {
@@ -13,23 +12,39 @@ const images = computed(() => {
 
 const selectedAvatar = ref('');
 
-// Load current avatar
-onMounted(() => {
+const loadAvatar = () => {
   const savedAvatar = localStorage.getItem('userAvatar');
   if (savedAvatar) {
     selectedAvatar.value = savedAvatar;
   } else {
-    // Default to pfp-4.png (index 3) if available
-    selectedAvatar.value = images.value[3] || images.value[0] || '';
+    selectedAvatar.value = images.value[3] || '';
   }
+};
+
+// Load current avatar
+onMounted(() => {
+  loadAvatar();
+  window.addEventListener('settingsUpdated', loadAvatar);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('settingsUpdated', loadAvatar);
 });
 
 const selectAvatar = (imagePath) => {
   selectedAvatar.value = imagePath;
 };
 
-const saveAvatar = () => {
-  if (selectedAvatar.value) {
+const saveAvatar = async () => {
+  if (!selectedAvatar.value) { return; }
+  try {
+    const result = await updateUserAvatar(selectedAvatar.value);
+
+    if (!result.ok) {
+      alert('Could not save your icon, please try again later.');
+      return;
+    }
+
     localStorage.setItem('userAvatar', selectedAvatar.value);
     
     // Close modal using Bootstrap
@@ -58,9 +73,15 @@ const saveAvatar = () => {
     
     // Trigger event to update avatar display in UserProfile
     window.dispatchEvent(new CustomEvent('settingsUpdated'));
+  
+  } catch (e) {
+    // Something went wrong
+    const errorMsg = e.message || 'An error occured.';
+    alert(errorMsg);
   }
 };
 </script>
+
 <template>
     <div class="modal fade" id="pfpChange" tabindex="-1" aria-labelledby="pfpChangeModal" aria-hidden="true">
       <div class="modal-dialog modal-dialog-centered modal-xl">

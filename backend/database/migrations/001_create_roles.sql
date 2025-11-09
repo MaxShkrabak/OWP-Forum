@@ -11,7 +11,6 @@ BEGIN
 END;
 GO
 
-
 MERGE dbo.Roles AS t
 USING (VALUES (N'user'), (N'student'), (N'moderator'), (N'admin')) AS s(Name)
     ON t.Name = s.Name
