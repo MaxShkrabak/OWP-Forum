@@ -106,7 +106,7 @@ onMounted(async () => {
             <!--PFP and role part-->
             <div class="col-5 avatar align-center">
               <h5 class="pfp">
-                <img :src="UserIcon" alt="icon" class="img-fluid rounded-50" />
+                <img :src="UserIcon" alt="icon" class="img-fluid" />
               </h5>
               <h5><span class="badge text-bg-success">Guest</span></h5>
             </div>
@@ -142,6 +142,9 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.pfp img {
+  border-radius: 50%;
+}
 .avatar img {
   width: 100px;
 }

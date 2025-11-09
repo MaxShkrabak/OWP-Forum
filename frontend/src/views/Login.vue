@@ -127,8 +127,6 @@ async function onSubmit() {
   margin-top: 8rem;
 }
 
-<<<<<<< HEAD
-=======
 /* Mobile tweaks */
 @media (max-width: 768px) {
   .login-wrap { --section-gutter: clamp(8px, 4vw, 16px); }
@@ -175,7 +173,6 @@ async function onSubmit() {
   background-color: #ffffff;
   color: #111827;
 }
->>>>>>> 63b020a2f0c1e4cea085826cf90ea40944ca7892
 @media (max-width: 480px) {
   .input { max-width: 100%; }
 }
