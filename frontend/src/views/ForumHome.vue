@@ -6,6 +6,7 @@ import ForumHeader from "../components/ForumHeader.vue";
 import { isLoggedIn, checkAuth } from "@/api/auth";
 import axios from "axios";
 import UserIcon from "@/assets/img/png/guest-user-icon.png";
+import ViewReportsButton from "@/components/ViewReportsButton.vue";
 
 const role = ref("Admin");
 
@@ -126,8 +127,13 @@ onMounted(async () => {
           </div>
         </div>
         <!--This will go under the User cards because it's a new row-->
-        <div class="row">
-          <CreatePostButton />
+        <div class="row text-center justify-content-center" v-show="isLoggedIn">
+          <div class="col-auto">
+            <CreatePostButton />
+          </div>
+          <div class="col-auto">
+            <ViewReportsButton />
+          </div>
         </div>
       </div>
       <!--Second part of the Home page Layout, for the Content-->

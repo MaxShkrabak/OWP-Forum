@@ -1,30 +1,24 @@
 <script setup>
-import { isLoggedIn } from '@/api/auth';
 import { RouterLink } from 'vue-router';
 </script>
 
 <template>
-    <RouterLink v-show="isLoggedIn" to="/create-post" class="btn"> <!-- Will show only if logged in -->
-        <span class="roboto-bold">CREATE<br>POST</br></span>
+    <RouterLink to="/create-post" class="btn"> <!-- Will show only if logged in -->
+        <div class="row text-center fs-5 text-nowrap text-white">
+      <div class="col-12">
+        <span class="roboto-bold">CREATE<br /> </span>
+      </div>
+      <div class="col-12">
+        <span class="roboto-bold">POST<br /> </span>
+      </div>
+    </div>
     </RouterLink>
 </template>
 
 <style scoped>
 .btn {
-  display: flex;
-  height: 5em;
+  background-color: #007C8A;
+  height: 84px;
   width: fit-content;
-  background: #007C8A;
-  padding: 0 4em; /* 0 padding top-bottom, 4em on sides */
-  border: none;
-  border-radius: 10px;
-  cursor: pointer;
-  span { /* Styling for text*/
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-size: 22px;
-  }
 }
 </style>
