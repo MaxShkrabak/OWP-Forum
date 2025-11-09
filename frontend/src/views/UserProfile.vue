@@ -7,45 +7,14 @@ import PostIcon from '../assets/img/svg/posts-icon.svg';
 import LikeIcon from '../assets/img/svg/like-icon.svg';
 import CommIcon from '../assets/img/svg/comment-icon.svg';
 
-import { ref, onMounted, onUnmounted, computed } from 'vue';
-  
-// Import all images to get default avatar
-const allImages = import.meta.glob('../assets/img/user-pfps-premade/*.(png|jpeg|jpg|svg)', { eager: true });
-const images = computed(() => {
-  return Object.values(allImages).map((module) => module.default);
-});
+import { ref } from 'vue';
+import { fullName, userAvatar } from '@/stores/userStore';
 
 const role = "Admin";
-const fullName = ref(localStorage.getItem('fullName'));
 const postsCount = 0;
 const likesCount = 0;
 const commentsCount = 0;
 const activeTab = ref('yourPosts');
-
-// Load avatar from localStorage or use default
-const currentAvatar = ref('');
-
-const loadAvatar = () => {
-  const savedAvatar = localStorage.getItem('userAvatar');
-  if (savedAvatar) {
-    currentAvatar.value = savedAvatar;
-  } else {
-    // Default to pfp-0.png (index 0) if available
-    currentAvatar.value = images.value[0] || '';
-  }
-};
-
-onMounted(async () => {
-  loadAvatar();
-  
-  // Listen for settings updates
-  window.addEventListener('settingsUpdated', loadAvatar);
-});
-
-// Clean up event listener
-onUnmounted(() => {
-  window.removeEventListener('settingsUpdated', loadAvatar);
-});
 </script>
 
 <template>
@@ -66,7 +35,7 @@ onUnmounted(() => {
           <div class="col-md-2 user-card"> <!--User Card-->
             <button class="user-pfp-btn" data-bs-toggle="modal" data-bs-target="#pfpChange">
               <div class="user-icon-cont">
-                <img v-if="currentAvatar" :src="currentAvatar" class="img-fluid user-icon" alt="User avatar">
+                <img v-if="userAvatar" :src="userAvatar" class="img-fluid user-icon" alt="User avatar">
                 <img v-else src="@\assets\img\user-pfps-premade\pfp-0.png" class="img-fluid user-icon" alt="Default avatar">
             </div>
             </button> <br><br>

@@ -1,6 +1,7 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { updateUserAvatar } from '@/api/auth';
+import { userAvatar } from '@/stores/userStore';
 
 // Import all images from the 'src/assets/images' folder
 const allImages = import.meta.glob('../assets/img/user-pfps-premade/*.(png|jpeg|jpg|svg)', { eager: true });
@@ -30,7 +31,9 @@ const loadSettings = () => {
 // Save settings to localStorage and database
 const saveSettings = async () => {
   try {
-    const result = await updateUserAvatar(selectedAvatar.value);
+    const fullPath = selectedAvatar.value;
+    const filename = fullPath.split('/').pop();
+    const result = await updateUserAvatar(filename);
 
     if (!result.ok) {
       alert('Could not save your icon, please try again later.');
@@ -40,6 +43,7 @@ const saveSettings = async () => {
     // Store icon in localstorage
     localStorage.setItem('userAvatar', selectedAvatar.value);
     localStorage.setItem('notificationPreferences', JSON.stringify(notificationPrefs.value));
+    userAvatar.value = selectedAvatar.value; // update store
     
     // Close modal using Bootstrap
     const modalElement = document.getElementById('userSettingsModal');
@@ -64,9 +68,6 @@ const saveSettings = async () => {
         if (backdrop) backdrop.remove();
       }
     }
-    
-    // Trigger a custom event to notify UserProfile to update
-    window.dispatchEvent(new CustomEvent('settingsUpdated'));
   } catch (e) {
     // Something went wrong
     const errorMsg = e.message || 'An error occured.';
@@ -84,13 +85,13 @@ const notificationPrefs = ref({
   mentions: true
 });
 
-onMounted(() => {
-  loadSettings();
-  window.addEventListener('settingsUpdated', loadSettings);
+// Watch for changes in store
+watch(userAvatar, (newAvatar) => {
+  selectedAvatar.value = newAvatar;
 });
 
-onUnmounted(() => {
-  window.removeEventListener('settingsUpdated', loadSettings);
+onMounted(() => {
+  loadSettings();
 });
 
 const selectAvatar = (imagePath) => {
