@@ -2,6 +2,7 @@
 import { isLoggedIn } from "@/api/auth";
 import UserIcon from "@/assets/img/user-pfps-premade/pfp-0.png";
 import { ref } from "vue";
+import { fullName, userAvatar } from '@/stores/userStore';
 
 const role = ref('User')
 </script>
@@ -18,7 +19,7 @@ const role = ref('User')
             <div class="col-5 avatar align-center">
               <!--PFP-->
               <h5 class="pfp">
-                <img :src="UserIcon" alt="icon" class="img-fluid" />
+                <img :src="userAvatar" alt="icon" class="img-fluid" />
               </h5>
               <!--Conditional role badges based on var 'role'-->
               <h5 v-if="role === 'User'">
@@ -38,7 +39,7 @@ const role = ref('User')
             <!--Second part of User-Card using the last 7 cols-->
             <div class="col-7 text-start align-center">
               <!--Name-->
-              <div class="row fw-bold"><h5>Username Username</h5></div>
+              <div class="row fw-bold"><h5>{{ fullName }}</h5></div>
               <!--Activity report-->
               <div class="row">
                 <span
