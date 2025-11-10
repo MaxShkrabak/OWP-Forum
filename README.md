@@ -9,3 +9,6 @@ water programs and initiatives.
 - Maksim Shkrabak
 - Daniel Ivanilov
 - Jeffrey Sardella
+- Oleksii Andriienko
+- Egor Strakhov
+- Ruzanna Shomakhova
