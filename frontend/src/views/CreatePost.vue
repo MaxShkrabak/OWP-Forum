@@ -143,7 +143,13 @@ async function onPublish() {
       </div>
 
       <!-- Editor -->
-      <Editor v-model="content" editorClass="editor" :showHeader="true" />
+      <div class="editor-fixed">
+        <Editor
+          v-model="content"
+          :showHeader="true"
+          :editorStyle="{ height: '320px' }"
+        />
+      </div>
 
       <!-- Actions -->
       <div class="row">
@@ -233,8 +239,7 @@ async function onPublish() {
   pointer-events: none;
   transition: opacity .15s ease, transform .15s ease;
 }
-.inline-label .req
-{
+.inline-label .req {
   color: #e11d48;
   margin-left: 2px; 
 }
@@ -251,8 +256,7 @@ async function onPublish() {
   gap: 10px;
   padding: 10px 14px;
 }
-.user-box .avatar 
-{
+.user-box .avatar {
   width: 44px;
   height: 44px;
   border-radius: 50%;
@@ -263,16 +267,14 @@ async function onPublish() {
   align-items: center;
   justify-content: center;
 }
-.user-box .meta
-{
+.user-box .meta {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   text-align: center;
 }
-.user-box .pill
-{
+.user-box .pill {
   font-size: .75rem;
   padding: 2px 8px;
   border-radius: 999px;
@@ -282,8 +284,7 @@ async function onPublish() {
   margin-bottom: 4px;
 }
 .user-box .pill.guest { background: #007c8a; }
-.user-box .name
-{
+.user-box .name {
   font-size: .95rem;
   color: #0f172a;
 }
@@ -296,14 +297,12 @@ async function onPublish() {
   gap: 24px;
   padding: 8px 14px 12px;
 }
-.control
-{ 
+.control { 
   display: inline-flex;
   align-items: center;
   gap: 8px;
 }
-.label
-{
+.label {
   font-weight: 700;
   color: #0f172a;
   font-size: 0.95rem;
@@ -317,14 +316,12 @@ async function onPublish() {
   font-size: 0.9rem;
   cursor: pointer;
 }
-.control.tags
-{
+.control.tags {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
 }
-.control.tags .top-row
-{
+.control.tags .top-row {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -345,66 +342,43 @@ async function onPublish() {
   cursor: pointer;
 }
 .tag-add:hover { background: #e7e7e7; }
-.tag-hint
-{
+.tag-hint {
   margin-top: -8px;
   margin-left: 2px;
   font-size: 10px;
   color: #6b7280; 
 }
 
-.p-editor
-{
-  overflow: visible;
-  position: relative; 
-}
-.p-editor .p-editor-toolbar { border-radius: 10px 10px 0 0; }
-.p-editor .p-editor-content { border-radius: 0 0 10px 10px; }
-
-:deep(.p-editor .ql-editor) {
-  min-height: 320px;
-  overflow-y: auto;
-}
-/* Toolbar */
-:deep(.p-editor .ql-toolbar.ql-snow) {
-  display: flex !important;
-  flex-wrap: nowrap !important;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 4px;
-  white-space: nowrap;
-  overflow: visible !important;
-  padding: 6px 8px;
-  border-bottom: 1px solid #d1d5db;
+/* Editor sizing */
+.editor-fixed {
+  width: 100%;
   box-sizing: border-box;
 }
 
-:deep(.p-editor .ql-formats) {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  flex: 0 0 auto;
+:deep(.editor-fixed .ql-container) {
+  height: 320px;
+}
+:deep(.editor-fixed .ql-editor) {
+  min-height: 280px;
+  overflow-y: auto;
 }
 
-:deep(.p-editor .ql-formats button) {
-  width: 24px;
-  height: 24px;
-  padding: 1px 2px;
+:deep(.editor-fixed .ql-toolbar.ql-snow) {
+  border-bottom: 1px solid #d1d5db;
+  border-radius: 10px 10px 0 0;
+}
+:deep(.editor-fixed .ql-container.ql-snow) {
+  border-radius: 0 0 10px 10px;
 }
 
-:deep(.p-editor .ql-picker) { flex: 0 0 auto; }
-:deep(.p-editor .ql-picker.ql-header),
-:deep(.p-editor .ql-picker.ql-font) { width: 90px; }
-:deep(.p-editor .ql-picker-options) { z-index: 9999; }
-
+/* Actions */
 .actions { 
   width: 100%;
   display: flex;
   justify-content: flex-end;
   gap: 12px;
 }
-.btn 
-{ 
+.btn { 
   border-radius: 10px;
   padding: 6px 16px;
   font-weight: 700;
@@ -412,14 +386,12 @@ async function onPublish() {
   border: 1px solid #cbd5e1;
   background: #fff; 
 }
-.btn.primary 
-{
+.btn.primary {
   background: #1b5e20;
   color: #fff;
   border-color: #14532d; 
 }
-.btn.primary:disabled
-{
+.btn.primary:disabled {
   opacity: .55;
   cursor: not-allowed; 
 }
