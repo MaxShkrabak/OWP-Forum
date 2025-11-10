@@ -1,0 +1,117 @@
+import axios from "axios";
+import { ref } from 'vue';
+
+const API = import.meta.env.VITE_API_BASE || 'http://localhost:8080'; // Port 8080 for php
+
+export const isLoggedIn = ref(false);
+export const checkingAuth = ref(false);
+
+export async function requestOtp(email) {
+  const res = await fetch(`${API}/auth/request-otp`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email })
+  });
+  return res.json();
+}
+
+/**
+ * Sends OTP verification request to the backend for given user email
+ * 
+ * @param {string} email - The users email address
+ * @param {string} otp - The global OTP
+ * @returns the result of the request 
+ */
+export async function verifyOtp(email, otp) {
+  const res = await axios.post(
+    `${API}/api/login`,
+    { email, otp },
+    { headers: { "Content-Type": "application/json" },
+      withCredentials: true  // allow cookies
+    }
+  );
+  return res.data;
+}
+
+/**
+ * Checks if users email exists in the backend database.
+ * The post request is sent to /api/verify-email with the users email
+ * 
+ * @param {string} email - The email address user is trying to sign-in with
+ * @returns the result of the request and if email exists, for example { ok: true, emailExists: true}
+ */
+export async function verifyEmail(email) {
+  const res = await axios.post(
+    `${API}/api/verify-email`,
+    { email },
+    { headers:  { "Content-Type": "application/json" },
+      withCredentials: true,
+    }
+  );
+  return res.data;
+}
+
+/**
+ * Sends users registration data to the backend
+ * If email doesn't already exist in database, stores the new user in database
+ * 
+ * @param {*} payload is the users data to store in database for registration {first,last,email}
+ * @returns the result of the request
+ */
+export async function registerUser(payload) {
+  const res = await axios.post(
+    `${API}/api/register-new-user`, 
+    payload ,
+    { headers: { "Content-Type": "application/json" },
+      withCredentials: true,
+    }
+    );
+    return res.data;
+}
+
+// Checks if user is authenticated if so sets isLoggedIn to true
+export async function checkAuth() {
+  checkingAuth.value = true;
+  try {
+    const res = await axios.get(`${API}/api/me`, { withCredentials: true });
+    isLoggedIn.value = Boolean(res?.data?.ok || res?.data?.user);
+    return res.data;
+  } catch (e) {
+    isLoggedIn.value = false;
+  } finally {
+    checkingAuth.value = false;
+  }
+}
+
+// Function to log user out
+export async function logout() {
+  try {
+    await axios.post(`${API}/api/logout`, {}, { withCredentials: true });
+    isLoggedIn.value = false;
+    return { ok: true };
+  } catch (e) {
+    errorMsg.value = 'Something went wrong';
+  }
+}
+
+// Function to get user's full name
+export async function getName() {
+  const res = await axios.get(`${API}/api/me`, { withCredentials: true });
+  const data = res?.data;
+  if (data?.ok && data?.user){
+    return data.user.FirstName + ' ' + data.user.LastName;
+  } 
+}
+
+// Function to store users icon type in database
+export async function updateUserAvatar(avatarPath) {
+  const res = await axios.post(
+    `${API}/api/user/avatar`,
+    { avatar: avatarPath },
+    {
+      headers: { "Content-Type": "application/json" },
+      withCredentials: true,
+    }
+  );
+  return res.data;
+}

@@ -1,11 +1,20 @@
-<script setup></script>
+<script setup>
+import CSUSHeader from './components/CSUSHeader.vue'
+import OWPHeader from './components/OWPHeader.vue';
+import Footer from './components/Footer.vue';
+// import Category from './components/Category.vue';
+</script>
 
 <template>
-  <h1>You did it!</h1>
-  <p>
-    Visit <a href="https://vuejs.org/" target="_blank" rel="noopener">vuejs.org</a> to read the
-    documentation
-  </p>
+  <CSUSHeader />
+  <OWPHeader />
+  <router-view />
+  <Footer />
+  <!-- <Category/> -->
 </template>
 
-<style scoped></style>
+<style scoped>
+template {
+  background-color: #DEE2E6;
+}
+</style>
