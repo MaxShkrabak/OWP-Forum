@@ -41,7 +41,7 @@ const role = ref('User')
               <!--Name-->
               <div class="row fw-bold"><h5>{{ fullName }}</h5></div>
               <!--Activity report-->
-              <div class="row">
+              <div class="row text-nowrap">
                 <span
                   >Posts: 222 <br />
                   Likes: 222 <br />
@@ -83,7 +83,7 @@ const role = ref('User')
 
 <style>
 .avatar img {
-  width: 100px;
+  width: 130px;
   border-radius: 50%;
 }
 
