@@ -20,12 +20,6 @@ const activeTab = ref('yourPosts');
 <template>
   <body>
     <ForumHeader />
-    <h1>PROFILE PAGE</h1>
-    <router-link to="/">Home</router-link> | | |
-    <router-link to="/login">login</router-link> | | |
-    <router-link to="/register">register</router-link>
-    <router-view></router-view>
-
     <pfpModal/>
     <UserSettings/>
     
@@ -60,7 +54,7 @@ const activeTab = ref('yourPosts');
                 <span><img :src=LikeIcon class="icon" alt="Like icon"> Likes:</span> <br>
                 <span><img :src=CommIcon class="icon" alt="comment icon"> Comments:</span>
               </div>
-              <div class="col-md-auto">
+              <div class="col-md-auto fw-bold">
                  {{ postsCount }} <br>
                  {{ likesCount }} <br>
                  {{ commentsCount }}
@@ -107,15 +101,15 @@ const activeTab = ref('yourPosts');
             </div>
           </div>
             </div>
-            <div class="row"> <!--Shows the content for the selected filter-->
+            <div class="row mt-3"> <!--Shows the content for the selected filter-->
               <div v-show="activeTab === 'yourPosts'">
-                show your posts
+                <em>You have no Posts yet!</em>
               </div>
               <div v-show="activeTab === 'followedPosts'">
-                show your followed posts
+                <em>You don't follow any Posts yet!</em>
               </div>
               <div v-show="activeTab === 'likedPosts'">
-                show your liked posts
+                <em>You haven't liked any Posts yet!</em>
               </div>
             </div>
           </div>
@@ -126,7 +120,7 @@ const activeTab = ref('yourPosts');
 
 <style scoped>
 .activeLine {
-  background-color: blue;
+  background-color: rgb(139, 139, 253);
   width: 100%;
   height: 3px;
   border-radius: 30%;
@@ -138,6 +132,7 @@ const activeTab = ref('yourPosts');
 }
 
 .user-icon {
+  width: 280px;
   border-radius: 50%;
   transition: border-radius 0.3s ease-out;
 }

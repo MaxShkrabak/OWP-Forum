@@ -52,23 +52,11 @@ async function onSubmit() {
 </script>
 
 <template>
-  <!-- ====================== HEADER (placeholder) ====================== -->
-  <header class="site-header" role="banner" aria-label="Header">
-    <h1>LOG IN PAGE</h1>
-    <nav class="inline-nav">
-      <router-link to="/">Home</router-link> | | |
-      <router-link to="/register">register</router-link> | | |
-      <router-link to="/profile">My Profile</router-link>
-    </nav>
-  </header>
-
-  <router-view></router-view>
-
   <!-- ====================== BODY ====================== -->
   <section class="auth-wrap" aria-label="Login">
     <div class="auth-card" role="region" aria-labelledby="login-title">
       <div class="form-inner">
-        <h2 class="card-title">Login</h2>
+        <h1 class="card-title mb-5">Login</h1>
 
         <form @submit.prevent="onSubmit" novalidate>
           <label class="label" for="email">Email</label>
@@ -76,7 +64,7 @@ async function onSubmit() {
             id="email"
             type="email"
             v-model.trim="email"
-            class="input"
+            class="form-control"
             placeholder="joe.hornet@owp.csus.edu"
             :aria-invalid="status === 'error'"
             aria-describedby="email-help email-error"
@@ -88,13 +76,13 @@ async function onSubmit() {
           </button>
 
           <div id="email-help" class="help-stack">
-            <p class="help">Enter the email address associated with your account and click</p>
-            <p class="help"><em>Get passcode.</em> We’ll email you a passcode for a password-free login.</p>
-            <p class="help">It may take up to three minutes to receive the passcode.</p>
+            <p class="help text-black fs-6">Enter the email address associated with your OWP account and click the Get Passcode <br>
+              button above. We will email a passcode to use to log into your account, which can take <br>
+              up to three minutes to receive.</p>
           </div>
 
-          <p class="tiny">
-            First time here? Please
+          <p class="tiny text-black fs-6">
+            If you do not have an existing OWP account, please 
             <router-link to="/register">create a new account</router-link>.
           </p>
 
@@ -109,9 +97,6 @@ async function onSubmit() {
       </div>
     </div>
   </section>
-
-  <!-- ====================== FOOTER (placeholder) ====================== -->
-  <footer class="site-footer" role="contentinfo" aria-label="Footer"></footer>
 </template>
 
 <style scoped>
@@ -124,7 +109,7 @@ async function onSubmit() {
 
 /* Extra spacing before "First time here?" */
 .auth-card .tiny {
-  margin-top: 8rem;
+  margin-top: 2em;
 }
 
 /* Mobile tweaks */
@@ -153,28 +138,9 @@ async function onSubmit() {
 .label {
   display: block;
   font-size: 1.2rem;
-  font-weight: 600;
-  color: #374151;
+  font-weight: 400;
+  color: #000000;
   margin-bottom: 0.65rem;
-}
-
-/* Inputs */
-.input {
-  display: block;
-  width: 100%;
-  max-width: clamp(22rem, 55%, 35rem);
-  font-size: 1.2rem;
-  line-height: 1.35;
-  padding: 0.75rem 0.9rem;
-  border: 1px solid #d1d5db;
-  border-radius: 4px;
-  outline: none;
-  transition: box-shadow 120ms ease, border-color 120ms ease;
-  background-color: #ffffff;
-  color: #111827;
-}
-@media (max-width: 480px) {
-  .input { max-width: 100%; }
 }
 
 /* Button */
@@ -183,12 +149,12 @@ async function onSubmit() {
   align-items: center;
   justify-content: center;
   margin-top: 1rem;
-  padding: 0.75rem 1.1rem;
+  padding: 0.45rem 0.5rem;
   border-radius: 6px;
   border: 1px solid #14532d;
-  background: #1b5e20;
+  background: #007a4c;
   color: #fff;
-  font-weight: 700;
+  font-weight: 400;
   cursor: pointer;
   transition: filter 120ms ease, opacity 120ms ease;
 }
@@ -202,7 +168,7 @@ async function onSubmit() {
   color: #374151;
 }
 .tiny a {
-  color: #14532d;
+  color: #007a4c;
   text-decoration: underline;
   font-weight: 700;
 }

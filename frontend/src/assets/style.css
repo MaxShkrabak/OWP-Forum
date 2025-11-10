@@ -94,6 +94,7 @@
   align-items: flex-start;
   text-align: left;
   padding: 0 clamp(32px, 12vw, 320px);
+  padding-bottom: 3em;
   border: none;
   border-radius: 0;
   box-shadow: none;

@@ -2,7 +2,7 @@
 import { ref } from "vue";
 
 const role = ref("Moderator");
-const totalReports = ref(2);
+const totalReports = ref(1);
 </script>
 
 <template>
@@ -13,7 +13,7 @@ const totalReports = ref(2);
     v-show="role === 'Moderator' || role === 'Admin'"
     :disabled="totalReports == 0"
   >
-    <div class="row text-center text-nowrap text-white lh-1">
+    <div class="row text-center text-nowrap text-white lh-sm">
       <div class="col-12 lead">
         <span class="roboto-bold">View Reports</span>
       </div>

@@ -40,16 +40,10 @@ onMounted(async () => {
 </script>
 
 <template>
-  <ForumHeader />
-  <h1>HOME PAGE</h1>
-  <router-link to="/login">login</router-link> | | |
-  <router-link to="/register">register</router-link> | | |
-  <router-link to="/create-post">create post</router-link> | | |
-  <router-link to="/profile">My Profile</router-link>
-  <router-view></router-view>
-
+  <body>
+    <ForumHeader />
   <!--Forum Home layout in responsive columns-->
-  <div class="container-fluid">
+  <div class="container-fluid p-5">
     <div class="row text-center">
       <!--First Column-->
       <div class="col-sm-3 col-md-4 col-lg-3 col-xxl-3 text-center justify-content-center">
@@ -67,13 +61,17 @@ onMounted(async () => {
       <!--Second part of the Home page Layout, for the Content-->
       <div class="col-sm-7 col-md-8 col-lg-9 col-xxl-9 py-3 px-5">
         <!--Examples to show the rows in this column-->
-        <div class="row bg-success-subtle">content</div>
-        <div class="row bg-warning-subtle">content</div>
-        <div class="row bg-danger-subtle">content</div>
+        <div class="row justify-content-center">
+          <em>No content to display yet.</em>
+        </div>
       </div>
     </div>
   </div>
+  </body>
 </template>
 
 <style scoped>
+body {
+  background-color: #DEE2E6;
+}
 </style>
