@@ -54,7 +54,7 @@ onMounted(async () => {
   <div class="container-fluid">
     <div class="row text-center">
       <!--First Column-->
-      <div class="col-sm-3 col-md-4 col-lg-3 col-xxl-2 text-center justify-content-center">
+      <div class="col-sm-3 col-md-4 col-lg-3 col-xxl-3 text-center justify-content-center">
         <!--Signed in User Card-->
         <div
           class="user-cards border border-2 border-dark-subtle rounded-1 my-3"
@@ -88,7 +88,7 @@ onMounted(async () => {
               <!--Name-->
               <div class="row fw-bold"><h5>Username Username</h5></div>
               <!--Activity report-->
-              <div class="row">
+              <div class="row text-nowrap">
                 <span
                   >Posts: 222 <br />
                   Likes: 222 <br />
@@ -128,16 +128,16 @@ onMounted(async () => {
         </div>
         <!--This will go under the User cards because it's a new row-->
         <div class="row text-center justify-content-center" v-show="isLoggedIn">
-          <div class="col-auto">
+          <div class="col-auto col-md-12 col-xxl-6">
             <CreatePostButton />
           </div>
-          <div class="col-auto">
+          <div class="col-auto col-md-12 col-xxl-6">
             <ViewReportsButton />
           </div>
         </div>
       </div>
       <!--Second part of the Home page Layout, for the Content-->
-      <div class="col-sm-7 col-md-8 col-lg-9 col-xxl-10 py-3 px-5">
+      <div class="col-sm-7 col-md-8 col-lg-9 col-xxl-9 py-3 px-5">
         <!--Examples to show the rows in this column-->
         <div class="row bg-success-subtle">content</div>
         <div class="row bg-warning-subtle">content</div>
@@ -149,7 +149,7 @@ onMounted(async () => {
 
 <style scoped>
 .avatar img {
-  width: 100px;
+  width: 130px;
 }
 
 .sign-in-link {

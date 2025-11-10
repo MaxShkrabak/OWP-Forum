@@ -19,6 +19,6 @@ import { RouterLink } from 'vue-router';
 .btn {
   background-color: #007C8A;
   height: 84px;
-  width: fit-content;
+  width: 100%;
 }
 </style>

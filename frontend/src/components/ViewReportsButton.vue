@@ -62,6 +62,6 @@ const totalReports = ref(2);
 .btn {
     background-color: #B65433;
     height: 84px;
-    width: fit-content;
+    width: 100%;
 }
 </style>
