@@ -78,4 +78,4 @@ $app->post("/api/create-post", function (Request $req, Response $res) use ($make
         ]));
         return $res->withStatus(500)->withHeader("Content-Type", "application/json");
     }
-}
+});
