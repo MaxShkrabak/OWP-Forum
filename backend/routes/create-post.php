@@ -1,6 +1,6 @@
 <?php
-use Psr\Http\Message\RequestInterface as Request;
-use Psr\Http\Message\ServerRequestInterface as Response;
+use Psr\Http\Message\ServerRequestInterface as Request;
+use Psr\Http\Message\ResponseInterface as Response;
 
 $app->post("/api/create-post", function (Request $req, Response $res) use ($makePdo) {
     try {
@@ -13,7 +13,7 @@ $app->post("/api/create-post", function (Request $req, Response $res) use ($make
         $data = $req->getParsedBody() ?? [];
         $title = trim((string)($data['title'] ?? ''));
         $category = trim((string)($data['category'] ?? ''));
-        $content = trim((string)($data['content'] ?? ''));
+        $content = (string)($data['content'] ?? '');
 
         if ($title === '' || $content === '') {
             $res->getBody()->write(json_encode([
@@ -47,11 +47,14 @@ $app->post("/api/create-post", function (Request $req, Response $res) use ($make
             return $res->withStatus(400)->withHeader("Content-Type", "application/json");
         }
 
-        $insertStmt = $pdo->prepare("
+        $sql = "
             INSERT INTO dbo.Posts (Title, CategoryID, AuthorID, Content)
+            OUTPUT INSERTED.PostID
             VALUES (:title, :categoryId, :authorId, :content)
-        ");
+        ";
 
+        $insertStmt = $pdo->prepare($sql);
+       
         $insertStmt->execute([
             ':title' => $title,
             ':categoryId' => $categoryId,
@@ -59,7 +62,7 @@ $app->post("/api/create-post", function (Request $req, Response $res) use ($make
             ':content' => $content,
         ]);
 
-        $postId = (int)$pdo->lastInsertId();
+        $postId = (int)$insertStmt->fetchColumn();
         $pdo->commit();
 
         $res->getBody()->write(json_encode([

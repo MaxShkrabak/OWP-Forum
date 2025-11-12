@@ -47,7 +47,7 @@ require __DIR__ . '/../routes/register-new-user.php'; // Registering new user
 require __DIR__ . '/../routes/logout.php';            // Logs user out and clears session
 require __DIR__ . '/../routes/me.php';                // User details for auth
 require __DIR__ . '/../routes/avatar.php';            // Store avatar in database
-require __DIR__ . '/../routes/create-post.php';      // Create a new blog post
+require __DIR__ . '/../routes/create-post.php';      // Create a new forum post
 
 // Root
 $app->get('/', function (Request $req, Response $res) {
