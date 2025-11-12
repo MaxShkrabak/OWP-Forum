@@ -62,7 +62,7 @@ async function onPublish() {
     tags: tags.value,
     content: content.value,
   };
-  const res = await fetch(`${import.meta.env.VITE_API_URL}/api/posts`, {
+  const res = await fetch(`${import.meta.env.VITE_API_URL}/api/create-post`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
