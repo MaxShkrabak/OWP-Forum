@@ -64,3 +64,4 @@ Before you begin, ensure you have the following installed:
 - Oleksii Andriienko
 - Egor Strakhov
 - Ruzanna Shomakhova
+- Gianni Dumitru
