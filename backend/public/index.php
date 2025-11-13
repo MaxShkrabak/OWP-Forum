@@ -48,6 +48,7 @@ require __DIR__ . '/../routes/logout.php';            // Logs user out and clear
 require __DIR__ . '/../routes/me.php';                // User details for auth
 require __DIR__ . '/../routes/avatar.php';            // Store avatar in database
 require __DIR__ . '/../routes/create-post.php';      // Create a new forum post
+require __DIR__ . '/../routes/upload-image.php';     // Image upload handler  
 
 // Root
 $app->get('/', function (Request $req, Response $res) {

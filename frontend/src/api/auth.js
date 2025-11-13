@@ -26,7 +26,8 @@ export async function verifyOtp(email, otp) {
   const res = await axios.post(
     `${API}/api/login`,
     { email, otp },
-    { headers: { "Content-Type": "application/json" },
+    {
+      headers: { "Content-Type": "application/json" },
       withCredentials: true  // allow cookies
     }
   );
@@ -44,7 +45,8 @@ export async function verifyEmail(email) {
   const res = await axios.post(
     `${API}/api/verify-email`,
     { email },
-    { headers:  { "Content-Type": "application/json" },
+    {
+      headers: { "Content-Type": "application/json" },
       withCredentials: true,
     }
   );
@@ -60,13 +62,14 @@ export async function verifyEmail(email) {
  */
 export async function registerUser(payload) {
   const res = await axios.post(
-    `${API}/api/register-new-user`, 
-    payload ,
-    { headers: { "Content-Type": "application/json" },
+    `${API}/api/register-new-user`,
+    payload,
+    {
+      headers: { "Content-Type": "application/json" },
       withCredentials: true,
     }
-    );
-    return res.data;
+  );
+  return res.data;
 }
 
 // Checks if user is authenticated if so sets isLoggedIn to true
@@ -98,9 +101,9 @@ export async function logout() {
 export async function getName() {
   const res = await axios.get(`${API}/api/me`, { withCredentials: true });
   const data = res?.data;
-  if (data?.ok && data?.user){
+  if (data?.ok && data?.user) {
     return data.user.FirstName + ' ' + data.user.LastName;
-  } 
+  }
 }
 
 // Function to store users icon type in database
@@ -116,11 +119,26 @@ export async function updateUserAvatar(avatarPath) {
   return res.data;
 }
 
-export async function createPost({title, content, tags, category}) {
+export async function createPost({ title, content, tags, category }) {
   const res = await axios.post(
     `${API}/api/create-post`,
     { title, content, tags, category },
-    {withCredentials: true,}
+    { withCredentials: true, }
   );
+  return res.data;
+}
+
+export async function uploadImage(file) {
+  const imgForm = new FormData();
+  imgForm.append('image', file);
+
+  const res = await axios.post(
+    `${API}/api/upload-image`,
+    imgForm, {
+    withCredentials: true,
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    }
+  });
   return res.data;
 }

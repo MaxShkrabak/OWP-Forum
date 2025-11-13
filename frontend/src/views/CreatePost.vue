@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
 import Editor from "primevue/editor";
-import {API, createPost} from "@/api/auth";
+import {API, createPost, uploadImage} from "@/api/auth";
 
 const MAX = 120;
 
@@ -16,7 +16,7 @@ const currentUser = ref(null);
 const loadingUser = ref(false);
 const userError = ref(null);
 
-// Simulated user load (API not yet connected)
+// Simulated user load
 async function loadMe() {
   loadingUser.value = true;
   userError.value = null;
@@ -55,6 +55,42 @@ function onCancel() {
   content.value = "";
   tags.value = [];
 }
+
+// Image upload handler
+// Image upload handler
+async function onImageSelected(event) {
+  const file = event.target?.files?.[0];
+  if (!file) return;
+
+  try {
+    console.log("Selected image file:", file);
+
+    const data = await uploadImage(file);
+    console.log("uploadImage response:", data);
+
+    if (!data || data.ok === false) {
+      alert(data?.error || "Image upload failed");
+      return;
+    }
+
+    // data.url from backend is like "/uploads/filename.jpg"
+    // Build a full URL without regex magic
+    const imgUrl = data.url.startsWith("http")
+      ? data.url
+      : `${API}${data.url}`;
+
+    const imgTag = `<p><img src="${imgUrl}" alt="" /></p>`;
+    content.value = (content.value || "") + imgTag;
+  } catch (err) {
+    console.error("Upload handler error:", err);
+    alert("Image upload failed");
+  } finally {
+    // allow the same file to be selected again later
+    event.target.value = "";
+  }
+}
+
+// Publish action
 async function onPublish() {
   if (!canPublish.value) return;
   try {
@@ -124,6 +160,8 @@ async function onPublish() {
               <option>Research Projects</option>
               <option>Help</option>
             </select>
+            <span class="label">Image:</span>
+            <input type="file" accept="image/*" @change="onImageSelected" />
           </div>
 
           <div class="control tags">
@@ -135,7 +173,7 @@ async function onPublish() {
           </div>
         </div>
       </div>
-
+      
       <!-- Editor -->
       <div class="editor-fixed">
         <Editor
