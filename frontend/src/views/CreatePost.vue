@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
 import Editor from "primevue/editor";
+import {API, createPost} from "@/api/auth";
 
 const MAX = 120;
 
@@ -20,7 +21,7 @@ async function loadMe() {
   loadingUser.value = true;
   userError.value = null;
   try {
-    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/me`, {
+    const res = await fetch(`${API}/api/me`, {
       credentials: "include",
     });
     if (!res.ok) throw new Error(`Failed /api/me: ${res.status}`);
@@ -56,25 +57,18 @@ function onCancel() {
 }
 async function onPublish() {
   if (!canPublish.value) return;
-  const body = {
-    title: title.value.trim(),
-    category: category.value || null,
-    tags: tags.value,
-    content: content.value,
-  };
-  const res = await fetch(`${import.meta.env.VITE_API_URL}/api/create-post`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const t = await res.text();
-    alert(t || `HTTP ${res.status}`);
-    return;
+  try {
+    await createPost({
+      title: title.value.trim(),
+      category: category.value || null,
+      tags: tags.value,
+      content: content.value,
+    });
+    onCancel();
+    alert("Post published!");
+  } catch (err) {
+    console.error(err);
   }
-  onCancel();
-  alert("Post published!");
 }
 </script>
 

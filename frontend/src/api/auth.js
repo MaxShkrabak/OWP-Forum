@@ -1,7 +1,7 @@
 import axios from "axios";
 import { ref } from 'vue';
 
-const API = import.meta.env.VITE_API_BASE || 'http://localhost:8080'; // Port 8080 for php
+export const API = import.meta.env.VITE_API_BASE || "http://localhost:8080";
 
 export const isLoggedIn = ref(false);
 export const checkingAuth = ref(false);
@@ -112,6 +112,15 @@ export async function updateUserAvatar(avatarPath) {
       headers: { "Content-Type": "application/json" },
       withCredentials: true,
     }
+  );
+  return res.data;
+}
+
+export async function createPost({title, content, tags, category}) {
+  const res = await axios.post(
+    `${API}/api/create-post`,
+    { title, content, tags, category },
+    {withCredentials: true,}
   );
   return res.data;
 }
