@@ -1,7 +1,7 @@
 import axios from "axios";
 import { ref } from 'vue';
 
-export const API = import.meta.env.VITE_API_BASE || "http://localhost:8080";
+const API = import.meta.env.VITE_API_BASE || "http://localhost:8080";
 
 export const isLoggedIn = ref(false);
 export const checkingAuth = ref(false);

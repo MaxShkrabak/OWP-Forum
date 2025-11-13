@@ -1,7 +1,8 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
 import Editor from "primevue/editor";
-import {API, createPost, uploadImage} from "@/api/auth";
+import { createPost, uploadImage } from "@/api/auth";
+const API = import.meta.env.VITE_API_BASE || "http://localhost:8080";
 
 const MAX = 120;
 
@@ -56,39 +57,45 @@ function onCancel() {
   tags.value = [];
 }
 
-// Image upload handler
-// Image upload handler
-async function onImageSelected(event) {
-  const file = event.target?.files?.[0];
-  if (!file) return;
+// Attach custom image upload to the editor's built-in image button
+function onEditorLoad(quill) {
+  const toolbar = quill.getModule("toolbar");
 
-  try {
-    console.log("Selected image file:", file);
+  toolbar.addHandler("image", () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
 
-    const data = await uploadImage(file);
-    console.log("uploadImage response:", data);
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
 
-    if (!data || data.ok === false) {
-      alert(data?.error || "Image upload failed");
-      return;
-    }
+      try {
+        const data = await uploadImage(file);
+        console.log("uploadImage response:", data);
 
-    // data.url from backend is like "/uploads/filename.jpg"
-    // Build a full URL without regex magic
-    const imgUrl = data.url.startsWith("http")
-      ? data.url
-      : `${API}${data.url}`;
+        if (!data || data.ok === false || !data.url) {
+          alert(data?.error || "Image upload failed");
+          return;
+        }
 
-    const imgTag = `<p><img src="${imgUrl}" alt="" /></p>`;
-    content.value = (content.value || "") + imgTag;
-  } catch (err) {
-    console.error("Upload handler error:", err);
-    alert("Image upload failed");
-  } finally {
-    // allow the same file to be selected again later
-    event.target.value = "";
-  }
+        const imgUrl = data.url.startsWith("http")
+          ? data.url
+          : `${API}${data.url}`;
+
+        const range = quill.getSelection(true);
+        quill.insertEmbed(range.index, "image", imgUrl, "user");
+        quill.setSelection(range.index + 1);
+      } catch (err) {
+        console.error("Upload handler error:", err);
+        alert("Image upload failed");
+      }
+    };
+
+    input.click();
+  });
 }
+
 
 // Publish action
 async function onPublish() {
@@ -160,8 +167,6 @@ async function onPublish() {
               <option>Research Projects</option>
               <option>Help</option>
             </select>
-            <span class="label">Image:</span>
-            <input type="file" accept="image/*" @change="onImageSelected" />
           </div>
 
           <div class="control tags">
@@ -180,6 +185,7 @@ async function onPublish() {
           v-model="content"
           :showHeader="true"
           :editorStyle="{ height: '320px' }"
+          @load="onEditorLoad"
         />
       </div>
 
