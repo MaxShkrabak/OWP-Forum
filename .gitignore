@@ -143,3 +143,6 @@ installed.php
 
 # composer dependencies
 /backend/vendor
+
+# Uploaded images
+backend/public/uploads/
