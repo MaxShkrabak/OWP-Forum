@@ -5,9 +5,6 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Factory\AppFactory;
 
-// testing adding users 
-// http://localhost:8080/add-user → inserts one user
-// http://localhost:8080/users
 
 ini_set('display_errors', '1');
 error_reporting(E_ALL);
@@ -47,10 +44,11 @@ require __DIR__ . '/../routes/register-new-user.php'; // Registering new user
 require __DIR__ . '/../routes/logout.php';            // Logs user out and clears session
 require __DIR__ . '/../routes/me.php';                // User details for auth
 require __DIR__ . '/../routes/avatar.php';            // Store avatar in database
+require __DIR__ . '/../routes/get-category-posts.php';// Get posts for a category
 
 // Root
 $app->get('/', function (Request $req, Response $res) {
-    $res->getBody()->write("Slim is up ✅  Try GET /ping, /users, /add-user");
+    $res->getBody()->write("Slim is up  Try GET /ping, /users, /add-user");
     return $res->withHeader('Content-Type', 'text/plain');
 });
 
@@ -60,29 +58,6 @@ $app->get('/ping', function (Request $req, Response $res) use ($makePdo) {
         $pdo = $makePdo();
         $n = (int)$pdo->query("SELECT COUNT(*) FROM dbo.Users")->fetchColumn();
         $res->getBody()->write(json_encode(['ok' => true, 'users' => $n]));
-        return $res->withHeader('Content-Type', 'application/json');
-    } catch (Throwable $e) {
-        $res->getBody()->write(json_encode(['ok' => false, 'error' => $e->getMessage()]));
-        return $res->withStatus(500)->withHeader('Content-Type', 'application/json');
-    }
-});
-
-// Insert one demo row (adjust table/columns if needed)
-$app->get('/add-user', function (Request $req, Response $res) use ($makePdo) {
-    try {
-        $pdo = $makePdo();
-        $stmt = $pdo->prepare("
-            INSERT INTO dbo.Users (Email, FirstName, LastName, Role)
-            VALUES (:email, :fn, :ln, :role)
-        ");
-        $stmt->execute([
-            ':email' => 'test+'.time().'@example.com',
-            ':fn'    => 'Jeff',
-            ':ln'    => 'Sardella',
-            ':role'  => 'member'
-        ]);
-
-        $res->getBody()->write(json_encode(['ok' => true]));
         return $res->withHeader('Content-Type', 'application/json');
     } catch (Throwable $e) {
         $res->getBody()->write(json_encode(['ok' => false, 'error' => $e->getMessage()]));

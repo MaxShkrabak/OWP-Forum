@@ -70,6 +70,43 @@ onMounted(async () => {
         <div class="row bg-success-subtle">content</div>
         <div class="row bg-warning-subtle">content</div>
         <div class="row bg-danger-subtle">content</div>
+        <!-- Temporary category buttons with slugs -->
+      <div class="row my-2">
+        <RouterLink
+          class="btn btn-outline-success text-start"
+          to="/categories/1/announcements-news"
+        >
+          Announcements & News
+        </RouterLink>
+      </div>
+
+      <div class="row my-2">
+        <RouterLink
+          class="btn btn-outline-success text-start"
+          to="/categories/4/help"
+        >
+          Help
+        </RouterLink>
+      </div>
+
+      <div class="row my-2">
+        <RouterLink
+          class="btn btn-outline-success text-start"
+          to="/categories/3/research-projects"
+        >
+          Research Projects
+        </RouterLink>
+      </div>
+
+      <div class="row my-2">
+        <RouterLink
+          class="btn btn-outline-success text-start"
+          to="/categories/2/training-courses"
+        >
+          Training Courses
+        </RouterLink>
+      </div>
+      <!-- End temporary category buttons -->
       </div>
     </div>
   </div>
