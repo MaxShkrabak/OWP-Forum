@@ -91,29 +91,23 @@ async function loadCategoryPosts() {
       `${API}/api/categories/${id}/posts` +
       `?limit=${limit.value}&sort=${sort.value}&page=${currentPage.value}`;
 
-    const res = await fetch(url, { credentials: 'include' });
+    const res = await fetch(url, {
+      credentials: 'include', // fine to keep; endpoint is public now
+    });
 
-    // Handle auth / access / not found cleanly
-    if (res.status === 401 || res.status === 403 || res.status === 404) {
+    // 404: category doesn't exist
+    if (res.status === 404) {
       let data = {};
       try {
         data = await res.json();
       } catch (_) {}
-
-      if (res.status === 401) {
-        error.value = data.error || 'You must be logged in to view this category.';
-      } else if (res.status === 403) {
-        error.value = data.error || 'Access denied for this category.';
-      } else if (res.status === 404) {
-        error.value = data.error || 'Category not found.';
-      }
-
+      error.value = data.error || 'Category not found.';
       posts.value = [];
       loading.value = false;
       return;
     }
 
-    // any other non-OK (e.g. 500) – surface backend error message if present
+    // Any other non-OK (including 401/403 which we don't expect now)
     if (!res.ok) {
       let data = {};
       try {
@@ -140,7 +134,6 @@ async function loadCategoryPosts() {
   }
 }
 
-
 // when limit or sort change reset to page 1 and reload
 watch([limit, sort], () => {
   currentPage.value = 1;
@@ -159,7 +152,7 @@ onMounted(async () => {
     console.warn('Not logged in, continuing as guest');
     // make sure your isLoggedIn flag is false if you control it here
   }
-  await loadCategoryPosts();  // always try to load posts, even as guest
+  await loadCategoryPosts();
 });
 
 

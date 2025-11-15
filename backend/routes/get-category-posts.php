@@ -11,9 +11,9 @@ $app->get('/api/categories/{id}/posts', function (Request $req, Response $res, a
         $categoryId = (int)$args['id'];
         $pdo = $makePdo();
 
-        // Get category including UsableByRoleId
+        // Get category info
         $catStmt = $pdo->prepare("
-            SELECT CategoryID, Name, UsableByRoleId
+            SELECT CategoryID, Name
             FROM dbo.Categories
             WHERE CategoryID = :id
         ");
@@ -24,36 +24,6 @@ $app->get('/api/categories/{id}/posts', function (Request $req, Response $res, a
             $res->getBody()->write(json_encode(['error' => 'Category not found']));
             return $res->withStatus(404)->withHeader('Content-Type', 'application/json');
         }
-
-        // default = user (RoleID = 1) for not-logged-in visitors
-        $userRoleId = 1;
-
-        // session-auth middleware will set this if there's a valid session token
-        $userIdFromMiddleware = $req->getAttribute('user_id');
-
-        if (!empty($userIdFromMiddleware)) {
-            $uStmt = $pdo->prepare("
-                SELECT RoleID
-                FROM dbo.Users
-                WHERE User_ID = :uid
-            ");
-            $uStmt->execute(['uid' => (int)$userIdFromMiddleware]);
-            $uRow = $uStmt->fetch(PDO::FETCH_ASSOC);
-
-            if (!empty($uRow['RoleID'])) {
-                $userRoleId = (int)$uRow['RoleID'];
-            }
-        }
-
-    // Categories.UsableByRoleId is the MINIMUM RoleID allowed
-    $requiredRoleId = (int)($cat['UsableByRoleId'] ?? 1);
-
-    if ($userRoleId < $requiredRoleId) {
-        $res->getBody()->write(json_encode([
-            'error' => 'Access denied: insufficient role'
-        ]));
-        return $res->withStatus(403)->withHeader('Content-Type', 'application/json');
-    }
 
         // Query params: limit, sort, page
         $queryParams = $req->getQueryParams();

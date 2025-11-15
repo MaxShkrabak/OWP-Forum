@@ -14,7 +14,7 @@ return function (Request $request, RequestHandler $handler) use ($makePdo) {
 
     if (strpos($path, '/api/categories') === 0 && $request->getMethod() === 'GET') {
     return $handler->handle($request);
-}
+    }
 
     // Check if the user has a session cookie
     $token = $_COOKIE['session'] ?? '';
