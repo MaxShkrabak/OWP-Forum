@@ -1,6 +1,8 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
 import Editor from "primevue/editor";
+import { createPost, uploadImage } from "@/api/auth";
+const API = import.meta.env.VITE_API_BASE || "http://localhost:8080";
 
 const MAX = 120;
 
@@ -15,12 +17,12 @@ const currentUser = ref(null);
 const loadingUser = ref(false);
 const userError = ref(null);
 
-// Simulated user load (API not yet connected)
+// Simulated user load
 async function loadMe() {
   loadingUser.value = true;
   userError.value = null;
   try {
-    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/me`, {
+    const res = await fetch(`${API}/api/me`, {
       credentials: "include",
     });
     if (!res.ok) throw new Error(`Failed /api/me: ${res.status}`);
@@ -54,27 +56,62 @@ function onCancel() {
   content.value = "";
   tags.value = [];
 }
+
+// Attach custom image upload to the editor's built-in image button
+function onEditorLoad(quill) {
+  const toolbar = quill.getModule("toolbar");
+
+  toolbar.addHandler("image", () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+
+      try {
+        const data = await uploadImage(file);
+        console.log("uploadImage response:", data);
+
+        if (!data || data.ok === false || !data.url) {
+          alert(data?.error || "Image upload failed");
+          return;
+        }
+
+        const imgUrl = data.url.startsWith("http")
+          ? data.url
+          : `${API}${data.url}`;
+
+        const range = quill.getSelection(true);
+        quill.insertEmbed(range.index, "image", imgUrl, "user");
+        quill.setSelection(range.index + 1);
+      } catch (err) {
+        console.error("Upload handler error:", err);
+        alert("Image upload failed");
+      }
+    };
+
+    input.click();
+  });
+}
+
+
+// Publish action
 async function onPublish() {
   if (!canPublish.value) return;
-  const body = {
-    title: title.value.trim(),
-    category: category.value || null,
-    tags: tags.value,
-    content: content.value,
-  };
-  const res = await fetch(`${import.meta.env.VITE_API_URL}/api/posts`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const t = await res.text();
-    alert(t || `HTTP ${res.status}`);
-    return;
+  try {
+    await createPost({
+      title: title.value.trim(),
+      category: category.value || null,
+      tags: tags.value,
+      content: content.value,
+    });
+    onCancel();
+    alert("Post published!");
+  } catch (err) {
+    console.error(err);
   }
-  onCancel();
-  alert("Post published!");
 }
 </script>
 
@@ -141,13 +178,14 @@ async function onPublish() {
           </div>
         </div>
       </div>
-
+      
       <!-- Editor -->
       <div class="editor-fixed">
         <Editor
           v-model="content"
           :showHeader="true"
           :editorStyle="{ height: '320px' }"
+          @load="onEditorLoad"
         />
       </div>
 

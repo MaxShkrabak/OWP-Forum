@@ -50,13 +50,13 @@ async function onSubmit() {
   <section class="auth-wrap" aria-label="Verify Passcode">
     <div class="auth-card">
       <div class="form-inner">
-        <h2 class="card-title">Verify Passcode</h2>
+        <h1 class="card-title">Verify Passcode</h1>
 
         <form class="form" @submit.prevent="onSubmit">
-          <label class="label" for="code">Passcode</label>
+          <label class="label text-black" for="code">Passcode</label>
           <input
             id="otp"
-            class="input"
+            class="form-control"
             type="text"
             maxlength="6"
             placeholder="123456"
@@ -66,32 +66,34 @@ async function onSubmit() {
           />
 
           <button class="btn" type="submit" :disabled="!canSubmit || loading">
-            Submit
+            <span class="fs-6 fw-normal">Submit</span>
           </button>
         </form>
 
         <div class="help-stack">
-          <p class="help">
+          <p class="help text-black">
             Please enter the six-digit passcode we emailed to you and click
             <em>Submit</em>. If you copy and paste the passcode, be sure not to include any spaces around or within the code.
           </p>
 
           <p class="help small">
             Haven’t received the email yet? Please make sure that you’ve entered the correct email address and that it is registered with out site. The 
-            email you have entered is:
-            <strong>{{ email || '—' }}</strong>.
+            email you have entered is
+            <strong>{{ email || '—' }}</strong>. Be advised that the passcode can take up to a minute to be received.
           </p>
+          <br>
 
           <p class="help small">
-            The email may take up to a minute and comes from
-            <em>noreply@owp.csus.edu</em>. Please check spam/junk folders.
+            The passcode email is sent from the
+            <em>noreply@owp.csus.edu</em> email address, please make sure that emails from this address are not being sent to your spam or junk folder.
           </p>
         </div>
 
         <div class="resend">
-          <button class="link-btn" :disabled="secondsLeft>0 || loading" @click="onResend">
-            {{ secondsLeft > 0 ? `Resend in ${secondsLeft}s` : 'Resend passcode' }}
-          </button>
+          <span>First time here? Please
+            <RouterLink to="/register" class="link-btn">Register</RouterLink>
+        </span>
+          
         </div>
 
         <p v-if="message" class="notice success">{{ message }}</p>
@@ -103,16 +105,24 @@ async function onSubmit() {
 
 <style scoped>
 
+.label {
+  display: block;
+  font-size: 1.2rem;
+  font-weight: 400;
+  color: #000000;
+  margin-bottom: 0.65rem;
+}
+
 
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   margin-top: 1rem;
-  padding: 0.75rem 1.1rem;
+  padding: 0.55rem 1.1rem;
   border-radius: 6px;
   border: 1px solid #14532d;
-  background: #1b5e20;
+  background: #007a4c;
   color: #fff;
   font-weight: 700;
   cursor: pointer;
@@ -123,19 +133,18 @@ async function onSubmit() {
 
 
 /* Resend section */
-.resend { margin-top: 1.25rem; }
+
+.resend {
+  margin-top: 8em;
+}
+
 .link-btn {
   background: none;
   border: none;
-  color: #14532d;
+  color: #007a4c;
   font-weight: 700;
   text-decoration: underline;
   cursor: pointer;
-}
-.link-btn:disabled {
-  color: #8aa293;
-  text-decoration: none;
-  cursor: default;
 }
 
 </style>

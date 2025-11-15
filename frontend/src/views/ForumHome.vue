@@ -40,16 +40,10 @@ onMounted(async () => {
 </script>
 
 <template>
-  <ForumHeader />
-  <h1>HOME PAGE</h1>
-  <router-link to="/login">login</router-link> | | |
-  <router-link to="/register">register</router-link> | | |
-  <router-link to="/create-post">create post</router-link> | | |
-  <router-link to="/profile">My Profile</router-link>
-  <router-view></router-view>
-
+  <body>
+    <ForumHeader />
   <!--Forum Home layout in responsive columns-->
-  <div class="container-fluid">
+  <div class="container-fluid p-5">
     <div class="row text-center">
       <!--First Column-->
       <div class="col-sm-3 col-md-4 col-lg-3 col-xxl-3 text-center justify-content-center">
@@ -110,7 +104,11 @@ onMounted(async () => {
       </div>
     </div>
   </div>
+  </body>
 </template>
 
 <style scoped>
+body {
+  background-color: #DEE2E6;
+}
 </style>
