@@ -8,9 +8,12 @@ $app->get('/api/categories/{id}/posts', function (Request $req, Response $res, a
     $pdo = $makePdo();
 
     try {
-        // Get category
+        $categoryId = (int)$args['id'];
+        $pdo = $makePdo();
+
+        // Get category including UsableByRoleId
         $catStmt = $pdo->prepare("
-            SELECT CategoryID, Name
+            SELECT CategoryID, Name, UsableByRoleId
             FROM dbo.Categories
             WHERE CategoryID = :id
         ");
@@ -21,6 +24,36 @@ $app->get('/api/categories/{id}/posts', function (Request $req, Response $res, a
             $res->getBody()->write(json_encode(['error' => 'Category not found']));
             return $res->withStatus(404)->withHeader('Content-Type', 'application/json');
         }
+
+        // default = user (RoleID = 1) for not-logged-in visitors
+        $userRoleId = 1;
+
+        // session-auth middleware will set this if there's a valid session token
+        $userIdFromMiddleware = $req->getAttribute('user_id');
+
+        if (!empty($userIdFromMiddleware)) {
+            $uStmt = $pdo->prepare("
+                SELECT RoleID
+                FROM dbo.Users
+                WHERE User_ID = :uid
+            ");
+            $uStmt->execute(['uid' => (int)$userIdFromMiddleware]);
+            $uRow = $uStmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!empty($uRow['RoleID'])) {
+                $userRoleId = (int)$uRow['RoleID'];
+            }
+        }
+
+    // Categories.UsableByRoleId is the MINIMUM RoleID allowed
+    $requiredRoleId = (int)($cat['UsableByRoleId'] ?? 1);
+
+    if ($userRoleId < $requiredRoleId) {
+        $res->getBody()->write(json_encode([
+            'error' => 'Access denied: insufficient role'
+        ]));
+        return $res->withStatus(403)->withHeader('Content-Type', 'application/json');
+    }
 
         // Query params: limit, sort, page
         $queryParams = $req->getQueryParams();
@@ -67,22 +100,27 @@ $app->get('/api/categories/{id}/posts', function (Request $req, Response $res, a
 
         $offset = ($page - 1) * $limit;
 
-        // Get the posts for this page
+        // Get the posts for this page with user info
         $sql = "
-            SELECT
-                p.PostID,
-                p.Title,
-                p.CreatedAt,
-                u.FirstName,
-                u.LastName
-            FROM dbo.Posts p
-            LEFT JOIN dbo.Users u
-                ON p.AuthorID = u.User_ID
-            WHERE p.CategoryID = :categoryId
-            ORDER BY $orderBy
-            OFFSET :offset ROWS
-            FETCH NEXT :limit ROWS ONLY;
-        ";
+        SELECT
+            p.PostID,
+            p.Title,
+            p.CreatedAt,
+            u.FirstName,
+            u.LastName,
+            u.Avatar,
+            r.Name AS RoleName
+        FROM dbo.Posts p
+        LEFT JOIN dbo.Users u
+            ON p.AuthorID = u.User_ID
+        LEFT JOIN dbo.Roles r
+            ON u.RoleID = r.RoleID
+        WHERE p.CategoryID = :categoryId
+        ORDER BY $orderBy
+        OFFSET :offset ROWS
+        FETCH NEXT :limit ROWS ONLY;
+    ";
+
 
     $postStmt = $pdo->prepare($sql);
     $postStmt->bindValue(':categoryId', $categoryId, PDO::PARAM_INT);
@@ -127,6 +165,8 @@ $app->get('/api/categories/{id}/posts', function (Request $req, Response $res, a
             'title'      => $row['Title'],
             'createdAt'  => $row['CreatedAt'],
             'authorName' => trim(($row['FirstName'] ?? '') . ' ' . ($row['LastName'] ?? '')),
+            'authorRole'  => $row['RoleName'] ?? 'User',
+            'authorAvatar'=> $row['Avatar'] ?? null,
             'tags'       => $tagsByPostId[$pid] ?? [],
         ];
     }, $rows);

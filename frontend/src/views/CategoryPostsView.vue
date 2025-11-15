@@ -62,6 +62,23 @@ function flagPost(postId) {
   alert("Flag clicked for post " + postId);
   // TODO: implement flagging functionality
 }
+function getAvatarSrc(post) {
+  const file = post.authorAvatar;
+
+  if (!file) {
+    return userPlaceholder;
+  }
+
+  try {
+    return new URL(`../assets/img/user-pfps-premade/${file}`, import.meta.url).href;
+  } catch (e) {
+    return userPlaceholder;
+  }
+}
+
+function getAuthorRole(post) {
+  return post.authorRole || 'User';
+}
 
 async function loadCategoryPosts() {
   loading.value = true;
@@ -76,9 +93,38 @@ async function loadCategoryPosts() {
 
     const res = await fetch(url, { credentials: 'include' });
 
-    if (!res.ok) throw new Error(`Failed to load posts (${res.status})`);
+    // Handle auth / access / not found cleanly
+    if (res.status === 401 || res.status === 403 || res.status === 404) {
+      let data = {};
+      try {
+        data = await res.json();
+      } catch (_) {}
+
+      if (res.status === 401) {
+        error.value = data.error || 'You must be logged in to view this category.';
+      } else if (res.status === 403) {
+        error.value = data.error || 'Access denied for this category.';
+      } else if (res.status === 404) {
+        error.value = data.error || 'Category not found.';
+      }
+
+      posts.value = [];
+      loading.value = false;
+      return;
+    }
+
+    // any other non-OK (e.g. 500) – surface backend error message if present
+    if (!res.ok) {
+      let data = {};
+      try {
+        data = await res.json();
+      } catch (_) {}
+      const msg = data.error || `Failed to load posts (${res.status})`;
+      throw new Error(msg);
+    }
 
     const data = await res.json();
+
     categoryName.value = data.categoryName || 'Category';
     posts.value = data.posts || [];
 
@@ -94,6 +140,7 @@ async function loadCategoryPosts() {
   }
 }
 
+
 // when limit or sort change reset to page 1 and reload
 watch([limit, sort], () => {
   currentPage.value = 1;
@@ -106,14 +153,17 @@ watch(currentPage, () => {
 });
 
 onMounted(async () => {
-  await checkAuth();      // make sure isLoggedIn is up to date
-  await loadCategoryPosts();
+  try {
+    await checkAuth();  // sets isLoggedIn if there IS a valid session
+  } catch (e) {
+    console.warn('Not logged in, continuing as guest');
+    // make sure your isLoggedIn flag is false if you control it here
+  }
+  await loadCategoryPosts();  // always try to load posts, even as guest
 });
 
+
 </script>
-
-
-
 
 <template>
   <div class="category-page bg-light">
@@ -259,10 +309,10 @@ onMounted(async () => {
               <!-- Right user column -->
               <div class="post-user d-flex flex-column justify-content-center px-3 py-2">
                 <div class="d-flex align-items-center mb-1">
-                  <img :src="userPlaceholder" alt="User" class="user-avatar-img me-2" />
+                  <img :src="getAvatarSrc(post)" alt="User" class="user-avatar-img me-2" /> 
                   <div class="small text-start">
-                    <div class="user-name">{{ post.authorName || 'User' }}</div>
-                    <span class="user-role-pill">User</span>
+                    <div class="user-name">{{ post.authorName }}</div>
+                    <span class="user-role-pill">{{ getAuthorRole(post) }}</span>
                   </div>
                 </div>
               </div>
