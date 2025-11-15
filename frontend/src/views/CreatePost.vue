@@ -15,6 +15,12 @@ const currentUser = ref(null);
 const loadingUser = ref(false);
 const userError = ref(null);
 
+// Popups
+const showDiscardConfirm = ref(false);
+const showPublishConfirm = ref(false);
+const showError = ref(false);
+const errorMessage = ref("");
+
 // Simulated user load (API not yet connected)
 async function loadMe() {
   loadingUser.value = true;
@@ -36,15 +42,17 @@ onMounted(loadMe);
 
 // Validation
 const len = computed(() => title.value.trim().length);
-const valid = computed(() => len.value > 0 && len.value <= MAX);
-const canPublish = computed(
-  () => !!currentUser.value && valid.value && content.value.trim().length > 0
-);
+const validTitle = computed(() => len.value > 0 && len.value <= MAX);
+const hasContent = computed(() => content.value.trim().length > 0);
+const canPublish = computed(() => validTitle.value && hasContent.value);
 
 // Utility
 function initials(name = "") {
   const p = name.trim().split(/\s+/);
-  return p.slice(0, 2).map(s => s[0]?.toUpperCase() || "").join("");
+  return p
+    .slice(0, 2)
+    .map((s) => s[0]?.toUpperCase() || "")
+    .join("");
 }
 
 // Actions
@@ -54,41 +62,147 @@ function onCancel() {
   content.value = "";
   tags.value = [];
 }
-async function onPublish() {
-  if (!canPublish.value) return;
+
+// Button handlers
+function handleCancelClick() {
+  const dirty =
+    !!title.value ||
+    !!category.value ||
+    !!content.value ||
+    (tags.value && tags.value.length > 0);
+
+  if (dirty) {
+    showDiscardConfirm.value = true;
+  } else {
+    onCancel();
+  }
+}
+
+function handlePublishClick() {
+  if (!canPublish.value) {
+    errorMessage.value =
+      "Please enter a title and some content before publishing your post.";
+    showError.value = true;
+    return;
+  }
+  showPublishConfirm.value = true;
+}
+
+// Popup actions
+function closeError() {
+  showError.value = false;
+}
+
+function confirmDiscard() {
+  onCancel();
+  showDiscardConfirm.value = false;
+}
+
+function cancelDiscard() {
+  showDiscardConfirm.value = false;
+}
+
+function cancelPublishConfirm() {
+  showPublishConfirm.value = false;
+}
+
+// Publish call
+async function doPublish() {
+  if (!canPublish.value) {
+    showPublishConfirm.value = false;
+    return;
+  }
+
   const body = {
     title: title.value.trim(),
     category: category.value || null,
     tags: tags.value,
     content: content.value,
   };
-  const res = await fetch(`${import.meta.env.VITE_API_URL}/api/posts`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const t = await res.text();
-    alert(t || `HTTP ${res.status}`);
-    return;
+
+  try {
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/posts`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const t = await res.text();
+      errorMessage.value = t || `Error: HTTP ${res.status}`;
+      showError.value = true;
+      showPublishConfirm.value = false;
+      return;
+    }
+    onCancel();
+    showPublishConfirm.value = false;
+  } catch (err) {
+    errorMessage.value =
+      err?.message || "Network error while trying to publish the post.";
+    showError.value = true;
+    showPublishConfirm.value = false;
   }
-  onCancel();
-  alert("Post published!");
 }
 </script>
 
 <template>
   <section class="frame">
     <div class="post-card">
-      <div class="title-group" :class="{ bad: !valid && len > 0 }">
+      <div
+        v-if="showDiscardConfirm || showPublishConfirm || showError"
+        class="modal-backdrop"
+      ></div>
+
+      <!-- Discard Confirmation -->
+      <div v-if="showDiscardConfirm" class="modal-shell">
+        <div class="modal-card">
+          <p class="modal-text">Are you sure you want to discard?</p>
+          <div class="modal-actions">
+            <button class="btn small primary" type="button" @click="confirmDiscard">
+              Yes
+            </button>
+            <button class="btn small danger" type="button" @click="cancelDiscard">
+              No
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Publish Confirmation -->
+      <div v-if="showPublishConfirm" class="modal-shell">
+        <div class="modal-card">
+          <p class="modal-text">Are you sure you want to Publish?</p>
+          <div class="modal-actions">
+            <button class="btn small primary" type="button" @click="doPublish">
+              Yes
+            </button>
+            <button class="btn small danger" type="button" @click="cancelPublishConfirm">
+              No
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Error popup -->
+      <div v-if="showError" class="modal-shell">
+        <div class="modal-card">
+          <p class="modal-text">{{ errorMessage }}</p>
+          <div class="modal-actions">
+            <button class="btn small primary" type="button" @click="closeError">
+              OK
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="title-group" :class="{ bad: !validTitle && len > 0 }">
         <div class="title-field">
           <input
             id="post-title"
             v-model.trim="title"
             type="text"
             :maxlength="MAX + 20"
-            :aria-invalid="!valid && len > 0"
+            :aria-invalid="!validTitle && len > 0"
             placeholder=" "
           />
           <label class="inline-label" for="post-title">
@@ -107,7 +221,7 @@ async function onPublish() {
           <template v-else-if="currentUser">
             <div class="avatar">{{ initials(currentUser.name) }}</div>
             <div class="meta">
-              <div class="role pill">{{ currentUser.role ?? 'Student' }}</div>
+              <div class="role pill">{{ currentUser.role ?? "Student" }}</div>
               <div class="name">{{ currentUser.name }}</div>
             </div>
           </template>
@@ -154,11 +268,14 @@ async function onPublish() {
       <!-- Actions -->
       <div class="row">
         <div class="actions">
-          <button class="btn ghost" @click="onCancel">Cancel</button>
+          <button class="btn ghost" type="button" @click="handleCancelClick">
+            Cancel
+          </button>
           <button
             class="btn primary"
-            :disabled="loadingUser || !canPublish"
-            @click="onPublish"
+            type="button"
+            :disabled="loadingUser"
+            @click="handlePublishClick"
           >
             Publish
           </button>
@@ -183,7 +300,7 @@ async function onPublish() {
   background: #f3f6f5;
   border-radius: 12px;
   padding: 20px;
-  box-shadow: 0 4px 12px rgba(0,0,0,.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
   display: flex;
   flex-direction: column;
@@ -199,7 +316,7 @@ async function onPublish() {
   background: #fff;
   border: 1px solid #d1d5db;
   border-radius: 10px;
-  box-shadow: inset 0 1px 2px rgba(0,0,0,.06);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06);
   display: grid;
   grid-template-columns: 1fr auto;
   grid-template-rows: auto auto;
@@ -241,7 +358,7 @@ async function onPublish() {
 }
 .inline-label .req {
   color: #e11d48;
-  margin-left: 2px; 
+  margin-left: 2px;
 }
 .title-field input:not(:placeholder-shown) ~ .inline-label {
   opacity: 0; transform: translateY(-6px);
@@ -271,7 +388,6 @@ async function onPublish() {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
   text-align: center;
 }
 .user-box .pill {
@@ -297,7 +413,7 @@ async function onPublish() {
   gap: 24px;
   padding: 8px 14px 12px;
 }
-.control { 
+.control {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -308,7 +424,7 @@ async function onPublish() {
   font-size: 0.95rem;
 }
 .select-compact {
-  height: 28px; 
+  height: 28px;
   padding: 0 24px 0 10px;
   border: 1px solid #8a96a3;
   border-radius: 4px;
@@ -334,19 +450,16 @@ async function onPublish() {
   background: #efefef;
   font-weight: 700;
   font-size: 16px;
-  line-height: 1;
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
-  color: #2f3a46;
-  cursor: pointer;
 }
 .tag-add:hover { background: #e7e7e7; }
 .tag-hint {
   margin-top: -8px;
   margin-left: 2px;
   font-size: 10px;
-  color: #6b7280; 
+  color: #6b7280;
 }
 
 /* Editor sizing */
@@ -372,28 +485,77 @@ async function onPublish() {
 }
 
 /* Actions */
-.actions { 
+.actions {
   width: 100%;
   display: flex;
   justify-content: flex-end;
   gap: 12px;
 }
-.btn { 
+.btn {
   border-radius: 10px;
   padding: 6px 16px;
   font-weight: 700;
   cursor: pointer;
   border: 1px solid #cbd5e1;
-  background: #fff; 
+  background: #fff;
 }
 .btn.primary {
   background: #1b5e20;
   color: #fff;
-  border-color: #14532d; 
+  border-color: #14532d;
 }
 .btn.primary:disabled {
-  opacity: .55;
-  cursor: not-allowed; 
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 .btn.ghost { color: #111; }
+
+.btn.danger {
+  background: #fecaca;
+  color: #7f1d1d;
+  border-color: #fda4af;
+}
+
+.btn.small {
+  padding: 4px 14px;
+  font-size: 0.85rem;
+}
+
+/* Modals */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  z-index: 40;
+}
+
+.modal-shell {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 50;
+}
+
+.modal-card {
+  min-width: 260px;
+  max-width: 320px;
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 16px 18px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+.modal-text {
+  font-size: 0.95rem;
+  color: #111827;
+  margin-bottom: 16px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
 </style>
