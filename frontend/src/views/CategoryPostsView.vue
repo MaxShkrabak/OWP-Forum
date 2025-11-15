@@ -10,7 +10,7 @@ import { isLoggedIn, checkAuth } from '@/api/auth';
 
 import userPlaceholder from '@/assets/img/user-pfps-premade/pfp-0.png';
 
-const API = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
+const API = import.meta.env.VITE_API_BASE || 'http://localhost:8080';
 
 const currentPage = ref(1);
 const totalPages = ref(1);
