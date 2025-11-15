@@ -61,9 +61,46 @@ onMounted(async () => {
       <!--Second part of the Home page Layout, for the Content-->
       <div class="col-sm-7 col-md-8 col-lg-9 col-xxl-9 py-3 px-5">
         <!--Examples to show the rows in this column-->
-        <div class="row justify-content-center">
-          <em>No content to display yet.</em>
-        </div>
+        <div class="row bg-success-subtle">content</div>
+        <div class="row bg-warning-subtle">content</div>
+        <div class="row bg-danger-subtle">content</div>
+        <!-- Temporary category buttons with slugs -->
+      <div class="row my-2">
+        <RouterLink
+          class="btn btn-outline-success text-start"
+          to="/categories/1/announcements-news"
+        >
+          Announcements & News
+        </RouterLink>
+      </div>
+
+      <div class="row my-2">
+        <RouterLink
+          class="btn btn-outline-success text-start"
+          to="/categories/4/help"
+        >
+          Help
+        </RouterLink>
+      </div>
+
+      <div class="row my-2">
+        <RouterLink
+          class="btn btn-outline-success text-start"
+          to="/categories/3/research-projects"
+        >
+          Research Projects
+        </RouterLink>
+      </div>
+
+      <div class="row my-2">
+        <RouterLink
+          class="btn btn-outline-success text-start"
+          to="/categories/2/training-courses"
+        >
+          Training Courses
+        </RouterLink>
+      </div>
+      <!-- End temporary category buttons -->
       </div>
     </div>
   </div>
