@@ -1,16 +1,45 @@
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount } from "vue";
+import { useRouter, onBeforeRouteLeave } from "vue-router";
 import Editor from "primevue/editor";
 import { createPost, uploadImage } from "@/api/auth";
 const API = import.meta.env.VITE_API_BASE || "http://localhost:8080";
 
 const MAX = 120;
+const router = useRouter();
 
 // Form fields
 const title = ref("");
 const category = ref("");
 const content = ref("");
 const tags = ref([]);
+
+// Helper function to check if HTML content is empty (ignores formatting tags)
+function isEmptyHtml(html) {
+  if (!html || html.trim() === '') return true;
+  // Remove HTML tags and whitespace, check if anything remains
+  // PrimeVue Editor often returns <p><br></p> or <p></p> when empty
+  const text = html
+    .replace(/<[^>]*>/g, '') // Remove all HTML tags
+    .replace(/&nbsp;/g, ' ') // Replace &nbsp; with space
+    .replace(/\s+/g, ' ') // Normalize whitespace
+    .trim();
+  return text.length === 0;
+}
+
+// Unsaved changes tracking
+const hasUnsavedChanges = computed(() => {
+  const hasTitle = title.value.trim().length > 0;
+  const hasContent = !isEmptyHtml(content.value);
+  const hasCategory = category.value.trim().length > 0;
+  const hasTags = tags.value && tags.value.length > 0;
+  
+  return hasTitle || hasContent || hasCategory || hasTags;
+});
+
+// Warning dialog state
+const showWarningDialog = ref(false);
+const pendingNavigation = ref(null);
 
 // User state
 const currentUser = ref(null);
@@ -34,7 +63,6 @@ async function loadMe() {
     loadingUser.value = false;
   }
 }
-onMounted(loadMe);
 
 // Validation
 const len = computed(() => title.value.trim().length);
@@ -55,7 +83,62 @@ function onCancel() {
   category.value = "";
   content.value = "";
   tags.value = [];
+  // Also clear any pending navigation since we're intentionally clearing
+  showWarningDialog.value = false;
+  pendingNavigation.value = null;
 }
+
+// Handle browser beforeunload event (closing tab/window)
+function handleBeforeUnload(e) {
+  if (hasUnsavedChanges.value) {
+    e.preventDefault();
+    e.returnValue = ""; // Chrome requires returnValue to be set
+    return "";
+  }
+}
+
+// Confirm leaving
+function confirmLeave() {
+  if (pendingNavigation.value) {
+    pendingNavigation.value();
+    pendingNavigation.value = null;
+  }
+  showWarningDialog.value = false;
+  // Clear form
+  onCancel();
+}
+
+// Cancel leaving
+function cancelLeave() {
+  showWarningDialog.value = false;
+  pendingNavigation.value = null;
+}
+
+// Navigation guard - warn before leaving with unsaved changes
+onBeforeRouteLeave((to, from, next) => {
+  // Re-check unsaved changes when navigation is attempted
+  const hasChanges = hasUnsavedChanges.value;
+  
+  if (!hasChanges) {
+    next();
+    return;
+  }
+  
+  // Prevent navigation and show warning dialog
+  showWarningDialog.value = true;
+  pendingNavigation.value = next;
+  // Don't call next() here - we'll call it after user confirms
+});
+
+// Initialize beforeunload listener and load user
+onMounted(() => {
+  loadMe();
+  window.addEventListener("beforeunload", handleBeforeUnload);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener("beforeunload", handleBeforeUnload);
+});
 
 // Attach custom image upload to the editor's built-in image button
 function onEditorLoad(quill) {
@@ -109,6 +192,8 @@ async function onPublish() {
     });
     onCancel();
     alert("Post published!");
+    // Navigate away after successful publish
+    router.push("/");
   } catch (err) {
     console.error(err);
   }
@@ -117,7 +202,30 @@ async function onPublish() {
 
 <template>
   <section class="frame">
+    <!-- Warning Dialog -->
+    <div v-if="showWarningDialog" class="warning-overlay" @click.self="cancelLeave">
+      <div class="warning-dialog">
+        <div class="warning-header">
+          <span class="warning-icon">⚠️</span>
+          <h3>Unsaved Changes</h3>
+        </div>
+        <p class="warning-message">
+          You have unsaved changes. Are you sure you want to leave? Your changes will be lost.
+        </p>
+        <div class="warning-actions">
+          <button class="btn ghost" @click="cancelLeave">Stay on Page</button>
+          <button class="btn danger" @click="confirmLeave">Leave Without Saving</button>
+        </div>
+      </div>
+    </div>
+
     <div class="post-card">
+      <!-- Unsaved changes indicator -->
+      <div v-if="hasUnsavedChanges" class="unsaved-indicator">
+        <span class="star-icon">★</span>
+        <span class="unsaved-text">Unsaved changes</span>
+      </div>
+      
       <div class="title-group" :class="{ bad: !valid && len > 0 }">
         <div class="title-field">
           <input
@@ -434,4 +542,76 @@ async function onPublish() {
   cursor: not-allowed; 
 }
 .btn.ghost { color: #111; }
+.btn.danger {
+  background: #e11d48;
+  color: #fff;
+  border-color: #be123c;
+}
+
+/* Unsaved changes indicator */
+.unsaved-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #fef3c7;
+  border: 1px solid #fbbf24;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  font-size: 0.9rem;
+  color: #92400e;
+}
+.star-icon {
+  color: #f59e0b;
+  font-size: 1.1rem;
+}
+.unsaved-text {
+  font-weight: 600;
+}
+
+/* Warning Dialog */
+.warning-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.warning-dialog {
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+.warning-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.warning-icon {
+  font-size: 1.5rem;
+}
+.warning-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: #111827;
+}
+.warning-message {
+  margin: 0 0 20px 0;
+  color: #4b5563;
+  line-height: 1.5;
+}
+.warning-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
 </style>
