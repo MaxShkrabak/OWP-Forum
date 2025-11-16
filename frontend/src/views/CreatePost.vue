@@ -40,6 +40,7 @@ const hasUnsavedChanges = computed(() => {
 // Warning dialog state
 const showWarningDialog = ref(false);
 const pendingNavigation = ref(null);
+const isCancelWarning = ref(false); // Track if warning is for cancel button
 
 // User state
 const currentUser = ref(null);
@@ -77,15 +78,26 @@ function initials(name = "") {
   return p.slice(0, 2).map(s => s[0]?.toUpperCase() || "").join("");
 }
 
-// Actions
-function onCancel() {
+// Actually clear the form (called after user confirms)
+function clearForm() {
   title.value = "";
   category.value = "";
   content.value = "";
   tags.value = [];
-  // Also clear any pending navigation since we're intentionally clearing
-  showWarningDialog.value = false;
-  pendingNavigation.value = null;
+}
+
+// Actions
+function onCancel() {
+  // Check if there are unsaved changes
+  if (hasUnsavedChanges.value) {
+    // Show warning dialog for cancel
+    isCancelWarning.value = true;
+    showWarningDialog.value = true;
+    pendingNavigation.value = null; // Not a navigation, so no pending nav
+  } else {
+    // No unsaved changes, just clear
+    clearForm();
+  }
 }
 
 // Handle browser beforeunload event (closing tab/window)
@@ -97,21 +109,25 @@ function handleBeforeUnload(e) {
   }
 }
 
-// Confirm leaving
+// Confirm leaving/canceling
 function confirmLeave() {
-  if (pendingNavigation.value) {
+  if (isCancelWarning.value) {
+    // User confirmed cancel - clear the form
+    clearForm();
+  } else if (pendingNavigation.value) {
+    // User confirmed navigation - proceed with navigation
     pendingNavigation.value();
     pendingNavigation.value = null;
   }
   showWarningDialog.value = false;
-  // Clear form
-  onCancel();
+  isCancelWarning.value = false;
 }
 
-// Cancel leaving
+// Cancel leaving (stay on page)
 function cancelLeave() {
   showWarningDialog.value = false;
   pendingNavigation.value = null;
+  isCancelWarning.value = false;
 }
 
 // Navigation guard - warn before leaving with unsaved changes
@@ -125,6 +141,7 @@ onBeforeRouteLeave((to, from, next) => {
   }
   
   // Prevent navigation and show warning dialog
+  isCancelWarning.value = false; // This is for navigation, not cancel
   showWarningDialog.value = true;
   pendingNavigation.value = next;
   // Don't call next() here - we'll call it after user confirms
@@ -190,7 +207,7 @@ async function onPublish() {
       tags: tags.value,
       content: content.value,
     });
-    onCancel();
+    clearForm(); // Clear form directly (no warning needed after successful publish)
     alert("Post published!");
     // Navigate away after successful publish
     router.push("/");
@@ -210,11 +227,22 @@ async function onPublish() {
           <h3>Unsaved Changes</h3>
         </div>
         <p class="warning-message">
-          You have unsaved changes. Are you sure you want to leave? Your changes will be lost.
+          <span v-if="isCancelWarning">
+            You have unsaved changes. Are you sure you want to cancel? Your changes will be lost.
+          </span>
+          <span v-else>
+            You have unsaved changes. Are you sure you want to leave? Your changes will be lost.
+          </span>
         </p>
         <div class="warning-actions">
-          <button class="btn ghost" @click="cancelLeave">Stay on Page</button>
-          <button class="btn danger" @click="confirmLeave">Leave Without Saving</button>
+          <button class="btn ghost" @click="cancelLeave">
+            <span v-if="isCancelWarning">Keep Editing</span>
+            <span v-else>Stay on Page</span>
+          </button>
+          <button class="btn danger" @click="confirmLeave">
+            <span v-if="isCancelWarning">Cancel Changes</span>
+            <span v-else>Leave Without Saving</span>
+          </button>
         </div>
       </div>
     </div>
