@@ -15,6 +15,13 @@ $app->post("/api/create-post", function (Request $req, Response $res) use ($make
         $category = trim((string)($data['category'] ?? ''));
         $content = (string)($data['content'] ?? '');
 
+        //read tags array 
+        $tagsIn = $data['tags'] ?? [];
+        if (!is_array($tagsIn)) $tagsIn = [];
+        $tagsIn = array_values(array_unique(array_map('intval', $tagsIn)));
+        $tagsIn = array_filter($tagsIn, fn($v) => $v > 0);
+        $tagsIn = array_slice($tagsIn, 0, 5);
+
         if ($title === '' || $content === '') {
             $res->getBody()->write(json_encode([
                 'ok' => false,
@@ -63,11 +70,35 @@ $app->post("/api/create-post", function (Request $req, Response $res) use ($make
         ]);
 
         $postId = (int)$insertStmt->fetchColumn();
+
+        //attach validated tags to the new post
+        if (!empty($tagsIn) && $postId > 0) {
+            // Validate TagIDs exist
+            $placeholders = implode(',', array_fill(0, count($tagsIn), '?'));
+            $check = $pdo->prepare("SELECT TagID FROM dbo.Tags WHERE TagID IN ($placeholders)");
+            $check->execute($tagsIn);
+            $validTagIds = $check->fetchAll(PDO::FETCH_COLUMN, 0);
+
+            if (!empty($validTagIds)) {
+                $ins = $pdo->prepare("INSERT INTO dbo.PostTags (PostID, TagID) VALUES (:pid, :tid)");
+                foreach ($validTagIds as $tid) {
+                    $ins->execute([':pid' => $postId, ':tid' => (int)$tid]);
+                }
+            }
+        }
+
+        $stmt2 = $pdo->prepare("SELECT CreatedAt FROM dbo.Posts WHERE PostID = :id");
+        $stmt2->execute([':id' => $postId]);
+        $createdAt = $stmt2->fetchColumn();
+        $createdAtIso = (new \DateTimeImmutable($createdAt, new \DateTimeZone('UTC')))
+            ->format(\DateTime::ATOM);
+
         $pdo->commit();
 
         $res->getBody()->write(json_encode([
             'ok' => true,
             'postId' => $postId,
+            'createdAt' => $createdAtIso, 
         ]));
         return $res->withHeader("Content-Type", "application/json");
 
