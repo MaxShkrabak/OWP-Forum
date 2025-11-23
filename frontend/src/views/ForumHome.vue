@@ -1,6 +1,6 @@
 <script setup>
 import CreatePostButton from "@/components/CreatePostButton.vue";
-import { ref, onMounted, watch } from "vue";
+import { ref, onMounted, watch, useId } from "vue";
 import { RouterLink } from "vue-router";
 import ForumHeader from "../components/ForumHeader.vue";
 import { isLoggedIn, checkAuth } from "@/api/auth";
@@ -9,6 +9,7 @@ import UserCard from "@/components/UserCard.vue";
 import ViewReportsButton from "@/components/ViewReportsButton.vue";
 import { timeAgo } from "@/utils/timeAgo";
 import userPlaceholder from "@/assets/img/user-pfps-premade/pfp-0.png";
+import ReportingModal from "@/components/ReportingModal.vue";
 
 const API = import.meta.env.VITE_API_BASE || "http://localhost:8080";
 const user = ref(null);
@@ -107,6 +108,15 @@ onMounted(async () => {
   await fetchUserData();
   await fetchPosts();
 });
+
+const isPost = ref(true);
+const useID = ref(0);
+
+function setReportValues(isPost, useID){
+  this.isPost = isPost;
+  this.useID = useID;
+}
+
 </script>
 
 <template>
