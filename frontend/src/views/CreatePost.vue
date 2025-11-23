@@ -1,9 +1,9 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
+import { onBeforeUnmount, nextTick } from "vue";
 import Editor from "primevue/editor";
 import { createPost, uploadImage } from "@/api/auth";
 const API = import.meta.env.VITE_API_BASE || "http://localhost:8080";
-
 const MAX = 120;
 
 // Form fields
@@ -168,6 +168,119 @@ async function doPublish() {
     showPublishConfirm.value = false;
   }
 }
+
+// popup/tag state
+const MAX_TAGS = 5;
+const showTagPopup = ref(false);      
+const allTags = ref([]);          
+const tagSearch = ref("");   
+const loadingTags = ref(false);        
+const tagError = ref(null);            
+const tagAnchorEl = ref(null);         
+const popupStyle = ref({});            
+
+// lookups/filters
+function tagNameById(id) {            
+  return allTags.value.find(t => t.tagId === id)?.name || `#${id}`;
+}
+const filteredTags = computed(() => {  
+  const q = tagSearch.value.trim().toLowerCase();
+  const selected = new Set(tags.value);
+  return allTags.value
+    .filter(t => !selected.has(t.tagId))
+    .filter(t => (q ? t.name.toLowerCase().includes(q) : true))
+    .slice(0, 40);
+});
+
+// fetch tags from backend
+async function loadTags() {            
+  loadingTags.value = true;
+  tagError.value = null;
+  try {
+    const res = await fetch(`${API}/api/tags`, { credentials: "include" });
+    if (!res.ok) throw new Error(`Failed /api/tags: ${res.status}`);
+    const json = await res.json();
+    allTags.value = (json.items || []).map(r => ({
+      tagId: Number(r.TagID ?? r.tagId ?? r.id),
+      name: r.Name ?? r.name
+    }));
+  } catch (e) {
+    tagError.value = e.message || "Failed to load tags";
+  } finally {
+    loadingTags.value = false;
+  }
+}
+
+// popup open/close/position
+function positionPopup() {             
+  const el = tagAnchorEl.value;
+  if (!el) return;
+
+  const parent = el.closest(".title-group") || el.closest(".post-card") || document.body;
+  const btnRect = el.getBoundingClientRect();
+  const parRect = parent.getBoundingClientRect();
+  const isBody = parent === document.body;
+
+  popupStyle.value = {
+    position: isBody ? "fixed" : "absolute",
+    top:  `${btnRect.bottom - parRect.top + (isBody ? 0 : 8)}px`,
+    left: `${btnRect.left   - parRect.left}px`,
+    zIndex: 60
+  };
+}
+async function openTagPopup() {       
+  showTagPopup.value = true;
+  await nextTick();
+  positionPopup();
+}
+function closeTagPopup() {             
+  showTagPopup.value = false;
+  tagSearch.value = "";
+}
+function onGlobalClick(ev) {           
+  const popup = document.querySelector(".tag-popup");
+  if (!popup || !showTagPopup.value) return;
+  if (!popup.contains(ev.target) && !tagAnchorEl.value?.contains(ev.target)) {
+    closeTagPopup();
+  }
+}
+function onResize() {                 
+  if (showTagPopup.value) positionPopup();
+}
+function onScrollReposition() {        
+  if (showTagPopup.value) positionPopup();
+}
+
+// select/remove tags
+function pickTag(id) {                 
+  if (tags.value.length >= MAX_TAGS) return;
+  if (!tags.value.includes(id)) tags.value = [...tags.value, id];
+}
+function removeTag(id) {               
+  tags.value = tags.value.filter(t => t !== id);
+}
+
+// mount wiring
+onMounted(() => {                     
+  loadTags();
+
+  const btn = document.querySelector(".control.tags .tag-add");
+  if (btn) {
+    tagAnchorEl.value = btn;
+    btn.addEventListener("click", openTagPopup);
+  }
+  document.addEventListener("click", onGlobalClick);
+  window.addEventListener("resize", onResize);
+  window.addEventListener("scroll", onScrollReposition, true);
+});
+onBeforeUnmount(() => {                
+  const btn = tagAnchorEl.value;
+  if (btn) btn.removeEventListener("click", openTagPopup);
+  document.removeEventListener("click", onGlobalClick);
+  window.removeEventListener("resize", onResize);
+  window.removeEventListener("scroll", onScrollReposition, true);
+});
+
 </script>
 
 <template>
@@ -281,6 +394,56 @@ async function doPublish() {
         </div>
       </div>
       
+      <!-- selected tags chips -->
+      <div class="row">
+        <div class="tag-chips" v-if="tags.length">
+          <span v-for="tid in tags" :key="tid" class="tag-chip">
+            {{ tagNameById(tid) }}
+            <button class="chip-x" type="button" @click="removeTag(tid)" aria-label="Remove tag">×</button>
+          </span>
+        </div>
+        <div class="tag-chips empty" v-else>
+          <em>No tags selected</em>
+        </div>
+      </div>
+
+      <div v-if="showTagPopup" class="tag-popup" :style="popupStyle" @click.stop>
+        <div class="tag-popup-inner">
+          <div class="tag-popup-head">
+            <strong>Select tags</strong>
+            <span class="muted">({{ tags.length }}/{{ MAX_TAGS }})</span>
+          </div>
+
+          <input
+            class="tag-search"
+            v-model.trim="tagSearch"
+            type="text"
+            placeholder="Search tags…"
+            :disabled="loadingTags"
+          />
+
+          <div class="tag-list">
+            <template v-if="tagError"><div class="tag-error">{{ tagError }}</div></template>
+            <template v-else-if="loadingTags"><div class="tag-loading">Loading…</div></template>
+            <template v-else>
+              <button
+                v-for="t in filteredTags"
+                :key="t.tagId"
+                class="tag-item"
+                type="button"
+                :disabled="tags.length >= MAX_TAGS"
+                @click="pickTag(t.tagId)"
+              >{{ t.name }}</button>
+              <div v-if="!filteredTags.length" class="tag-empty">No results</div>
+            </template>
+          </div>
+
+          <div class="tag-popup-actions">
+            <button class="btn ghost sm" type="button" @click="closeTagPopup">Done</button>
+          </div>
+        </div>
+      </div>
+
       <!-- Editor -->
       <div class="editor-fixed">
         <Editor
@@ -535,6 +698,48 @@ async function doPublish() {
   cursor: not-allowed;
 }
 .btn.ghost { color: #111; }
+
+/* chips under controls-row */
+.tag-chips {
+  display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 2px 0;
+}
+.tag-chips.empty { color: #6b7280; font-size: 0.9rem; }
+
+.tag-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 1px solid #b8bec6; background: #fff;
+  padding: 4px 8px; border-radius: 999px; font-size: 0.85rem; color: #0f172a;
+}
+.tag-chip .chip-x {
+  border: 0; background: transparent; cursor: pointer; font-size: 14px; line-height: 1; color: #334155;
+}
+
+/* popup */
+.tag-popup {
+  position: absolute; width: 320px; background: #fff; border: 1px solid #cbd5e1;
+  border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.15);
+}
+.tag-popup-inner { padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.tag-popup-head { display: flex; justify-content: space-between; align-items: center; }
+.tag-popup-head .muted { color: #6b7280; font-size: 0.85rem; }
+
+.tag-search {
+  width: 100%; border: 1px solid #b8bec6; border-radius: 8px; padding: 6px 10px; font-size: 0.95rem;
+}
+
+.tag-list {
+  max-height: 240px; overflow: auto; border: 1px solid #e5e7eb; border-radius: 8px; padding: 6px; display: grid; gap: 6px;
+}
+.tag-item {
+  text-align: left; padding: 6px 8px; border-radius: 6px; border: 1px solid #cbd5e1; background: #f9fafb;
+  cursor: pointer; font-size: 0.95rem;
+}
+.tag-item:hover { background: #f3f4f6; }
+.tag-item:disabled { opacity: .5; cursor: not-allowed; }
+
+.tag-empty, .tag-error, .tag-loading { padding: 8px; color: #6b7280; font-size: 0.9rem; }
+.tag-popup-actions { display: flex; justify-content: flex-end; }
+.btn.sm { padding: 4px 10px; border-radius: 8px; }
 
 .btn.danger {
   background: #fecaca;
