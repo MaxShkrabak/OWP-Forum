@@ -14,6 +14,7 @@ return function (Request $request, $handler) {
     return $resp
         ->withHeader('Access-Control-Allow-Origin', 'http://localhost:5173')  // frontend port
         ->withHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, Authorization, X-Requested-With')
-        ->withHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        ->withHeader('Access-Control-Allow-Credentials', 'true');  // allow cookies
+        ->withHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE')
+        ->withHeader('Access-Control-Allow-Credentials', 'true')  // allow cookies
+        ->withHeader("Vary", "Origin");
 };
