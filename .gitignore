@@ -146,3 +146,4 @@ installed.php
 
 # Uploaded images
 backend/public/uploads/
+backend/vendor/*

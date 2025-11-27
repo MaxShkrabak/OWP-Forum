@@ -1,10 +1,11 @@
 <script setup>
-import { ref, computed, onMounted } from "vue";
-import { onBeforeUnmount, nextTick } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount, nextTick } from "vue";
+import { useRouter, onBeforeRouteLeave } from "vue-router";
 import Editor from "primevue/editor";
 import { createPost, uploadImage } from "@/api/auth";
 const API = import.meta.env.VITE_API_BASE || "http://localhost:8080";
 const MAX = 120;
+const router = useRouter();
 
 // Form fields
 const title = ref("");
@@ -12,12 +13,39 @@ const category = ref("");
 const content = ref("");
 const tags = ref([]);
 
+// Helper function to check if HTML content is empty (ignores formatting tags)
+function isEmptyHtml(html) {
+  if (!html || html.trim() === '') return true;
+  // Remove HTML tags and whitespace, check if anything remains
+  // PrimeVue Editor often returns <p><br></p> or <p></p> when empty
+  const text = html
+    .replace(/<[^>]*>/g, '') // Remove all HTML tags
+    .replace(/&nbsp;/g, ' ') // Replace &nbsp; with space
+    .replace(/\s+/g, ' ') // Normalize whitespace
+    .trim();
+  return text.length === 0;
+}
+
+// Unsaved changes tracking
+const hasUnsavedChanges = computed(() => {
+  const hasTitle = title.value.trim().length > 0;
+  const hasContent = !isEmptyHtml(content.value);
+  const hasCategory = category.value.trim().length > 0;
+  const hasTags = tags.value && tags.value.length > 0;
+  
+  return hasTitle || hasContent || hasCategory || hasTags;
+});
+
+// Warning dialog state
+const showWarningDialog = ref(false);
+const pendingNavigation = ref(null);
+const isCancelWarning = ref(false); // Track if warning is for cancel button
+
 // User state
 const currentUser = ref(null);
 const loadingUser = ref(false);
 const userError = ref(null);
 
-const showDiscardConfirm = ref(false);
 const showPublishConfirm = ref(false);
 const showError = ref(false);
 const errorMessage = ref("");
@@ -38,7 +66,6 @@ async function loadMe() {
     loadingUser.value = false;
   }
 }
-onMounted(loadMe);
 
 // Validation
 const len = computed(() => title.value.trim().length);
@@ -55,13 +82,70 @@ function initials(name = "") {
     .join("");
 }
 
-// Resets the form
-function onCancel() {
+// Actually clear the form (called after user confirms)
+function clearForm() {
   title.value = "";
   category.value = "";
   content.value = "";
   tags.value = [];
 }
+
+// Handle browser beforeunload event (closing tab/window)
+function handleBeforeUnload(e) {
+  if (hasUnsavedChanges.value) {
+    e.preventDefault();
+    e.returnValue = ""; // Chrome requires returnValue to be set
+    return "";
+  }
+}
+
+// Confirm leaving/canceling
+function confirmLeave() {
+  if (isCancelWarning.value) {
+    // User confirmed cancel - clear the form
+    clearForm();
+  } else if (pendingNavigation.value) {
+    // User confirmed navigation - proceed with navigation
+    pendingNavigation.value();
+    pendingNavigation.value = null;
+  }
+  showWarningDialog.value = false;
+  isCancelWarning.value = false;
+}
+
+// Cancel leaving (stay on page)
+function cancelLeave() {
+  showWarningDialog.value = false;
+  pendingNavigation.value = null;
+  isCancelWarning.value = false;
+}
+
+// Navigation guard - warn before leaving with unsaved changes
+onBeforeRouteLeave((to, from, next) => {
+  // Re-check unsaved changes when navigation is attempted
+  const hasChanges = hasUnsavedChanges.value;
+  
+  if (!hasChanges) {
+    next();
+    return;
+  }
+  
+  // Prevent navigation and show warning dialog
+  isCancelWarning.value = false; // This is for navigation, not cancel
+  showWarningDialog.value = true;
+  pendingNavigation.value = next;
+  // Don't call next() here - we'll call it after user confirms
+});
+
+// Initialize beforeunload listener and load user
+onMounted(() => {
+  loadMe();
+  window.addEventListener("beforeunload", handleBeforeUnload);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener("beforeunload", handleBeforeUnload);
+});
 
 // Attach custom image upload to the editor's built-in image button
 function onEditorLoad(quill) {
@@ -104,16 +188,12 @@ function onEditorLoad(quill) {
 
 // Button handlers
 function handleCancelClick() {
-  const dirty =
-    !!title.value ||
-    !!category.value ||
-    !!content.value ||
-    (tags.value && tags.value.length > 0);
-
-  if (dirty) {
-    showDiscardConfirm.value = true;
+  if (hasUnsavedChanges.value) {
+    isCancelWarning.value = true;
+    showWarningDialog.value = true;
+    pendingNavigation.value = null;
   } else {
-    onCancel();
+    clearForm();
   }
 }
 
@@ -132,15 +212,6 @@ function closeError() {
   showError.value = false;
 }
 
-function confirmDiscard() {
-  onCancel();
-  showDiscardConfirm.value = false;
-}
-
-function cancelDiscard() {
-  showDiscardConfirm.value = false;
-}
-
 function cancelPublishConfirm() {
   showPublishConfirm.value = false;
 }
@@ -157,9 +228,9 @@ async function doPublish() {
 
   try {
     await createPost(payload);
-    onCancel();
-    // TODO: Change this later
+    clearForm();
     alert("Post published!"); // Confirm post was published
+    router.push("/");
   } catch (err) {
     const serverMsg = "An error occurred while trying to publish the post.";
     errorMessage.value = typeof serverMsg === "string" ? serverMsg : JSON.stringify(serverMsg);
@@ -285,26 +356,45 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="frame">
-    <div class="post-card">
-      <div
-        v-if="showDiscardConfirm || showPublishConfirm || showError"
-        class="modal-backdrop"
-      ></div>
-
-      <!-- Discard Confirmation -->
-      <div v-if="showDiscardConfirm" class="modal-shell">
-        <div class="modal-card">
-          <p class="modal-text">Are you sure you want to discard?</p>
-          <div class="modal-actions">
-            <button class="btn small primary" type="button" @click="confirmDiscard">
-              Yes
-            </button>
-            <button class="btn small danger" type="button" @click="cancelDiscard">
-              No
-            </button>
-          </div>
+    <!-- Warning Dialog -->
+    <div v-if="showWarningDialog" class="warning-overlay" @click.self="cancelLeave">
+      <div class="warning-dialog">
+        <div class="warning-header">
+          <span class="warning-icon">⚠️</span>
+          <h3>Unsaved Changes</h3>
+        </div>
+        <p class="warning-message">
+          <span v-if="isCancelWarning">
+            You have unsaved changes. Are you sure you want to cancel? Your changes will be lost.
+          </span>
+          <span v-else>
+            You have unsaved changes. Are you sure you want to leave? Your changes will be lost.
+          </span>
+        </p>
+        <div class="warning-actions">
+          <button class="btn ghost" @click="cancelLeave">
+            <span v-if="isCancelWarning">Keep Editing</span>
+            <span v-else>Stay on Page</span>
+          </button>
+          <button class="btn danger" @click="confirmLeave">
+            <span v-if="isCancelWarning">Cancel Changes</span>
+            <span v-else>Leave Without Saving</span>
+          </button>
         </div>
       </div>
+    </div>
+
+    <div class="post-card">
+      <!-- Unsaved changes indicator -->
+      <div v-if="hasUnsavedChanges" class="unsaved-indicator">
+        <span class="star-icon">★</span>
+        <span class="unsaved-text">Unsaved changes</span>
+      </div>
+
+      <div
+        v-if="showPublishConfirm || showError"
+        class="modal-backdrop"
+      ></div>
 
       <!-- Publish Confirmation -->
       <div v-if="showPublishConfirm" class="modal-shell">
@@ -698,6 +788,11 @@ onBeforeUnmount(() => {
   cursor: not-allowed;
 }
 .btn.ghost { color: #111; }
+.btn.danger {
+  background: #fecaca;
+  color: #7f1d1d;
+  border-color: #fda4af;
+}
 
 /* chips under controls-row */
 .tag-chips {
@@ -741,12 +836,6 @@ onBeforeUnmount(() => {
 .tag-popup-actions { display: flex; justify-content: flex-end; }
 .btn.sm { padding: 4px 10px; border-radius: 8px; }
 
-.btn.danger {
-  background: #fecaca;
-  color: #7f1d1d;
-  border-color: #fda4af;
-}
-
 .btn.small {
   padding: 4px 14px;
   font-size: 0.85rem;
@@ -788,5 +877,72 @@ onBeforeUnmount(() => {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+}
+
+/* Unsaved changes indicator */
+.unsaved-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #fef3c7;
+  border: 1px solid #fbbf24;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  font-size: 0.9rem;
+  color: #92400e;
+}
+.star-icon {
+  color: #f59e0b;
+  font-size: 1.1rem;
+}
+.unsaved-text {
+  font-weight: 600;
+}
+
+/* Warning Dialog */
+.warning-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.warning-dialog {
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+.warning-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.warning-icon {
+  font-size: 1.5rem;
+}
+.warning-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: #111827;
+}
+.warning-message {
+  margin: 0 0 20px 0;
+  color: #4b5563;
+  line-height: 1.5;
+}
+.warning-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
 }
 </style>
