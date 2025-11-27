@@ -5,7 +5,6 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Factory\AppFactory;
 
-
 ini_set('display_errors', '1');
 error_reporting(E_ALL);
 
@@ -45,8 +44,12 @@ require __DIR__ . '/../routes/logout.php';            // Logs user out and clear
 require __DIR__ . '/../routes/me.php';                // User details for auth
 require __DIR__ . '/../routes/avatar.php';            // Store avatar in database
 require __DIR__ . '/../routes/get-category-posts.php';// Get posts for a category
+require __DIR__ . '/../routes/get-posts.php';        // Get all posts for homepage
 require __DIR__ . '/../routes/create-post.php';      // Create a new forum post
 require __DIR__ . '/../routes/upload-image.php';     // Image upload handler  
+
+// tags endpoint
+require __DIR__ . '/../routes/tags.php';              // GET /api/tags
 
 // Root
 $app->get('/', function (Request $req, Response $res) {
