@@ -8,6 +8,52 @@ The platform is designed to bridge the gap between communication and learning. I
 professionals to interact, share knowledge, and support each other in gaining valuable information related to 
 water programs and initiatives.
 
+## 🚀 Core Features
+
+### 🔐 Authentication & User Access
+
+* Email-based login system
+* One-time passcode (OTP) sent through mail server
+* Secure account registration requiring:
+
+  * First & last name
+  * Email (used as username)
+  * Last 4 digits of SSN (identity verification)
+
+### 🧩 Role-Based Permissions
+
+| Role                        | Permissions                                                                     |
+| --------------------------- | ------------------------------------------------------------------------------- |
+| **Admin**                   | Assign roles, post with official tagging, view all reports, full system control |
+| **Moderator**               | Edit and recategorize posts, remove content, view reports                       |
+| **Student**                 | Create posts, comment, like, report content                                     |
+| **Guest (Unauthenticated)** | Read-only access — no login required                                            |
+
+### 📝 Posting & Interaction Features
+
+* Create discussion threads with:
+
+  * Text
+  * Images
+  * Video support
+* Upvote / Downvote system for engagement
+* Commenting system with email notifications
+* Search functionality for posts, topics, and tags
+
+### ♿ Accessibility & Design
+
+* Developed to meet **WCAG accessibility standards**
+* Fully responsive UI — mobile, tablet, and desktop supported
+
+### 🗄 Technology Stack
+
+| Layer          | Technology                         |
+| -------------- | ---------------------------------- |
+| **Frontend**   | Vue.js                             |
+| **Backend**    | PHP Slim REST API                  |
+| **Database**   | T-SQL                              |
+| **Build Goal** | Cloud-deployable production system |
+
 ## Getting Started
 
 Follow these instructions to get a local copy of the project up and running.
@@ -56,7 +102,8 @@ Before you begin, ensure you have the following installed:
    * Next, open the new `.env` file.
    * Fill in the required parameters (database credentials, application secrets) with your correct development values.
 
-## 👥 Contributors
+## 👥 Contributors <img width="20" height="20" alt="9c74196a9a400de1cae861afb5b16ac4" src="https://github.com/user-attachments/assets/20b5af03-5366-4dd5-aee5-8a1c6473495a" />
+
 
 - Maksim Shkrabak
 - Daniel Ivanilov
