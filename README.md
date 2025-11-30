@@ -8,6 +8,8 @@ Its purpose is to bridge the gap between communication and learning by allowing 
 professionals to interact, share knowledge, and support each other in gaining valuable information related to 
 water programs and initiatives. The platform provides a space for posts, comments, and real-time updates—supporting deeper engagement with water program training and initiatives.
 
+---
+
 ## 🚀 Core Features
 
 ### 🔐 Authentication & User Access
@@ -48,28 +50,35 @@ water programs and initiatives. The platform provides a space for posts, comment
 
 ### 🗄 Technology Stack
 
-| Layer          | Technology                         |
-| -------------- | ---------------------------------- |
-| **Frontend**   | Vue.js                             |
-| **Backend**    | PHP Slim REST API                  |
-| **Database**   | T-SQL                              |
+| Layer | Technology |
+| :--- | :--- |
+| **Frontend** | ![Vue.js](https://img.shields.io/badge/Vue.js-4FC08D?style=for-the-badge&logo=vue.js&logoColor=white) |
+| **Backend** | ![PHP](https://img.shields.io/badge/PHP-777BB4?style=for-the-badge&logo=php&logoColor=white) ![Slim Framework](https://img.shields.io/badge/Slim%20Framework-000000?style=for-the-badge&logo=slim&logoColor=white) |
+| **Database** | ![Microsoft SQL Server](https://img.shields.io/badge/MSSQL-CC2927?style=for-the-badge&logo=microsoft-sql-server&logoColor=white) |
 | **Build Goal** | Cloud-deployable production system |
+
+---
 
 ## <img width="20" height="20" alt="Prototype Images" src="https://github.com/user-attachments/assets/08fea9c6-d35b-4994-810e-de5143150ef0" /> Prototype Images
 
-### <img width="20" height="20" alt="Home Page" src="https://github.com/user-attachments/assets/45f9e5dc-6d26-4be0-a425-7d5bd9d322ac" /> Home Page
+<details>
+ <summary><img width="20" height="20" alt="Home Page" src="https://github.com/user-attachments/assets/45f9e5dc-6d26-4be0-a425-7d5bd9d322ac" /> Home Page</summary>
 
 | Not Logged in  | Logged in   | Logged in as Mod/Admin |
 | -------------- | ----------- | ---------------------- |
 | <img width="500" height="500" alt="image" src="https://github.com/user-attachments/assets/a8175499-f987-4a18-9816-09f63df4611e" /> | <img width="500" height="500" alt="image" src="https://github.com/user-attachments/assets/90ffdafd-37c7-4563-9c60-9ddb74fce32d" /> | <img width="500" height="500" alt="image" src="https://github.com/user-attachments/assets/e6e85a41-0d94-4fad-ac80-89a5cd495219" /> |
+</details>
 
-### <img width="20" height="20" alt="image" src="https://github.com/user-attachments/assets/4a7adb12-d4d5-4f59-b016-823ef2fe0fd5" /> View a Specific Category
+<details>
+ <summary><img width="20" height="20" alt="image" src="https://github.com/user-attachments/assets/4a7adb12-d4d5-4f59-b016-823ef2fe0fd5" /> View a Specific Category</summary>
 
 Similar for all roles.
 
 <img width="800" height="800" alt="image" src="https://github.com/user-attachments/assets/1e57ccf3-c3f9-45bc-b13b-ef0f1bb7676a" />
+</details>
 
-### <img width="20" height="20" alt="image" src="https://github.com/user-attachments/assets/80cee93f-ac25-4018-8312-ef2d546521f3" /> Viewing a Specific Post 
+<details>
+ <summary><img width="20" height="20" alt="image" src="https://github.com/user-attachments/assets/80cee93f-ac25-4018-8312-ef2d546521f3" /> Viewing a Specific Post</summary> 
 
 | Not Logged in  | Logged in   | Logged in as Mod/Admin |
 | -------------- | ----------- | ---------------------- |
@@ -81,11 +90,17 @@ Similar for all roles.
 | ------------------------- | ---------------------- |
 | <img width="750" height="750" alt="image" src="https://github.com/user-attachments/assets/0f07f601-cccb-4876-9cb4-170044c3174e" /> | <img width="750" height="750" alt="image" src="https://github.com/user-attachments/assets/c0804f2e-b5d6-4837-942f-19b40b1f294a" /> |
 
-### <img width="20" height="20" alt="image" src="https://github.com/user-attachments/assets/f8dd55bc-f59f-4c34-bd29-59b16af789f9" /> User Forum Profile
+</details>
+
+<details>
+ <summary><img width="20" height="20" alt="image" src="https://github.com/user-attachments/assets/f8dd55bc-f59f-4c34-bd29-59b16af789f9" /> User Forum Profile</summary>
 
 Similar for all roles.
 
 <img width="800" height="800" alt="image" src="https://github.com/user-attachments/assets/43b4f50e-e9ef-4234-b2fb-83783a1e2635" />
+</details>
+
+---
 
 ## Getting Started
 
@@ -135,6 +150,8 @@ Before you begin, ensure you have the following installed:
    * Next, open the new `.env` file.
    * Fill in the required parameters (database credentials, application secrets) with your correct development values.
 
+---
+
 ## 📅 Timeline
 This timeline tracks our project's progress across CSC 190 and CSC 191
 
@@ -156,8 +173,9 @@ This timeline tracks our project's progress across CSC 190 and CSC 191
 | **07** | Work on **Bug Fixes**, perform full-site **Testing**, and make necessary final adjustments based on testing results. | **TODO** |
 | **08** | Final application preparation and official environment **Deployment** for production. | **TODO** |
 
-## 🙏 Acknowledgments
+---
 
+## 🙏 Acknowledgments
 
 This project is developed as part of the CSC 190/191 Senior Project sequence at  
 **California State University, Sacramento**.
@@ -167,9 +185,10 @@ We would like to thank:
 - **Instructor:** Dr. Kenneth Elliot  
 - **Lab Advisor:** Prof. Harvin Singh  
 - **Office of Water Programs (OWP)** for partnering with us and providing project requirements and feedback.
-  
-## 👥 Contributors <img width="20" height="20" alt="9c74196a9a400de1cae861afb5b16ac4" src="https://github.com/user-attachments/assets/20b5af03-5366-4dd5-aee5-8a1c6473495a" />
 
+---
+
+## 👥 Contributors
 
 - Maksim Shkrabak
 - Daniel Ivanilov
@@ -179,3 +198,11 @@ We would like to thank:
 - Ruzanna Shomakhova
 - Gianni Dumitru
 - Gavin Kabel
+
+---
+
+<p align="center">
+ <img width="100" height="95" alt="Bug Busters Logo" src="https://github.com/user-attachments/assets/e83ab8a5-90ef-4d55-8795-6aac07eb77b2" />
+ <br>
+ <strong>Copyright © 2025 OWP Forum | Team Bug Busters</strong>
+</p>
