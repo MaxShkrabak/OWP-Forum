@@ -55,6 +55,38 @@ water programs and initiatives. The platform provides a space for posts, comment
 | **Database**   | T-SQL                              |
 | **Build Goal** | Cloud-deployable production system |
 
+## <img width="20" height="20" alt="Prototype Images" src="https://github.com/user-attachments/assets/08fea9c6-d35b-4994-810e-de5143150ef0" /> Prototype Images
+
+### <img width="20" height="20" alt="Home Page" src="https://github.com/user-attachments/assets/45f9e5dc-6d26-4be0-a425-7d5bd9d322ac" /> Home Page
+
+| Not Logged in  | Logged in   | Logged in as Mod/Admin |
+| -------------- | ----------- | ---------------------- |
+| <img width="500" height="500" alt="image" src="https://github.com/user-attachments/assets/a8175499-f987-4a18-9816-09f63df4611e" /> | <img width="500" height="500" alt="image" src="https://github.com/user-attachments/assets/90ffdafd-37c7-4563-9c60-9ddb74fce32d" /> | <img width="500" height="500" alt="image" src="https://github.com/user-attachments/assets/e6e85a41-0d94-4fad-ac80-89a5cd495219" /> |
+
+### <img width="20" height="20" alt="image" src="https://github.com/user-attachments/assets/4a7adb12-d4d5-4f59-b016-823ef2fe0fd5" /> View a Specific Category
+
+Similar for all roles.
+
+<img width="800" height="800" alt="image" src="https://github.com/user-attachments/assets/1e57ccf3-c3f9-45bc-b13b-ef0f1bb7676a" />
+
+### <img width="20" height="20" alt="image" src="https://github.com/user-attachments/assets/80cee93f-ac25-4018-8312-ef2d546521f3" /> Viewing a Specific Post 
+
+| Not Logged in  | Logged in   | Logged in as Mod/Admin |
+| -------------- | ----------- | ---------------------- |
+| <img width="500" height="500" alt="image" src="https://github.com/user-attachments/assets/68ad6d2c-7109-4bed-ae29-92ab6b424abb" /> | <img width="500" height="500" alt="image" src="https://github.com/user-attachments/assets/61be1798-ecfe-4d17-bd17-906320ebcfea" /> | <img width="500" height="500" alt="image" src="https://github.com/user-attachments/assets/92fcee36-d467-4694-882d-10506c150d72" /> |
+
+### <img width="20" height="20" alt="image" src="https://github.com/user-attachments/assets/4daeaf92-2a0c-4e25-b347-fc052ebff944" /> Creating a Post
+
+| Logged in as User/Student | Logged in as Mod/Admin |
+| ------------------------- | ---------------------- |
+| <img width="750" height="750" alt="image" src="https://github.com/user-attachments/assets/0f07f601-cccb-4876-9cb4-170044c3174e" /> | <img width="750" height="750" alt="image" src="https://github.com/user-attachments/assets/c0804f2e-b5d6-4837-942f-19b40b1f294a" /> |
+
+### <img width="20" height="20" alt="image" src="https://github.com/user-attachments/assets/f8dd55bc-f59f-4c34-bd29-59b16af789f9" /> User Forum Profile
+
+Similar for all roles.
+
+<img width="800" height="800" alt="image" src="https://github.com/user-attachments/assets/43b4f50e-e9ef-4234-b2fb-83783a1e2635" />
+
 ## Getting Started
 
 Follow these instructions to get a local copy of the project up and running.
