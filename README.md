@@ -44,6 +44,7 @@ water programs and initiatives. The platform provides a space for posts, comment
 
 * Developed to meet **WCAG accessibility standards**
 * Fully responsive UI — mobile, tablet, and desktop supported
+* Styled with Sac State colors and branding
 
 ### 🗄 Technology Stack
 
