@@ -167,7 +167,7 @@ We would like to thank:
 - **Instructor:** Dr. Kenneth Elliot  
 - **Faculty Advisor:** Prof. Harvin Singh  
 - **Office of Water Programs (OWP)** for partnering with us and providing project requirements and feedback.
-- 
+  
 ## 👥 Contributors <img width="20" height="20" alt="9c74196a9a400de1cae861afb5b16ac4" src="https://github.com/user-attachments/assets/20b5af03-5366-4dd5-aee5-8a1c6473495a" />
 
 
