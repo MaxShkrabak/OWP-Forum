@@ -6,8 +6,7 @@
 This is a web-based forum application being developed as our senior project for the Office of Water Programs.
 Its purpose is to bridge the gap between communication and learning by allowing students and
 professionals to interact, share knowledge, and support each other in gaining valuable information related to 
-water programs and initiatives. The platform provides a space for posts, comments, and real-time 
-updates—supporting deeper engagement with water program training and initiatives.
+water programs and initiatives. The platform provides a space for posts, comments, and real-time updates—supporting deeper engagement with water program training and initiatives.
 
 ## 🚀 Core Features
 
