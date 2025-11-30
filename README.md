@@ -110,8 +110,14 @@ Follow these instructions to get a local copy of the project up and running.
 
 Before you begin, ensure you have the following installed:
 * [Node.js and npm](https://nodejs.org/)
+  
 * [PHP](https://www.php.net/downloads.php)
+  thread-safe preferred version: 8.3
+  
 * [Composer](https://getcomposer.org/)
+  
+* [PHP SQL Server Drivers](https://learn.microsoft.com/en-us/sql/connect/php/download-drivers-php-sql-server?view=sql-server-ver17)
+  PHP SQL server drivers from Microsoft & ODBC driver
 
 ## ⚙️ Setup Instructions
 
@@ -133,16 +139,28 @@ Before you begin, ensure you have the following installed:
    ```
 
 ### 2. Backend Setup
-
-1. In a **new terminal window**, navigate to the backend directory from the project root:
+1. Extract PHP to the desired directory and create a new **system environmental variable** for the path to the PHP installation.
+2. From the **SQLSRV512.ZIP** file you downloaded, copy the drivers **php_pdo_sqlsrv_83_ts_x64.dll** & **php_sqlsrv_83_ts_x64.dll** or equivalent drivers for the version of PHP you downloaded and paste them into the **ext** file inside your PHP installation
+3. Make a copy of the file **php.ini-development** inside your PHP installation, paste it inside your PHP installation, and rename it to **php.ini**.
+4. Inside **php.ini**, remove the **;** from in front of **extension=openssl** and paste the follwing extensions below or their equivalents under **;zend_extension=opcache**.
+   ```bash
+   extension=php_sqlsrv_83_ts_x64.dll
+   extension=php_pdo_sqlsrv_83_ts_x64.dll
+   ```
+6. Copy the path of the **ext** file, inside your PHP installation file, and paste it inside the double quotes of the extension directory inside php.ini then save php.ini.
+   ```bash
+   ; On windows:
+   extension_dir = "paste direvtory here"
+   ```
+7. In a **new terminal window**, navigate to the backend directory from the project root:
    ```bash
    cd backend
    ```
-2. Install the required PHP dependencies using Composer:
+8. Install the required PHP dependencies using Composer:
    ```bash
    composer require slim/slim slim/psr7 vlucas/phpdotenv
    ```
-3. **Configure Environment Variables:** The backend needs credentials to run.
+9. **Ensure You Have Configured Your Environment Variables:** The backend needs credentials to run.
    * First, copy the example `.env.example` file to create your own local configuration file:
    ```bash
    cp .env.example .env
