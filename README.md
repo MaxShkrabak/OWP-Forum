@@ -174,7 +174,7 @@ Before you begin, ensure you have the following installed:
 6. Copy the path of the **ext** file, inside your PHP installation file, and paste it inside the double quotes of the extension directory inside php.ini then save php.ini.
    ```bash
    ; On windows:
-   extension_dir = "paste direvtory here"
+   extension_dir = "paste directory here"
    ```
 7. In a **new terminal window**, navigate to the backend directory from the project root:
    ```bash
@@ -197,7 +197,7 @@ Before you begin, ensure you have the following installed:
 ## 📅 Timeline
 This timeline tracks our project's progress across CSC 190 and CSC 191
 
-## Phase I: 🍂 Fall 2025 (CSC 190)
+### Phase I: 🍂 Fall 2025 (CSC 190)
 
 | Sprint | Key Features / Goals | Status |
 | ------ | ------------------- | ------ |
@@ -206,7 +206,7 @@ This timeline tracks our project's progress across CSC 190 and CSC 191
 | **03** | Implemented **Authentication Logic**, developed **Create Post Page**, initiated backend for Tags/Categories, and built the **User Profile Page** for settings. | **DONE** |
 | **04** | Fixed issues with **Create Post Page**, implemented functional **Category View**, updated **Homepage** to display posts, and signed the Project Charter. | **DONE** |
 
-## Phase II: 🌷 Spring 2026 (CSC 191)
+### Phase II: 🌷 Spring 2026 (CSC 191)
 
 | Sprint | Key Features / Goals | Status |
 | ------ | ------------------- | ------ |
@@ -214,6 +214,57 @@ This timeline tracks our project's progress across CSC 190 and CSC 191
 | **06** | Implement **Admin Panel** for role assignment, user **Notifications**, author **Post Editing Privileges**, and Admin/Mod post moderation (Move/Delete posts). | **TODO** |
 | **07** | Work on **Bug Fixes**, perform full-site **Testing**, and make necessary final adjustments based on testing results. | **TODO** |
 | **08** | Final application preparation and official environment **Deployment** for production. | **TODO** |
+
+---
+
+## 🧪 Testing 
+TBD
+
+---
+
+## Deployment
+TBD
+
+---
+
+## 🧑‍💻 Contributing
+This guide details the steps and standards required for contributing code to the OWP Forum project. All contributions must be linked to a story or subtask in Jira (using format **BB-123**).
+### 1. Branching
+All development work must be performed in a dedicated feature branch
+
+1. **Pull the latest changes** from the development branch (`dev`):
+   ```bash
+   git checkout dev
+   git pull origin dev
+   ```
+2. **Create your branch** directly from `dev`. The branch name ***must*** correspond to your assigned Jira story key:
+   ```bash
+   git checkout -b BB-123-your-story-description
+   ```
+   > *Example Branch Name: `BB-123-implement-login-otp-logic`*
+
+### 2. Committing
+Each commit must address one specific change and clearly linked to a relevant Jira subtask.
+
+1. **Stage your changes:**
+   ```bash
+   git add .
+   ```
+2. **Commit Message Format:** The message must begin with the related Jira **subtask** key, followed by a clear explanation of the work done:
+   ```bash
+   git commit -m "BB-23: Add sign-in button to login page"
+   ```
+
+### 3. Pull Request & Review
+Once you're done working on your story, you will submit your code for peer review.
+
+1. **Push your branch** to the repository:
+   ```bash
+   git push origin BB-123-your-story-description
+   ```
+2. **Create a Pull Request** on GitHub to the **`dev`** branch.
+3. **Peer Review:** The PR must receive **at least one approval** from one of the team members before being merged.
+4. **Cleanup:** After the PR is merged into `dev`, the original feature branch **must be deleted**.
 
 ---
 
