@@ -101,6 +101,36 @@ Similar for all roles.
 </details>
 
 ---
+
+## 📸 Actual Website Images
+
+Screenshots of the live, implemented OWP Forum application.
+
+<details>
+ <summary>🏠 Home Page</summary>
+
+| Not Logged in  | Logged in   | Logged in as Mod/Admin |
+| -------------- | ----------- | ---------------------- |
+| <img width="500" height="500" alt="Home Page - Not Logged In" src="./docs/images/home-not-logged-in.png" /> | <img width="500" height="500" alt="Home Page - Logged In" src="./docs/images/home-logged-in.png" /> | <img width="500" height="500" alt="Home Page - Mod/Admin" src="./docs/images/home-mod-admin.png" /> |
+</details>
+
+<details>
+ <summary>📂 Category View</summary>
+
+Similar for all roles.
+
+<img width="800" height="800" alt="Category View" src="./docs/images/category-view.png" />
+</details>
+
+<details>
+ <summary>👤 User Profile</summary>
+
+Similar for all roles.
+
+<img width="800" height="800" alt="User Profile" src="./docs/images/user-profile.png" />
+</details>
+
+---
 ## 🗂️ Entity Relationship Diagram (ERD)
 
 The Entity Relationship Diagram (ERD) below outlines the full database structure behind the OWP Forum.  
