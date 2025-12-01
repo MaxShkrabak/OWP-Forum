@@ -101,6 +101,36 @@ Similar for all roles.
 </details>
 
 ---
+
+## 📸 Actual Website Images
+
+Screenshots of the live, implemented OWP Forum application.
+
+<details>
+ <summary><img width="20" height="20" alt="Home Page" src="https://github.com/user-attachments/assets/45f9e5dc-6d26-4be0-a425-7d5bd9d322ac" /> Home Page</summary>
+
+| Not Logged in  | Logged in   | Logged in as Mod/Admin |
+| -------------- | ----------- | ---------------------- |
+| <img width="500" height="500" alt="Home Page - Not Logged In" src="./docs/images/home-not-logged-in.png" /> | <img width="500" height="500" alt="Home Page - Logged In" src="./docs/images/home-logged-in.png" /> | <img width="500" height="500" alt="Home Page - Mod/Admin" src="./docs/images/home-mod-admin.png" /> |
+</details>
+
+<details>
+ <summary><img width="20" height="20" alt="image" src="https://github.com/user-attachments/assets/4a7adb12-d4d5-4f59-b016-823ef2fe0fd5" /> Category View</summary>
+
+Similar for all roles.
+
+<img width="800" height="800" alt="Category View" src="./docs/images/category-view.png" />
+</details>
+
+<details>
+ <summary><img width="20" height="20" alt="image" src="https://github.com/user-attachments/assets/f8dd55bc-f59f-4c34-bd29-59b16af789f9" /> User Profile</summary>
+
+Similar for all roles.
+
+<img width="800" height="800" alt="User Profile" src="./docs/images/user-profile.png" />
+</details>
+
+---
 ## 🗂️ Entity Relationship Diagram (ERD)
 
 The Entity Relationship Diagram (ERD) below outlines the full database structure behind the OWP Forum.  
