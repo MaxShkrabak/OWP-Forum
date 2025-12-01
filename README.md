@@ -101,6 +101,30 @@ Similar for all roles.
 </details>
 
 ---
+## 🗂️ Entity Relationship Diagram (ERD)
+
+The Entity Relationship Diagram (ERD) below outlines the full database structure behind the OWP Forum.  
+It shows how core components—such as users, posts, comments, tags, categories, roles, permissions, and reporting—connect to form a secure and scalable forum ecosystem.
+
+Key highlights of the database design:
+
+- **User & Authentication System:**  
+  Includes users, sessions, OTP codes, roles, and permissions to support secure login and role-based access control.
+
+- **Forum Content Structure:**  
+  Posts link to authors, categories, tags, attached media, and user interactions such as likes and comments.
+
+- **Moderation & Reporting:**  
+  Users can report posts or comments, which tie into report categories and moderation workflows.
+
+- **Flexible Tagging & Categorization:**  
+  Many-to-many relationships allow posts to have multiple tags, enabling advanced filtering and search.
+
+This structure ensures data integrity while supporting all major features of the platform, including posting, comment threads, moderation tools, and user identity verification.
+
+### 📘 ERD Diagram
+![ERD](./erd.jpg)
+---
 
 ## Getting Started
 
