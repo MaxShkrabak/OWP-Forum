@@ -236,6 +236,10 @@ This timeline tracks our project's progress across CSC 190 and CSC 191
 | **03** | Implemented **Authentication Logic**, developed **Create Post Page**, initiated backend for Tags/Categories, and built the **User Profile Page** for settings. | **DONE** |
 | **04** | Fixed issues with **Create Post Page**, implemented functional **Category View**, updated **Homepage** to display posts, and signed the Project Charter. | **DONE** |
 
+### Phase I Summary
+Focused on planning, UI design, project setup, and building core authentication and posting features.
+
+
 ### Phase II: 🌷 Spring 2026 (CSC 191)
 
 | Sprint | Key Features / Goals | Status |
@@ -244,6 +248,18 @@ This timeline tracks our project's progress across CSC 190 and CSC 191
 | **06** | Implement **Admin Panel** for role assignment, user **Notifications**, author **Post Editing Privileges**, and Admin/Mod post moderation (Move/Delete posts). | **TODO** |
 | **07** | Work on **Bug Fixes**, perform full-site **Testing**, and make necessary final adjustments based on testing results. | **TODO** |
 | **08** | Final application preparation and official environment **Deployment** for production. | **TODO** |
+
+### Phase II Summary
+TBD
+
+### Key Milestones
+- Project Charter finalized  
+- Figma UI completed  
+- Authentication system implemented  
+- Admin Panel introduced  
+- Commenting and moderation added  
+- Full testing phase completed  
+- Deployment ready
 
 ---
 
