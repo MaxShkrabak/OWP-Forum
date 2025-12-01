@@ -107,7 +107,7 @@ Similar for all roles.
 Screenshots of the live, implemented OWP Forum application.
 
 <details>
- <summary>🏠 Home Page</summary>
+ <summary><img width="20" height="20" alt="Home Page" src="https://github.com/user-attachments/assets/45f9e5dc-6d26-4be0-a425-7d5bd9d322ac" /> Home Page</summary>
 
 | Not Logged in  | Logged in   | Logged in as Mod/Admin |
 | -------------- | ----------- | ---------------------- |
@@ -115,7 +115,7 @@ Screenshots of the live, implemented OWP Forum application.
 </details>
 
 <details>
- <summary>📂 Category View</summary>
+ <summary><img width="20" height="20" alt="image" src="https://github.com/user-attachments/assets/4a7adb12-d4d5-4f59-b016-823ef2fe0fd5" /> Category View</summary>
 
 Similar for all roles.
 
@@ -123,7 +123,7 @@ Similar for all roles.
 </details>
 
 <details>
- <summary>👤 User Profile</summary>
+ <summary><img width="20" height="20" alt="image" src="https://github.com/user-attachments/assets/f8dd55bc-f59f-4c34-bd29-59b16af789f9" /> User Profile</summary>
 
 Similar for all roles.
 
