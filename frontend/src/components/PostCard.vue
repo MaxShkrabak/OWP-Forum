@@ -1,6 +1,7 @@
 <script setup>
 import { RouterLink } from "vue-router";
 import { timeAgo } from "@/utils/timeAgo";
+import UserRole from "@/components/UserRole.vue";
 
 const props = defineProps({
   post: {
@@ -11,12 +12,6 @@ const props = defineProps({
 
 function getAvatarSrc(file) {
   return new URL(`../assets/img/user-pfps-premade/${file}`, import.meta.url).href;
-}
-
-function getRoleClass(role) {
-  const roleLower = (role || "user").toLowerCase();
-  const validRoles = ["admin", "moderator", "student"];
-  return validRoles.includes(roleLower) ? roleLower : "user";
 }
 </script>
 
@@ -40,9 +35,7 @@ function getRoleClass(role) {
               </div>
               <div class="d-flex flex-column">
                 <span class="author-name-v2">{{ post.authorName }}</span>
-                <span :class="['role-pill', getRoleClass(post.authorRole)]">
-                  {{ post.authorRole }}
-                </span>
+                <UserRole :role="post.authorRole" />
               </div>
             </div>
             <div class="text-secondary date">
@@ -83,9 +76,7 @@ function getRoleClass(role) {
         <div class="author-info-wrap">
           <div class="text-end d-flex flex-column align-items-end">
             <span class="author-name text-truncate">{{ post.authorName }}</span>
-            <span :class="['role-pill', getRoleClass(post.authorRole)]">
-              {{ post.authorRole }}
-            </span>
+            <UserRole :role="post.authorRole" />
           </div>
           <div class="avatar-box shadow-sm">
             <img :src="getAvatarSrc(post.authorAvatar)" class="avatar-img" alt="user" />
@@ -176,7 +167,6 @@ function getRoleClass(role) {
   line-height: 1;
 }
 
-/* TODO: Probably move to its own component later */
 .role-pill {
   font-size: 0.5rem;
   font-weight: 800;
@@ -184,26 +174,6 @@ function getRoleClass(role) {
   border-radius: 3px;
   text-transform: uppercase;
   width: max-content;
-}
-
-.role-pill.admin {
-  background: #fee2e2;
-  color: #dc2626;
-}
-
-.role-pill.moderator {
-  background: #fef3c7;
-  color: #d97706;
-}
-
-.role-pill.student {
-  background: #e0f2fe;
-  color: #0284c7;
-}
-
-.role-pill.user {
-  background: #f1f5f9;
-  color: #475569;
 }
 
 .desktop-only-author {

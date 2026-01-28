@@ -2,8 +2,8 @@
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import Editor from "primevue/editor";
 import { createPost, uploadImage, getTags } from "@/api/auth";
-import { fullName, userAvatar, isLoggedIn } from "@/stores/userStore";
-
+import { fullName, userAvatar, isLoggedIn, userRole } from "@/stores/userStore";
+import UserRole from "@/components/UserRole.vue";
 const MAX_TITLE_LEN = 125;
 const MAX_TAGS = 5;
 
