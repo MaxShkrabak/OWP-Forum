@@ -17,20 +17,7 @@ const error = ref(null);   // error message
 const categorySearch = ref(""); // todo: make this general search
 const selectedCategories = ref([]);
 
-const visibleCounts = reactive({});
-const INITIAL_LIMIT = 5;
-const INCREMENT = 5;
-
-// Helper to reset visible post counts
-function resetAllVisibleCounts() {
-  postsByCategory.value.forEach(cat => {
-    visibleCounts[cat.categoryId] = INITIAL_LIMIT;
-  });
-}
-
-watch(selectedCategories, () => {
-  resetAllVisibleCounts();
-}, { deep: true });
+const INITIAL_LIMIT = 5; // post limit per category
 
 // Fetch posts and initialize category state
 async function fetchPosts() {
@@ -41,7 +28,6 @@ async function fetchPosts() {
     if (data) {
       postsByCategory.value = data.postsByCategory || [];
       totalPosts.value = data.totalPosts || 0;
-      resetAllVisibleCounts();
     }
   } catch (e) {
     console.error("Error fetching posts:", e);
@@ -150,7 +136,7 @@ onMounted(fetchPosts);
 
               <!-- Post information card -->
               <PostCard 
-                v-for="post in category.posts.slice(0, visibleCounts[category.categoryId] || INITIAL_LIMIT)"
+                v-for="post in category.posts.slice(0, INITIAL_LIMIT)"
                 :key="post.postId"
                 :post="post"
               />
