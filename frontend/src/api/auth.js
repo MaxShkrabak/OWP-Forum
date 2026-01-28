@@ -133,9 +133,28 @@ export async function uploadImage(file) {
   return res.data;
 }
 
-export async function fetchPosts() {
-  const res = await axios.get(`${API}/api/posts`, { withCredentials: true });
-  return res.data;
+export async function fetchPosts({ categoryId = null, limit = 5, sort = 'latest', page = 1 } = {}) {
+  const url = categoryId 
+    ? `${API}/api/categories/${categoryId}/posts`
+    : `${API}/api/posts`;
+
+  const res = await axios.get(url, {
+    params: { limit, sort, page },
+    withCredentials: true
+  });
+
+  const data = res.data;
+
+  if (data.posts) {
+    data.posts = data.posts.map(post => ({
+      ...post,
+      likeCount: post.likeCount ?? 0,
+      commentCount: post.commentCount ?? 0,
+      tags: post.tags || []
+    }));
+  }
+
+  return data;
 }
 
 export async function getTags() {
