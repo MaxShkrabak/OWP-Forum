@@ -1,8 +1,7 @@
 <script setup>
-import { isLoggedIn } from "@/api/auth";
 import UserIcon from "@/assets/img/user-pfps-premade/pfp-0.png";
 import { ref } from "vue";
-import { fullName, userAvatar } from "@/stores/userStore";
+import { isLoggedIn, fullName, userAvatar } from "@/stores/userStore";
 
 const role = ref("Moderator");
 </script>

@@ -3,55 +3,34 @@ import CreatePostButton from "@/components/CreatePostButton.vue";
 import { ref, onMounted, watch, useId } from "vue";
 import { RouterLink } from "vue-router";
 import ForumHeader from "../components/ForumHeader.vue";
-import { isLoggedIn, checkAuth } from "@/api/auth";
-import axios from "axios";
+import { fetchPosts as apiGetPosts } from "@/api/auth"; 
+import { isLoggedIn} from "@/stores/userStore";
 import UserCard from "@/components/UserCard.vue";
 import ViewReportsButton from "@/components/ViewReportsButton.vue";
 import { timeAgo } from "@/utils/timeAgo";
 import userPlaceholder from "@/assets/img/user-pfps-premade/pfp-0.png";
 import ReportingModal from "@/components/ReportingModal.vue";
 
-const API = import.meta.env.VITE_API_BASE || "http://localhost:8080";
-const user = ref(null);
 const posts = ref([]);
 const postsByCategory = ref([]);
 const totalPosts = ref(0);
 const loading = ref(true);
 const error = ref(null);
 
-// Fetch user data if logged in
-async function fetchUserData() {
-  if (isLoggedIn.value) {
-    try {
-      const res = await axios.get(`${API}/api/me`, { withCredentials: true });
-      if (res.data.ok && res.data.user) {
-        user.value = res.data.user;
-      }
-    } catch (e) {
-      console.error("Error fetching user data:", e);
-      user.value = null;
-    }
-  } else {
-    user.value = null;
-  }
-}
-
 // Fetch all posts
 async function fetchPosts() {
   loading.value = true;
   error.value = null;
   try {
-    const res = await axios.get(`${API}/api/posts`, { withCredentials: true });
-    if (res.data) {
-      posts.value = res.data.posts || [];
-      postsByCategory.value = res.data.postsByCategory || [];
-      totalPosts.value = res.data.totalPosts || 0;
+    const data = await apiGetPosts(); 
+    if (data) {
+      posts.value = data.posts || [];
+      postsByCategory.value = data.postsByCategory || [];
+      totalPosts.value = data.totalPosts || 0;
     }
   } catch (e) {
     console.error("Error fetching posts:", e);
     error.value = e.message;
-    posts.value = [];
-    postsByCategory.value = [];
   } finally {
     loading.value = false;
   }
@@ -98,14 +77,7 @@ function getCategoryIcon(categoryName) {
   return "pi pi-file";
 }
 
-// Watch for auth state changes
-watch(isLoggedIn, async () => {
-  await fetchUserData();
-});
-
 onMounted(async () => {
-  await checkAuth();
-  await fetchUserData();
   await fetchPosts();
 });
 
@@ -121,7 +93,6 @@ function setReportValues(isPost, useID){
 
 <template>
   <ForumHeader />
-
   <div class="forum-home py-3">
     <div class="container-xl">
       <div class="row g-4">
@@ -131,7 +102,7 @@ function setReportValues(isPost, useID){
 
           <div class="row text-center justify-content-center" v-show="isLoggedIn">
             <div class="col-auto col-md-12 col-xxl-6">
-              <CreatePostButton />
+              <CreatePostButton @post-refresh="fetchPosts"/>
             </div>
             <div class="col-auto col-md-12 col-xxl-6">
               <ViewReportsButton />

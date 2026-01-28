@@ -1,10 +1,6 @@
 import axios from "axios";
-import { ref } from 'vue';
 
 const API = import.meta.env.VITE_API_BASE || "http://localhost:8080";
-
-export const isLoggedIn = ref(false);
-export const checkingAuth = ref(false);
 
 export async function requestOtp(email) {
   const res = await fetch(`${API}/auth/request-otp`, {
@@ -74,26 +70,19 @@ export async function registerUser(payload) {
 
 // Checks if user is authenticated if so sets isLoggedIn to true
 export async function checkAuth() {
-  checkingAuth.value = true;
-  try {
-    const res = await axios.get(`${API}/api/me`, { withCredentials: true });
-    isLoggedIn.value = Boolean(res?.data?.ok || res?.data?.user);
-    return res.data;
-  } catch (e) {
-    isLoggedIn.value = false;
-  } finally {
-    checkingAuth.value = false;
-  }
+  const res = await axios.get(`${API}/api/me`, { withCredentials: true });
+  return res.data;
+
 }
 
 // Function to log user out
 export async function logout() {
   try {
     await axios.post(`${API}/api/logout`, {}, { withCredentials: true });
-    isLoggedIn.value = false;
     return { ok: true };
   } catch (e) {
-    errorMsg.value = 'Something went wrong';
+    console.error("Logout failed");
+    return { ok: "false", error: e.message };
   }
 }
 
@@ -132,13 +121,28 @@ export async function uploadImage(file) {
   const imgForm = new FormData();
   imgForm.append('image', file);
 
-  const res = await axios.post(
-    `${API}/api/upload-image`,
-    imgForm, {
+  const res = await axios.post(`${API}/api/upload-image`, imgForm, {
     withCredentials: true,
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    }
+    headers: { 'Content-Type': 'multipart/form-data' }
   });
+
+  if (res.data && res.data.url && !res.data.url.startsWith('http')) {
+    res.data.url = `${API}${res.data.url}`;
+  }
+
   return res.data;
+}
+
+export async function fetchPosts() {
+  const res = await axios.get(`${API}/api/posts`, { withCredentials: true });
+  return res.data;
+}
+
+export async function getTags() {
+  const res = await axios.get(`${API}/api/tags`, { withCredentials: true });
+  const items = res.data.items || [];
+  return items.map(r => ({
+    tagId: Number(r.TagID ?? r.tagId ?? r.id),
+    name: r.Name ?? r.name
+  }));
 }

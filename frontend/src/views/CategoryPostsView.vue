@@ -6,7 +6,7 @@ import { timeAgo } from "@/utils/timeAgo";
 import UserCard from '@/components/UserCard.vue';
 import CreatePostButton from '@/components/CreatePostButton.vue';
 import ViewReportsButton from '@/components/ViewReportsButton.vue';
-import { isLoggedIn, checkAuth } from '@/api/auth';
+import { isLoggedIn } from "@/stores/userStore";
 
 import userPlaceholder from '@/assets/img/user-pfps-premade/pfp-0.png';
 
@@ -146,12 +146,6 @@ watch(currentPage, () => {
 });
 
 onMounted(async () => {
-  try {
-    await checkAuth();  // sets isLoggedIn if there IS a valid session
-  } catch (e) {
-    console.warn('Not logged in, continuing as guest');
-    // make sure your isLoggedIn flag is false if you control it here
-  }
   await loadCategoryPosts();
 });
 

@@ -1,5 +1,5 @@
 <script setup>
-import { isLoggedIn } from "@/api/auth";
+import { isLoggedIn } from "@/stores/userStore";
 </script>
 
 <template>

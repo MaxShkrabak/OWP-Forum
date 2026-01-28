@@ -1,9 +1,19 @@
 <script setup>
-import { RouterLink } from 'vue-router';
+import { ref } from 'vue';
+import CreatePost from '@/views/CreatePost.vue';
+
+const isModalOpen = ref(false);
+const emit = defineEmits(['post-refresh']);
+
+async function handlePublish() {
+  isModalOpen.value = false;
+  emit('post-refresh');  // Notify homepage to refresh
+}
 </script>
 
 <template>
-    <RouterLink to="/create-post" class="btn"> <!-- Will show only if logged in -->
+    <!-- Will show only if logged in -->
+    <button @click="isModalOpen = true" class="btn">
         <div class="row text-center fs-5 text-nowrap text-white">
       <div class="col-12">
         <span class="roboto-bold">CREATE<br /> </span>
@@ -12,7 +22,13 @@ import { RouterLink } from 'vue-router';
         <span class="roboto-bold">POST<br /> </span>
       </div>
     </div>
-    </RouterLink>
+  </button>
+
+  <CreatePost
+    :show="isModalOpen"
+    @close="isModalOpen = false"
+    @published="handlePublish"
+  />
 </template>
 
 <style scoped>
