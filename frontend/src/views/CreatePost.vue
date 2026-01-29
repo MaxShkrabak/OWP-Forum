@@ -2,8 +2,8 @@
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import Editor from "primevue/editor";
 import { createPost, uploadImage, getTags } from "@/api/auth";
-import { fullName, userAvatar, isLoggedIn } from "@/stores/userStore";
-
+import { fullName, userAvatar, isLoggedIn, userRole } from "@/stores/userStore";
+import UserRole from "@/components/UserRole.vue";
 const MAX_TITLE_LEN = 125;
 const MAX_TAGS = 5;
 
@@ -673,12 +673,10 @@ onUnmounted(() => {
   gap: 12px; 
 }
 
-/* Overriding gap for modal-actions as in your original code */
 .modal-actions {
   gap: 20px; 
 }
 
-/* --- 8. RESPONSIVE QUERIES --- */
 @media (max-width: 822px) {
   .user-info-section {
     display: none;

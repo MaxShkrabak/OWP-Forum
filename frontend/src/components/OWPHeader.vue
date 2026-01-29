@@ -16,13 +16,12 @@ const width = ref(window.innerWidth);
 const onLoginPage = computed(() => route.path.startsWith('/login'));
 const onRegisterPage = computed(() => route.path.startsWith('/register'));
 const logoType = computed(() => (width.value <= 584 ? owpSymbol : owpLogo));
-const fname = computed(() => fullName.value.split(' ')[0] || ''); // First name only
+const fname = computed(() => fullName.value.split(' ')[0] || '');
 
 function handleResize() {
   width.value = window.innerWidth;
 }
 
-// Ensures auth status is set correctly
 onMounted(async () => {
   window.addEventListener('resize', handleResize);
 });
@@ -34,20 +33,20 @@ onBeforeUnmount(() => {
 // Function to log user out
 async function handleLogout() {
   await logoutUser();
-  router.push('/login'); // TODO: pushes to login page, I think home would be better. Adjust later
+  router.push('/'); // redirect to home after logout
 }
 </script>
 
 <template>
   <header id="water-program">
     <ul>
-      <!-- menu icon -->
+      <!-- Menu Icon -->
       <li id="menu" @click="console.log('open menu')">
         <span class="menu-icon">☰</span>
         <span class="menu-text">Menu</span>
       </li>
 
-      <!-- logo -->
+      <!-- Logo -->
       <li id="owp-logo">
         <RouterLink to="/">
           <img 
@@ -60,7 +59,7 @@ async function handleLogout() {
       <!-- filler -->
       <li class="fill"></li>
 
-      <!-- cart icon -->
+      <!-- Cart Icon -->
       <li id="cart">
         <img 
           :src="cart" 
@@ -73,7 +72,9 @@ async function handleLogout() {
       <li id="userLogin" class="auth">
         <template v-if="isLoggedIn">
           <span class="greeting">Hello, {{ fname }}!</span>
-          <RouterLink to="" class="account-action">My Account</RouterLink> <!-- Doesn't actually route anywhere, just to match UI -->
+           <!-- Doesn't actually route anywhere, just to match UI -->
+          <RouterLink to="" class="account-action">My Account</RouterLink>
+
           <button class="account-action" @click="handleLogout">Logout</button>
         </template>
         <template v-else>
@@ -86,7 +87,6 @@ async function handleLogout() {
 </template>
 
 <style scoped>
-/* general header */
 #water-program { 
   background: #143f36; 
   color: #fff;
@@ -94,7 +94,6 @@ async function handleLogout() {
   font-family: "Arial", "Helvetica", sans-serif; 
 }
 
-/* header layout */
 ul { 
   display: flex; 
   align-items: center; 
@@ -104,7 +103,6 @@ ul {
   gap: 8px;
 }
 
-/* menu icon */
 #menu .menu-icon {
   cursor: pointer;
   font-size: 14px;
@@ -117,7 +115,6 @@ ul {
   font-size: 14px;
 }
 
-/* OWP logo */
 #owp-logo img { 
   height: 50px; 
   width: auto; 
@@ -128,7 +125,6 @@ ul {
   flex: 1; 
 }
 
-/* cart icon */
 #cart {
   margin-right: 16px;
   font-weight: 700;
@@ -138,7 +134,6 @@ ul {
   height: 40px;
 }
 
-/* auth/login */
 #userLogin a{
   display: flex;
   color: #fff;
@@ -150,7 +145,6 @@ ul {
   font-family: 'Lato';
 }
 
-/* Account Buttons: My Account, Logout */
 .account-action{
   color: #fff;
   font-size: 14px;
@@ -161,7 +155,6 @@ ul {
   border: none;
 }
 
-/* Text displaying: Hello, {user}!*/
 .greeting {
   color: #ccc;
   font-size: 14px;
