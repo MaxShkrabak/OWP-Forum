@@ -121,10 +121,7 @@ onMounted(loadCategoryPosts);
           </header>
 
           <!-- Loading status -->
-          <div v-if="loading" class="text-center py-5">
-            <div class="spinner-grow text-success" role="status"></div>
-            <p class="text-muted small mt-3">Fetching discussions...</p>
-          </div>
+          <div v-if="loading" class="text-center py-5"><div class="spinner-border text-success"></div></div>
           
           <div v-else class="post-feed">
             <div v-if="posts.length === 0" class="empty-state text-center py-5">
