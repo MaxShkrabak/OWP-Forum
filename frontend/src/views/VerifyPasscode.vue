@@ -133,7 +133,6 @@ async function onSubmit() {
 
 
 /* Resend section */
-
 .resend {
   margin-top: 8em;
 }

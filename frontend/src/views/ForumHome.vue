@@ -264,7 +264,7 @@ onMounted(fetchPosts);
 
 .sort-select {
   padding: 3px 8px 3px 8px;
-  color: #101820; /* Pantone Black 6 */
+  color: #201e0f;
   font-size: 0.85rem;
   font-weight: 600;
   border-radius: 8px;

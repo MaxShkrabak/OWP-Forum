@@ -673,12 +673,10 @@ onUnmounted(() => {
   gap: 12px; 
 }
 
-/* Overriding gap for modal-actions as in your original code */
 .modal-actions {
   gap: 20px; 
 }
 
-/* --- 8. RESPONSIVE QUERIES --- */
 @media (max-width: 822px) {
   .user-info-section {
     display: none;

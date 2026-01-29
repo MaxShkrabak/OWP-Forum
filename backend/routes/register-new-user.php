@@ -4,7 +4,6 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 
 $app->post('/api/register-new-user', function (Request $req, Response $res) use ($makePdo) {
     try {
-        // Grab the data sent from front end
         $data = $req->getParsedBody();
         $first = trim((string)($data['first'] ?? ''));
         $last = trim((string)($data['last'] ?? ''));
@@ -12,21 +11,20 @@ $app->post('/api/register-new-user', function (Request $req, Response $res) use 
 
         $pdo = $makePdo();
         
-        // Searches the Users table for the provided email from frontend
         $check = $pdo->prepare("SELECT 1 FROM dbo.Users WHERE Email = :email");  
         $check->execute([':email' => $email]);
 
-        // If email already exists return error message (doesn't store user)
+        // If email already exists return error message
         if ($check->fetchColumn()) {
             $res->getBody()->write(json_encode(['ok' => false, 'message' => 'The provided email already exists. Try logging-in instead.']));
             return $res->withStatus(400)->withHeader('Content-Type', 'application/json');
         } else {
-            // Store the users details in the database
+            
             $stmt = $pdo->prepare("
                 INSERT INTO dbo.USERS (Email, FirstName, LastName, Created)
                 VALUES (:email, :first, :last, GETDATE()) 
             ");
-            // Executes query above storing the data
+            
             $stmt->execute([
                 ":email" => $email,
                 ":first" => $first,

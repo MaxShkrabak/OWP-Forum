@@ -11,13 +11,6 @@ export async function requestOtp(email) {
   return res.json();
 }
 
-/**
- * Sends OTP verification request to the backend for given user email
- * 
- * @param {string} email - The users email address
- * @param {string} otp - The global OTP
- * @returns the result of the request 
- */
 export async function verifyOtp(email, otp) {
   const res = await axios.post(
     `${API}/api/login`,
@@ -30,13 +23,6 @@ export async function verifyOtp(email, otp) {
   return res.data;
 }
 
-/**
- * Checks if users email exists in the backend database.
- * The post request is sent to /api/verify-email with the users email
- * 
- * @param {string} email - The email address user is trying to sign-in with
- * @returns the result of the request and if email exists, for example { ok: true, emailExists: true}
- */
 export async function verifyEmail(email) {
   const res = await axios.post(
     `${API}/api/verify-email`,
@@ -49,13 +35,6 @@ export async function verifyEmail(email) {
   return res.data;
 }
 
-/**
- * Sends users registration data to the backend
- * If email doesn't already exist in database, stores the new user in database
- * 
- * @param {*} payload is the users data to store in database for registration {first,last,email}
- * @returns the result of the request
- */
 export async function registerUser(payload) {
   const res = await axios.post(
     `${API}/api/register-new-user`,
@@ -68,14 +47,12 @@ export async function registerUser(payload) {
   return res.data;
 }
 
-// Checks if user is authenticated if so sets isLoggedIn to true
 export async function checkAuth() {
   const res = await axios.get(`${API}/api/me`, { withCredentials: true });
   return res.data;
 
 }
 
-// Function to log user out
 export async function logout() {
   try {
     await axios.post(`${API}/api/logout`, {}, { withCredentials: true });
@@ -86,7 +63,6 @@ export async function logout() {
   }
 }
 
-// Function to get user's full name
 export async function getName() {
   const res = await axios.get(`${API}/api/me`, { withCredentials: true });
   const data = res?.data;

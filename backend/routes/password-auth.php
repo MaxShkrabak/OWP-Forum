@@ -43,8 +43,8 @@ $app->post('/api/login', function(Request $req, Response $res) use ($makePdo) {
     }
     
     // Generate session
-    $rawToken = bin2hex(random_bytes(32)); // generates random raw token 
-    $tokenHash = hash_hmac('sha256', $rawToken, $_ENV['HMAC_KEY']); // secure has using rawToken and .env key
+    $rawToken = bin2hex(random_bytes(32));
+    $tokenHash = hash_hmac('sha256', $rawToken, $_ENV['HMAC_KEY']);
     $expiresAt = (new DateTime('+24 hours'))->format('Y-m-d H:i:s');
 
     // Store session details in database

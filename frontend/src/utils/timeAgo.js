@@ -1,11 +1,22 @@
 // src/utils/timeAgo.js (or .ts)
 export function timeAgo(input) {
   if (!input) return '';
-  const d = new Date(input);
+
+  let dateStr = input;
+
+  if (typeof input === 'string') {
+    if (!input.includes('Z') && !input.includes('+')) {
+      dateStr = input.trim().replace(' ', 'T') + 'Z';
+    }
+  }
+  
+  const d = new Date(dateStr);
+
   if (isNaN(d.getTime())) return '';
 
+
   // Past is positive; future is negative
-  const diffSec = Math.round((Date.now() - d.getTime()) / 1000);
+  const diffSec = Math.max(0, Math.round((Date.now() - d.getTime()) / 1000));
   const abs = Math.abs(diffSec);
 
   const MIN = 60;

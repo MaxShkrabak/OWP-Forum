@@ -17,7 +17,6 @@ import { isLoggedIn } from "@/stores/userStore";
 </template>
 
 <style>
-/* Removes default browser margin and padding */
 html, body {
     margin: 0;
     padding: 0;
@@ -31,7 +30,7 @@ RouterLink {
 .btn {
     display: flex;
   margin-top: 18px;
-  height: 34px; /* slightly smaller button to match inputs */
+  height: 34px;
   width: fit-content;
   background: #48773C;
   color: #fff;
@@ -50,29 +49,28 @@ RouterLink {
 
 /* Container for forum header */
 .forum-header {
-    margin-top: .7em;              /* margin from top header */
-    padding-left: 10%;             /* space between left edge and text */
-    padding-top: 1em;              /* space between top edge and text */
-    padding-bottom: 1em;           /* space between bottom edge and text */
+    margin-top: .7em;
+    padding-left: 10%;
+    padding-top: 1rem;
+    padding-bottom: 1rem;
     text-align: left;
     font-family: 'Lato';           
-    background-color: #40625A;   /* header background color */
+    background-color: #40625A;
 }
 
 /* Main forum title */
 .title {
-    margin-top: 0em;       /* removes margin above title */
-    margin-bottom: 0.1em;  /* small spacing between title and description */
-    color: #FFFFFF;      /* white text color */
-    font-size: 2em;
-    font-weight: 400;      /* regular weight */
+    margin-top: 0rem;
+    margin-bottom: 0.1rem;
+    color: #FFFFFF;
+    font-size: 2rem;
+    font-weight: 400;
 }
 
-/* Description under title */
 .subtitle {
-    margin-top: 0em;       /* removes margin above description */
+    margin-top: 0rem;
     font-size: 1.4em;       
-    color:#FFFFFF;       /* white text color */
-    font-weight: 200;      /* light weight */
+    color:#FFFFFF;
+    font-weight: 200;
 }
 </style>
