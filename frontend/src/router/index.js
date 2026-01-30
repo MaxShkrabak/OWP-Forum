@@ -6,7 +6,9 @@
     import ForumUserProfile from '../views/UserProfile.vue';
     import CreatePost from '../views/CreatePost.vue';
     import CategoryPost from '@/views/CategoryPostsView.vue';
+    import ViewPost from '@/views/ViewPost.vue';
     import axios from 'axios';
+
 
     const API = import.meta.env.VITE_API_BASE || 'http://localhost:8080';
 
@@ -17,7 +19,8 @@
       { path: '/verify', name: 'VerifyPasscode', component: VerifyPasscode, props: (route) => ({ email: route.query.email || '' }) },
       { path: '/create-post', name: 'CreatePost', component: CreatePost, meta: { requiresAuth: true } },
       { path: '/profile', name: 'User Profile', component: ForumUserProfile, meta: { requiresAuth: true } },
-      { path: '/categories/:categoryId/:slug?', name: 'CategoryPosts', component: CategoryPost, }
+      { path: '/categories/:categoryId/:slug?', name: 'CategoryPosts', component: CategoryPost, },
+      { path: '/posts/:id', name: 'ViewPost', component: ViewPost, props: true}
     ];
  
     const router = createRouter({

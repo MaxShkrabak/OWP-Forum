@@ -165,3 +165,27 @@ $app->get('/api/posts', function (Request $req, Response $res) use ($makePdo) {
     }
 });
 
+$app->get('/api/get_post/{id}', function(Request $req, Response $res, array $args) use ($makePdo) {
+    try {
+        $pdo = $makePdo();
+
+
+        $postID = (int)$args['id'];
+       
+        $stmt = $pdo->prepare('SELECT Content FROM dbo.Posts WHERE PostID = :id');
+        $stmt->execute(['id' => $postID]);
+        $content = $stmt->fetchcolumn();
+
+
+        if(!$content){
+            throw new Error("Does not exist.");
+        }
+
+
+        $res->getBody()->write(json_encode(['ok' => true, 'content' => $content]));
+        return $res->withHeader('Content-Type', 'application/json');
+    } catch (Throwable $e) {
+        $res->getBody()->write(json_encode(['ok' => false, 'error' => $e->getMessage()]));
+        return $res->withStatus(500)->withHeader('Content-Type', 'application/json');
+    }
+});

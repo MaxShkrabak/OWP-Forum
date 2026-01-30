@@ -16,6 +16,10 @@ return function (Request $request, RequestHandler $handler) use ($makePdo) {
         return $handler->handle($request);
     }
 
+    if (strpos($path, '/api/get_post') === 0 && $request->getMethod() === 'GET') {
+        return $handler->handle($request);
+    }
+
     // Allow public access to homepage posts endpoint
     if ($path === '/api/posts' && $request->getMethod() === 'GET') {
         return $handler->handle($request);

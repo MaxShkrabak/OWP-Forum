@@ -141,3 +141,11 @@ export async function getTags() {
     name: r.Name ?? r.name
   }));
 }
+
+export async function getPost(id) {
+  const res = await axios.get(`${API}/api/get_post/${id}`);
+  const data = res?.data;
+  if (data?.ok) {
+    return data;
+  }
+}
