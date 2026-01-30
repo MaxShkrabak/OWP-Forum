@@ -33,34 +33,50 @@ onMounted(async () => {
 
 <template>
   <div class="container">
-    <div v-if="loading" class="loader">Fetching post content...</div>
+    <!-- Loads while it fetches -->
+    <div v-if="loading" class="loader">
+        <div class="spinner-border"></div>
+    </div>
 
-
+    <!-- Displays error if the Post doen't exist -->
     <div v-else-if="error" class="error empty-state text-center py-5">
       <p class="fw-medium text-secondary">No posts found.</p>
     </div>
 
-
+    <!-- If the Post is found, constructs page -->
     <div v-else-if="post" class="page-container container-sm mt-5">
       <div class="center-container col text-center">
+        
+        <!-- Header Part -->
         <div class="post-header row mb-1">
+            
+          <!-- Go Back arrow -->
           <div
             class="go-back pi pi-arrow-left col-2 text-white"
             style="font-size: 1.5rem"
           ></div>
+
+          <!-- Header Card -->
           <div class="content-head col">
             <span class="text-white"> title </span>
           </div>
         </div>
 
-
+        <!-- Sidebar and Content in a row -->
         <div class="row p-2">
-          <div class="post-content col-md-3 col-lg-2 text-white">sidebar</div>
-          <div class="post-sidebar col-md-9 col-lg-10">
+
+          <!-- Sidebar part -->
+          <div class="post-sidebar col-md-3 col-lg-2 text-white">sidebar</div>
+
+          <!-- Content part -->
+          <div class="post-content col-md-9 col-lg-10">
             <ViewPostContent :content = post.content /> 
           </div>
+
         </div>
-        <div class="container-sm text-white">
+
+        <!-- Comment Section -->
+        <div class="container-sm">
           <div class="post-comments mt-4">comments</div>
         </div>
       </div>
@@ -69,7 +85,23 @@ onMounted(async () => {
 </template>
 
 
-<style scoped>
+<style scoped> 
+.loader {
+    display: flex;
+    justify-content: center;
+    padding-top: 25%;
+    padding-bottom: 25%;
+}
+
+/* Error when post not found */
+.empty-state {
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 20px;
+  border: 2px dashed #7e9291;
+  padding: 3rem;
+}
+
+/* Central page layout */
 .page-container {
   background-color: black;
 }
@@ -77,7 +109,7 @@ onMounted(async () => {
   background-color: blue;
 }
 
-
+/* Header */
 .post-header {
   background-color: pink;
 }
@@ -88,7 +120,7 @@ onMounted(async () => {
   background-color: rgb(151, 151, 0);
 }
 
-
+/* Body */
 .post-content {
   background-color: rgb(83, 0, 0);
 }
@@ -96,16 +128,8 @@ onMounted(async () => {
   background-color: green;
 }
 
-
+/* Comments */
 .post-comments {
   background-color: gray;
-}
-
-
-.empty-state {
-  background: rgba(255, 255, 255, 0.6);
-  border-radius: 20px;
-  border: 2px dashed #7e9291;
-  padding: 3rem;
 }
 </style>
