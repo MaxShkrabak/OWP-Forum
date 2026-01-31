@@ -1,7 +1,7 @@
 <script setup>
 import UserIcon from "@/assets/img/user-pfps-premade/pfp-0.png";
 import { isLoggedIn, fullName, userAvatar } from "@/stores/userStore";
-import UserRole from "@/components/UserRole.vue";
+import UserRole from "@/components/user/UserRole.vue";
 </script>
 
 <template>
@@ -124,7 +124,7 @@ import UserRole from "@/components/UserRole.vue";
 }
 
 .stats-container {
-  background-color: rgba(203, 218, 213, 0.2);
+  background-color: #007a4b17;
   border-radius: 8px;
   padding: 10px 0;
 }

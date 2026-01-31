@@ -1,14 +1,12 @@
     import { createRouter, createWebHistory } from 'vue-router';
-    import HomePage from '../views/ForumHome.vue';
-    import LoginPage from '../views/Login.vue';
-    import RegistrationPage from '../views/Register.vue';
-    import VerifyPasscode from '../views/VerifyPasscode.vue';
-    import ForumUserProfile from '../views/UserProfile.vue';
-    import CreatePost from '../views/CreatePost.vue';
-    import CategoryPost from '@/views/CategoryPostsView.vue';
-    import axios from 'axios';
-
-    const API = import.meta.env.VITE_API_BASE || 'http://localhost:8080';
+    import HomePage from '../views/forum/ForumHome.vue';
+    import LoginPage from '../views/auth/Login.vue';
+    import RegistrationPage from '../views/auth/Register.vue';
+    import VerifyPasscode from '../views/auth/VerifyPasscode.vue';
+    import ForumUserProfile from '../views/forum/UserProfile.vue';
+    import CreatePost from '../components/forum/CreatePostModal.vue';
+    import CategoryPost from '@/views/forum/CategoryPosts.vue';
+    import client from '@/api/client';
 
     const routes = [
       { path: '/', name: 'ForumHome', component: HomePage },
@@ -30,7 +28,7 @@
       if (to.meta.requiresAuth) {
         // Authentication is required for the page
         try {
-          const res = await axios.get(`${API}/api/me`, { withCredentials: true });
+          const res = await client.get(`/me`);
           if (res.data.ok) {
             next(); // user is logged in, route to page
           }

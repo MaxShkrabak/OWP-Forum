@@ -1,11 +1,11 @@
 <script setup>
-import ForumHeader from '../components/ForumHeader.vue';
-import pfpModal from '@/components/UserPfpModal.vue';
-import UserSettings from '@/components/UserSettings.vue';
+import ForumHeader from '@/components/layout/ForumHeader.vue';
+import pfpModal from '@/components/user/UserPfpModal.vue';
+import UserSettings from '@/components/user/UserSettings.vue';
 
-import PostIcon from '../assets/img/svg/posts-icon.svg';
-import LikeIcon from '../assets/img/svg/like-icon.svg';
-import CommIcon from '../assets/img/svg/comment-icon.svg';
+import PostIcon from '@/assets/img/svg/posts-icon.svg';
+import LikeIcon from '@/assets/img/svg/like-icon.svg';
+import CommIcon from '@/assets/img/svg/comment-icon.svg';
 
 import { ref } from 'vue';
 import { fullName, userAvatar } from '@/stores/userStore';

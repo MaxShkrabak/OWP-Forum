@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue';
-import CreatePost from '@/views/CreatePost.vue';
+import CreatePost from '@/components/forum/CreatePostModal.vue';
 
 const isModalOpen = ref(false);
 const emit = defineEmits(['post-refresh']);
