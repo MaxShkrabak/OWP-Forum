@@ -124,7 +124,7 @@ import UserRole from "@/components/user/UserRole.vue";
 }
 
 .stats-container {
-  background-color: rgba(203, 218, 213, 0.2);
+  background-color: #007a4b17;
   border-radius: 8px;
   padding: 10px 0;
 }

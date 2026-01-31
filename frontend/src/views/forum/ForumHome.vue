@@ -2,7 +2,7 @@
 import CreatePostButton from "@/components/forum/CreatePostButton.vue";
 import { ref, onMounted, computed } from "vue";
 import { RouterLink } from "vue-router";
-import ForumHeader from "../components/layout/ForumHeader.vue";
+import ForumHeader from "@/components/layout/ForumHeader.vue";
 import { fetchPosts as apiGetPosts } from "@/api/posts";
 import { isLoggedIn } from "@/stores/userStore";
 import UserCard from "@/components/user/UserCard.vue";

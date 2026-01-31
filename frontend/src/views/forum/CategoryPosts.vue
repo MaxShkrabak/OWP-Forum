@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted, watch, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import ForumHeader from "../components/layout/ForumHeader.vue";
+import ForumHeader from "@/components/layout/ForumHeader.vue";
 import PostCard from "@/components/forum/PostCard.vue";
 import UserCard from "@/components/user/UserCard.vue";
 import CreatePostButton from "@/components/forum/CreatePostButton.vue";

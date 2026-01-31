@@ -4,7 +4,7 @@ import { updateUserAvatar } from '@/api/auth';
 import { userAvatar } from '@/stores/userStore';
 
 // Import all images from the 'src/assets/img/user-pfps-premade/' folder
-const allImages = import.meta.glob('../assets/img/user-pfps-premade/*.(png|jpeg|jpg|svg)', { eager: true });
+const allImages = import.meta.glob('/src/assets/img/user-pfps-premade/*.(png|jpeg|jpg|svg)', { eager: true });
 
 // Extract the image paths for use in the template
 const images = computed(() => {
