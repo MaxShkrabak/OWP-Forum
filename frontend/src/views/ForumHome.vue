@@ -1,13 +1,13 @@
 <script setup>
-import CreatePostButton from "@/components/CreatePostButton.vue";
-import { ref, onMounted, computed, reactive, watch } from "vue";
+import CreatePostButton from "@/components/forum/CreatePostButton.vue";
+import { ref, onMounted, computed } from "vue";
 import { RouterLink } from "vue-router";
-import ForumHeader from "../components/ForumHeader.vue";
-import { fetchPosts as apiGetPosts } from "@/api/auth";
+import ForumHeader from "../components/layout/ForumHeader.vue";
+import { fetchPosts as apiGetPosts } from "@/api/posts";
 import { isLoggedIn } from "@/stores/userStore";
-import UserCard from "@/components/UserCard.vue";
-import ViewReportsButton from "@/components/ViewReportsButton.vue";
-import PostCard from "@/components/PostCard.vue";
+import UserCard from "@/components/user/UserCard.vue";
+import ViewReportsButton from "@/components/admin/ViewReportsButton.vue";
+import PostCard from "@/components/forum/PostCard.vue";
 
 const postsByCategory = ref([]);
 const totalPosts = ref(0);

@@ -1,7 +1,7 @@
 <script setup>
 import { RouterLink } from "vue-router";
 import { timeAgo } from "@/utils/timeAgo";
-import UserRole from "@/components/UserRole.vue";
+import UserRole from "@/components/user/UserRole.vue";
 
 const props = defineProps({
   post: {
@@ -11,7 +11,7 @@ const props = defineProps({
 });
 
 function getAvatarSrc(file) {
-  return new URL(`../assets/img/user-pfps-premade/${file}`, import.meta.url).href;
+  return new URL(`../../assets/img/user-pfps-premade/${file}`, import.meta.url).href;
 }
 </script>
 

@@ -1,7 +1,6 @@
 <script setup>
 import { ref } from "vue";
 import { useRouter } from "vue-router";
-import axios from "axios";
 import { verifyEmail } from "@/api/auth";
 import '/src/assets/style.css'
 

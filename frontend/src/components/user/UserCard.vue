@@ -1,7 +1,7 @@
 <script setup>
 import UserIcon from "@/assets/img/user-pfps-premade/pfp-0.png";
 import { isLoggedIn, fullName, userAvatar } from "@/stores/userStore";
-import UserRole from "@/components/UserRole.vue";
+import UserRole from "@/components/user/UserRole.vue";
 </script>
 
 <template>

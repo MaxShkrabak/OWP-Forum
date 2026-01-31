@@ -1,13 +1,13 @@
 <script setup>
 import { ref, onMounted, watch, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import ForumHeader from "../components/ForumHeader.vue";
-import PostCard from "@/components/PostCard.vue";
-import UserCard from "@/components/UserCard.vue";
-import CreatePostButton from "@/components/CreatePostButton.vue";
-import ViewReportsButton from "@/components/ViewReportsButton.vue";
+import ForumHeader from "../components/layout/ForumHeader.vue";
+import PostCard from "@/components/forum/PostCard.vue";
+import UserCard from "@/components/user/UserCard.vue";
+import CreatePostButton from "@/components/forum/CreatePostButton.vue";
+import ViewReportsButton from "@/components/admin/ViewReportsButton.vue";
 import { isLoggedIn } from "@/stores/userStore";
-import { fetchPosts as apiGetPosts } from "@/api/auth";
+import { fetchPosts as apiGetPosts } from "@/api/posts";
 import { getPaginationRange } from '@/utils/pagination';
 
 const route = useRoute();
