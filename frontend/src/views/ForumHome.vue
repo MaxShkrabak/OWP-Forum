@@ -17,9 +17,6 @@ const error = ref(null);   // error message
 const categorySearch = ref(""); // todo: make this general search
 const selectedCategories = ref([]);
 
-const allTags = ref([]);          // will hold [{TagID, Name}, ...]
-const selectedTags = ref([]);     // hold selected tag IDs for filtering
-
 const INITIAL_LIMIT = 5; // post limit per category
 
 // Fetch posts and initialize category state
@@ -42,37 +39,12 @@ async function fetchPosts() {
 
 // Handle category filtering via search and selection
 const filteredCategories = computed(() => {
-  const search = categorySearch.value.toLowerCase();
-  const selectedCats = selectedCategories.value;
-  const selectedTagNames = selectedTags.value;
-
-  return postsByCategory.value
-    // filter categories (search + selected category)
-    .filter(cat => {
-      const matchesSearch = cat.categoryName.toLowerCase().includes(search);
-      const matchesSelection =
-        selectedCats.length === 0 || selectedCats.includes(cat.categoryId);
-      return matchesSearch && matchesSelection;
-    })
-    // filter posts inside each category by selected tags
-    .map(cat => {
-      const filteredPosts =
-        selectedTagNames.length === 0
-          ? cat.posts
-          : cat.posts.filter(post => {
-              const postTags = post.tags ?? []; // backend gives names array
-              // ANY selected tag matches:
-              return selectedTagNames.some(t => postTags.includes(t));
-              // If you want ALL tags required instead, use:
-              // return selectedTagNames.every(t => postTags.includes(t));
-            });
-
-      return { ...cat, posts: filteredPosts };
-    })
-    // optional: hide categories that become empty after tag filtering
-    .filter(cat => cat.posts.length > 0);
+  return postsByCategory.value.filter(cat => {
+    const matchesSearch = cat.categoryName.toLowerCase().includes(categorySearch.value.toLowerCase());
+    const matchesSelection = selectedCategories.value.length === 0 || selectedCategories.value.includes(cat.categoryId);
+    return matchesSearch && matchesSelection;
+  });
 });
-
 
 // Category icon helper
 function getCategoryIcon(categoryName) {
@@ -85,39 +57,7 @@ function getCategoryIcon(categoryName) {
   return "pi pi-file";
 }
 
-// Fetch all tags for filtering
-async function fetchTags() {
-  try {
-    const response = await fetch("/api/tags");
-    const data = await response.json();
-    console.log("tags data:", data);
-
-    if (!response.ok || !data.ok) throw new Error(data.error || "Failed to fetch tags");
-
-    allTags.value = data.items || [];
-  } catch (e) {
-    console.error("Error fetching tags:", e);
-  }
-}
-
-
-function toggleTag(tagName) {
-  const i = selectedTags.value.indexOf(tagName);
-  if (i >= 0) selectedTags.value.splice(i, 1);
-  else selectedTags.value.push(tagName);
-}
-
-
-function clearTags() {
-  selectedTags.value = [];
-}
-
-
-onMounted(async () => {
-  await fetchPosts();
-  await fetchTags();
-});
-
+onMounted(fetchPosts);
 </script>
 
 <template>
@@ -159,29 +99,6 @@ onMounted(async () => {
                   <span class="badge rounded-pill bg-light text-dark small border">{{ cat.postCount }}</span>
                 </label>
               </div>
-            </div>
-              
-            <!-- Tag Filter -->
-            <div class="card border-0 shadow-sm rounded-3 mt-4 d-none d-lg-block overflow-hidden">
-              <div class="filter-header px-3 py-2 d-flex justify-content-between align-items-center">
-                <span class="fw-bold small text-uppercase tracking-wider">Filter By Tags</span>
-                <button v-if="selectedTags.length > 0" @click="clearTags" class="clear-btn">Clear</button>
-              </div>
-
-              <div class="p-3 d-flex flex-wrap gap-2">
-
-                <button
-                  v-for="tag in allTags"
-                  :key="tag.TagID"
-                  type="button"
-                  @click="toggleTag(tag.Name)"
-                  class="tag-pill"
-                  :class="{ active: selectedTags.includes(tag.Name) }"
-                >
-                  {{ tag.Name }}
-                </button>
-              </div>
-
             </div>
           </div>
         </div>
@@ -250,23 +167,15 @@ onMounted(async () => {
 
 /* Clear filters button */
 .clear-btn {
-  display: inline-flex;
-  align-items: center;
-
-  padding: 6px 10px;
-  line-height: 1;
-
-  background: transparent;
-  border: 1px solid currentColor;   
-  color: inherit !important;          
-
-  border-radius: 999px;
-  font-size: 0.70rem;
-  font-weight: 800;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(4px);
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #FFFFFF;
+  border-radius: 6px;
   text-transform: uppercase;
   cursor: pointer;
-
-  opacity: 0.9;
 }
 .clear-btn:hover {
   text-decoration: underline;
@@ -369,36 +278,4 @@ onMounted(async () => {
     height: fit-content;
   }
 }
-
-.tag-pill {
-  border: 1px solid rgba(0, 0, 0, 0.3);
-  background: #ffffff;
-  color: #111;
-
-  border-radius: 10px;
-  padding: 6px 10px;
-  font-size: 0.85rem;
-  font-weight: 500;
-
-  cursor: pointer;
-  user-select: none;
-
-  transition: background 0.15s ease,
-              border-color 0.15s ease,
-              color 0.15s ease,
-              transform 0.05s ease;
-}
-
-.tag-pill:hover {
-  transform: translateY(-1px);
-  background: #f2f2f2;
-}
-
-.tag-pill.active {
-  background: #145a32;
-  border-color: #0f3d22;
-  color: #ffffff;
-  font-weight: 700;
-}
-
 </style>

@@ -22,6 +22,47 @@ const totalPages = ref(1);
 const limit = ref(Number(localStorage.getItem('category_limit')) || 5);
 const sort = ref(localStorage.getItem('category_sort') || 'latest');
 
+const allTags = ref([]);          // [{TagID, Name, UsableByRoleID}, ...]
+const selectedTags = ref([]);     // ['Education', 'Research', ...]
+const requireAllTags = ref(true); // true = A+B, false = A or B
+
+async function fetchTags() {
+  try {
+    const response = await fetch("/api/tags");
+    const data = await response.json();
+
+    if (!response.ok || !data.ok) throw new Error(data.error || "Failed to fetch tags");
+
+    // your backend returns { ok: true, items: [...] }
+    allTags.value = data.items || [];
+  } catch (e) {
+    console.error("Error fetching tags:", e);
+    allTags.value = [];
+  }
+}
+
+function toggleTag(tagName) {
+  const i = selectedTags.value.indexOf(tagName);
+  if (i >= 0) selectedTags.value.splice(i, 1);
+  else selectedTags.value.push(tagName);
+}
+
+function clearTags() {
+  selectedTags.value = [];
+}
+
+const visiblePosts = computed(() => {
+  // no tags selected → show server-sorted posts as-is
+  if (selectedTags.value.length === 0) return posts.value;
+
+  // AND logic: post must include EVERY selected tag
+  return posts.value.filter(post => {
+    const postTags = post.tags ?? [];
+    return selectedTags.value.every(t => postTags.includes(t));
+  });
+});
+
+
 async function loadCategoryPosts() {
   loading.value = true;
   error.value = null;
@@ -62,7 +103,12 @@ const displayedPages = computed(() => {
 });
 
 watch(currentPage, loadCategoryPosts);
-onMounted(loadCategoryPosts);
+
+onMounted(async () => {
+  await loadCategoryPosts();
+  await fetchTags();
+});
+
 </script>
 
 <template>
@@ -82,8 +128,35 @@ onMounted(loadCategoryPosts);
               <CreatePostButton @post-refresh="loadCategoryPosts" class="w-100 shadow-sm" />
               <ViewReportsButton class="w-100 mt-2" />
             </div>
+            <!-- Tag Filter -->
+          <div class="card border-0 shadow-sm rounded-3 mt-4 overflow-hidden">
+            <div class="filter-header px-3 py-2 d-flex justify-content-between align-items-center">
+              <span class="fw-bold small text-uppercase tracking-wider">Tags</span>
+              <button
+                v-if="selectedTags.length > 0"
+                @click="clearTags"
+                class="clear-btn"
+                type="button"
+              >
+                Clear
+              </button>
+            </div>
+
+            <div class="p-3 d-flex flex-wrap gap-2">
+              <button
+                v-for="tag in allTags"
+                :key="tag.TagID"
+                type="button"
+                @click="toggleTag(tag.Name)"
+                class="tag-pill"
+                :class="{ active: selectedTags.includes(tag.Name) }"
+              >
+                {{ tag.Name }}
+              </button>
+            </div>
           </div>
-        </aside>
+        </div>
+      </aside>
 
         <main class="col-12 col-lg-9 order-2 order-lg-2">
           <!-- Category header -->
@@ -128,7 +201,11 @@ onMounted(loadCategoryPosts);
               <p class="fw-medium text-secondary">No posts found in this category.</p>
             </div>
             
-            <PostCard v-for="post in posts" :key="post.postId" :post="post" class="mb-3" />
+            <PostCard v-for="post in visiblePosts" :key="post.postId" :post="post" class="mb-3" />
+
+            <div v-if="visiblePosts.length === 0" class="text-muted fw-bold">
+              No posts match the selected tags.
+            </div>
 
             <!-- Page navigation
              -- TODO: would be nice to add "Go to page" input box
@@ -393,4 +470,56 @@ onMounted(loadCategoryPosts);
     padding: 1px 2px;
   }
 }
+
+<style scoped>
+/* Filter header */
+.filter-header {
+  background: linear-gradient(135deg, #064e3b 0%, #065f46 100%);
+  color: #ffffff;
+}
+
+/* Clear button */
+.clear-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  line-height: 1;
+  background: transparent;
+  border: 1px solid currentColor;
+  color: inherit !important;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  cursor: pointer;
+  opacity: 0.9;
+}
+.clear-btn:hover {
+  text-decoration: underline;
+}
+
+/* Tag pills */
+.tag-pill {
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: rgba(255, 255, 255, 0.65);
+  color: #0f172a;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.08s ease, background 0.15s ease;
+}
+
+.tag-pill:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.tag-pill.active {
+  background: linear-gradient(135deg, #004b33 0%, #003d4c 100%);
+  color: white;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
 </style>

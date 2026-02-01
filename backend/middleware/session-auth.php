@@ -21,6 +21,11 @@ return function (Request $request, RequestHandler $handler) use ($makePdo) {
         return $handler->handle($request);
     }
 
+    // Allow public access to tags endpoint
+    if ($path === '/api/tags' && $request->getMethod() === 'GET') {
+        return $handler->handle($request);
+    }
+
     // Check if the user has a session cookie
     $token = $_COOKIE['session'] ?? '';
     // Block access if there is no session token
