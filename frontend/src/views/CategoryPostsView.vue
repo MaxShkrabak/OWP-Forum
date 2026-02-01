@@ -24,7 +24,6 @@ const sort = ref(localStorage.getItem('category_sort') || 'latest');
 
 const allTags = ref([]);          // [{TagID, Name, UsableByRoleID}, ...]
 const selectedTags = ref([]);     // ['Education', 'Research', ...]
-const requireAllTags = ref(true); // true = A+B, false = A or B
 
 async function fetchTags() {
   try {
@@ -131,7 +130,7 @@ onMounted(async () => {
             <!-- Tag Filter -->
           <div class="card border-0 shadow-sm rounded-3 mt-4 overflow-hidden">
             <div class="filter-header px-3 py-2 d-flex justify-content-between align-items-center">
-              <span class="fw-bold small text-uppercase tracking-wider">Tags</span>
+              <span class="fw-bold small text-uppercase tracking-wider">Filter By Tags</span>
               <button
                 v-if="selectedTags.length > 0"
                 @click="clearTags"
@@ -471,55 +470,55 @@ onMounted(async () => {
   }
 }
 
-<style scoped>
-/* Filter header */
+/* =========================
+   TAG FILTER CARD STYLES
+   ========================= */
+
+/* Header bar */
 .filter-header {
-  background: linear-gradient(135deg, #064e3b 0%, #065f46 100%);
+  background: linear-gradient(135deg, #0b5f43 0%, #0a4f3b 100%);
   color: #ffffff;
 }
 
 /* Clear button */
 .clear-btn {
-  display: inline-flex;
-  align-items: center;
-  padding: 6px 10px;
-  line-height: 1;
-  background: transparent;
-  border: 1px solid currentColor;
-  color: inherit !important;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  color: #ffffff;
   border-radius: 999px;
-  font-size: 0.7rem;
+  padding: 4px 10px;
+  font-size: 0.65rem;
   font-weight: 800;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   cursor: pointer;
-  opacity: 0.9;
-}
-.clear-btn:hover {
-  text-decoration: underline;
 }
 
-/* Tag pills */
+.clear-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* Tag pills (small, clean) */
 .tag-pill {
-  border: 1px solid rgba(0, 0, 0, 0.12);
-  background: rgba(255, 255, 255, 0.65);
-  color: #0f172a;
-  padding: 6px 10px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
   border-radius: 999px;
-  font-size: 0.8rem;
+  padding: 4px 10px;
+  font-size: 0.7rem;
   font-weight: 700;
+  color: #111827;
   cursor: pointer;
-  transition: transform 0.08s ease, background 0.15s ease;
+  transition: all 0.12s ease;
 }
 
 .tag-pill:hover {
-  transform: translateY(-1px);
-  background: rgba(255, 255, 255, 0.9);
+  background: #f8fafc;
 }
 
+/* Active tag */
 .tag-pill.active {
-  background: linear-gradient(135deg, #004b33 0%, #003d4c 100%);
-  color: white;
-  border-color: rgba(255, 255, 255, 0.2);
+  background: #0b5f43;
+  color: #ffffff;
+  border-color: #0b5f43;
 }
-
 </style>
