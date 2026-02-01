@@ -181,13 +181,12 @@ $app->post('/api/posts/votes/bulk', function (Request $req, Response $res) use (
     $stmt = $pdo->prepare("
       SELECT PostID, COALESCE(SUM(VoteValue), 0) AS Score
       FROM dbo.PostLikes
-      WHERE PostID IN (?,?,?)
+      WHERE PostID IN ($placeholders)
       GROUP BY PostID
-
     ");
     $stmt->execute($postIds);
 
-    $scores = [];
+        $scores = [];
     while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
       $scores[(int)$row['PostID']] = (int)$row['Score'];
     }
@@ -196,9 +195,8 @@ $app->post('/api/posts/votes/bulk', function (Request $req, Response $res) use (
     $stmt = $pdo->prepare("
       SELECT PostID, VoteValue
       FROM dbo.PostLikes
-      WHERE PostID IN (?,?,?)
+      WHERE PostID IN ($placeholders)
         AND User_ID = ?
-
     ");
     $stmt->execute(array_merge($postIds, [$userId]));
 
