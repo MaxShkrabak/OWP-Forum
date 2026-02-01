@@ -73,6 +73,19 @@ const filteredCategories = computed(() => {
     .filter(cat => cat.posts.length > 0);
 });
 
+// Detect if any filters are active
+const filtersActive = computed(() =>
+  selectedTags.value.length > 0 ||
+  selectedCategories.value.length > 0 ||
+  categorySearch.value.trim() !== ""
+);
+
+// Clear ALL filters at once
+function clearAllFilters() {
+  selectedTags.value = [];
+  selectedCategories.value = [];
+  categorySearch.value = "";
+}
 
 // Category icon helper
 function getCategoryIcon(categoryName) {
@@ -208,6 +221,16 @@ onMounted(async () => {
           <div v-else-if="error" class="alert alert-danger border-0 shadow-sm">{{ error }}</div>
           
           <template v-else>
+            <!-- Active Filter Banner -->
+            <div v-if="filtersActive" class="active-filter-banner mb-3">
+              <div>
+                <strong>Filters active:</strong>
+                <span v-if="categorySearch"> Search "{{ categorySearch }}"</span>
+                <span v-if="selectedCategories.length"> Categories ({{ selectedCategories.length }})</span>
+                <span v-if="selectedTags.length"> Tags: {{ selectedTags.join(", ") }}</span>
+              </div>
+              <button @click="clearAllFilters">Clear all</button>
+            </div>
             <div v-for="category in filteredCategories" :key="category.categoryId" :id="`category-${category.categoryId}`" class="category-group mb-5">
               <!-- Category Banner -->
               <RouterLink :to="`/categories/${category.categoryId}`" >
@@ -235,6 +258,32 @@ onMounted(async () => {
 .forum-home {
   background-color: #cbdad5;
   min-height: 100vh;
+}
+
+/* Active filter banner */
+.active-filter-banner {
+  background: #ffffff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+}
+
+.active-filter-banner button {
+  border: none;
+  background: #c62828;
+  color: white;
+  padding: 5px 10px;
+  border-radius: 20px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.active-filter-banner button:hover {
+  background: #b71c1c;
 }
 
 .action-buttons-container {
