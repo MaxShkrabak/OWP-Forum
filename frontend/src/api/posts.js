@@ -15,7 +15,7 @@ export async function getTags() {
 }
 
 export async function getCategories() {
-  const { data } = await client.get("/categories");
+  const { data } = await client.get("/verify/categories");
 
   return (data.items || []).map((cat) => ({
     categoryId: Number(cat.CategoryID),

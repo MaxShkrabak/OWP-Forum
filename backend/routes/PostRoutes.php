@@ -340,7 +340,7 @@ $app->get('/api/categories/{id}/posts', function (Request $req, Response $res, a
     }
 });
 
-$app->get('/api/categories', function (Request $req, Response $res) use ($makePdo) {
+$app->get('/api/verify/categories', function (Request $req, Response $res) use ($makePdo) {
     try {
         $userId = $req->getAttribute("user_id");
         $pdo = $makePdo();
