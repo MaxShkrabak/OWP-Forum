@@ -14,6 +14,15 @@ export async function getTags() {
   }));
 }
 
+export async function getCategories() {
+  const { data } = await client.get("/verify/categories");
+
+  return (data.items || []).map((cat) => ({
+    categoryId: Number(cat.CategoryID),
+    name: cat.Name,
+  }));
+}
+
 export async function fetchPosts({ categoryId = null, limit = 5, sort = 'latest', page = 1 } = {}) {
   const endpoint = categoryId 
     ? `/categories/${categoryId}/posts` 

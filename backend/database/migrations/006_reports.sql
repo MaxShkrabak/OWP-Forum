@@ -12,7 +12,8 @@ BEGIN
     ReportID       INT IDENTITY(1,1) PRIMARY KEY,
     ReportUserID   INT NOT NULL REFERENCES dbo.Users(User_ID),
     PostID         INT REFERENCES dbo.Posts(PostID),
-    CommentID      INT REFERENCES dbo.Comments(CommentID),
+    -- TODO: FIX commentID when we make the table
+    CommentID      INT, -- REFERENCES dbo.Comments(CommentID),
     ReportTagID    INT NOT NULL REFERENCES dbo.ReportTags(ReportTagID),
     CreatedAt      DATETIME2(0) NOT NULL DEFAULT(SYSDATETIME()),
     Resolved       BIT NOT NULL DEFAULT(0),
@@ -20,3 +21,17 @@ BEGIN
     ResolvedAt     DATETIME2(0)
   );
 END;
+
+-- Seed ReportTags
+MERGE dbo.ReportTags AS target
+USING (VALUES 
+    ('Spam'),
+    ('Harassment'),
+    ('Inappropriate Content'),
+    ('Misinformation'),
+    ('Other')
+) AS source (TagName)
+ON target.TagName = source.TagName
+WHEN NOT MATCHED BY TARGET THEN
+    INSERT (TagName) VALUES (source.TagName);
+GO

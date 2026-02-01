@@ -4,25 +4,6 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 
 use function Forum\Helpers\json;
 
-$app->get('/api/tags', function (Request $req, Response $res) use ($makePdo) {
-    try {
-        $pdo = $makePdo();
-
-        $getTagsSql = "
-            SELECT TagID, Name
-            FROM dbo.Tags
-            ORDER BY Name ASC
-        ";
-
-        $stmt = $pdo->query($getTagsSql);
-        $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-        return json($res, ['ok' => true, 'items' => $items]);
-    } catch (Throwable $e) {
-        return json($res, ['ok' => false, 'error' => 'Server error: ' . $e->getMessage()], 500);
-    }
-});
-
 $app->post("/api/create-post", function (Request $req, Response $res) use ($makePdo) {
     try {
         $userId = $req->getAttribute("user_id");
@@ -34,10 +15,11 @@ $app->post("/api/create-post", function (Request $req, Response $res) use ($make
         // Tag limit: 5 tags per post
         $data = $req->getParsedBody() ?? [];
         $title = trim((string)($data['title'] ?? ''));
-        $category = trim((string)($data['category'] ?? ''));
+        
+        $categoryIdIn = (int)($data['category'] ?? 0); 
         $content = (string)($data['content'] ?? '');
 
-        if ($title === '' || $content === '' || $category === '') {
+        if ($title === '' || $content === '' || $categoryIdIn === 0) {
             return json($res, ['ok' => false, 'error' => 'Title, content, and category are required.'], 400);
         }
 
@@ -50,19 +32,32 @@ $app->post("/api/create-post", function (Request $req, Response $res) use ($make
 
         // Category section
         $getCategorySql = "
-            SELECT CategoryID 
+            SELECT CategoryID, UsableByRoleID, 
+                   (SELECT RoleID FROM dbo.Users WHERE User_ID = :userId) as UserRole
             FROM dbo.Categories 
-            WHERE Name = :name
+            WHERE CategoryID = :catId
         ";
 
         $catStmt = $pdo->prepare($getCategorySql);
-        $catStmt->execute([':name' => $category]);
-        $categoryId = $catStmt->fetchColumn();
+        $catStmt->execute([
+            ':catId'  => $categoryIdIn, 
+            ':userId' => $userId
+        ]);
+        $categoryData = $catStmt->fetch(PDO::FETCH_ASSOC);
 
-        if (!$categoryId) {
+        if (!$categoryData) {
             $pdo->rollBack();
-            return json($res, ['ok' => false, 'error' => 'Invalid category selected.'], 400);
+            return json($res, ['ok' => false, 'error' => 'Invalid category.'], 400);
         }
+
+        // Check if user has permission to use category
+        $userRole = (int)($categoryData['UserRole'] ?? 1);
+        if ($userRole < (int)$categoryData['UsableByRoleID']) {
+            $pdo->rollBack();
+            return json($res, ['ok' => false, 'error' => 'Permission denied for this category.'], 403);
+        }
+
+        $categoryId = (int)$categoryData['CategoryID'];
 
         // Store post information section
         $storePost = "
@@ -84,10 +79,15 @@ $app->post("/api/create-post", function (Request $req, Response $res) use ($make
 
         if (!empty($tagsIn) && $postId > 0) {
             $placeholders = implode(',', array_fill(0, count($tagsIn), '?'));
-            $checkTagsSql = "SELECT TagID FROM dbo.Tags WHERE TagID IN ($placeholders)";
+    
+            $checkTagsSql = "
+                SELECT TagID FROM dbo.Tags 
+                WHERE TagID IN ($placeholders)
+                AND UsableByRoleID <= ISNULL((SELECT RoleID FROM dbo.Users WHERE User_ID = ?), 1)
+            ";
             
             $checkStmt = $pdo->prepare($checkTagsSql);
-            $checkStmt->execute($tagsIn);
+            $checkStmt->execute(array_merge($tagsIn, [$userId]));
             $validTagIds = $checkStmt->fetchAll(PDO::FETCH_COLUMN, 0);
 
             if (!empty($validTagIds)) {
@@ -119,20 +119,19 @@ $app->post("/api/create-post", function (Request $req, Response $res) use ($make
     }
 });
 
-// TODO:
-
 $app->get('/api/posts', function (Request $req, Response $res) use ($makePdo) {
     try {
         $pdo = $makePdo();
 
         $getPostsSql = "
-            SELECT p.PostID, p.Title, p.CreatedAt, p.CategoryID,
+            SELECT p.PostID, p.Title, p.CreatedAt, p.CategoryID, p.TotalScore,
                    u.FirstName, u.LastName, u.Avatar,
                    r.Name AS RoleName, c.Name AS CategoryName
             FROM dbo.Posts p
             LEFT JOIN dbo.Users u ON p.AuthorID = u.User_ID
             LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
             LEFT JOIN dbo.Categories c ON p.CategoryID = c.CategoryID
+            WHERE p.IsDeleted = 0
             ORDER BY p.CreatedAt DESC
         ";
 
@@ -152,14 +151,16 @@ $app->get('/api/posts', function (Request $req, Response $res) use ($makePdo) {
             WHERE pt.PostID IN ($placeholders)
             ORDER BY t.Name ASC
         ";
+
         $tagStmt = $pdo->prepare($getTagsSql);
         $tagStmt->execute($postIds);
         while ($tag = $tagStmt->fetch(PDO::FETCH_ASSOC)) {
-            $tagsByPostId[(int)$tag['PostID']][] = $tag['Name'];
-        }
 
+            $tagName = $tag['Name'] ?? $tag['name'] ?? 'Unknown';
+            $tagsByPostId[(int)$tag['PostID']][] = $tagName;
+        }       
+        // TODO: Might not need this function call
         $commentCounts = fetchCounts($pdo, 'dbo.Comments', $placeholders, $postIds, 'CommentCount');
-        $likeCounts    = fetchCounts($pdo, 'dbo.PostLikes', $placeholders, $postIds, 'LikeCount');
 
         $posts = [];
         $categoriesMap = [];
@@ -178,7 +179,7 @@ $app->get('/api/posts', function (Request $req, Response $res) use ($makePdo) {
                 'authorAvatar' => $row['Avatar'] ?? null,
                 'tags'         => $tagsByPostId[$pid] ?? [],
                 'commentCount' => $commentCounts[$pid] ?? 0,
-                'likeCount'    => $likeCounts[$pid] ?? 0,
+                'voteCount'    => (int)($row['TotalScore'] ?? 0),
             ];
 
             $posts[] = $post;
@@ -207,7 +208,8 @@ $app->get('/api/posts', function (Request $req, Response $res) use ($makePdo) {
     }
 });
 
-// Helper function to fetch counts for comments and likes
+// Helper function to fetch counts for comments
+// TODO: Probably wont need anymore since I added total score to posts
 // TODO: STILL NEEDS WORK
 function fetchCounts($pdo, $table, $placeholders, $postIds, $countAlias) {
     $counts = [];
@@ -268,12 +270,12 @@ $app->get('/api/categories/{id}/posts', function (Request $req, Response $res, a
         $offset = ($page - 1) * $limit;
 
         $sql = "
-            SELECT p.PostID, p.Title, p.CreatedAt,
+            SELECT p.PostID, p.Title, p.CreatedAt, p.TotalScore,
                    u.FirstName, u.LastName, u.Avatar, r.Name AS RoleName
             FROM dbo.Posts p
             LEFT JOIN dbo.Users u ON p.AuthorID = u.User_ID
             LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
-            WHERE p.CategoryID = :categoryId
+            WHERE p.CategoryID = :categoryId AND p.IsDeleted = 0
             ORDER BY $orderBy
             OFFSET :offset ROWS FETCH NEXT :limit ROWS ONLY
         ";
@@ -301,10 +303,8 @@ $app->get('/api/categories/{id}/posts', function (Request $req, Response $res, a
                 $tagsByPostId[(int)$t['PostID']][] = $t['Name'];
             }
 
-            // TODO: Will be used to fetch comment and vote counts
-            // TODO: likeCounts will need to be VoteCount once table is fixed
+            // TODO: might not need the fetchCounts function
             $commentCounts = fetchCounts($pdo, 'dbo.Comments', $placeholders, $postIds, 'CommentCount');
-            $likeCounts    = fetchCounts($pdo, 'dbo.PostLikes', $placeholders, $postIds, 'LikeCount');
 
             foreach ($rows as $row) {
                 $pid = (int)$row['PostID'];
@@ -317,7 +317,7 @@ $app->get('/api/categories/{id}/posts', function (Request $req, Response $res, a
                     'authorAvatar' => $row['Avatar'] ?? null,
                     'tags'         => $tagsByPostId[$pid] ?? [],
                     'commentCount' => $commentCounts[$pid] ?? 0,
-                    'likeCount'    => $likeCounts[$pid] ?? 0,
+                    'voteCount'    => (int)($row['TotalScore'] ?? 0),
                 ];
             }
         }
@@ -337,5 +337,53 @@ $app->get('/api/categories/{id}/posts', function (Request $req, Response $res, a
 
     } catch (Throwable $e) {
         return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+    }
+});
+
+$app->get('/api/verify/categories', function (Request $req, Response $res) use ($makePdo) {
+    try {
+        $userId = $req->getAttribute("user_id");
+        $pdo = $makePdo();
+
+        $sql = "
+            SELECT c.CategoryID, c.Name 
+            FROM dbo.Categories c
+            WHERE c.UsableByRoleID <= (
+                SELECT COALESCE(MAX(RoleID), 1) 
+                FROM dbo.Users 
+                WHERE User_ID = :userId
+            )
+            ORDER BY c.Name ASC
+        ";
+
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([':userId' => $userId]);
+        $categories = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        return json($res, ['ok' => true, 'items' => $categories]);
+    } catch (Throwable $e) {
+        return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+    }
+});
+
+$app->get('/api/tags', function (Request $req, Response $res) use ($makePdo) {
+    try {
+        $userId = $req->getAttribute("user_id");
+        $pdo = $makePdo();
+
+        $getTagsSql = "
+            SELECT TagID, Name
+            FROM dbo.Tags
+            WHERE UsableByRoleID <= ISNULL((SELECT RoleID FROM dbo.Users WHERE User_ID = :userId), 1)
+            ORDER BY Name ASC
+        ";
+
+        $stmt = $pdo->prepare($getTagsSql);
+        $stmt->execute([':userId' => $userId]);
+        $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        return json($res, ['ok' => true, 'items' => $items]);
+    } catch (Throwable $e) {
+        return json($res, ['ok' => false, 'error' => 'Server error: ' . $e->getMessage()], 500);
     }
 });
