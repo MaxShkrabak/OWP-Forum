@@ -13,6 +13,7 @@ const resolveAvatarPath = (filename) => {
 const defaultAvatar = resolveAvatarPath('default-pfp.png') || '';
 
 export const isLoggedIn = ref(false);
+export const uid= ref(localStorage.getItem('uid' || 0));
 export const fullName= ref(localStorage.getItem('fullName' || ''));
 export const userAvatar = ref(localStorage.getItem('userAvatar') || defaultAvatar);
 export const userRole = ref(localStorage.getItem('userRole') || 'Guest');
@@ -24,7 +25,8 @@ export const syncProfileOnLoad = async () => {
     if (data?.ok && data?.user) {
       const { user } = data;
       isLoggedIn.value = true;
-     
+
+      uid.value = user.User_ID;
       fullName.value = `${user.FirstName} ${user.LastName}`;
       userRole.value = user.RoleName || 'User';
      
@@ -32,6 +34,7 @@ export const syncProfileOnLoad = async () => {
       const avatarPath = resolveAvatarPath(user.Avatar);
       userAvatar.value = avatarPath || defaultAvatar;
 
+      localStorage.setItem('uid', uid.value);
       localStorage.setItem('fullName', fullName.value);
       localStorage.setItem('userRole', userRole.value);
       localStorage.setItem('userAvatar', userAvatar.value);

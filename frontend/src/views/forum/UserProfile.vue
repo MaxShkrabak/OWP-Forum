@@ -2,23 +2,59 @@
 import ForumHeader from '@/components/layout/ForumHeader.vue';
 import pfpModal from '@/components/user/UserPfpModal.vue';
 import UserSettings from '@/components/user/UserSettings.vue';
+import { useRoute, useRouter } from 'vue-router';
+
 
 import PostIcon from '@/assets/img/svg/posts-icon.svg';
 import LikeIcon from '@/assets/img/svg/like-icon.svg';
 import CommIcon from '@/assets/img/svg/comment-icon.svg';
 
-import { ref } from 'vue';
-import { fullName, userAvatar } from '@/stores/userStore';
+import { onMounted, ref } from 'vue';
+import { fullName, userAvatar, uid } from '@/stores/userStore';
+import { fetchPosts as apiGetPosts } from "@/api/posts";
+import PostCard from '@/components/forum/PostCard.vue';
 
+const authorId = uid.value;
 const role = "Admin";
 const postsCount = 0;
 const likesCount = 0;
 const commentsCount = 0;
 const activeTab = ref('yourPosts');
+
+const posts = ref([]);
+const loading = ref(true);
+const error = ref(null);
+
+const currentPage = ref(1);
+const totalPages = ref(1);
+const limit = ref(Number(localStorage.getItem('category_limit')) || 5);
+const sort = ref(localStorage.getItem('category_sort') || 'latest');
+
+async function getPosts() {
+  loading.value = true;
+  error.value = null;
+
+  try {
+    const data = await apiGetPosts({ userId: authorId });
+    posts.value = data.posts || [];
+    
+    if (data.meta) {
+      totalPages.value = data.meta.totalPages || 1;
+    }
+  } catch (e) {
+    console.error("Fetch error:", e);
+    error.value = e.message;
+    posts.value = [];
+  } finally {
+    loading.value = false;
+  }
+}
+ onMounted(getPosts);
 </script>
 
 <template>
   <body>
+    {{ uid }} 
     <ForumHeader />
     <pfpModal/>
     <UserSettings/>
@@ -104,6 +140,9 @@ const activeTab = ref('yourPosts');
             <div class="row mt-3"> <!--Shows the content for the selected filter-->
               <div v-show="activeTab === 'yourPosts'">
                 <em>You have no Posts yet!</em>
+                <div class="container">
+                  <PostCard v-for="post in posts" :key="post.postId" :post="post" class="mb-3" />
+                </div>
               </div>
               <div v-show="activeTab === 'followedPosts'">
                 <em>You don't follow any Posts yet!</em>
@@ -193,6 +232,7 @@ body {
   background-color: rgb(255, 255, 255);
   border-radius: 10px;
   padding: 1%;
+  max-width: 300px;
 }
 
 @media (max-width: 770px) {

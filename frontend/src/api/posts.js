@@ -14,11 +14,15 @@ export async function getTags() {
   }));
 }
 
-export async function fetchPosts({ categoryId = null, limit = 5, sort = 'latest', page = 1 } = {}) {
-  const endpoint = categoryId 
-    ? `/categories/${categoryId}/posts` 
-    : "/posts";
+export async function fetchPosts({ categoryId = null, limit, sort = 'latest', page = 1, userId = null} = {}) {
+  let endpoint = "/posts";
 
+  if(categoryId) {
+    endpoint = `/categories/${categoryId}/posts`;
+  } else if (userId) {
+     endpoint = `/profile/${userId}/posts`;
+  }
+  
   const { data } = await client.get(endpoint, {
     params: { limit, sort, page }
   });

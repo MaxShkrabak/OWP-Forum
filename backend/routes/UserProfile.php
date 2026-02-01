@@ -1,0 +1,103 @@
+<?php
+use Psr\Http\Message\ResponseInterface as Response;
+use Psr\Http\Message\ServerRequestInterface as Request;
+
+use function Forum\Helpers\json;
+
+$app->get('/api/profile/{uid}/posts', function (Request $req, Response $res, array $args) use ($makePdo) {
+    try {
+        // Verify auth
+        $userId = $req->getAttribute('user_id');
+
+        if ($userId === null) {
+            return json($res, ['ok' => false, 'error' => 'Not Authenticated'], 401);
+        }
+        $authorId = (int)$args['uid'];
+
+        $pdo = $makePdo();
+        
+
+        $getPostsSql = "
+            SELECT p.AuthorID, p.PostID, p.Title, p.CreatedAt, p.CategoryID,
+                   u.FirstName, u.LastName, u.Avatar,
+                   r.Name AS RoleName, c.Name AS CategoryName
+            FROM dbo.Posts p
+            LEFT JOIN dbo.Users u ON p.AuthorID = u.User_ID
+            LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
+            LEFT JOIN dbo.Categories c ON p.CategoryID = c.CategoryID
+            WHERE p.AuthorID = :uid
+            ORDER BY p.CreatedAt DESC
+        ";
+
+        $rowstmt = $pdo->prepare($getPostsSql);
+        $rowstmt->execute(['uid' => $authorId]);
+        $rows = $rowstmt->fetchAll(PDO::FETCH_ASSOC);
+        if (empty($rows)) {
+            return json($res, ['posts' => [], 'postsByCategory' => [], 'totalPosts' => 0]);
+        }
+
+        $postIds = array_map(fn($r) => (int)$r['PostID'], $rows);
+        $placeholders = implode(',', array_fill(0, count($postIds), '?'));
+
+        $tagsByPostId = [];
+        $getTagsSql = "
+            SELECT pt.PostID, t.Name
+            FROM dbo.PostTags pt
+            JOIN dbo.Tags t ON t.TagID = pt.TagID
+            WHERE pt.PostID IN ($placeholders)
+            ORDER BY t.Name ASC
+        ";
+        $tagStmt = $pdo->prepare($getTagsSql);
+        $tagStmt->execute($postIds);
+        while ($tag = $tagStmt->fetch(PDO::FETCH_ASSOC)) {
+            $tagsByPostId[(int)$tag['PostID']][] = $tag['Name'];
+        }
+
+        $commentCounts = fetchCounts($pdo, 'dbo.Comments', $placeholders, $postIds, 'CommentCount');
+        $likeCounts    = fetchCounts($pdo, 'dbo.PostLikes', $placeholders, $postIds, 'LikeCount');
+
+        $posts = [];
+        $categoriesMap = [];
+
+        foreach ($rows as $row) {
+            $pid = (int)$row['PostID'];
+            $catId = (int)$row['CategoryID'];
+
+            $post = [
+                'postId'       => $pid,
+                'categoryId'   => $catId,
+                'title'        => $row['Title'],
+                'createdAt'    => $row['CreatedAt'],
+                'authorName'   => trim(($row['FirstName'] ?? '') . ' ' . ($row['LastName'] ?? '')),
+                'authorRole'   => $row['RoleName'] ?? 'User',
+                'authorAvatar' => $row['Avatar'] ?? null,
+                'tags'         => $tagsByPostId[$pid] ?? [],
+                'commentCount' => $commentCounts[$pid] ?? 0,
+                'likeCount'    => $likeCounts[$pid] ?? 0,
+            ];
+
+            $posts[] = $post;
+
+            if (!isset($categoriesMap[$catId])) {
+                $categoriesMap[$catId] = [
+                    'categoryId'   => $catId,
+                    'categoryName' => $row['CategoryName'] ?? 'Uncategorized',
+                    'posts'        => []
+                ];
+            }
+            $categoriesMap[$catId]['posts'][] = $post;
+        }
+
+        $postsByCategory = array_values($categoriesMap);
+        usort($postsByCategory, fn($a, $b) => strcmp($a['categoryName'], $b['categoryName']));
+
+        return json($res, [
+            'posts'           => $posts,
+            'postsByCategory' => $postsByCategory,
+            'totalPosts'      => count($posts),
+        ]);
+
+    } catch (Throwable $e) {
+        return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+    }
+});
