@@ -19,23 +19,46 @@ const selectedCategories = ref([]);
 
 const INITIAL_LIMIT = 5; // post limit per category
 
-// Fetch posts and initialize category state
+function getPostId(p) {
+  return p.postId ?? p.PostID ?? p.postID ?? p.id;
+}
+
 async function fetchPosts() {
   loading.value = true;
-  error.value = null;
+
+  const data = await apiGetPosts();
+  const allPosts = data.postsByCategory.flatMap(c => c.posts);
+
+  const postIds = allPosts.map(getPostId).filter(Boolean);
+
+  let votes = {};
+
   try {
-    const data = await apiGetPosts();
-    if (data) {
-      postsByCategory.value = data.postsByCategory || [];
-      totalPosts.value = data.totalPosts || 0;
-    }
+    const res = await fetch("/api/posts/votes/bulk", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ postIds })
+    });
+
+    const bulk = await res.json().catch(() => ({}));
+    if (res.ok && bulk.ok) votes = bulk.votes || {};
   } catch (e) {
-    console.error("Error fetching posts:", e);
-    error.value = e.message;
-  } finally {
-    loading.value = false;
+    console.error("bulk vote fetch failed", e);
   }
+
+  allPosts.forEach(p => {
+    const id = getPostId(p);
+    const v = votes[id] || {};
+    p.myVote = Number(v.myVote ?? 0);
+    p.score  = Number(v.score  ?? 0);
+  });
+
+  postsByCategory.value = data.postsByCategory;
+  totalPosts.value = data.totalPosts;
+  loading.value = false;
 }
+
 
 // Handle category filtering via search and selection
 const filteredCategories = computed(() => {

@@ -2,6 +2,7 @@
 import { RouterLink } from "vue-router";
 import { timeAgo } from "@/utils/timeAgo";
 import UserRole from "@/components/UserRole.vue";
+import { ref, watch } from "vue";
 
 const props = defineProps({
   post: {
@@ -10,9 +11,54 @@ const props = defineProps({
   },
 });
 
+const myVote = ref(0);
+const score = ref(0);
+
+watch(
+  () => [props.post.myVote, props.post.score],
+  ([v, s]) => {
+    myVote.value = Number(v ?? 0);
+    score.value = Number(s ?? 0);
+  },
+  { immediate: true }
+);
+
+
 function getAvatarSrc(file) {
   return new URL(`../assets/img/user-pfps-premade/${file}`, import.meta.url).href;
 }
+
+// IMPORTANT: use the actual post id key your component has
+function getPostId() {
+  return props.post.postId ?? props.post.PostID ?? props.post.postID ?? props.post.id;
+}
+
+async function vote(dir) {
+  const postId = getPostId();
+
+  // Toggle behavior: clicking same direction clears
+  let action = dir; // 'up' or 'down'
+  if ((dir === "up" && myVote.value === 1) || (dir === "down" && myVote.value === -1)) {
+    action = "clear";
+  }
+
+  const res = await fetch(`/api/posts/${postId}/vote`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ action })
+  });
+  const data = await res.json().catch(() => ({}));
+
+  if (data.ok) {
+    myVote.value = Number(data.myVote ?? 0);
+    score.value = Number(data.score ?? 0);
+  }
+}
+console.log('POST OBJ', props.post);
+console.log('ID USED', getPostId());
+
+
 </script>
 
 <template>
@@ -21,9 +67,23 @@ function getAvatarSrc(file) {
       <div class="main-content-area">
         <!-- Voting Section-->
         <div class="vote-container">
-          <button class="vote-btn up"><i class="pi pi-chevron-up"></i></button>
-          <span class="vote-count">{{ post.likeCount }}</span>
-          <button class="vote-btn down"><i class="pi pi-chevron-down"></i></button>
+          <button
+            class="vote-btn up"
+            :class="{ active: myVote === 1 }"
+            @click="vote('up')"
+          >
+            <i class="pi pi-chevron-up"></i>
+          </button>
+
+          <span class="vote-count">{{ score }}</span>
+
+          <button
+            class="vote-btn down"
+            :class="{ active: myVote === -1 }"
+            @click="vote('down')"
+          >
+            <i class="pi pi-chevron-down"></i>
+          </button>
         </div>
 
         <div class="title-and-meta-column">
@@ -219,6 +279,17 @@ function getAvatarSrc(file) {
   font-size: 0.85rem;
   color: #1a1a1b;
   margin: -2px 0;
+}
+
+.vote-btn.active { 
+  color: orange;
+  font-weight: bold; 
+}
+
+
+.vote-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .post-tag {
