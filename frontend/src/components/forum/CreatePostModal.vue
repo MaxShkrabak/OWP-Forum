@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import Editor from "primevue/editor";
-import { createPost, getTags } from "@/api/posts";
+import { createPost, getTags, getCategories } from "@/api/posts";
 import { uploadImage } from "@/api/media";
 import { fullName, userAvatar, isLoggedIn, userRole } from "@/stores/userStore";
 import UserRole from "@/components/user/UserRole.vue";
@@ -30,6 +30,7 @@ const tagSearch = ref("");
 const showTagPopup = ref(false);
 const allTags = ref([]);
 const tagContainerRef = ref(null);
+const allCategories = ref([]);
 
 // Validation
 const hasUnsavedChanges = computed(() => {
@@ -60,6 +61,15 @@ async function loadTags() {
     allTags.value = await getTags();
   } catch (e) { 
     console.error("Tag load error:", e);
+  }
+}
+
+// Category Logic
+async function loadCategories() {
+  try {
+    allCategories.value = await getCategories();
+  } catch (e) {
+    console.error("Category load error:", e);
   }
 }
 
@@ -153,6 +163,7 @@ async function doPublish() {
 
 onMounted(() => {
   loadTags();
+  loadCategories();
   document.addEventListener("mousedown", handleClickOutside);
 });
 
@@ -209,10 +220,9 @@ onUnmounted(() => {
                 <label class="form-label-small">Category<span v-if="!form.category" class="star-red">*</span></label>
                 <select v-model="form.category" class="clean-select-rect">
                   <option value="">Select Category</option>
-                  <option>Announcements & News</option>
-                  <option>Training Courses</option>
-                  <option>Research Projects</option>
-                  <option>Help</option>
+                  <option v-for="cat in allCategories" :key="cat.categoryId" :value="cat.categoryId">
+                    {{ cat.name }}
+                  </option>
                 </select>
               </div>
               

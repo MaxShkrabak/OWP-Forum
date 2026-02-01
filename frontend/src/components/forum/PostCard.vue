@@ -22,7 +22,7 @@ function getAvatarSrc(file) {
         <!-- Voting Section-->
         <div class="vote-container">
           <button class="vote-btn up"><i class="pi pi-chevron-up"></i></button>
-          <span class="vote-count">{{ post.likeCount }}</span>
+          <span class="vote-count">{{ post.voteCount }}</span>
           <button class="vote-btn down"><i class="pi pi-chevron-down"></i></button>
         </div>
 
