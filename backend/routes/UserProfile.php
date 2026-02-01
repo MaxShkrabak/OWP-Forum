@@ -16,6 +16,26 @@ $app->get('/api/profile/{uid}/posts', function (Request $req, Response $res, arr
 
         $pdo = $makePdo();
         
+        $params = $req->getQueryParams();
+        
+        $limit = min(max((int)($params['limit'] ?? 5), 1), 50);
+        $page  = max((int)($params['page'] ?? 1), 1);
+        
+        // Sorting options
+        $sort = strtolower($params['sort'] ?? 'latest');
+        $orderBy = match($sort) {
+            'oldest' => 'p.CreatedAt ASC',
+            'title'  => 'p.Title ASC',
+            default  => 'p.CreatedAt DESC',
+        };
+
+        $countStmt = $pdo->prepare("SELECT COUNT(*) FROM dbo.Posts WHERE AuthorID = :uid");
+        $countStmt->execute(['uid' => $authorId]);
+        $totalPosts = (int)$countStmt->fetchColumn();
+
+        $totalPages = (int)ceil($totalPosts / $limit);
+        $page = ($page > $totalPages && $totalPages > 0) ? $totalPages : $page;
+        $offset = ($page - 1) * $limit;
 
         $getPostsSql = "
             SELECT p.AuthorID, p.PostID, p.Title, p.CreatedAt, p.CategoryID,
@@ -26,7 +46,8 @@ $app->get('/api/profile/{uid}/posts', function (Request $req, Response $res, arr
             LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
             LEFT JOIN dbo.Categories c ON p.CategoryID = c.CategoryID
             WHERE p.AuthorID = :uid
-            ORDER BY p.CreatedAt DESC
+            ORDER BY $orderBy
+            OFFSET $offset ROWS FETCH NEXT $limit ROWS ONLY
         ";
 
         $rowstmt = $pdo->prepare($getPostsSql);
@@ -95,6 +116,13 @@ $app->get('/api/profile/{uid}/posts', function (Request $req, Response $res, arr
             'posts'           => $posts,
             'postsByCategory' => $postsByCategory,
             'totalPosts'      => count($posts),
+            'meta'         => [
+                'limit'      => $limit,
+                'sort'       => ($sort === 'oldest' || $sort === 'title') ? $sort : 'latest',
+                'page'       => $page,
+                'totalPosts' => $totalPosts,
+                'totalPages' => $totalPages,
+            ],
         ]);
 
     } catch (Throwable $e) {
