@@ -200,9 +200,12 @@ $app->get('/api/posts', function (Request $req, Response $res) use ($makePdo) {
             $categoriesMap[$catId]['posts'][] = $post;
         }
 
+        $postsByCategory = array_values($categoriesMap);
+        usort($postsByCategory, fn($a, $b) => strcmp($a['categoryName'], $b['categoryName']));
+
         return json($res, [
             'posts'           => $posts,
-            'postsByCategory' => array_values($categoriesMap),
+            'postsByCategory' => $postsByCategory,
             'totalPosts'      => count($posts),
         ]);
 
