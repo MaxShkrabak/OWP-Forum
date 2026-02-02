@@ -55,8 +55,6 @@ async function vote(dir) {
     score.value = Number(data.score ?? 0);
   }
 }
-console.log('POST OBJ', props.post);
-console.log('ID USED', getPostId());
 
 
 </script>

@@ -9,6 +9,7 @@ import ViewReportsButton from "@/components/ViewReportsButton.vue";
 import { isLoggedIn } from "@/stores/userStore";
 import { fetchPosts as apiGetPosts } from "@/api/auth";
 import { getPaginationRange } from '@/utils/pagination';
+import { loadVotesForPosts, getPostId } from "@/utils/voteService";
 
 const route = useRoute();
 const router = useRouter();
@@ -34,9 +35,14 @@ async function loadCategoryPosts() {
       page: currentPage.value
     });
 
-    posts.value = data.posts || [];
+    const allPosts = data.posts || [];
     categoryName.value = data.categoryName || 'Category';
-    
+
+    // fetch votes for these posts
+    await loadVotesForPosts(allPosts);
+
+    posts.value = allPosts;
+
     if (data.meta) {
       totalPages.value = data.meta.totalPages || 1;
     }
@@ -128,7 +134,7 @@ onMounted(loadCategoryPosts);
               <p class="fw-medium text-secondary">No posts found in this category.</p>
             </div>
             
-            <PostCard v-for="post in posts" :key="post.postId" :post="post" class="mb-3" />
+            <PostCard v-for="post in posts" :key="getPostId(post)" :post="post" class="mb-3" />
 
             <!-- Page navigation
              -- TODO: would be nice to add "Go to page" input box

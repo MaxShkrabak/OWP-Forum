@@ -8,6 +8,7 @@ import { isLoggedIn } from "@/stores/userStore";
 import UserCard from "@/components/UserCard.vue";
 import ViewReportsButton from "@/components/ViewReportsButton.vue";
 import PostCard from "@/components/PostCard.vue";
+import { loadVotesForPosts } from "@/utils/voteService";
 
 const postsByCategory = ref([]);
 const totalPosts = ref(0);
@@ -29,30 +30,8 @@ async function fetchPosts() {
   const data = await apiGetPosts();
   const allPosts = data.postsByCategory.flatMap(c => c.posts);
 
-  const postIds = allPosts.map(getPostId).filter(Boolean);
-
-  let votes = {};
-
-  try {
-    const res = await fetch("/api/posts/votes/bulk", {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ postIds })
-    });
-
-    const bulk = await res.json().catch(() => ({}));
-    if (res.ok && bulk.ok) votes = bulk.votes || {};
-  } catch (e) {
-    console.error("bulk vote fetch failed", e);
-  }
-
-  allPosts.forEach(p => {
-    const id = getPostId(p);
-    const v = votes[id] || {};
-    p.myVote = Number(v.myVote ?? 0);
-    p.score  = Number(v.score  ?? 0);
-  });
+    // fetch votes for these posts
+    await loadVotesForPosts(allPosts);
 
   postsByCategory.value = data.postsByCategory;
   totalPosts.value = data.totalPosts;
