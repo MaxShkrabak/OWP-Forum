@@ -3,45 +3,48 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Http\Server\RequestHandlerInterface as RequestHandler;
 use Slim\Psr7\Response;
 
+use function Forum\Helpers\json;
+
 return function (Request $request, RequestHandler $handler) use ($makePdo) {
-    $public = ['/api/login', '/api/register-new-user', '/api/verify-email']; // routes accessible to unregistered users
-
-    // Get that path of the URL for the incoming request
     $path = $request->getUri()->getPath();
-    if (in_array($path, $public) || strtoupper($request->getMethod()) === 'OPTIONS') {
-        return $handler->handle($request);
-    }
-    if (strpos($path, '/api/categories') === 0 && $request->getMethod() === 'GET') {
-        return $handler->handle($request);
-    }
-    // Allow public access to homepage posts endpoint
-    if ($path === '/api/posts' && $request->getMethod() === 'GET') {
-        return $handler->handle($request);
+    $method = $request->getMethod();
+
+    // TODO: Probably better way to manage public routes (will try to figure out later)
+    // Basic public routes
+    $publicRoutes = [
+        '/api/login'             => ['POST'],
+        '/api/register-new-user' => ['POST'],
+        '/api/verify-email'      => ['GET', 'POST'],
+        '/api/posts'             => ['GET'],
+    ];
+
+    // Check if route is public
+    $isPublic = ($method === 'OPTIONS')
+        || (isset($publicRoutes[$path]) && in_array($method, $publicRoutes[$path]))
+        || ($method === 'GET' && str_starts_with($path, '/api/categories'));
+
+    $token = $request->getCookieParams()['session'] ?? '';
+    $session = null;
+
+    if ($token) {
+        $tokenHash = hash_hmac('sha256', $token, $_ENV['HMAC_KEY']);
+        $stmt = $makePdo()->prepare('SELECT User_ID, Expires FROM dbo.Sessions WHERE Token_Hash = ?');
+        $stmt->execute([$tokenHash]);
+        $session = $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
-    // Check if the user has a session cookie
-    $token = $_COOKIE['session'] ?? '';
-    // Block access if there is no session token
-    if (!$token) {
-        $resp = new Response();
-        $resp->getBody()->write(json_encode(['ok' => false, 'error' => 'Not authenticated']));
-        return $resp->withStatus(401)->withHeader('Content-Type', 'application/json');
+    // Check if session is still valid
+    $active = $session && (new DateTime() < new DateTime($session['Expires']));
+    if (!$active && !$isPublic) {
+        return json(new Response(), [
+            'ok'    => false,
+            'error' => $token ? 'Session expired' : 'Not authenticated'
+        ], 401);
     }
 
-    // Check that tokenHash matches the one stored in the database
-    $tokenHash = hash_hmac('sha256', $token, $_ENV['HMAC_KEY']);
-    $pdo = $makePdo();
-    $stmt = $pdo->prepare('SELECT User_ID, Expires FROM dbo.Sessions WHERE Token_Hash = ?');
-    $stmt->execute([$tokenHash]);
-    $session = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    // The session expired
-    if (!$session || new DateTime() > new DateTime($session['Expires'])) {
-        $resp = new Response();
-        $resp->getBody()->write(json_encode(['ok' => false, 'error' => 'Session expired']));
-        return $resp->withStatus(401)->withHeader('Content-Type', 'application/json');
+    if ($active) {
+        $request = $request->withAttribute('user_id', $session['User_ID']);
     }
 
-    $request = $request->withAttribute('user_id', $session['User_ID']);
     return $handler->handle($request);
 };

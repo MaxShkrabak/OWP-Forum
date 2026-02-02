@@ -1,37 +1,90 @@
 <script setup>
+import { ref, watch  } from "vue";
 import { RouterLink } from "vue-router";
 import { timeAgo } from "@/utils/timeAgo";
 import UserRole from "@/components/user/UserRole.vue";
+import { votePost } from "@/api/posts";
+import { isLoggedIn } from "@/stores/userStore";
 
 const props = defineProps({
-  post: {
-    type: Object,
-    required: true
-  },
+  post: { type: Object, required: true },
 });
+
+const isVoting = ref(false);
+
+async function handleVote(dir) {
+  if (isVoting.value) return;
+
+  const currentVote = Number(props.post.myVote ?? 0);
+ 
+  let action = dir;
+  if ((dir === "up" && currentVote === 1) || (dir === "down" && currentVote === -1)) {
+    action = "clear";
+  }
+
+  isVoting.value = true;
+
+  try {
+    const data = await votePost(props.post.PostID, action);
+
+
+    if (data.ok) {
+      props.post.myVote = data.myVote;
+      props.post.TotalScore = data.score;
+    }
+  } catch (err) {
+    console.error("Vote error:", err);
+  } finally {
+    isVoting.value = false;
+  }
+}
 
 function getAvatarSrc(file) {
   return new URL(`../../assets/img/user-pfps-premade/${file}`, import.meta.url).href;
 }
+
+watch(isLoggedIn, (loggedIn) => {
+  if (!loggedIn) {
+    props.post.myVote = 0;
+  }
+});
 </script>
 
 <template>
   <div class="post-card shadow-sm mb-3">
     <div class="responsive-container">
       <div class="main-content-area">
-        <!-- Voting Section-->
         <div class="vote-container">
-          <button class="vote-btn up"><i class="pi pi-chevron-up"></i></button>
-          <span class="vote-count">{{ post.voteCount }}</span>
-          <button class="vote-btn down"><i class="pi pi-chevron-down"></i></button>
+          <button
+            class="vote-btn up"
+            :class="{ active: Number(post.myVote) === 1, 'is-voting': isVoting }"
+            @click="handleVote('up')"
+          >
+            <i class="pi pi-chevron-up"></i>
+          </button>
+
+          <span class="vote-count" :class="{ 'bump-active': isVoting }">
+            {{ post.TotalScore ?? 0 }}
+          </span>
+
+          <button
+            class="vote-btn down"
+            :class="{ active: Number(post.myVote) === -1, 'is-voting': isVoting }"
+            @click="handleVote('down')"
+          >
+            <i class="pi pi-chevron-down"></i>
+          </button>
         </div>
 
         <div class="title-and-meta-column">
-          <!-- Author section for smaller devices -->
           <div class="mobile-author-header">
             <div class="author-info-wrap-v2">
               <div class="avatar-box-v2">
-                <img :src="getAvatarSrc(post.authorAvatar)" class="avatar-img" alt="user" />
+                <img
+                  :src="getAvatarSrc(post.authorAvatar)"
+                  class="avatar-img"
+                  alt="user"
+                />
               </div>
               <div class="d-flex flex-column">
                 <span class="author-name-v2">{{ post.authorName }}</span>
@@ -43,18 +96,18 @@ function getAvatarSrc(file) {
             </div>
           </div>
 
-          <!-- Title of the post -->
           <div class="title-row">
-            <RouterLink :to="`/posts/${post.postId}`" class="post-title-link">
+            <RouterLink :to="`/posts/${post.PostID}`" class="post-title-link">
               {{ post.title }}
             </RouterLink>
           </div>
-          <!-- Tags section -->
+
           <div class="d-flex flex-wrap gap-2 mb-2">
-            <span v-for="tag in post.tags" :key="tag" class="post-tag">{{ tag }}</span>
+            <span v-for="tag in post.tags" :key="tag" class="post-tag">{{
+              tag
+            }}</span>
           </div>
 
-          <!-- Comments and Report -->
           <div class="meta-footer">
             <div class="meta-item">
               <i class="pi pi-comment me-1"></i>
@@ -67,7 +120,6 @@ function getAvatarSrc(file) {
         </div>
       </div>
 
-      <!-- Author section for larger devices -->
       <div class="author-block desktop-only-author">
         <div class="text-secondary date">
           {{ timeAgo(post.createdAt) }}
@@ -79,7 +131,11 @@ function getAvatarSrc(file) {
             <UserRole :role="post.authorRole" />
           </div>
           <div class="avatar-box shadow-sm">
-            <img :src="getAvatarSrc(post.authorAvatar)" class="avatar-img" alt="user" />
+            <img
+              :src="getAvatarSrc(post.authorAvatar)"
+              class="avatar-img"
+              alt="user"
+            />
           </div>
         </div>
       </div>
@@ -97,7 +153,7 @@ function getAvatarSrc(file) {
 }
 .post-card:hover {
   transform: translateY(-3px);
-  border-color: #2E6C44;
+  border-color: #2e6c44;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
 }
 
@@ -193,7 +249,7 @@ function getAvatarSrc(file) {
   min-width: 0;
 }
 .post-title-link:hover {
-  color: #2E6C44;
+  color: #2e6c44;
   text-decoration: underline;
 }
 
@@ -221,8 +277,18 @@ function getAvatarSrc(file) {
   margin: -2px 0;
 }
 
+.vote-btn.active {
+  color: orange;
+  font-weight: bold;
+}
+
+.vote-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .post-tag {
-  background: #2E6C44;
+  background: #2e6c44;
   color: white;
   font-size: 0.65rem;
   font-weight: 700;
@@ -297,11 +363,9 @@ function getAvatarSrc(file) {
   .responsive-container {
     gap: 20px;
   }
-
   .mobile-author-header {
     display: none;
   }
-
   .desktop-only-author {
     display: flex;
     align-items: center;
