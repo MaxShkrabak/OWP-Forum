@@ -22,7 +22,6 @@ const likesCount = 0;
 const commentsCount = 0;
 const activeTab = ref('yourPosts');
 
-const route = useRoute();
 const router = useRouter();
 const posts = ref([]);
 const loading = ref(true);
@@ -91,7 +90,7 @@ const displayedPages = computed(() => {
 watch(currentPage, getPosts);
 watch(activeTab, getPosts);
 
- onMounted(getPosts);
+onMounted(getPosts);
 </script>
 
 <template>
@@ -157,24 +156,21 @@ watch(activeTab, getPosts);
               <div class="v-divider"></div>
               
               <div>
-                <span class="category-badge">Looking at</span>
-                <h4 class="category-title">
-                  <div class="row justify-content-evenly filter"> <!--Filter bar-->
+                  <div class="row justify-content-evenly pr-3 fs-4 gap-4"> <!--Filter bar-->
               
-              <button class="col-md-auto active text-white" @click="activeTab = 'yourPosts'">
-                <h4>Your Posts</h4>
-                <div class="activeLine" v-show="activeTab === 'yourPosts'"></div>
-              </button>
-              <button class="col-md-auto active text-white" @click="activeTab = 'followedPosts'">
-                <h4>Followed Posts</h4>
-                <div class="activeLine" v-show="activeTab === 'followedPosts'"></div>
-              </button>
-              <button class="col-md-auto active text-white" @click="activeTab = 'likedPosts'">
-                <h4>Liked Posts</h4>
-                <div class="activeLine align-top" v-show="activeTab === 'likedPosts'"></div>
-              </button>
-              </div>
-            </h4>
+                    <button class="col-12 col-sm-12 col-lg-auto filter-options" :class="{ 'activeBox' : activeTab === 'yourPosts' }" @click="activeTab = 'yourPosts'">
+                      <span class="activeText">Your Posts</span>
+                      <div class="activeLine"></div>
+                    </button>
+                    <button class="col-12 col-sm-12 col-lg-auto filter-options" :class="{ 'activeBox' : activeTab === 'followedPosts' }" @click="activeTab = 'followedPosts'">
+                      <span class="activeText">Followed Posts</span>
+                      <div class="activeLine"></div>
+                    </button>
+                    <button class="col-12 col-sm-12 col-lg-auto filter-options" :class="{ 'activeBox' : activeTab === 'likedPosts' }" @click="activeTab = 'likedPosts'">
+                      <span class="activeText">Liked Posts</span>
+                      <div class="activeLine"></div>
+                    </button>
+                  </div>
               </div>
             </div>
 
@@ -182,6 +178,7 @@ watch(activeTab, getPosts);
             <div class="header-sorting">
               <div class="sort-pill">
                 <span class="sort-label">Limit</span>
+                <span class="sort-label sort-label-long">Limit amount of posts</span>
                 <select v-model="limit" class="sort-select">
                   <option v-for="n in [5, 10, 15, 20]" :key="n" :value="n">{{ n }}</option>
                 </select>
@@ -189,6 +186,7 @@ watch(activeTab, getPosts);
             
               <div class="sort-pill">
                 <span class="sort-label">Sort</span>
+                <span class="sort-label sort-label-long">Sort the posts by</span>
                 <select v-model="sort" class="sort-select">
                   <option value="latest">Latest</option>
                   <option value="oldest">Oldest</option>
@@ -302,9 +300,10 @@ watch(activeTab, getPosts);
   margin: 0;
   font-size: clamp(1.1rem, 3vw, 1.5rem);
   font-weight: 700;
-  color: #ffffff;
+  color: #fff8f8;
   line-height: 1.2;
   overflow-wrap: break-word;
+  gap: 30px;
 }
 
 .header-sorting {
@@ -329,6 +328,9 @@ watch(activeTab, getPosts);
   text-transform: uppercase;
   color: rgba(255, 255, 255, 0.5);
   letter-spacing: 0.8px;
+}
+.sort-label-long {
+  display: none;
 }
 .sort-select {
   background: rgba(255, 255, 255, 0.05);
@@ -421,6 +423,27 @@ watch(activeTab, getPosts);
   padding: 3rem;
 }
 
+@media (max-width: 1340px) {
+  .header-sorting {
+    width: 100%;
+    justify-content: space-around;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding-top: 1rem;
+    margin-top: 1rem;
+  }
+  .sort-pill {
+    flex: 1;
+    width: 40%;
+    justify-content: space-between;
+  }
+  .sort-label {
+    display: none;
+  }
+  .sort-label-long {
+    display: inline;
+  }
+}
+
 @media (min-width: 992px) {
   .sticky-sidebar {
     position: sticky;
@@ -444,6 +467,12 @@ watch(activeTab, getPosts);
     flex: 1;
     justify-content: space-between;
   }
+  .sort-label {
+    display: inline;
+  }
+  .sort-label-long {
+    display: none;
+  }
 }
 
 @media (max-width: 350px) {
@@ -457,9 +486,6 @@ watch(activeTab, getPosts);
     border-radius: 8px;
     flex-shrink: 0;
   }
-  .category-title {
-    font-size: 1.25rem !important;
-  }
   .sort-pill {
     padding: 4px 4px 4px 6px;
     gap: 3px;
@@ -470,11 +496,27 @@ watch(activeTab, getPosts);
   }
 }
 
-.activeLine {
-  background-color: rgb(139, 139, 253);
-  width: 100%;
-  height: 3px;
-  border-radius: 30%;
+
+.filter-options {
+  background: none;
+  border: none;
+  font-weight: bold;
+  color: rgba(255, 255, 255, 0.658);
+}
+
+.activeBox {
+  .activeText {
+    color: white;
+    text-shadow: 0 3px 1px rgba(255, 255, 255, 0.021);
+  }
+  .activeLine {
+    background-color: #6dbe4b;
+    width: 100%;
+    height: 3px;
+    border-radius: 10px;
+    margin-top: 6px;
+    box-shadow: 0 2px 8px #6ebe4b86;
+  }
 }
 
 .user-pfp-btn {
@@ -491,23 +533,6 @@ img.user-icon:hover {
   border-radius: 25%;
   border: 5px solid rgb(45, 149, 209);
   transition: border-radius 0.3s ease-in, border 0.2s ease-in-out;
-}
-.filter {
-  border-radius: 10px;
-  padding-top: 1%;
-  padding-bottom: 1%;
-  margin-top: 10px;
-}
-.filter button {
-  background-color: transparent;
-  border: transparent;
-  border-radius: 10px;
-  cursor: pointer;
-}
-.filter-divider {
-  width: 1px;
-  background-color: black;
-  height: 85%;
 }
 
 .btn {

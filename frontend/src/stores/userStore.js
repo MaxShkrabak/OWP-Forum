@@ -1,4 +1,4 @@
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
 import { checkAuth, logout } from '@/api/auth';
 
 // Import all images to get default avatar
@@ -13,8 +13,8 @@ const resolveAvatarPath = (filename) => {
 const defaultAvatar = resolveAvatarPath('default-pfp.png') || '';
 
 export const isLoggedIn = ref(false);
-export const uid= ref(localStorage.getItem('uid' || 0));
-export const fullName= ref(localStorage.getItem('fullName' || ''));
+export const uid = ref(localStorage.getItem('uid') || 0);
+export const fullName = ref(localStorage.getItem('fullName') || '');
 export const userAvatar = ref(localStorage.getItem('userAvatar') || defaultAvatar);
 export const userRole = ref(localStorage.getItem('userRole') || 'Guest');
 
