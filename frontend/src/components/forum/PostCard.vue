@@ -56,23 +56,19 @@ watch(isLoggedIn, (loggedIn) => {
       <div class="main-content-area">
         <div class="vote-container">
           <button
-            class="vote-btn up"
+            class="vote-btn-up pi pi-chevron-up mb-1"
             :class="{ active: Number(post.myVote) === 1, 'is-voting': isVoting }"
-            @click="handleVote('up')"
-          >
-            <i class="pi pi-chevron-up"></i>
+            @click="handleVote('up')">
           </button>
 
-          <span class="vote-count" :class="{ 'bump-active': isVoting }">
+          <span class="vote-count">
             {{ post.TotalScore ?? 0 }}
           </span>
 
           <button
-            class="vote-btn down"
+            class="vote-btn-down pi pi-chevron-down mt-1"
             :class="{ active: Number(post.myVote) === -1, 'is-voting': isVoting }"
-            @click="handleVote('down')"
-          >
-            <i class="pi pi-chevron-down"></i>
+            @click="handleVote('down')">
           </button>
         </div>
 
@@ -261,13 +257,44 @@ watch(isLoggedIn, (loggedIn) => {
   flex-shrink: 0;
 }
 
-.vote-btn {
+.vote-btn-up,
+.vote-btn-down {
   background: none;
   border: none;
-  color: #adb5bd;
+  color: #bac7c4;
   font-size: 1rem;
   padding: 0;
   cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.vote-btn-up:hover {
+  color: #007a4c;
+  transform: translateY(-1px);
+  text-shadow: 0 4px 2px #007a4b8a;
+}
+.vote-btn-down:hover {
+  color: #9f3323;
+  transform: translateY(1px);
+  text-shadow: 0 -4px 2px #9f342385;
+}
+
+.vote-btn-up.active,
+.vote-btn-down.active {
+  scale: 115%;
+}
+
+.vote-btn-up.active {
+  color: #007a4c;
+}
+.vote-btn-down.active {
+  color: #9f3323;
+}
+
+.vote-btn-up:disabled,
+.vote-btn-down:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .vote-count {
@@ -275,16 +302,6 @@ watch(isLoggedIn, (loggedIn) => {
   font-size: 0.85rem;
   color: #1a1a1b;
   margin: -2px 0;
-}
-
-.vote-btn.active {
-  color: orange;
-  font-weight: bold;
-}
-
-.vote-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
 }
 
 .post-tag {
