@@ -27,7 +27,6 @@ async function handleVote(dir) {
   try {
     const data = await votePost(props.post.PostID, action);
 
-
     if (data.ok) {
       props.post.myVote = data.myVote;
       props.post.TotalScore = data.score;
@@ -55,16 +54,22 @@ watch(isLoggedIn, (loggedIn) => {
     <div class="responsive-container">
       <div class="main-content-area">
         <div class="vote-container">
+          <!-- Upvote -->
           <button
             class="vote-btn-up pi pi-chevron-up mb-1"
             :class="{ active: Number(post.myVote) === 1, 'is-voting': isVoting }"
             @click="handleVote('up')">
           </button>
 
-          <span class="vote-count">
+          <!-- Vote count -->
+          <span class="vote-count"
+                :class="{
+                        'upvoted': Number(post.myVote) === 1,
+                        'downvoted': Number(post.myVote) === -1, 'voting-bounce': isVoting }">
             {{ post.TotalScore ?? 0 }}
           </span>
 
+          <!-- Downvote -->
           <button
             class="vote-btn-down pi pi-chevron-down mt-1"
             :class="{ active: Number(post.myVote) === -1, 'is-voting': isVoting }"
@@ -269,14 +274,14 @@ watch(isLoggedIn, (loggedIn) => {
 }
 
 .vote-btn-up:hover {
-  color: #007a4c;
+  color: #1a3c34;
   transform: translateY(-1px);
-  text-shadow: 0 4px 2px #007a4b8a;
+  text-shadow: 0 4px 2px #04392791;
 }
 .vote-btn-down:hover {
-  color: #9f3323;
+  color: #5e2b2c;
   transform: translateY(1px);
-  text-shadow: 0 -4px 2px #9f342385;
+  text-shadow: 0 -4px 2px #5e2b2c91;
 }
 
 .vote-btn-up.active,
@@ -285,10 +290,10 @@ watch(isLoggedIn, (loggedIn) => {
 }
 
 .vote-btn-up.active {
-  color: #007a4c;
+  color: #043927;
 }
 .vote-btn-down.active {
-  color: #9f3323;
+  color: #5e2b2c;
 }
 
 .vote-btn-up:disabled,
@@ -302,6 +307,29 @@ watch(isLoggedIn, (loggedIn) => {
   font-size: 0.85rem;
   color: #1a1a1b;
   margin: -2px 0;
+}
+
+.vote-count.upvoted {
+  color: #043927;
+}
+
+.vote-count.downvoted {
+  color: #5e2b2c;
+}
+
+/* Loading bounce effect */
+@keyframes count-bounce {
+  0%  { transform: translateY(0); }
+  25% { transform: translateY(-5px); }
+  50% { transform: translateY(3px); }
+  70% { transform: translateY(-1px); }
+  85%, 100% { transform: translateY(0); }
+}
+
+.voting-bounce {
+  animation: count-bounce 0.8s infinite ease-in-out;
+  display: inline-block;
+  opacity: 0.8;
 }
 
 .post-tag {
