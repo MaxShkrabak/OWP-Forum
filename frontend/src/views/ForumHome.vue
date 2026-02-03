@@ -73,6 +73,7 @@ const filteredCategories = computed(() => {
     .filter(cat => cat.posts.length > 0);
 });
 
+<<<<<<< Updated upstream
 // Detect if any filters are active
 const filtersActive = computed(() =>
   selectedTags.value.length > 0 ||
@@ -87,6 +88,15 @@ function clearAllFilters() {
   categorySearch.value = "";
 }
 
+=======
+// Show no-results message when filters return nothing
+const noResults = computed(() =>
+  !loading.value &&
+  !error.value &&
+  filteredCategories.value.length === 0
+);
+
+>>>>>>> Stashed changes
 // Category icon helper
 function getCategoryIcon(categoryName) {
   const name = (categoryName || "").toLowerCase();
@@ -206,6 +216,7 @@ onMounted(async () => {
             <div class="category-search-wrap shadow-sm">
               <i class="pi pi-search ms-3 text-muted"></i>
               <input v-model="categorySearch" type="text" placeholder="Search..." class="category-search-input" />
+              <button v-if="categorySearch" @click="categorySearch = ''" class="search-clear-btn" > ✕ </button>
             </div>
             <div class="d-flex align-items-center gap-4">
               <div class="small text-secondary fw-bold text-uppercase tracking-wider">{{ totalPosts }} posts</div>
@@ -221,6 +232,7 @@ onMounted(async () => {
           <div v-else-if="error" class="alert alert-danger border-0 shadow-sm">{{ error }}</div>
           
           <template v-else>
+<<<<<<< Updated upstream
             <!-- Active Filter Banner -->
             <div v-if="filtersActive" class="active-filter-banner mb-3">
               <div>
@@ -230,6 +242,14 @@ onMounted(async () => {
                 <span v-if="selectedTags.length"> Tags: {{ selectedTags.join(", ") }}</span>
               </div>
               <button @click="clearAllFilters">Clear all</button>
+=======
+            <!-- NO RESULTS MESSAGE -->
+            <div v-if="noResults" class="no-results-box">
+              <i class="pi pi-search"></i>
+              <h5>No posts match your search or filters</h5>
+              <p>Try adjusting your search or clearing filters.</p>
+              <button @click="categorySearch = ''">Clear search</button>
+>>>>>>> Stashed changes
             </div>
             <div v-for="category in filteredCategories" :key="category.categoryId" :id="`category-${category.categoryId}`" class="category-group mb-5">
               <!-- Category Banner -->
@@ -297,6 +317,27 @@ onMounted(async () => {
   color: #ffffff;
 }
 
+.search-clear-btn {
+  border: none;
+  background: transparent;
+  color: #666;
+  font-size: 15px;
+  margin-right: 12px;
+  cursor: pointer;
+  border-radius: 50%;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.search-clear-btn:hover {
+  background: rgba(0, 0, 0, 0.08);
+  color: #000;
+}
+
 /* Clear filters button */
 .clear-btn {
   display: inline-flex;
@@ -319,6 +360,36 @@ onMounted(async () => {
 }
 .clear-btn:hover {
   text-decoration: underline;
+}
+
+.no-results-box {
+  text-align: center;
+  padding: 40px 20px;
+  background: #ffffff;
+  border-radius: 10px;
+  border: 1px dashed #ccc;
+  margin-bottom: 30px;
+}
+
+.no-results-box i {
+  font-size: 28px;
+  margin-bottom: 10px;
+  color: #888;
+}
+
+.no-results-box h5 {
+  margin: 8px 0 4px;
+}
+
+.no-results-box button {
+  margin-top: 12px;
+  background: #145a32;
+  color: white;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 .clickable-label {
