@@ -32,52 +32,54 @@ onMounted(async () => {
 
 
 <template>
-  <div class="container">
-    <!-- Loads while it fetches -->
-    <div v-if="loading" class="loader">
-        <div class="spinner-border"></div>
-    </div>
+  <div class="page">
+    <div class="container">
+      <!-- Loads while it fetches -->
+      <div v-if="loading" class="loader pt-5">
+          <div class="spinner-border"></div>
+      </div>
 
-    <!-- Displays error if the Post doen't exist -->
-    <div v-else-if="error" class="error empty-state text-center py-5">
-      <p class="fw-medium text-secondary">No posts found.</p>
-    </div>
+      <!-- Displays error if the Post doen't exist -->
+      <div v-else-if="error" class="error empty-state text-center">
+        <p class="fw-medium text-secondary">The post has been deleted or does not exist.</p>
+      </div>
 
-    <!-- If the Post is found, constructs page -->
-    <div v-else-if="post" class="page-container container-sm mt-5">
-      <div class="center-container col text-center">
-        
-        <!-- Header Part -->
-        <div class="post-header row mb-1">
-            
-          <!-- Go Back arrow -->
-          <div
-            class="go-back pi pi-arrow-left col-2 text-white"
-            style="font-size: 1.5rem"
-          ></div>
+      <!-- If the Post is found, constructs page -->
+      <div v-else-if="post" class="page-container">
+        <div class="center-container col text-center">
+          
+          <!-- Header Part -->
+          <div class="post-header row mb-1">
+              
+            <!-- Go Back arrow -->
+            <div
+              class="go-back pi pi-arrow-left col-1 text-white"
+              style="font-size: 1.5rem"
+            ></div>
 
-          <!-- Header Card -->
-          <div class="content-head col">
-            <span class="text-white"> title </span>
-          </div>
-        </div>
-
-        <!-- Sidebar and Content in a row -->
-        <div class="row p-2">
-
-          <!-- Sidebar part -->
-          <div class="post-sidebar col-md-3 col-lg-2 text-white">sidebar</div>
-
-          <!-- Content part -->
-          <div class="post-content col-md-9 col-lg-10">
-            <ViewPostContent :content = post.content /> 
+            <!-- Header Card -->
+            <div class="content-head col">
+              <span class="text-white"> title </span>
+            </div>
           </div>
 
-        </div>
+          <!-- Sidebar and Content in a row -->
+          <div class="row">
 
-        <!-- Comment Section -->
-        <div class="container-sm">
-          <div class="post-comments mt-4">comments</div>
+            <!-- Sidebar part -->
+            <div class="post-sidebar col-md-3 col-lg-2 text-white mb-3 mb-md-0">sidebar</div>
+
+            <!-- Content part -->
+            <div class="post-content col-md-9 col-lg-10">
+              <ViewPostContent :content = post.content /> 
+            </div>
+
+          </div>
+
+          <!-- Comment Section -->
+          <div class="row">
+            <div class="post-comments mt-4">comments</div>
+          </div>
         </div>
       </div>
     </div>
@@ -86,6 +88,13 @@ onMounted(async () => {
 
 
 <style scoped> 
+.page {
+  background-color: #cbdad5;
+  min-height: 90vh;
+  padding-top: 5vh;
+  padding-left: 1vh;
+  padding-right: 1vh;
+}
 .loader {
     display: flex;
     justify-content: center;
@@ -103,33 +112,41 @@ onMounted(async () => {
 
 /* Central page layout */
 .page-container {
-  background-color: black;
+  background-color: none;
 }
 .center-container {
-  background-color: blue;
+  background-color: none;
 }
 
 /* Header */
 .post-header {
-  background-color: pink;
+
 }
 .go-back {
-  background-color: gray;
+  background-color: none;
+  border: 2px black solid;
+  border-radius: 3px;
 }
 .content-head {
-  background-color: rgb(151, 151, 0);
+  background-color: none;
+  border: 2px black solid;
+  border-radius: 3px;
 }
 
 /* Body */
 .post-content {
-  background-color: rgb(83, 0, 0);
+  background-color: none;
 }
 .post-sidebar {
-  background-color: green;
+  background-color: none;
+  border: 2px black solid;
+  border-radius: 3px;
 }
 
 /* Comments */
 .post-comments {
-  background-color: gray;
+  background-color: none;
+  border: 2px black solid;
+  border-radius: 3px;
 }
 </style>
