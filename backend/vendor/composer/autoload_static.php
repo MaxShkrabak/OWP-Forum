@@ -15,7 +15,7 @@ class ComposerStaticInit29615e5d807cff3d0e0fc3dac4269945
     );
 
     public static $prefixLengthsPsr4 = array (
-        'S' => 
+        'S' =>
         array (
             'Symfony\\Polyfill\\Php80\\' => 23,
             'Symfony\\Polyfill\\Mbstring\\' => 26,
@@ -23,7 +23,7 @@ class ComposerStaticInit29615e5d807cff3d0e0fc3dac4269945
             'Slim\\Psr7\\' => 10,
             'Slim\\' => 5,
         ),
-        'P' => 
+        'P' =>
         array (
             'Psr\\Log\\' => 8,
             'Psr\\Http\\Server\\' => 16,
@@ -31,77 +31,77 @@ class ComposerStaticInit29615e5d807cff3d0e0fc3dac4269945
             'Psr\\Container\\' => 14,
             'PhpOption\\' => 10,
         ),
-        'G' => 
+        'G' =>
         array (
             'GrahamCampbell\\ResultType\\' => 26,
         ),
-        'F' => 
+        'F' =>
         array (
             'Fig\\Http\\Message\\' => 17,
             'FastRoute\\' => 10,
         ),
-        'D' => 
+        'D' =>
         array (
             'Dotenv\\' => 7,
         ),
     );
 
     public static $prefixDirsPsr4 = array (
-        'Symfony\\Polyfill\\Php80\\' => 
+        'Symfony\\Polyfill\\Php80\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/polyfill-php80',
         ),
-        'Symfony\\Polyfill\\Mbstring\\' => 
+        'Symfony\\Polyfill\\Mbstring\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/polyfill-mbstring',
         ),
-        'Symfony\\Polyfill\\Ctype\\' => 
+        'Symfony\\Polyfill\\Ctype\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/polyfill-ctype',
         ),
-        'Slim\\Psr7\\' => 
+        'Slim\\Psr7\\' =>
         array (
             0 => __DIR__ . '/..' . '/slim/psr7/src',
         ),
-        'Slim\\' => 
+        'Slim\\' =>
         array (
             0 => __DIR__ . '/..' . '/slim/slim/Slim',
         ),
-        'Psr\\Log\\' => 
+        'Psr\\Log\\' =>
         array (
             0 => __DIR__ . '/..' . '/psr/log/src',
         ),
-        'Psr\\Http\\Server\\' => 
+        'Psr\\Http\\Server\\' =>
         array (
             0 => __DIR__ . '/..' . '/psr/http-server-middleware/src',
             1 => __DIR__ . '/..' . '/psr/http-server-handler/src',
         ),
-        'Psr\\Http\\Message\\' => 
+        'Psr\\Http\\Message\\' =>
         array (
             0 => __DIR__ . '/..' . '/psr/http-factory/src',
             1 => __DIR__ . '/..' . '/psr/http-message/src',
         ),
-        'Psr\\Container\\' => 
+        'Psr\\Container\\' =>
         array (
             0 => __DIR__ . '/..' . '/psr/container/src',
         ),
-        'PhpOption\\' => 
+        'PhpOption\\' =>
         array (
             0 => __DIR__ . '/..' . '/phpoption/phpoption/src/PhpOption',
         ),
-        'GrahamCampbell\\ResultType\\' => 
+        'GrahamCampbell\\ResultType\\' =>
         array (
             0 => __DIR__ . '/..' . '/graham-campbell/result-type/src',
         ),
-        'Fig\\Http\\Message\\' => 
+        'Fig\\Http\\Message\\' =>
         array (
             0 => __DIR__ . '/..' . '/fig/http-message-util/src',
         ),
-        'FastRoute\\' => 
+        'FastRoute\\' =>
         array (
             0 => __DIR__ . '/..' . '/nikic/fast-route/src',
         ),
-        'Dotenv\\' => 
+        'Dotenv\\' =>
         array (
             0 => __DIR__ . '/..' . '/vlucas/phpdotenv/src',
         ),
