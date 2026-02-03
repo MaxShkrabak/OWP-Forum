@@ -21,7 +21,8 @@ return function (Request $request, RequestHandler $handler) use ($makePdo) {
     // Check if route is public
     $isPublic = ($method === 'OPTIONS')
         || (isset($publicRoutes[$path]) && in_array($method, $publicRoutes[$path]))
-        || ($method === 'GET' && str_starts_with($path, '/api/categories'));
+        || ($method === 'GET' && str_starts_with($path, '/api/categories'))
+        || ($method === 'GET' && str_starts_with($path, '/api/get_post'));
 
     $token = $request->getCookieParams()['session'] ?? '';
     $session = null;
