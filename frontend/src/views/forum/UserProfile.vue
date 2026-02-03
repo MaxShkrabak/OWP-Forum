@@ -12,6 +12,7 @@ import PostCard from '@/components/forum/PostCard.vue';
 import PostIcon from '@/assets/img/svg/posts-icon.svg';
 import LikeIcon from '@/assets/img/svg/like-icon.svg';
 import CommIcon from '@/assets/img/svg/comment-icon.svg';
+import UserCard from '@/components/user/UserCard.vue';
 
 
 
@@ -98,56 +99,14 @@ onMounted(getPosts);
     <ForumHeader />
     <pfpModal/>
     <UserSettings/>
-    
       <div class="container-fluid text-center">
-        
         <div class="row">
-          <div class="col-md-2 user-card"> <!--User Card-->
-            <button class="user-pfp-btn" data-bs-toggle="modal" data-bs-target="#pfpChange">
-              <div class="user-icon-cont">
-                <img v-if="userAvatar" :src="userAvatar" class="img-fluid user-icon" alt="User avatar">
-                <img v-else src="@\assets\img\user-pfps-premade\pfp-0.png" class="img-fluid user-icon" alt="Default avatar">
-            </div>
-            </button> <br><br>
-            <Role v-if="role === 'Admin'">
-              <h5 class="badge text-bg-danger roboto-medium">Admin</h5>
-            </Role>
-            <Role v-else-if="role === 'Moderator'">
-              <h5 class="badge text-bg-warning roboto-medium">Moderator</h5>
-            </Role>
-            <Role v-else-if="role === 'Student'">
-              <h5 class="badge text-bg-info roboto-medium">Student</h5>
-            </Role>
-            <Role v-else-if="role === 'User'">
-              <h5 class="badge text-bg-success roboto-medium">User</h5>
-            </Role>
-            <br><br>
-            <h2 class="roboto-medium">{{ fullName }}</h2><br>
-            <div class="row text-start justify-content-evenly roboto-medium">
-              <div class="col-1"></div> <!--Filler to help align icons-->
-              <div class="col-md-auto">
-                <span><img :src=PostIcon class="icon" alt="Post icon"> Posts: </span> <br>
-                <span><img :src=LikeIcon class="icon" alt="Like icon"> Likes:</span> <br>
-                <span><img :src=CommIcon class="icon" alt="comment icon"> Comments:</span>
-              </div>
-              <div class="col-md-auto fw-bold">
-                 {{ postsCount }} <br>
-                 {{ likesCount }} <br>
-                 {{ commentsCount }}
-              </div>
-              <br>
-            </div>
-            <div class="container text-center align-center"> <br>
-              <button class="btn text-center" data-bs-toggle="modal" data-bs-target="#userSettingsModal"> <!--Edit Profile button-->
-                <span class="roboto-medium text-center">
-                  Edit Profile
-                </span>
-              </button>
-            </div>
-          </div>
-          <div class="col-md-1"></div><!--Filler between User Card and Posts/Content-->
+
+          <UserCard is-profile=true class="col-md-3"></UserCard>
+
+          <!--Filter header-->
           <div class="col-md-9 text-center">
-            <header class="category-header mb-4">
+            <header class="filter-header mb-4">
             <div class="header-main-content">
               <button class="back-btn" @click="router.back()" aria-label="Go Back">
                 <i class="pi pi-arrow-left"></i>
@@ -156,21 +115,22 @@ onMounted(getPosts);
               <div class="v-divider"></div>
               
               <div>
-                  <div class="row justify-content-evenly pr-3 fs-4 gap-4"> <!--Filter bar-->
-              
-                    <button class="col-12 col-sm-12 col-lg-auto filter-options" :class="{ 'activeBox' : activeTab === 'yourPosts' }" @click="activeTab = 'yourPosts'">
-                      <span class="activeText">Your Posts</span>
-                      <div class="activeLine"></div>
-                    </button>
-                    <button class="col-12 col-sm-12 col-lg-auto filter-options" :class="{ 'activeBox' : activeTab === 'followedPosts' }" @click="activeTab = 'followedPosts'">
-                      <span class="activeText">Followed Posts</span>
-                      <div class="activeLine"></div>
-                    </button>
-                    <button class="col-12 col-sm-12 col-lg-auto filter-options" :class="{ 'activeBox' : activeTab === 'likedPosts' }" @click="activeTab = 'likedPosts'">
-                      <span class="activeText">Liked Posts</span>
-                      <div class="activeLine"></div>
-                    </button>
-                  </div>
+                <div class="row justify-content-evenly pr-3 fs-4 gap-4">
+                
+                <!-- Filter Options -->  
+                <button class="col-12 col-sm-12 col-lg-auto filter-options" :class="{ 'activeBox' : activeTab === 'yourPosts' }" @click="activeTab = 'yourPosts'">
+                  <span class="activeText">Your Posts</span>
+                  <div class="activeLine"></div>
+                </button>
+                <button class="col-12 col-sm-12 col-lg-auto filter-options" :class="{ 'activeBox' : activeTab === 'followedPosts' }" @click="activeTab = 'followedPosts'">
+                  <span class="activeText">Followed Posts</span>
+                  <div class="activeLine"></div>
+                </button>
+                <button class="col-12 col-sm-12 col-lg-auto filter-options" :class="{ 'activeBox' : activeTab === 'likedPosts' }" @click="activeTab = 'likedPosts'">
+                  <span class="activeText">Liked Posts</span>
+                  <div class="activeLine"></div>
+                </button>
+                </div>
               </div>
             </div>
 
@@ -196,6 +156,7 @@ onMounted(getPosts);
           </header>
           <div v-if="loading" class="text-center py-5"><div class="spinner-border text-success"></div></div>
           
+          <!-- If filter option doesn't have any posts-->
           <div v-else class="post-feed">
             <div v-if="posts.length === 0" class="empty-state text-center py-5">
               <div class="fw-medium text-secondary">
@@ -250,7 +211,7 @@ onMounted(getPosts);
 </template>
 
 <style scoped>
-.category-header {
+.filter-header {
   background: linear-gradient(135deg, #004b33 0%, #003d4c 100%);
   padding: 1.25rem 1.75rem;
   border-radius: 16px;
