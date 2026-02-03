@@ -43,3 +43,15 @@ export async function fetchPosts({ categoryId = null, limit = 5, sort = 'latest'
 
   return data;
 }
+
+export async function votePost(PostID, action) {
+  if (!PostID) {
+    return { ok: false, error: "Missing Post ID" };
+  }
+  
+  const { data } = await client.post(`/posts/${PostID}/vote`, { 
+    action: action 
+  });
+
+  return data;
+}
