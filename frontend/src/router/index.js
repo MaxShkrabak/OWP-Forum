@@ -6,6 +6,7 @@
     import ForumUserProfile from '../views/forum/UserProfile.vue';
     import CreatePost from '../components/forum/CreatePostModal.vue';
     import CategoryPost from '@/views/forum/CategoryPosts.vue';
+    import ViewPost from '@/views/forum/ViewPost.vue';
     import client from '@/api/client';
 
     const routes = [
@@ -15,7 +16,8 @@
       { path: '/verify', name: 'VerifyPasscode', component: VerifyPasscode, props: (route) => ({ email: route.query.email || '' }) },
       { path: '/create-post', name: 'CreatePost', component: CreatePost, meta: { requiresAuth: true } },
       { path: '/profile', name: 'User Profile', component: ForumUserProfile, meta: { requiresAuth: true } },
-      { path: '/categories/:categoryId/:slug?', name: 'CategoryPosts', component: CategoryPost, }
+      { path: '/categories/:categoryId/:slug?', name: 'CategoryPosts', component: CategoryPost, },
+      { path: '/posts/:id', name: 'ViewPost', component: ViewPost, props: true}
     ];
  
     const router = createRouter({

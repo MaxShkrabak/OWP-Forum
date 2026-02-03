@@ -55,3 +55,11 @@ export async function votePost(PostID, action) {
 
   return data;
 }
+
+export async function getPost(id) {
+  const res = await client.get(`/get-post/${id}`);
+  const data = res?.data;
+  if (data?.ok) {
+    return data;
+  }
+}
