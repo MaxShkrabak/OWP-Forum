@@ -104,9 +104,10 @@ watch(isLoggedIn, (loggedIn) => {
           </div>
 
           <div class="d-flex flex-wrap gap-2 mb-2">
-            <span v-for="tag in post.tags" :key="tag" class="post-tag">{{
-              tag
-            }}</span>
+            <span v-for="tag in post.tags" :key="tag" class="post-tag" :style="{ 
+              background: tag === 'Official' ? 'orange' : '' , 
+              color: tag === 'Official' ? 'black' : '' }">
+              {{ tag }}</span>
           </div>
 
           <div class="meta-footer">

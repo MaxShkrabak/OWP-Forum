@@ -1,10 +1,10 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from "vue";
-import Editor from "primevue/editor";
 import { createPost, getTags, getCategories } from "@/api/posts";
 import { uploadImage } from "@/api/media";
 import { fullName, userAvatar, isLoggedIn, userRole } from "@/stores/userStore";
 import UserRole from "@/components/user/UserRole.vue";
+import TextEditor from "@/components/forum/TextEditor.vue";
 
 const MAX_TITLE_LEN = 125;
 const MAX_TAGS = 5;
@@ -22,6 +22,8 @@ const form = ref({
   content: "",
   tags: []
 });
+
+const editor = ref(null);
 
 // UI State
 const showWarningDialog = ref(false);
@@ -85,6 +87,10 @@ function tagNameById(id) {
   return allTags.value.find(t => t.tagId === id)?.name || `#${id}`;
 }
 
+function isOfficialTag(id) {
+  return allTags.value.find(t => t.tagId === id)?.name == 'Official' || false
+}
+
 const removeTag = (id) => {
   form.value.tags = form.value.tags.filter(tid => tid !== id);
 };
@@ -93,38 +99,6 @@ function handleClickOutside(event) {
   if (tagContainerRef.value && !tagContainerRef.value.contains(event.target)) {
     showTagPopup.value = false;
   }
-}
-
-// Text Editor Logic
-function onEditorLoad(event) {
-  const quill = event.instance; 
-  
-  if (!quill) return;
-
-  const toolbar = quill.getModule("toolbar");
-
-  toolbar.addHandler("image", () => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "image/*";
-
-    input.onchange = async () => {
-      const file = input.files?.[0];
-      if (!file) return;
-      
-      try {
-        const data = await uploadImage(file);
-        const range = quill.getSelection(true);
-        
-        quill.insertEmbed(range.index, "image", data.url, "user");
-      } catch (err) { 
-        console.error("Upload failed", err);
-        alert("Upload failed"); 
-      }
-    };
-
-    input.click();
-  });
 }
 
 // Handle closing create post modal
@@ -256,7 +230,9 @@ onUnmounted(() => {
                   </div>
                   <!-- Active Tags -->
                   <div class="tag-chips-flow">
-                    <span v-for="tid in form.tags" :key="tid" class="tag-chip-pill">
+                    <span v-for="tid in form.tags" :key="tid" class="tag-chip-pill" :style="{ 
+                      background: isOfficialTag(tid) ? 'orange' : '' , 
+                      color: isOfficialTag(tid) ? 'black' : '' }">
                       {{ tagNameById(tid) }}
                       <button class="chip-remove" @click="removeTag(tid)">&times;</button>
                     </span>
@@ -265,16 +241,8 @@ onUnmounted(() => {
                 </div>
               </div>
             </div>
-
             <!-- Text Editor -->
-            <div class="editor-wrap">
-              <Editor
-                v-model="form.content"
-                class="custom-editor"
-                @load="onEditorLoad"
-                placeholder="What would you like to discuss?"
-              />
-            </div>
+            <TextEditor v-model="form.content" class="custom-editor" ref="editor" />
           </main>
 
           <!-- Publish or Cancel Options-->
