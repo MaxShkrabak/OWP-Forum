@@ -7,7 +7,7 @@ import UserCard from "@/components/UserCard.vue";
 import CreatePostButton from "@/components/CreatePostButton.vue";
 import ViewReportsButton from "@/components/ViewReportsButton.vue";
 import { isLoggedIn } from "@/stores/userStore";
-import { fetchPosts as apiGetPosts } from "@/api/auth";
+import { fetchPosts as apiGetPosts, getTags as apiGetTags } from "@/api/auth";
 import { getPaginationRange } from '@/utils/pagination';
 
 const route = useRoute();
@@ -27,13 +27,7 @@ const selectedTags = ref([]);     // ['Education', 'Research', ...]
 
 async function fetchTags() {
   try {
-    const response = await fetch("/api/tags");
-    const data = await response.json();
-
-    if (!response.ok || !data.ok) throw new Error(data.error || "Failed to fetch tags");
-
-    // your backend returns { ok: true, items: [...] }
-    allTags.value = data.items || [];
+    allTags.value = await apiGetTags(); // returns [{ tagId, name }]
   } catch (e) {
     console.error("Error fetching tags:", e);
     allTags.value = [];
@@ -50,58 +44,97 @@ function clearTags() {
   selectedTags.value = [];
 }
 
-const visiblePosts = computed(() => {
-  // no tags selected → show server-sorted posts as-is
+const filteredPosts = computed(() => {
   if (selectedTags.value.length === 0) return posts.value;
 
-  // AND logic: post must include EVERY selected tag
   return posts.value.filter(post => {
     const postTags = post.tags ?? [];
     return selectedTags.value.every(t => postTags.includes(t));
   });
 });
 
+const computedTotalPages = computed(() => {
+  if (selectedTags.value.length === 0) return totalPages.value; // server
+  return Math.max(1, Math.ceil(filteredPosts.value.length / limit.value)); // local
+});
+
+const visiblePosts = computed(() => {
+  if (selectedTags.value.length === 0) return posts.value; // server already paged
+
+  const start = (currentPage.value - 1) * limit.value;
+  return filteredPosts.value.slice(start, start + limit.value);
+});
 
 async function loadCategoryPosts() {
   loading.value = true;
   error.value = null;
 
   try {
-    const data = await apiGetPosts({
+    const hasTags = selectedTags.value.length > 0;
+
+    const args = {
       categoryId: route.params.categoryId,
-      limit: limit.value,
       sort: sort.value,
-      page: currentPage.value
-    });
+      ...(hasTags
+        ? { page: 1, limit: 5000 } // fetch big set once for filtering
+        : { page: currentPage.value, limit: limit.value }
+      ),
+    };
+
+    const data = await apiGetPosts(args);
+    posts.value = data.posts || [];
 
     posts.value = data.posts || [];
-    categoryName.value = data.categoryName || 'Category';
-    
-    if (data.meta) {
+
+    // Prefer backend field if present
+    if (data.categoryName) {
+      categoryName.value = data.categoryName;
+    } else if (posts.value.length > 0 && posts.value[0].categoryName) {
+      // If your backend includes categoryName per post
+      categoryName.value = posts.value[0].categoryName;
+    } else {
+      categoryName.value = "Category";
+    }
+
+    if (!hasTags && data.meta) {
       totalPages.value = data.meta.totalPages || 1;
     }
   } catch (e) {
-    console.error("Fetch error:", e);
-    error.value = e.message;
+    error.value = e?.response?.data?.error || e.message || "Fetch failed";
     posts.value = [];
   } finally {
     loading.value = false;
   }
 }
 
-watch([limit, sort], () => {
+// When limit changes: reset to page 1, but DON'T refetch in tag mode
+watch(limit, () => {
+  const was = currentPage.value;
   currentPage.value = 1;
-  loadCategoryPosts();
 
   localStorage.setItem('category_limit', limit.value);
-  localStorage.setItem('category_sort', sort.value);
+
+  // Only refetch if we're NOT in tag-filter mode
+  if (selectedTags.value.length === 0 && was === 1) {
+    loadCategoryPosts();
+  }
 });
 
-const displayedPages = computed(() => {
-  return getPaginationRange(currentPage.value, totalPages.value, 2);
-});
+// When sort or tags change: reset and refetch (because data set changes)
+watch([sort, selectedTags], () => {
+  const was = currentPage.value;
+  currentPage.value = 1;
+
+  localStorage.setItem('category_sort', sort.value);
+
+  if (was === 1) loadCategoryPosts();
+}, { deep: true });
 
 watch(currentPage, loadCategoryPosts);
+
+const displayedPages = computed(() => {
+  return getPaginationRange(currentPage.value, computedTotalPages.value, 2);
+});
 
 onMounted(async () => {
   await loadCategoryPosts();
@@ -128,32 +161,33 @@ onMounted(async () => {
               <ViewReportsButton class="w-100 mt-2" />
             </div>
             <!-- Tag Filter -->
-          <div class="card border-0 shadow-sm rounded-3 mt-4 overflow-hidden">
-            <div class="filter-header px-3 py-2 d-flex justify-content-between align-items-center">
-              <span class="fw-bold small text-uppercase tracking-wider">Filter By Tags</span>
-              <button
-                v-if="selectedTags.length > 0"
-                @click="clearTags"
-                class="clear-btn"
-                type="button"
-              >
-                Clear
-              </button>
-            </div>
+            <div class="card border-0 shadow-sm rounded-3 mt-4 overflow-hidden">
+              <div class="filter-header px-3 py-2 d-flex justify-content-between align-items-center">
+                <span class="fw-bold small text-uppercase tracking-wider">Filter By Tags</span>
 
-            <div class="p-3 d-flex flex-wrap gap-2">
-              <button
-                v-for="tag in allTags"
-                :key="tag.TagID"
-                type="button"
-                @click="toggleTag(tag.Name)"
-                class="tag-pill"
-                :class="{ active: selectedTags.includes(tag.Name) }"
-              >
-                {{ tag.Name }}
-              </button>
+                <button
+                  v-if="selectedTags.length > 0"
+                  @click="clearTags"
+                  class="clear-btn"
+                  type="button"
+                >
+                  Clear
+                </button>
+              </div>
+
+              <div class="p-3 d-flex flex-wrap gap-2">
+                <button
+                  v-for="tag in allTags"
+                  :key="tag.tagId"
+                  type="button"
+                  @click="toggleTag(tag.name)"
+                  class="tag-pill"
+                  :class="{ active: selectedTags.includes(tag.name) }"
+                >
+                  {{ tag.name }}
+                </button>
+              </div>
             </div>
-          </div>
         </div>
       </aside>
 

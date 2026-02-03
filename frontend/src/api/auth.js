@@ -109,15 +109,33 @@ export async function uploadImage(file) {
   return res.data;
 }
 
-export async function fetchPosts({ categoryId = null, limit = 5, sort = 'latest', page = 1 } = {}) {
-  const url = categoryId 
+export async function fetchPosts({
+  categoryId = null,
+  sort = 'latest',
+  page = null,
+  limit = null,
+  tags = null,
+} = {}) {
+  const url = categoryId
     ? `${API}/api/categories/${categoryId}/posts`
     : `${API}/api/posts`;
 
-  const res = await axios.get(url, {
-    params: { limit, sort, page },
-    withCredentials: true
-  });
+  const params = { sort };
+
+  // Only include paging when explicitly passed
+  if (page !== null && limit !== null) {
+    params.page = page;
+    params.limit = limit;
+  }
+
+  // Only include tags when explicitly passed
+  if (Array.isArray(tags) && tags.length > 0) {
+    params.tags = tags.join(',');
+  } else if (typeof tags === 'string' && tags.trim().length > 0) {
+    params.tags = tags.trim();
+  }
+
+  const res = await axios.get(url, { params, withCredentials: true });
 
   const data = res.data;
 
