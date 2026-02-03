@@ -438,7 +438,7 @@ $app->post('/api/posts/{id}/vote', function (Request $req, Response $res, array 
     }
 });
 
-$app->get('/api/get_post/{id}', function(Request $req, Response $res, array $args) use ($makePdo) {
+$app->get('/api/get-post/{id}', function(Request $req, Response $res, array $args) use ($makePdo) {
     try {
         $pdo = $makePdo();
 

@@ -57,7 +57,7 @@ export async function votePost(PostID, action) {
 }
 
 export async function getPost(id) {
-  const res = await client.get(`/get_post/${id}`);
+  const res = await client.get(`/get-post/${id}`);
   const data = res?.data;
   if (data?.ok) {
     return data;

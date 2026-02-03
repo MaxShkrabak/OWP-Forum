@@ -25,10 +25,11 @@ const props = defineProps({
 }
 
 /* Text box */
-.content-itself {
-  overflow-wrap: break-word;
-  word-break: break-word; 
-  white-space: pre-wrap; 
-  max-width: auto;
+.content-itself :deep(*) {
+  white-space: pre-wrap !important;
+  word-break: break-word !important;
+  overflow-wrap: anywhere !important;
+  max-width: 100%;
 }
+
 </style>
