@@ -230,9 +230,7 @@ onUnmounted(() => {
                   </div>
                   <!-- Active Tags -->
                   <div class="tag-chips-flow">
-                    <span v-for="tid in form.tags" :key="tid" class="tag-chip-pill" :style="{ 
-                      background: isOfficialTag(tid) ? 'orange' : '' , 
-                      color: isOfficialTag(tid) ? 'black' : '' }">
+                    <span v-for="tid in form.tags" :key="tid" :class="isOfficialTag(tid) ? 'tag-chip-pill-mod-admin' : 'tag-chip-pill'">
                       {{ tagNameById(tid) }}
                       <button class="chip-remove" @click="removeTag(tid)">&times;</button>
                     </span>
@@ -502,7 +500,7 @@ onUnmounted(() => {
   height: 36px;
   border-radius: 50%;
   border: none;
-  background: #2E6C44;
+  background: linear-gradient(170deg, #2e6c44bd 0%, #2e6c44 100%);
   color: white;
   font-size: 20px;
   font-weight: bold;
@@ -522,18 +520,27 @@ onUnmounted(() => {
   flex-wrap: wrap;
   gap: 6px;
 }
-
+.tag-chip-pill-mod-admin,
 .tag-chip-pill {
-  background: #E8FCD2;
-  color: #2E6C44;
   padding: 4px 12px;
-  border-radius: 99px;
+  border-radius: 6px;
   font-size: 0.8rem;
   font-weight: 700;
   display: flex;
   align-items: center;
   gap: 6px;
   border: 1px solid #d1e7d8;
+}
+.tag-chip-pill-mod-admin {
+  background: linear-gradient(170deg, #fa9805a4 0%, #f17500b0 100%);
+  color: black;
+  .chip-remove {
+    color: black;
+  }
+}
+.tag-chip-pill {
+  background: linear-gradient(170deg, #2e6c44bd 0%, #2e6c44 100%);
+  color: white;
 }
 
 .tag-floating-box {
@@ -581,8 +588,12 @@ onUnmounted(() => {
 .chip-remove { 
   background: none; 
   border: none; 
-  color: #94a3b8; 
+  color: white; 
   cursor: pointer; 
+  transition: all 0.35s ease;
+}
+.chip-remove:hover {
+  transform: translateY(-2px);
 }
 
 .muted-hint { 
