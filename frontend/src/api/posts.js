@@ -14,20 +14,15 @@ export async function getTags() {
   }));
 }
 
-export async function getCategories() {
-  const { data } = await client.get("/verify/categories");
+export async function fetchPosts({ categoryId = null, limit, sort = 'latest', page = 1, userId = null} = {}) {
+  let endpoint = "/posts";
 
-  return (data.items || []).map((cat) => ({
-    categoryId: Number(cat.CategoryID),
-    name: cat.Name,
-  }));
-}
-
-export async function fetchPosts({ categoryId = null, limit = 5, sort = 'latest', page = 1 } = {}) {
-  const endpoint = categoryId 
-    ? `/categories/${categoryId}/posts` 
-    : "/posts";
-
+  if(categoryId) {
+    endpoint = `/categories/${categoryId}/posts`;
+  } else if (userId) {
+     endpoint = `/profile/${userId}/posts`;
+  }
+  
   const { data } = await client.get(endpoint, {
     params: { limit, sort, page }
   });

@@ -224,7 +224,6 @@ onMounted(loadCategoryPosts);
 }
 .category-title {
   margin: 0;
-  font-size: clamp(1.1rem, 3vw, 1.5rem);
   font-weight: 700;
   color: #ffffff;
   line-height: 1.2;
