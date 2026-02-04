@@ -20,7 +20,7 @@ const emit = defineEmits(['update:modelValue']);
 
 // Defaults
 const DEFAULT_TEXT_COLOR = '#000000';
-const DEFAULT_HIGHLIGHT_COLOR = 'transparent';
+const DEFAULT_HIGHLIGHT_COLOR = '#ffffff';
 
 // State
 const showLinkMenu = ref(false);
@@ -32,7 +32,7 @@ const activeHighlightColor = ref(DEFAULT_HIGHLIGHT_COLOR);
 const editor = useEditor({
     content: props.modelValue,
     extensions: [
-        StarterKit,
+        StarterKit.configure({ underline: false, link: false, }),
         Underline,
         TextStyle,
         Color,
@@ -271,6 +271,7 @@ defineExpose({ clearContent: () => editor.value?.commands.setContent("") });
     height: 450px; 
     display: flex;
     flex-direction: column;
+    min-height: 450px;
 }
 
 .tiptap-toolbar {
@@ -426,6 +427,7 @@ defineExpose({ clearContent: () => editor.value?.commands.setContent("") });
 :deep(.tiptap-content) {
     flex-grow: 1;
     overflow-y: auto;
+    min-height: 450px;
 }
 :deep(.tiptap) {
     padding: 1.25rem;
