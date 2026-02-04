@@ -288,6 +288,9 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+p {
+  color: #737373;
+}
 .modal-mask {
   position: fixed;
   inset: 0;
