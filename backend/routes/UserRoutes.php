@@ -109,8 +109,8 @@ $app->post('/api/register-new-user', function (Request $req, Response $res) use 
         }
         
         $insertUser = "
-            INSERT INTO dbo.USERS (Email, FirstName, LastName, Created)
-            VALUES (:email, :first, :last, GETDATE())
+            INSERT INTO dbo.USERS (Email, FirstName, LastName, RoleID, Created)
+            VALUES (:email, :first, :last, 1, GETDATE())
         ";
 
         $stmt = $pdo->prepare($insertUser) ->execute([                
