@@ -62,6 +62,7 @@ function isOfficialTag(name){
           <button
             class="vote-btn-up pi pi-chevron-up mb-1"
             :class="{ active: Number(post.myVote) === 1, 'is-voting': isVoting }"
+            :disabled="!isLoggedIn"
             @click="handleVote('up')">
           </button>
 
@@ -76,6 +77,7 @@ function isOfficialTag(name){
           <!-- Downvote -->
           <button
             class="vote-btn-down pi pi-chevron-down mt-1"
+            :disabled="!isLoggedIn"
             :class="{ active: Number(post.myVote) === -1, 'is-voting': isVoting }"
             @click="handleVote('down')">
           </button>
