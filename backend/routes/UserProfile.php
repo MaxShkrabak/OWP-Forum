@@ -85,7 +85,7 @@ $app->get('/api/profile/{uid}/posts', function (Request $req, Response $res, arr
             $catId = (int)$row['CategoryID'];
 
             $post = [
-                'postId'       => $pid,
+                'PostID'       => $pid,
                 'categoryId'   => $catId,
                 'title'        => $row['Title'],
                 'createdAt'    => $row['CreatedAt'],

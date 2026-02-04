@@ -2,25 +2,14 @@
 import ForumHeader from '@/components/layout/ForumHeader.vue';
 import pfpModal from '@/components/user/UserPfpModal.vue';
 import UserSettings from '@/components/user/UserSettings.vue';
-import { useRoute, useRouter } from 'vue-router';
+import { useRouter } from 'vue-router';
 import { getPaginationRange } from '@/utils/pagination';
 import { onMounted, ref, watch, computed } from 'vue';
-import { fullName, userAvatar, uid } from '@/stores/userStore';
+import { uid } from '@/stores/userStore';
 import { fetchPosts as apiGetPosts } from "@/api/posts";
 import PostCard from '@/components/forum/PostCard.vue';
-
-import PostIcon from '@/assets/img/svg/posts-icon.svg';
-import LikeIcon from '@/assets/img/svg/like-icon.svg';
-import CommIcon from '@/assets/img/svg/comment-icon.svg';
 import UserCard from '@/components/user/UserCard.vue';
 
-
-
-const authorId = uid.value;
-const role = "Admin";
-const postsCount = 0;
-const likesCount = 0;
-const commentsCount = 0;
 const activeTab = ref('yourPosts');
 
 const router = useRouter();
@@ -44,7 +33,7 @@ async function getPosts() {
         limit: limit.value,
         sort: sort.value,
         page: currentPage.value,
-        userId: authorId
+        userId: uid.value
       });
 
       posts.value = data.posts || [];
@@ -57,7 +46,7 @@ async function getPosts() {
         limit: limit.value,
         sort: sort.value,
         page: currentPage.value,
-        userId: 2 
+        userId: 2
       });
 
       posts.value = data.posts || [];
@@ -102,7 +91,7 @@ onMounted(getPosts);
       <div class="container-fluid text-center">
         <div class="row">
 
-          <UserCard is-profile=true class="col-md-3"></UserCard>
+          <UserCard is-profile class="col-md-3"></UserCard>
 
           <!--Filter header-->
           <div class="col-md-9 text-center">

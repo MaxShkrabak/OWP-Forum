@@ -53,10 +53,12 @@ const resetStore = () => {
   fullName.value = '';
   userRole.value = 'Guest';
   userAvatar.value = defaultAvatar;
+  uid.value = 0;
 
   localStorage.removeItem('fullName');
   localStorage.removeItem('userRole');
   localStorage.removeItem('userAvatar');
+  localStorage.removeItem('uid');
 };
 
 export async function logoutUser() {
