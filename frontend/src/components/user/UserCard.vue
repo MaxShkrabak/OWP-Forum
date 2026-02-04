@@ -1,6 +1,6 @@
 <script setup>
 import UserIcon from "@/assets/img/user-pfps-premade/pfp-0.png";
-import { isLoggedIn, fullName, userAvatar } from "@/stores/userStore";
+import { isLoggedIn, fullName, userAvatar, userRole} from "@/stores/userStore";
 import UserRole from "@/components/user/UserRole.vue";
 
 const props = defineProps({
@@ -63,7 +63,7 @@ const props = defineProps({
               <img :src="UserIcon" alt="guest" class="profile-img" />
             </div>
             <div class="mt-2">
-              <UserRole :role="Guest" />
+              <UserRole role="Guest" />
             </div>
           </div>
           
