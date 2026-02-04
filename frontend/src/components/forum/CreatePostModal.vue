@@ -1,10 +1,10 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from "vue";
-import Editor from "primevue/editor";
 import { createPost, getTags, getCategories } from "@/api/posts";
 import { uploadImage } from "@/api/media";
-import { fullName, userAvatar, isLoggedIn, userRole } from "@/stores/userStore";
+import { fullName, userAvatar, isLoggedIn, userRole, userRoleId } from "@/stores/userStore";
 import UserRole from "@/components/user/UserRole.vue";
+import TextEditor from "@/components/forum/TextEditor.vue";
 
 const MAX_TITLE_LEN = 125;
 const MAX_TAGS = 5;
@@ -22,6 +22,8 @@ const form = ref({
   content: "",
   tags: []
 });
+
+const editor = ref(null);
 
 // UI State
 const showWarningDialog = ref(false);
@@ -85,6 +87,10 @@ function tagNameById(id) {
   return allTags.value.find(t => t.tagId === id)?.name || `#${id}`;
 }
 
+function isOfficialTag(id) {
+  return allTags.value.find(t => t.tagId === id)?.name == 'Official' || false
+}
+
 const removeTag = (id) => {
   form.value.tags = form.value.tags.filter(tid => tid !== id);
 };
@@ -93,38 +99,6 @@ function handleClickOutside(event) {
   if (tagContainerRef.value && !tagContainerRef.value.contains(event.target)) {
     showTagPopup.value = false;
   }
-}
-
-// Text Editor Logic
-function onEditorLoad(event) {
-  const quill = event.instance; 
-  
-  if (!quill) return;
-
-  const toolbar = quill.getModule("toolbar");
-
-  toolbar.addHandler("image", () => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "image/*";
-
-    input.onchange = async () => {
-      const file = input.files?.[0];
-      if (!file) return;
-      
-      try {
-        const data = await uploadImage(file);
-        const range = quill.getSelection(true);
-        
-        quill.insertEmbed(range.index, "image", data.url, "user");
-      } catch (err) { 
-        console.error("Upload failed", err);
-        alert("Upload failed"); 
-      }
-    };
-
-    input.click();
-  });
 }
 
 // Handle closing create post modal
@@ -256,7 +230,7 @@ onUnmounted(() => {
                   </div>
                   <!-- Active Tags -->
                   <div class="tag-chips-flow">
-                    <span v-for="tid in form.tags" :key="tid" class="tag-chip-pill">
+                    <span v-for="tid in form.tags" :key="tid" :class="isOfficialTag(tid) ? 'tag-chip-pill-mod-admin' : 'tag-chip-pill'">
                       {{ tagNameById(tid) }}
                       <button class="chip-remove" @click="removeTag(tid)">&times;</button>
                     </span>
@@ -264,17 +238,16 @@ onUnmounted(() => {
                   </div>
                 </div>
               </div>
-            </div>
 
-            <!-- Text Editor -->
-            <div class="editor-wrap">
-              <Editor
-                v-model="form.content"
-                class="custom-editor"
-                @load="onEditorLoad"
-                placeholder="What would you like to discuss?"
-              />
+              <div class="comment-ctrl comm-checkbox-style" v-if="userRoleId >= 3">
+                <span class="me-3">Disable Comments?</span>
+                  <input class="form-check-input" type="checkbox" value="" id="checkComment">
+                    <label class="form-check-label" for="checkComment">
+                    </label>
+              </div>
             </div>
+            <!-- Text Editor -->
+            <TextEditor v-model="form.content" class="custom-editor" ref="editor" />
           </main>
 
           <!-- Publish or Cancel Options-->
@@ -322,6 +295,12 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+p {
+  color: #737373;
+}
+.comm-checkbox-style input[type="checkbox"]:focus {
+  box-shadow: 0 0 0 0.15rem rgba(6, 233, 157, 0.25);
+}
 .modal-mask {
   position: fixed;
   inset: 0;
@@ -534,7 +513,7 @@ onUnmounted(() => {
   height: 36px;
   border-radius: 50%;
   border: none;
-  background: #2E6C44;
+  background: linear-gradient(170deg, #2e6c44bd 0%, #2e6c44 100%);
   color: white;
   font-size: 20px;
   font-weight: bold;
@@ -554,18 +533,27 @@ onUnmounted(() => {
   flex-wrap: wrap;
   gap: 6px;
 }
-
+.tag-chip-pill-mod-admin,
 .tag-chip-pill {
-  background: #E8FCD2;
-  color: #2E6C44;
-  padding: 4px 12px;
-  border-radius: 99px;
+  padding: 4px 5px 4px 10px;
+  border-radius: 6px;
   font-size: 0.8rem;
   font-weight: 700;
   display: flex;
   align-items: center;
   gap: 6px;
   border: 1px solid #d1e7d8;
+}
+.tag-chip-pill-mod-admin {
+  background: linear-gradient(170deg, #fa9805a4 0%, #f17500b0 100%);
+  color: black;
+  .chip-remove {
+    color: black;
+  }
+}
+.tag-chip-pill {
+  background: linear-gradient(170deg, #2e6c44bd 0%, #2e6c44 100%);
+  color: white;
 }
 
 .tag-floating-box {
@@ -613,8 +601,12 @@ onUnmounted(() => {
 .chip-remove { 
   background: none; 
   border: none; 
-  color: #94a3b8; 
+  color: white; 
   cursor: pointer; 
+  transition: all 0.35s ease;
+}
+.chip-remove:hover {
+  transform: translateY(-1px);
 }
 
 .muted-hint { 
