@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import { createPost, getTags, getCategories } from "@/api/posts";
 import { uploadImage } from "@/api/media";
-import { fullName, userAvatar, isLoggedIn, userRole } from "@/stores/userStore";
+import { fullName, userAvatar, isLoggedIn, userRole, userRoleId } from "@/stores/userStore";
 import UserRole from "@/components/user/UserRole.vue";
 import TextEditor from "@/components/forum/TextEditor.vue";
 
@@ -238,6 +238,13 @@ onUnmounted(() => {
                   </div>
                 </div>
               </div>
+
+              <div class="comment-ctrl comm-checkbox-style" v-if="userRoleId >= 3">
+                <span class="me-3">Disable Comments?</span>
+                  <input class="form-check-input" type="checkbox" value="" id="checkComment">
+                    <label class="form-check-label" for="checkComment">
+                    </label>
+              </div>
             </div>
             <!-- Text Editor -->
             <TextEditor v-model="form.content" class="custom-editor" ref="editor" />
@@ -290,6 +297,9 @@ onUnmounted(() => {
 <style scoped>
 p {
   color: #737373;
+}
+.comm-checkbox-style input[type="checkbox"]:focus {
+  box-shadow: 0 0 0 0.15rem rgba(6, 233, 157, 0.25);
 }
 .modal-mask {
   position: fixed;
@@ -525,7 +535,7 @@ p {
 }
 .tag-chip-pill-mod-admin,
 .tag-chip-pill {
-  padding: 4px 12px;
+  padding: 4px 5px 4px 10px;
   border-radius: 6px;
   font-size: 0.8rem;
   font-weight: 700;
@@ -596,7 +606,7 @@ p {
   transition: all 0.35s ease;
 }
 .chip-remove:hover {
-  transform: translateY(-2px);
+  transform: translateY(-1px);
 }
 
 .muted-hint { 

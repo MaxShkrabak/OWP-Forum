@@ -16,7 +16,7 @@ $app->get('/api/me', function(Request $req, Response $res) use ($makePdo) {
         $pdo = $makePdo();
 
         $sql = "
-            SELECT u.User_ID, u.Email, u.FirstName, u.LastName, u.Avatar, r.Name as RoleName 
+            SELECT u.User_ID, u.Email, u.FirstName, u.LastName, u.Avatar, r.Name as RoleName, r.RoleID
             FROM dbo.Users u
             LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
             WHERE u.User_ID = :uid

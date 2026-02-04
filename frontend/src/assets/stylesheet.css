@@ -284,8 +284,8 @@ p {
     border-radius: 25px !important;
 }
 .form-check-input:checked {
-    background-color: #00A5B5 !important;
-    border-color: #00A5B5 !important;
+    background-color: #007a4c !important;
+    border-color: #6dbe4b !important;
 }
 .color-card-btn {
     text-align: center;
