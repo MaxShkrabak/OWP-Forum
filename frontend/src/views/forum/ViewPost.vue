@@ -33,7 +33,8 @@ onMounted(async () => {
 <template>
   <div class="page">
     <div class="container position-relative">
-      <!-- Floating BACK ARROW -->
+
+      <!-- FLOATING BACK ARROW (SEPARATE FROM HEADER) -->
       <div
         class="go-back-floating"
         role="button"
@@ -60,25 +61,27 @@ onMounted(async () => {
       <div v-else-if="post" class="page-container">
         <div class="center-container col text-center">
 
-          <!-- HEADER aligned with sidebar+content edges -->
+          <!-- HEADER (ALIGNED WITH SIDEBAR + CONTENT EDGES) -->
           <div class="row gx-0">
             <div class="col-12 header-align mb-2">
               <ViewPostHeader />
             </div>
           </div>
 
-          <!-- Sidebar + Content -->
-          <div class="row">
+          <!-- SIDEBAR + CONTENT (MATCH HEADER WIDTH) -->
+          <div class="row gx-0">
+            <!-- Sidebar -->
             <div class="post-sidebar col-md-3 col-lg-2 mb-3 mb-md-0">
               sidebar
             </div>
 
+            <!-- Content -->
             <div class="post-content col-md-9 col-lg-10">
               <ViewPostContent :content="post.content" />
             </div>
           </div>
 
-          <!-- Comments -->
+          <!-- COMMENTS (ALREADY FULL WIDTH) -->
           <div class="row">
             <div class="post-comments mt-4">comments</div>
           </div>
@@ -90,6 +93,7 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+/* Page background */
 .page {
   background-color: #cbdad5;
   min-height: 90vh;
@@ -98,6 +102,7 @@ onMounted(async () => {
   padding-right: 1vh;
 }
 
+/* Loader */
 .loader {
   display: flex;
   justify-content: center;
@@ -105,6 +110,7 @@ onMounted(async () => {
   padding-bottom: 25%;
 }
 
+/* Error */
 .empty-state {
   background: rgba(255, 255, 255, 0.6);
   border-radius: 20px;
@@ -112,17 +118,18 @@ onMounted(async () => {
   padding: 3rem;
 }
 
-/* Header alignment */
+/* HEADER alignment */
 .header-align {
   padding-left: 0;
   padding-right: 0;
+  text-align: left;
 }
 
-/* Floating arrow */
+/* FLOATING BACK ARROW */
 .go-back-floating {
   position: absolute;
-  left: -80px;
-  top: 8px;
+  left: -88px;   /* further left */
+  top: 4px;      /* slightly higher */
 
   width: 56px;
   height: 56px;
@@ -148,12 +155,18 @@ onMounted(async () => {
   line-height: 1;
 }
 
-/* Sidebar / Comments placeholders */
+/* Sidebar */
 .post-sidebar {
   border: 2px solid #000;
   border-radius: 3px;
 }
 
+/* Replace Bootstrap gutter between sidebar/content */
+.post-content {
+  padding-left: 16px;
+}
+
+/* Comments */
 .post-comments {
   border: 2px solid #000;
   border-radius: 3px;
@@ -167,8 +180,13 @@ onMounted(async () => {
     width: 52px;
     height: 52px;
   }
+
   .back-arrow {
     font-size: 24px;
+  }
+
+  .post-content {
+    padding-left: 0;
   }
 }
 </style>
