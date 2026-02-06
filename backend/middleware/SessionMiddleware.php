@@ -16,6 +16,7 @@ return function (Request $request, RequestHandler $handler) use ($makePdo) {
         '/api/register-new-user' => ['POST'],
         '/api/verify-email'      => ['GET', 'POST'],
         '/api/posts'             => ['GET'],
+        '/api/tags'              => ['GET'],
     ];
 
     // Check if route is public
