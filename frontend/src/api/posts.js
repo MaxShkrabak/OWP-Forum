@@ -23,23 +23,30 @@ export async function getCategories() {
   }));
 }
 
-export async function fetchPosts({ categoryId = null, limit, sort = 'latest', page = 1, userId = null} = {}) {
+export async function fetchPosts({ categoryId = null, limit, sort = 'latest', page = 1, userId = null, tags = null } = {}) {
   let endpoint = "/posts";
 
   if(categoryId) {
     endpoint = `/categories/${categoryId}/posts`;
   } else if (userId) {
-     endpoint = `/profile/${userId}/posts`;
+    endpoint = `/profile/${userId}/posts`;
   }
-  
-  const { data } = await client.get(endpoint, {
-    params: { limit, sort, page }
-  });
+ 
+  const params = { limit, sort, page };
 
+  if (Array.isArray(tags) && tags.length > 0) {
+    params.tags = tags.join(',');
+  } else if (tags) {
+    params.tags = tags;
+  }
+
+  const { data } = await client.get(endpoint, { params });
+ 
   if (data.posts) {
     data.posts = data.posts.map(post => ({
       ...post,
-      likeCount: post.likeCount ?? 0,
+      postId: post.PostID,
+      likeCount: post.TotalScore ?? 0,
       commentCount: post.commentCount ?? 0,
       tags: post.tags || []
     }));
@@ -47,6 +54,7 @@ export async function fetchPosts({ categoryId = null, limit, sort = 'latest', pa
 
   return data;
 }
+
 
 export async function votePost(PostID, action) {
   if (!PostID) {
