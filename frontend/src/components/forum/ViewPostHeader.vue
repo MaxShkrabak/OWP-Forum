@@ -2,11 +2,8 @@
 import UserRole from "@/components/user/UserRole.vue";
 
 /**
- * FILLER DATA ONLY (per instructions)
- * Styled to match PostCard.vue:
- * - tags: .post-tag
- * - author: .author-info-wrap + .avatar-box + .avatar-img + .author-name
- * - role: <UserRole />
+ * FILLER DATA ONLY
+ * Styles intentionally reused from PostCard.vue
  */
 
 // Filler data
@@ -17,13 +14,16 @@ const timeText = "6:12 PM";
 const authorName = "Joe Joey";
 const authorRole = "USER";
 
-// Use a placeholder avatar (replace later when wired to real user avatars)
-const avatarUrl = "https://via.placeholder.com/64";
+// Use the same avatar system as PostCard.vue
+function getAvatarSrc(file) {
+  return new URL(
+    `../../assets/img/user-pfps-premade/${file}`,
+    import.meta.url
+  ).href;
+}
 
-// (Optional) if later you want to use your premade avatars like PostCard:
-// function getAvatarSrc(file) {
-//   return new URL(`../../assets/img/user-pfps-premade/${file}`, import.meta.url).href;
-// }
+// Filler avatar file (must exist in user-pfps-premade)
+const avatarFile = "tree.png";
 </script>
 
 <template>
@@ -43,7 +43,7 @@ const avatarUrl = "https://via.placeholder.com/64";
       <div class="time">{{ timeText }}</div>
     </div>
 
-    <!-- Right: Author (match PostCard styles) -->
+    <!-- Right: Author (same as PostCard) -->
     <div class="author-info-wrap">
       <div class="text-end d-flex flex-column align-items-end">
         <span class="author-name text-truncate">{{ authorName }}</span>
@@ -51,14 +51,18 @@ const avatarUrl = "https://via.placeholder.com/64";
       </div>
 
       <div class="avatar-box shadow-sm">
-        <img :src="avatarUrl" class="avatar-img" alt="user" />
+        <img
+          :src="getAvatarSrc(avatarFile)"
+          class="avatar-img"
+          alt="user"
+        />
       </div>
     </div>
   </header>
 </template>
 
 <style scoped>
-/* Layout box (keep your figma header container look) */
+/* Header container */
 .top-header {
   width: 100%;
   height: 100%;
@@ -70,6 +74,9 @@ const avatarUrl = "https://via.placeholder.com/64";
   background: #fff;
   border: 3px solid #000;
   border-radius: 6px;
+
+  /* IMPORTANT: override parent .text-center */
+  text-align: left;
 }
 
 /* Left block */
@@ -78,6 +85,7 @@ const avatarUrl = "https://via.placeholder.com/64";
   display: flex;
   flex-direction: column;
   gap: 6px;
+  text-align: left; /* force left alignment */
 }
 
 .post-title {
@@ -86,25 +94,17 @@ const avatarUrl = "https://via.placeholder.com/64";
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-align: left; /* force left alignment */
 }
 
-/* Date/time */
-.datetime {
-  text-align: right;
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1.1;
-}
-
-/* === COPIED STYLE BEHAVIOR FROM PostCard.vue (tags + author) === */
-
+/* Tags */
 .tags {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
 
-/* same as PostCard.vue .post-tag */
+/* SAME AS PostCard.vue */
 .post-tag {
   background: #2e6c44;
   color: white;
@@ -115,7 +115,15 @@ const avatarUrl = "https://via.placeholder.com/64";
   white-space: nowrap;
 }
 
-/* same as PostCard.vue */
+/* Date/time */
+.datetime {
+  text-align: right;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+/* Author block (same as PostCard.vue) */
 .author-info-wrap {
   display: flex;
   align-items: center;
@@ -159,6 +167,7 @@ const avatarUrl = "https://via.placeholder.com/64";
     height: auto;
     row-gap: 10px;
   }
+
   .datetime,
   .author-info-wrap {
     justify-self: start;

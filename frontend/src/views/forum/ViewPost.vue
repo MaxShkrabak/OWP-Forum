@@ -5,26 +5,21 @@ import { getPost } from "@/api/posts";
 import ViewPostContent from "@/components/forum/ViewPostContent.vue";
 import ViewPostHeader from "@/components/forum/ViewPostHeader.vue";
 
-// Access the current route details
 const route = useRoute();
 const router = useRouter();
 const postId = route.params.id;
 
-// Reactive state
 const post = ref(null);
 const loading = ref(true);
 const error = ref(null);
 
-// Back button handler
 function goBack() {
   if (window.history.length > 1) router.back();
   else router.push("/");
 }
 
-// Fetch data when the component is mounted
 onMounted(async () => {
   try {
-    // We send the ID at the end of the URL
     post.value = await getPost(postId);
   } catch (err) {
     error.value = "Post could not be loaded.";
@@ -37,55 +32,57 @@ onMounted(async () => {
 
 <template>
   <div class="page">
-    <div class="container">
-      <!-- Loads while it fetches -->
+    <div class="container position-relative">
+      <!-- Floating BACK ARROW -->
+      <div
+        class="go-back-floating"
+        role="button"
+        tabindex="0"
+        @click="goBack"
+        @keydown.enter="goBack"
+      >
+        <span class="back-arrow">←</span>
+      </div>
+
+      <!-- Loading -->
       <div v-if="loading" class="loader pt-5">
         <div class="spinner-border"></div>
       </div>
 
-      <!-- Displays error if the Post doesn't exist -->
+      <!-- Error -->
       <div v-else-if="error" class="error empty-state text-center">
-        <p class="fw-medium text-secondary">The post has been deleted or does not exist.</p>
+        <p class="fw-medium text-secondary">
+          The post has been deleted or does not exist.
+        </p>
       </div>
 
-      <!-- If the Post is found, constructs page -->
+      <!-- Page -->
       <div v-else-if="post" class="page-container">
         <div class="center-container col text-center">
-          <!-- Header Part -->
-          <div class="post-header row mb-1">
-            <!-- Go Back arrow -->
-            <div
-              class="go-back pi pi-arrow-left col-1 text-white"
-              style="font-size: 1.5rem"
-              role="button"
-              tabindex="0"
-              @click="goBack"
-              @keydown.enter="goBack"
-            ></div>
 
-            <!-- REPLACE title with your header -->
-            <div class="content-head col">
+          <!-- HEADER aligned with sidebar+content edges -->
+          <div class="row gx-0">
+            <div class="col-12 header-align mb-2">
               <ViewPostHeader />
             </div>
           </div>
 
-          <!-- Sidebar and Content in a row -->
+          <!-- Sidebar + Content -->
           <div class="row">
-            <!-- Sidebar part -->
-            <div class="post-sidebar col-md-3 col-lg-2 text-white mb-3 mb-md-0">
+            <div class="post-sidebar col-md-3 col-lg-2 mb-3 mb-md-0">
               sidebar
             </div>
 
-            <!-- Content part -->
             <div class="post-content col-md-9 col-lg-10">
               <ViewPostContent :content="post.content" />
             </div>
           </div>
 
-          <!-- Comment Section -->
+          <!-- Comments -->
           <div class="row">
             <div class="post-comments mt-4">comments</div>
           </div>
+
         </div>
       </div>
     </div>
@@ -100,6 +97,7 @@ onMounted(async () => {
   padding-left: 1vh;
   padding-right: 1vh;
 }
+
 .loader {
   display: flex;
   justify-content: center;
@@ -107,7 +105,6 @@ onMounted(async () => {
   padding-bottom: 25%;
 }
 
-/* Error when post not found */
 .empty-state {
   background: rgba(255, 255, 255, 0.6);
   border-radius: 20px;
@@ -115,39 +112,63 @@ onMounted(async () => {
   padding: 3rem;
 }
 
-/* Header */
-.go-back {
-  background-color: none;
-  border: 2px black solid;
-  border-radius: 3px;
+/* Header alignment */
+.header-align {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+/* Floating arrow */
+.go-back-floating {
+  position: absolute;
+  left: -80px;
+  top: 8px;
+
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 3px solid #000;
+  background: #fff;
+
   display: flex;
   align-items: center;
   justify-content: center;
+
   cursor: pointer;
+  z-index: 10;
 }
 
-/* IMPORTANT:
-   Your ViewPostHeader already has its own border.
-   If you keep a border here, you'll get a "double border".
-   So we remove border on content-head and just let the header draw itself.
-*/
-.content-head {
-  border: none;
-  padding: 0;
-  background: transparent;
+.go-back-floating:hover {
+  background: #f1f5f9;
 }
 
-/* Body */
+.back-arrow {
+  font-size: 26px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+/* Sidebar / Comments placeholders */
 .post-sidebar {
-  background-color: none;
-  border: 2px black solid;
+  border: 2px solid #000;
   border-radius: 3px;
 }
 
-/* Comments */
 .post-comments {
-  background-color: none;
-  border: 2px black solid;
+  border: 2px solid #000;
   border-radius: 3px;
+}
+
+/* Mobile safety */
+@media (max-width: 576px) {
+  .go-back-floating {
+    left: 0;
+    top: -64px;
+    width: 52px;
+    height: 52px;
+  }
+  .back-arrow {
+    font-size: 24px;
+  }
 }
 </style>
