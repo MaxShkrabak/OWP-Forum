@@ -15,22 +15,20 @@ const myVote = ref(0);
 const score = ref(0);
 
 watch(
-  () => [props.post.myVote, props.post.score],
-  ([v, s]) => {
+  () => [props.post.myVote, props.post.likeCount],
+  ([v, lc]) => {
     myVote.value = Number(v ?? 0);
-    score.value = Number(s ?? 0);
+    score.value = Number(lc ?? 0);
   },
   { immediate: true }
 );
-
 
 function getAvatarSrc(file) {
   return new URL(`../assets/img/user-pfps-premade/${file}`, import.meta.url).href;
 }
 
-// IMPORTANT: use the actual post id key your component has
 function getPostId() {
-  return props.post.postId ?? props.post.PostID ?? props.post.postID ?? props.post.id;
+  return props.post.postId;
 }
 
 async function vote(dir) {

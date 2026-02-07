@@ -27,7 +27,7 @@ export async function loadVotesForPosts(posts) {
       const id = getPostId(p);
       const v = votes[id] || {};
       p.myVote = Number(v.myVote ?? 0);
-      p.score  = Number(v.score  ?? 0);
+      p.score = Number(v.score ?? p.likeCount ?? 0);
     }
   } catch (e) {
     console.error("vote fetch failed", e);

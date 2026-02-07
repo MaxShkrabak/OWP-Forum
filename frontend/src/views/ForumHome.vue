@@ -17,27 +17,29 @@ const error = ref(null);   // error message
 
 const categorySearch = ref(""); // todo: make this general search
 const selectedCategories = ref([]);
+const INITIAL_LIMIT = ref(5); // post limit per category
 
-const INITIAL_LIMIT = 5; // post limit per category
-
-function getPostId(p) {
-  return p.postId ?? p.PostID ?? p.postID ?? p.id;
+function loadMore() {
+  INITIAL_LIMIT.value = Math.min(20, INITIAL_LIMIT.value + 5);
 }
 
 async function fetchPosts() {
   loading.value = true;
+  error.value = null;
 
-  const data = await apiGetPosts();
-  const allPosts = data.postsByCategory.flatMap(c => c.posts);
-
-    // fetch votes for these posts
+  try {
+    const data = await apiGetPosts({ limit: 200 }); // big pull for home
+    const allPosts = data.postsByCategory.flatMap(c => c.posts);
     await loadVotesForPosts(allPosts);
 
-  postsByCategory.value = data.postsByCategory;
-  totalPosts.value = data.totalPosts;
-  loading.value = false;
+    postsByCategory.value = data.postsByCategory;
+    totalPosts.value = data.totalPosts;
+  } catch (e) {
+    error.value = e?.message ?? "Failed to load posts";
+  } finally {
+    loading.value = false;
+  }
 }
-
 
 // Handle category filtering via search and selection
 const filteredCategories = computed(() => {

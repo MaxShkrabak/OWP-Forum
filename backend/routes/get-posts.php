@@ -6,6 +6,16 @@ $app->get('/api/posts', function (Request $req, Response $res) use ($makePdo) {
     try {
         $pdo = $makePdo();
 
+$q = $req->getQueryParams();
+
+        $sort = isset($q['sort']) ? strtolower(trim($q['sort'])) : 'latest';
+        $orderBy = "p.CreatedAt DESC";
+        if ($sort === 'oldest') $orderBy = "p.CreatedAt ASC";
+
+        $page  = isset($q['page']) ? max(1, (int)$q['page']) : 1;
+        $limit = isset($q['limit']) ? max(1, min(200, (int)$q['limit'])) : 10;
+        $offset = ($page - 1) * $limit;
+
         // Get all posts with user info, ordered by latest first
         $sql = "
             SELECT
@@ -13,24 +23,43 @@ $app->get('/api/posts', function (Request $req, Response $res) use ($makePdo) {
                 p.Title,
                 p.CreatedAt,
                 p.CategoryID,
+
                 u.FirstName,
                 u.LastName,
                 u.Avatar,
                 r.Name AS RoleName,
-                c.Name AS CategoryName
+                c.Name AS CategoryName,
+
+                ISNULL(cc.CommentCount, 0) AS CommentCount,
+                ISNULL(vc.LikeCount, 0)    AS LikeCount
+
             FROM dbo.Posts p
-            LEFT JOIN dbo.Users u
-                ON p.AuthorID = u.User_ID
-            LEFT JOIN dbo.Roles r
-                ON u.RoleID = r.RoleID
-            LEFT JOIN dbo.Categories c
-                ON p.CategoryID = c.CategoryID
+            LEFT JOIN dbo.Users u ON p.AuthorID = u.User_ID
+            LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
+            LEFT JOIN dbo.Categories c ON p.CategoryID = c.CategoryID
+
+            OUTER APPLY (
+                SELECT COUNT(*) AS CommentCount
+                FROM dbo.Comments cm
+                WHERE cm.PostID = p.PostID
+            ) cc
+
+            OUTER APPLY (
+                SELECT ISNULL(SUM(v.VoteValue), 0) AS LikeCount
+                FROM dbo.PostLikes v
+                WHERE v.PostID = p.PostID
+            ) vc
+
             ORDER BY p.CreatedAt DESC
-        ";
+            OFFSET :offset ROWS FETCH NEXT :limit ROWS ONLY
+            ";
 
         $postStmt = $pdo->prepare($sql);
+        $postStmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $postStmt->bindValue(':limit',  $limit,  PDO::PARAM_INT);
         $postStmt->execute();
         $rows = $postStmt->fetchAll(PDO::FETCH_ASSOC);
+
 
         // Fetch tags for all posts
         $tagsByPostId = [];
@@ -52,58 +81,6 @@ $app->get('/api/posts', function (Request $req, Response $res) use ($makePdo) {
             while ($tagRow = $tagStmt->fetch(PDO::FETCH_ASSOC)) {
                 $pid = (int)$tagRow['PostID'];
                 $tagsByPostId[$pid][] = $tagRow['Name'];
-            }
-        }
-
-        // Fetch comment counts for all posts
-        $commentCountsByPostId = [];
-        if (!empty($rows)) {
-            $postIds = array_map(fn($r) => (int)$r['PostID'], $rows);
-            $placeholders = implode(',', array_fill(0, count($postIds), '?'));
-
-            // Check if Comments table exists by trying to query it
-            try {
-                $commentSql = "
-                    SELECT PostID, COUNT(*) AS CommentCount
-                    FROM dbo.Comments
-                    WHERE PostID IN ($placeholders)
-                    GROUP BY PostID
-                ";
-                $commentStmt = $pdo->prepare($commentSql);
-                $commentStmt->execute($postIds);
-
-                while ($commentRow = $commentStmt->fetch(PDO::FETCH_ASSOC)) {
-                    $pid = (int)$commentRow['PostID'];
-                    $commentCountsByPostId[$pid] = (int)$commentRow['CommentCount'];
-                }
-            } catch (Throwable $e) {
-                // Comments table might not exist yet, use default 0
-            }
-        }
-
-        // Fetch like counts for all posts
-        $likeCountsByPostId = [];
-        if (!empty($rows)) {
-            $postIds = array_map(fn($r) => (int)$r['PostID'], $rows);
-            $placeholders = implode(',', array_fill(0, count($postIds), '?'));
-
-            // Check if PostLikes table exists by trying to query it
-            try {
-                $likeSql = "
-                    SELECT PostID, COUNT(*) AS LikeCount
-                    FROM dbo.PostLikes
-                    WHERE PostID IN ($placeholders)
-                    GROUP BY PostID
-                ";
-                $likeStmt = $pdo->prepare($likeSql);
-                $likeStmt->execute($postIds);
-
-                while ($likeRow = $likeStmt->fetch(PDO::FETCH_ASSOC)) {
-                    $pid = (int)$likeRow['PostID'];
-                    $likeCountsByPostId[$pid] = (int)$likeRow['LikeCount'];
-                }
-            } catch (Throwable $e) {
-                // PostLikes table might not exist yet, use default 0
             }
         }
 
@@ -135,8 +112,9 @@ $app->get('/api/posts', function (Request $req, Response $res) use ($makePdo) {
                 'authorRole'   => $row['RoleName'] ?? 'User',
                 'authorAvatar' => $row['Avatar'] ?? null,
                 'tags'         => $tagsByPostId[$pid] ?? [],
-                'commentCount' => $commentCountsByPostId[$pid] ?? 0,
-                'likeCount'    => $likeCountsByPostId[$pid] ?? 0,
+                'commentCount' => (int)($row['CommentCount'] ?? 0),
+                'likeCount'    => (int)($row['LikeCount'] ?? 0),
+
             ];
 
             $posts[] = $post;

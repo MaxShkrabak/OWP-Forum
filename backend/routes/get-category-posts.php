@@ -79,18 +79,34 @@ $app->get('/api/categories/{id}/posts', function (Request $req, Response $res, a
             u.FirstName,
             u.LastName,
             u.Avatar,
-            r.Name AS RoleName
+            r.Name AS RoleName,
+
+            ISNULL(cc.CommentCount, 0) AS CommentCount,
+            ISNULL(lc.LikeCount, 0)    AS LikeCount
+
         FROM dbo.Posts p
         LEFT JOIN dbo.Users u
             ON p.AuthorID = u.User_ID
         LEFT JOIN dbo.Roles r
             ON u.RoleID = r.RoleID
+
+        OUTER APPLY (
+            SELECT COUNT(*) AS CommentCount
+            FROM dbo.Comments cm
+            WHERE cm.PostID = p.PostID
+        ) cc
+
+        OUTER APPLY (
+            SELECT COALESCE(SUM(pl.VoteValue), 0) AS LikeCount
+            FROM dbo.PostLikes pl
+            WHERE pl.PostID = p.PostID
+        ) lc
+
         WHERE p.CategoryID = :categoryId
         ORDER BY $orderBy
         OFFSET :offset ROWS
         FETCH NEXT :limit ROWS ONLY;
-    ";
-
+        ";
 
     $postStmt = $pdo->prepare($sql);
     $postStmt->bindValue(':categoryId', $categoryId, PDO::PARAM_INT);
@@ -138,6 +154,8 @@ $app->get('/api/categories/{id}/posts', function (Request $req, Response $res, a
             'authorRole'  => $row['RoleName'] ?? 'User',
             'authorAvatar'=> $row['Avatar'] ?? null,
             'tags'       => $tagsByPostId[$pid] ?? [],
+            'commentCount' => (int)($row['CommentCount'] ?? 0),
+            'likeCount'    => (int)($row['LikeCount'] ?? 0),
         ];
     }, $rows);
 
