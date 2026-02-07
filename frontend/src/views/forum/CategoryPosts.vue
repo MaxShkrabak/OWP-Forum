@@ -134,10 +134,12 @@ onMounted(async () => {
                   :key="tag.tagId"
                   type="button"
                   @click="toggleTag(tag.name)"
-                  class="tag-pill"
+                  class="tag-pill bi"
                   :class="{ active: selectedTags.includes(tag.name) }"
                 >
+                  <i class="tag-pill-icon" :class="{ 'bi-check-circle-fill pe-1': selectedTags.includes(tag.name) }"></i>
                   {{ tag.name }}
+                  
                 </button>
               </div>
             </div>
@@ -477,6 +479,7 @@ onMounted(async () => {
 }
 
 .clear-btn:hover {
+  text-decoration: underline;
   background: rgba(255, 255, 255, 0.25);
 }
 
@@ -484,7 +487,7 @@ onMounted(async () => {
 .tag-pill {
   background: #ffffff;
   border: 1px solid #e5e7eb;
-  border-radius: 999px;
+  border-radius: 5px;
   padding: 4px 10px;
   font-size: 0.7rem;
   font-weight: 700;
@@ -492,15 +495,22 @@ onMounted(async () => {
   cursor: pointer;
   transition: all 0.12s ease;
 }
+.tag-pill-icon {
+  color: green;
+}
 
 .tag-pill:hover {
-  background: #f8fafc;
+  background: #ececec;
 }
 
 /* Active tag */
 .tag-pill.active {
-  background: #0b5f43;
-  color: #ffffff;
-  border-color: #0b5f43;
+  background: #007a4b34;
+  color: #000000;
+  border-color: #007a4c;
+}
+.tag-pill.active:hover {
+  background: #007a4b5b;
+  color: #000000;
 }
 </style>
