@@ -7,7 +7,7 @@ import UserCard from "@/components/user/UserCard.vue";
 import CreatePostButton from "@/components/forum/CreatePostButton.vue";
 import ViewReportsButton from "@/components/admin/ViewReportsButton.vue";
 import { isLoggedIn } from "@/stores/userStore";
-import { fetchPosts as apiGetPosts } from "@/api/posts";
+import { fetchPosts as apiGetPosts, getTags as apiGetTags } from "@/api/posts";
 import { getPaginationRange } from '@/utils/pagination';
 
 const route = useRoute();
@@ -22,65 +22,126 @@ const totalPages = ref(1);
 const limit = ref(Number(localStorage.getItem('category_limit')) || 5);
 const sort = ref(localStorage.getItem('category_sort') || 'latest');
 
+const allTags = ref([]);          
+const selectedTags = ref([]);
+
+async function fetchTags() {
+  try {
+    allTags.value = await apiGetTags();
+  } catch (e) {
+    console.error("Error fetching tags:", e);
+    allTags.value = [];
+  }
+}
+
 async function loadCategoryPosts() {
   loading.value = true;
   error.value = null;
 
   try {
-    const data = await apiGetPosts({
+    const args = {
       categoryId: route.params.categoryId,
-      limit: limit.value,
       sort: sort.value,
-      page: currentPage.value
-    });
+      page: currentPage.value,
+      limit: limit.value,
+      tags: selectedTags.value.length > 0 ? selectedTags.value : null
+    };
 
+    const data = await apiGetPosts(args);
+   
     posts.value = data.posts || [];
-    categoryName.value = data.categoryName || 'Category';
-    
+    categoryName.value = data.categoryName || "Category";
+
     if (data.meta) {
       totalPages.value = data.meta.totalPages || 1;
+    } else if (data.totalPosts) {
+       totalPages.value = Math.ceil(data.totalPosts / limit.value);
     }
   } catch (e) {
-    console.error("Fetch error:", e);
-    error.value = e.message;
-    posts.value = [];
+    error.value = "Failed to load posts.";
+    console.error(e);
   } finally {
     loading.value = false;
   }
 }
 
-watch([limit, sort], () => {
-  currentPage.value = 1;
-  loadCategoryPosts();
+function toggleTag(tagName) {
+  const i = selectedTags.value.indexOf(tagName);
+  if (i >= 0) selectedTags.value.splice(i, 1);
+  else selectedTags.value.push(tagName);
+}
 
-  localStorage.setItem('category_limit', limit.value);
-  localStorage.setItem('category_sort', sort.value);
-});
+function clearTags() {
+  selectedTags.value = [];
+}
+
+watch([sort, selectedTags, limit], ([newSort, newTags, newLimit]) => {
+  currentPage.value = 1;
+  localStorage.setItem('category_sort', newSort);
+  localStorage.setItem('category_limit', newLimit);
+
+  loadCategoryPosts();
+}, { deep: true });
 
 const displayedPages = computed(() => {
   return getPaginationRange(currentPage.value, totalPages.value, 2);
 });
 
 watch(currentPage, loadCategoryPosts);
-onMounted(loadCategoryPosts);
+
+onMounted(async () => {
+  await Promise.all([
+    loadCategoryPosts(),
+    fetchTags()
+  ]);
+});
 </script>
 
 <template>
   <ForumHeader />
-  
+ 
   <div class="category-page">
     <div class="container-xl py-4">
       <div class="row g-4">
-        
+ 
         <!-- User card and buttons -->
         <aside class="col-12 col-lg-3 order-1 order-lg-1">
           <div class="sticky-sidebar">
-
             <UserCard />
-            
+           
             <div class="action-buttons-container mt-4" v-if="isLoggedIn">
               <CreatePostButton @post-refresh="loadCategoryPosts" class="w-100 shadow-sm" />
               <ViewReportsButton class="w-100 mt-2" />
+            </div>
+
+            <!-- Tag Filter -->
+            <div class="card border-0 shadow-sm rounded-3 mt-4 overflow-hidden">
+              <div class="filter-header px-3 py-2 d-flex justify-content-between align-items-center">
+                <span class="fw-bold small text-uppercase tracking-wider">Filter By Tags</span>
+                <button
+                  v-if="selectedTags.length > 0"
+                  @click="clearTags"
+                  class="clear-btn"
+                  type="button"
+                >
+                  Clear
+                </button>
+              </div>
+
+              <div class="p-3 d-flex flex-wrap gap-2">
+                <button
+                  v-for="tag in allTags"
+                  :key="tag.tagId"
+                  type="button"
+                  @click="toggleTag(tag.name)"
+                  class="tag-pill bi"
+                  :class="{ active: selectedTags.includes(tag.name) }"
+                >
+                  <i class="tag-pill-icon" :class="{ 'bi-check-circle-fill pe-1': selectedTags.includes(tag.name) }"></i>
+                  {{ tag.name }}
+                  
+                </button>
+              </div>
             </div>
           </div>
         </aside>
@@ -92,9 +153,9 @@ onMounted(loadCategoryPosts);
               <button class="back-btn" @click="router.back()" aria-label="Go Back">
                 <i class="pi pi-arrow-left"></i>
               </button>
-              
+             
               <div class="v-divider"></div>
-              
+             
               <div>
                 <span class="category-badge">Viewing Category</span>
                 <h4 class="category-title">{{ categoryName }}</h4>
@@ -109,7 +170,7 @@ onMounted(loadCategoryPosts);
                   <option v-for="n in [5, 10, 15, 20]" :key="n" :value="n">{{ n }}</option>
                 </select>
               </div>
-            
+           
               <div class="sort-pill">
                 <span class="sort-label">Sort</span>
                 <select v-model="sort" class="sort-select">
@@ -122,12 +183,12 @@ onMounted(loadCategoryPosts);
 
           <!-- Loading status -->
           <div v-if="loading" class="text-center py-5"><div class="spinner-border text-success"></div></div>
-          
+         
           <div v-else class="post-feed">
             <div v-if="posts.length === 0" class="empty-state text-center py-5">
               <p class="fw-medium text-secondary">No posts found in this category.</p>
             </div>
-            
+           
             <PostCard v-for="post in posts" :key="post.postId" :post="post" class="mb-3" />
 
             <!-- Page navigation
@@ -138,18 +199,18 @@ onMounted(loadCategoryPosts);
               <button class="page-nav-btn" :disabled="currentPage === 1" @click="currentPage--">
                 <i class="pi pi-chevron-left"></i>
               </button>
-              
+             
               <div class="page-pages d-none d-sm-flex">
                 <template v-for="p in displayedPages" :key="p">
-                  <button 
+                  <button
                     v-if="typeof p === 'number'"
-                    class="page-num" 
-                    :class="{ active: p === currentPage }" 
+                    class="page-num"
+                    :class="{ active: p === currentPage }"
                     @click="currentPage = p"
                   >
                     {{ p }}
                   </button>
-                  
+                 
                   <span v-else class="page-dots">
                     {{ p }}
                   </span>
@@ -182,7 +243,7 @@ onMounted(loadCategoryPosts);
   border-radius: 16px;
   box-shadow: 0 10px 25px -5px rgba(0, 75, 51, 0.3);
   display: flex;
-  flex-wrap: wrap; 
+  flex-wrap: wrap;
   align-items: center;
 }
 .header-main-content {
@@ -219,7 +280,7 @@ onMounted(loadCategoryPosts);
   font-size: 0.65rem;
   text-transform: uppercase;
   font-weight: 800;
-  color: #f1be48; 
+  color: #f1be48;
   letter-spacing: 1.5px;
 }
 .category-title {
@@ -242,7 +303,7 @@ onMounted(loadCategoryPosts);
   gap: 8px;
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.15);
-  padding: 6px 6px 6px 14px; 
+  padding: 6px 6px 6px 14px;
   border-radius: 10px;
   transition: all 0.2s ease;
 }
@@ -310,7 +371,7 @@ onMounted(loadCategoryPosts);
   color: #ffffff;
 }
 .page-num.active {
-  background: #035157; 
+  background: #035157;
   color: #ffffff;
   box-shadow: 0 6px 16px rgba(3, 81, 87, 0.35);
 }
@@ -332,9 +393,9 @@ onMounted(loadCategoryPosts);
   filter: grayscale(1);
 }
 
-.post-feed { 
-  display: flex; 
-  flex-direction: column; 
+.post-feed {
+  display: flex;
+  flex-direction: column;
 }
 
 .empty-state {
@@ -391,5 +452,65 @@ onMounted(loadCategoryPosts);
     font-size: 0.7rem;
     padding: 1px 2px;
   }
+}
+
+/* =========================
+   TAG FILTER CARD STYLES
+   ========================= */
+
+/* Header bar */
+.filter-header {
+  background: linear-gradient(135deg, #0b5f43 0%, #0a4f3b 100%);
+  color: #ffffff;
+}
+
+/* Clear button */
+.clear-btn {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  color: #ffffff;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.clear-btn:hover {
+  text-decoration: underline;
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* Tag pills (small, clean) */
+.tag-pill {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 5px;
+  padding: 4px 10px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #111827;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+.tag-pill-icon {
+  color: green;
+}
+
+.tag-pill:hover {
+  background: #ececec;
+}
+
+/* Active tag */
+.tag-pill.active {
+  background: #007a4b34;
+  color: #000000;
+  border-color: #007a4c;
+}
+.tag-pill.active:hover {
+  background: #007a4b5b;
+  color: #000000;
 }
 </style>

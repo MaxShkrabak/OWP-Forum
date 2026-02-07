@@ -257,10 +257,12 @@ $app->get('/api/categories/{id}/posts', function (Request $req, Response $res, a
         }
 
         $params = $req->getQueryParams();
-
         $limit = min(max((int)($params['limit'] ?? 5), 1), 50);
         $page  = max((int)($params['page'] ?? 1), 1);
-       
+        
+        $tags = !empty($params['tags']) ? array_values(array_filter(array_map('trim', explode(',', $params['tags'])))) : [];
+        $hasTags = count($tags) > 0;
+
         $sort = strtolower($params['sort'] ?? 'latest');
         $orderBy = match($sort) {
             'oldest' => 'p.CreatedAt ASC',
@@ -268,8 +270,24 @@ $app->get('/api/categories/{id}/posts', function (Request $req, Response $res, a
             default  => 'p.CreatedAt DESC',
         };
 
-        $countStmt = $pdo->prepare("SELECT COUNT(*) FROM dbo.Posts WHERE CategoryID = :id AND IsDeleted = 0");
-        $countStmt->execute(['id' => $categoryId]);
+        $tagSubQuery = "";
+        $tagParams = [];
+        if ($hasTags) {
+            $ph = implode(',', array_fill(0, count($tags), '?'));
+
+            $tagSubQuery = " AND p.PostID IN (
+                SELECT pt.PostID FROM dbo.PostTags pt 
+                JOIN dbo.Tags t ON pt.TagID = t.TagID 
+                WHERE t.Name IN ($ph) 
+                GROUP BY pt.PostID HAVING COUNT(DISTINCT t.Name) = ?
+            )";
+            
+            $tagParams = array_merge($tags, [count($tags)]);
+        }
+
+        $countSql = "SELECT COUNT(*) FROM dbo.Posts p WHERE p.CategoryID = ? AND p.IsDeleted = 0 $tagSubQuery";
+        $countStmt = $pdo->prepare($countSql);
+        $countStmt->execute(array_merge([$categoryId], $tagParams));
         $totalPosts = (int)$countStmt->fetchColumn();
 
         $totalPages = (int)ceil($totalPosts / $limit);
@@ -283,17 +301,27 @@ $app->get('/api/categories/{id}/posts', function (Request $req, Response $res, a
             FROM dbo.Posts p
             LEFT JOIN dbo.Users u ON p.AuthorID = u.User_ID
             LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
-            LEFT JOIN dbo.PostVotes pv ON p.PostID = pv.PostID AND pv.User_ID = :userId
-            WHERE p.CategoryID = :categoryId AND p.IsDeleted = 0
+            LEFT JOIN dbo.PostVotes pv ON p.PostID = pv.PostID AND pv.User_ID = ?
+            WHERE p.CategoryID = ? AND p.IsDeleted = 0 $tagSubQuery
             ORDER BY $orderBy
-            OFFSET :offset ROWS FETCH NEXT :limit ROWS ONLY
+            OFFSET ? ROWS FETCH NEXT ? ROWS ONLY
         ";
 
+        $mainParams = array_merge(
+            [$userId],      
+            [$categoryId], 
+            $tagParams,     
+            [$offset],      
+            [$limit]        
+        );
+
         $postStmt = $pdo->prepare($sql);
-        $postStmt->bindValue(':categoryId', $categoryId, PDO::PARAM_INT);
-        $postStmt->bindValue(':userId', $userId, PDO::PARAM_INT);
-        $postStmt->bindValue(':offset', $offset, PDO::PARAM_INT);
-        $postStmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        foreach ($mainParams as $index => $value) {
+            $paramPos = $index + 1;
+            $type = is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR;
+            $postStmt->bindValue($paramPos, $value, $type);
+        }
+        
         $postStmt->execute();
         $rows = $postStmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -302,7 +330,6 @@ $app->get('/api/categories/{id}/posts', function (Request $req, Response $res, a
             $postIds = array_map(fn($r) => (int)$r['PostID'], $rows);
             $placeholders = implode(',', array_fill(0, count($postIds), '?'));
 
-            // Retrieve the tags for the posts
             $tagsByPostId = [];
             $tagSql = "SELECT pt.PostID, t.Name FROM dbo.PostTags pt
                        JOIN dbo.Tags t ON t.TagID = pt.TagID
@@ -313,7 +340,6 @@ $app->get('/api/categories/{id}/posts', function (Request $req, Response $res, a
                 $tagsByPostId[(int)$t['PostID']][] = $t['Name'];
             }
 
-            // TODO: Might not need this fetchCounts function
             $commentCounts = fetchCounts($pdo, 'dbo.Comments', $placeholders, $postIds, 'CommentCount');
 
             foreach ($rows as $row) {
@@ -339,7 +365,7 @@ $app->get('/api/categories/{id}/posts', function (Request $req, Response $res, a
             'posts'        => $posts,
             'meta'         => [
                 'limit'      => $limit,
-                'sort'       => ($sort === 'oldest' || $sort === 'title') ? $sort : 'latest',
+                'sort'       => $sort,
                 'page'       => $page,
                 'totalPosts' => $totalPosts,
                 'totalPages' => $totalPages,
