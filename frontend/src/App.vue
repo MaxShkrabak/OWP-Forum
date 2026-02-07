@@ -1,7 +1,7 @@
 <script setup>
-import CSUSHeader from './components/CSUSHeader.vue'
-import OWPHeader from './components/OWPHeader.vue';
-import Footer from './components/Footer.vue';
+import CSUSHeader from './components/layout/CSUSHeader.vue'
+import OWPHeader from './components/layout/OWPHeader.vue';
+import Footer from './components/layout/Footer.vue';
 // import Category from './components/Category.vue';
 </script>
 
