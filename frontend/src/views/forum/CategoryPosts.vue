@@ -1,13 +1,13 @@
 <script setup>
 import { ref, onMounted, watch, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import ForumHeader from "@/components/layout/ForumHeader.vue";
-import PostCard from "@/components/forum/PostCard.vue";
-import UserCard from "@/components/user/UserCard.vue";
-import CreatePostButton from "@/components/forum/CreatePostButton.vue";
-import ViewReportsButton from "@/components/admin/ViewReportsButton.vue";
-import { isLoggedIn } from "@/stores/userStore";
-import { fetchPosts as apiGetPosts } from "@/api/posts";
+import ForumHeader from '@/components/layout/ForumHeader.vue';
+import PostCard from '@/components/forum/PostCard.vue';
+import UserCard from '@/components/user/UserCard.vue';
+import CreatePostButton from '@/components/forum/CreatePostButton.vue';
+import ViewReportsButton from '@/components/admin/ViewReportsButton.vue';
+import { isLoggedIn } from '@/stores/userStore';
+import { fetchPosts as apiGetPosts } from '@/api/posts';
 import { getPaginationRange } from '@/utils/pagination';
 
 const route = useRoute();
@@ -19,6 +19,7 @@ const error = ref(null);
 
 const currentPage = ref(1);
 const totalPages = ref(1);
+const totalPosts = ref(0);
 const limit = ref(Number(localStorage.getItem('category_limit')) || 5);
 const sort = ref(localStorage.getItem('category_sort') || 'latest');
 
@@ -31,17 +32,18 @@ async function loadCategoryPosts() {
       categoryId: route.params.categoryId,
       limit: limit.value,
       sort: sort.value,
-      page: currentPage.value
+      page: currentPage.value,
     });
 
     posts.value = data.posts || [];
     categoryName.value = data.categoryName || 'Category';
-    
+
     if (data.meta) {
       totalPages.value = data.meta.totalPages || 1;
+      totalPosts.value = data.meta.totalPosts ?? 0;
     }
   } catch (e) {
-    console.error("Fetch error:", e);
+    console.error('Fetch error:', e);
     error.value = e.message;
     posts.value = [];
   } finally {
@@ -67,19 +69,20 @@ onMounted(loadCategoryPosts);
 
 <template>
   <ForumHeader />
-  
+
   <div class="category-page">
     <div class="container-xl py-4">
       <div class="row g-4">
-        
         <!-- User card and buttons -->
         <aside class="col-12 col-lg-3 order-1 order-lg-1">
           <div class="sticky-sidebar">
-
             <UserCard />
-            
+
             <div class="action-buttons-container mt-4" v-if="isLoggedIn">
-              <CreatePostButton @post-refresh="loadCategoryPosts" class="w-100 shadow-sm" />
+              <CreatePostButton
+                @post-refresh="loadCategoryPosts"
+                class="w-100 shadow-sm"
+              />
               <ViewReportsButton class="w-100 mt-2" />
             </div>
           </div>
@@ -89,15 +92,20 @@ onMounted(loadCategoryPosts);
           <!-- Category header -->
           <header class="category-header mb-4">
             <div class="header-main-content">
-              <button class="back-btn" @click="router.back()" aria-label="Go Back">
+              <button
+                class="back-btn"
+                @click="router.back()"
+                aria-label="Go Back"
+              >
                 <i class="pi pi-arrow-left"></i>
               </button>
-              
+
               <div class="v-divider"></div>
-              
+
               <div>
                 <span class="category-badge">Viewing Category</span>
                 <h4 class="category-title">{{ categoryName }}</h4>
+                <span class="category-post-count">{{ totalPosts }} posts</span>
               </div>
             </div>
 
@@ -106,10 +114,12 @@ onMounted(loadCategoryPosts);
               <div class="sort-pill">
                 <span class="sort-label">Limit</span>
                 <select v-model="limit" class="sort-select">
-                  <option v-for="n in [5, 10, 15, 20]" :key="n" :value="n">{{ n }}</option>
+                  <option v-for="n in [5, 10, 15, 20]" :key="n" :value="n">
+                    {{ n }}
+                  </option>
                 </select>
               </div>
-            
+
               <div class="sort-pill">
                 <span class="sort-label">Sort</span>
                 <select v-model="sort" class="sort-select">
@@ -121,35 +131,48 @@ onMounted(loadCategoryPosts);
           </header>
 
           <!-- Loading status -->
-          <div v-if="loading" class="text-center py-5"><div class="spinner-border text-success"></div></div>
-          
+          <div v-if="loading" class="text-center py-5">
+            <div class="spinner-border text-success"></div>
+          </div>
+
           <div v-else class="post-feed">
             <div v-if="posts.length === 0" class="empty-state text-center py-5">
-              <p class="fw-medium text-secondary">No posts found in this category.</p>
+              <p class="fw-medium text-secondary">
+                No posts found in this category.
+              </p>
             </div>
-            
-            <PostCard v-for="post in posts" :key="post.postId" :post="post" class="mb-3" />
+
+            <PostCard
+              v-for="post in posts"
+              :key="post.postId"
+              :post="post"
+              class="mb-3"
+            />
 
             <!-- Page navigation
              -- TODO: would be nice to add "Go to page" input box
              -- for larger number of pages and just make it look cleaner in general
              -->
             <nav v-if="totalPages > 1" class="page-nav-wraper mt-5">
-              <button class="page-nav-btn" :disabled="currentPage === 1" @click="currentPage--">
+              <button
+                class="page-nav-btn"
+                :disabled="currentPage === 1"
+                @click="currentPage--"
+              >
                 <i class="pi pi-chevron-left"></i>
               </button>
-              
+
               <div class="page-pages d-none d-sm-flex">
                 <template v-for="p in displayedPages" :key="p">
-                  <button 
+                  <button
                     v-if="typeof p === 'number'"
-                    class="page-num" 
-                    :class="{ active: p === currentPage }" 
+                    class="page-num"
+                    :class="{ active: p === currentPage }"
                     @click="currentPage = p"
                   >
                     {{ p }}
                   </button>
-                  
+
                   <span v-else class="page-dots">
                     {{ p }}
                   </span>
@@ -160,7 +183,11 @@ onMounted(loadCategoryPosts);
                 {{ currentPage }} / {{ totalPages }}
               </div>
 
-              <button class="page-nav-btn" :disabled="currentPage === totalPages" @click="currentPage++">
+              <button
+                class="page-nav-btn"
+                :disabled="currentPage === totalPages"
+                @click="currentPage++"
+              >
                 <i class="pi pi-chevron-right"></i>
               </button>
             </nav>
@@ -182,7 +209,7 @@ onMounted(loadCategoryPosts);
   border-radius: 16px;
   box-shadow: 0 10px 25px -5px rgba(0, 75, 51, 0.3);
   display: flex;
-  flex-wrap: wrap; 
+  flex-wrap: wrap;
   align-items: center;
 }
 .header-main-content {
@@ -219,7 +246,7 @@ onMounted(loadCategoryPosts);
   font-size: 0.65rem;
   text-transform: uppercase;
   font-weight: 800;
-  color: #f1be48; 
+  color: #f1be48;
   letter-spacing: 1.5px;
 }
 .category-title {
@@ -228,6 +255,13 @@ onMounted(loadCategoryPosts);
   color: #ffffff;
   line-height: 1.2;
   overflow-wrap: break-word;
+}
+.category-post-count {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+  margin-top: 0.25rem;
 }
 
 .header-sorting {
@@ -242,7 +276,7 @@ onMounted(loadCategoryPosts);
   gap: 8px;
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.15);
-  padding: 6px 6px 6px 14px; 
+  padding: 6px 6px 6px 14px;
   border-radius: 10px;
   transition: all 0.2s ease;
 }
@@ -310,7 +344,7 @@ onMounted(loadCategoryPosts);
   color: #ffffff;
 }
 .page-num.active {
-  background: #035157; 
+  background: #035157;
   color: #ffffff;
   box-shadow: 0 6px 16px rgba(3, 81, 87, 0.35);
 }
@@ -332,9 +366,9 @@ onMounted(loadCategoryPosts);
   filter: grayscale(1);
 }
 
-.post-feed { 
-  display: flex; 
-  flex-direction: column; 
+.post-feed {
+  display: flex;
+  flex-direction: column;
 }
 
 .empty-state {

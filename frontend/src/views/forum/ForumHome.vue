@@ -1,21 +1,22 @@
 <script setup>
-import CreatePostButton from "@/components/forum/CreatePostButton.vue";
-import { ref, onMounted, computed } from "vue";
-import { RouterLink } from "vue-router";
-import ForumHeader from "@/components/layout/ForumHeader.vue";
-import { fetchPosts as apiGetPosts } from "@/api/posts";
-import { isLoggedIn } from "@/stores/userStore";
-import UserCard from "@/components/user/UserCard.vue";
-import ViewReportsButton from "@/components/admin/ViewReportsButton.vue";
-import PostCard from "@/components/forum/PostCard.vue";
+import CreatePostButton from '@/components/forum/CreatePostButton.vue';
+import { ref, onMounted, computed } from 'vue';
+import { RouterLink } from 'vue-router';
+import ForumHeader from '@/components/layout/ForumHeader.vue';
+import { fetchPosts as apiGetPosts } from '@/api/posts';
+import { isLoggedIn } from '@/stores/userStore';
+import UserCard from '@/components/user/UserCard.vue';
+import ViewReportsButton from '@/components/admin/ViewReportsButton.vue';
+import PostCard from '@/components/forum/PostCard.vue';
 
 const postsByCategory = ref([]);
 const totalPosts = ref(0);
 const loading = ref(true);
-const error = ref(null);   // error message
+const error = ref(null); // error message
 
-const categorySearch = ref(""); // todo: make this general search
+const categorySearch = ref(''); // todo: make this general search
 const selectedCategories = ref([]);
+const sort = ref('latest'); // latest | oldest
 
 const INITIAL_LIMIT = 5; // post limit per category
 
@@ -24,13 +25,13 @@ async function fetchPosts() {
   loading.value = true;
   error.value = null;
   try {
-    const data = await apiGetPosts();
+    const data = await apiGetPosts({ sort: sort.value });
     if (data) {
       postsByCategory.value = data.postsByCategory || [];
       totalPosts.value = data.totalPosts || 0;
     }
   } catch (e) {
-    console.error("Error fetching posts:", e);
+    console.error('Error fetching posts:', e);
     error.value = e.message;
   } finally {
     loading.value = false;
@@ -39,22 +40,26 @@ async function fetchPosts() {
 
 // Handle category filtering via search and selection
 const filteredCategories = computed(() => {
-  return postsByCategory.value.filter(cat => {
-    const matchesSearch = cat.categoryName.toLowerCase().includes(categorySearch.value.toLowerCase());
-    const matchesSelection = selectedCategories.value.length === 0 || selectedCategories.value.includes(cat.categoryId);
+  return postsByCategory.value.filter((cat) => {
+    const matchesSearch = cat.categoryName
+      .toLowerCase()
+      .includes(categorySearch.value.toLowerCase());
+    const matchesSelection =
+      selectedCategories.value.length === 0 ||
+      selectedCategories.value.includes(cat.categoryId);
     return matchesSearch && matchesSelection;
   });
 });
 
 // Category icon helper
 function getCategoryIcon(categoryName) {
-  const name = (categoryName || "").toLowerCase();
+  const name = (categoryName || '').toLowerCase();
 
-  if (name.includes("announcement")) return "pi pi-megaphone";
-  if (name.includes("research")) return "pi pi-chart-line";
-  if (name.includes("help")) return "pi pi-question-circle";
+  if (name.includes('announcement')) return 'pi pi-megaphone';
+  if (name.includes('research')) return 'pi pi-chart-line';
+  if (name.includes('help')) return 'pi pi-question-circle';
 
-  return "pi pi-file";
+  return 'pi pi-file';
 }
 
 onMounted(fetchPosts);
@@ -62,7 +67,7 @@ onMounted(fetchPosts);
 
 <template>
   <ForumHeader />
-  
+
   <div class="forum-home py-4">
     <div class="container-xl">
       <div class="row g-4">
@@ -70,33 +75,61 @@ onMounted(fetchPosts);
         <div class="col-12 col-lg-3 order-1">
           <!-- User card and Action Buttons-->
           <div class="sticky-sidebar">
-            
             <UserCard />
-            
+
             <div class="action-buttons-container mt-3" v-if="isLoggedIn">
-              <CreatePostButton @post-refresh="fetchPosts"/>
+              <CreatePostButton @post-refresh="fetchPosts" />
               <ViewReportsButton />
             </div>
 
             <!-- Category Filter -->
-            <div class="card border-0 shadow-sm rounded-3 mt-4 d-none d-lg-block overflow-hidden">
-              <div class="filter-header px-3 py-2 d-flex justify-content-between align-items-center">
-                <span class="fw-bold small text-uppercase tracking-wider">Categories</span>
-                <button v-if="selectedCategories.length > 0" @click="selectedCategories = []" class="clear-btn">Clear</button>
+            <div
+              class="card border-0 shadow-sm rounded-3 mt-4 d-none d-lg-block overflow-hidden"
+            >
+              <div
+                class="filter-header px-3 py-2 d-flex justify-content-between align-items-center"
+              >
+                <span class="fw-bold small text-uppercase tracking-wider"
+                  >Categories</span
+                >
+                <button
+                  v-if="selectedCategories.length > 0"
+                  @click="selectedCategories = []"
+                  class="clear-btn"
+                >
+                  Clear
+                </button>
               </div>
               <div class="list-group list-group-flush">
                 <label
                   v-for="cat in postsByCategory"
                   :key="cat.categoryId"
                   class="list-group-item list-group-item-action d-flex align-items-center justify-content-between border-0 py-2 px-3 clickable-label"
-                  :class="{ 'active-category': selectedCategories.includes(cat.categoryId) }"
+                  :class="{
+                    'active-category': selectedCategories.includes(
+                      cat.categoryId
+                    ),
+                  }"
                 >
                   <div class="d-flex align-items-center">
-                    <input type="checkbox" class="form-check-input me-3 mt-0" :value="cat.categoryId" v-model="selectedCategories">
-                    <i :class="getCategoryIcon(cat.categoryName)" class="me-2 text-muted"></i>
-                    <span class="category-name-text">{{ cat.categoryName }}</span>
+                    <input
+                      type="checkbox"
+                      class="form-check-input me-3 mt-0"
+                      :value="cat.categoryId"
+                      v-model="selectedCategories"
+                    />
+                    <i
+                      :class="getCategoryIcon(cat.categoryName)"
+                      class="me-2 text-muted"
+                    ></i>
+                    <span class="category-name-text">{{
+                      cat.categoryName
+                    }}</span>
                   </div>
-                  <span class="badge rounded-pill bg-light text-dark small border">{{ cat.postCount }}</span>
+                  <span
+                    class="badge rounded-pill bg-light text-dark small border"
+                    >{{ cat.postCount }}</span
+                  >
                 </label>
               </div>
             </div>
@@ -105,37 +138,65 @@ onMounted(fetchPosts);
 
         <!-- Search and Sorting -->
         <div class="col-12 col-lg-9 order-2">
-          <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3 px-1 gap-3">
+          <div
+            class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3 px-1 gap-3"
+          >
             <!-- Search Box -->
             <div class="category-search-wrap shadow-sm">
               <i class="pi pi-search ms-3 text-muted"></i>
-              <input v-model="categorySearch" type="text" placeholder="Search..." class="category-search-input" />
+              <input
+                v-model="categorySearch"
+                type="text"
+                placeholder="Search..."
+                class="category-search-input"
+              />
             </div>
             <div class="d-flex align-items-center gap-4">
-              <div class="small text-secondary fw-bold text-uppercase tracking-wider">{{ totalPosts }} posts</div>
+              <div
+                class="small text-secondary fw-bold text-uppercase tracking-wider"
+              >
+                {{ totalPosts }} posts
+              </div>
               <!-- Sort Selection -->
-              <select class="sort-select shadow-sm">
-                <option>Recent</option>
-                <option>Popular</option>
+              <select
+                v-model="sort"
+                @change="fetchPosts"
+                class="sort-select shadow-sm"
+              >
+                <option value="latest">Latest</option>
+                <option value="oldest">Oldest</option>
               </select>
             </div>
           </div>
 
-          <div v-if="loading" class="text-center py-5"><div class="spinner-border text-success"></div></div>
-          <div v-else-if="error" class="alert alert-danger border-0 shadow-sm">{{ error }}</div>
-          
+          <div v-if="loading" class="text-center py-5">
+            <div class="spinner-border text-success"></div>
+          </div>
+          <div v-else-if="error" class="alert alert-danger border-0 shadow-sm">
+            {{ error }}
+          </div>
+
           <template v-else>
-            <div v-for="category in filteredCategories" :key="category.categoryId" :id="`category-${category.categoryId}`" class="category-group mb-5">
+            <div
+              v-for="category in filteredCategories"
+              :key="category.categoryId"
+              :id="`category-${category.categoryId}`"
+              class="category-group mb-5"
+            >
               <!-- Category Banner -->
-              <RouterLink :to="`/categories/${category.categoryId}`" >
+              <RouterLink :to="`/categories/${category.categoryId}`">
                 <div class="category-banner mb-3 shadow-sm">
-                  <i :class="getCategoryIcon(category.categoryName) + ' me-2'"></i>
-                  <span class="category-title">{{ category.categoryName }}</span>
+                  <i
+                    :class="getCategoryIcon(category.categoryName) + ' me-2'"
+                  ></i>
+                  <span class="category-title">{{
+                    category.categoryName
+                  }}</span>
                 </div>
               </RouterLink>
 
               <!-- Post information card -->
-              <PostCard 
+              <PostCard
                 v-for="post in category.posts.slice(0, INITIAL_LIMIT)"
                 :key="post.postId"
                 :post="post"
@@ -172,7 +233,7 @@ onMounted(fetchPosts);
   backdrop-filter: blur(4px);
   font-size: 0.65rem;
   font-weight: 700;
-  color: #FFFFFF;
+  color: #ffffff;
   border-radius: 6px;
   text-transform: uppercase;
   cursor: pointer;
@@ -191,7 +252,7 @@ onMounted(fetchPosts);
 
 .active-category {
   background-color: #e8f5e9 !important;
-  border-left: 3px solid #2E6C44 !important;
+  border-left: 3px solid #2e6c44 !important;
 }
 
 .category-name-text {
@@ -232,7 +293,7 @@ onMounted(fetchPosts);
 }
 .category-banner:hover {
   filter: brightness(1.1);
-  transform: translateY(-2px); 
+  transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(6, 78, 59, 0.25) !important;
 }
 .category-banner:hover::after {
