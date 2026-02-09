@@ -93,8 +93,12 @@ BEGIN
     SET NOCOUNT ON;
 
     UPDATE p
-    SET TotalScore = ISNULL((SELECT SUM(VoteValue) FROM dbo.PostVotes WHERE PostID = p.PostID), 0)
+    SET TotalScore = p.TotalScore + ISNULL(ins.Diff, 0) - ISNULL(del.Diff, 0)
     FROM dbo.Posts p
-    WHERE p.PostID IN (SELECT PostID FROM inserted UNION SELECT PostID FROM deleted);
+    LEFT JOIN (SELECT PostID, SUM(VoteValue) AS Diff FROM inserted GROUP BY PostID) ins 
+        ON p.PostID = ins.PostID
+    LEFT JOIN (SELECT PostID, SUM(VoteValue) AS Diff FROM deleted GROUP BY PostID) del 
+        ON p.PostID = del.PostID
+    WHERE ins.PostID IS NOT NULL OR del.PostID IS NOT NULL;
 END;
 GO

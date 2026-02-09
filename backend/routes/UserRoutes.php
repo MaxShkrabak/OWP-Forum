@@ -16,7 +16,7 @@ $app->get('/api/me', function(Request $req, Response $res) use ($makePdo) {
         $pdo = $makePdo();
 
         $sql = "
-            SELECT u.User_ID, u.Email, u.FirstName, u.LastName, u.Avatar, r.Name as RoleName 
+            SELECT u.User_ID, u.Email, u.FirstName, u.LastName, u.Avatar, r.Name as RoleName, r.RoleID
             FROM dbo.Users u
             LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
             WHERE u.User_ID = :uid
@@ -109,8 +109,8 @@ $app->post('/api/register-new-user', function (Request $req, Response $res) use 
         }
         
         $insertUser = "
-            INSERT INTO dbo.USERS (Email, FirstName, LastName, Created)
-            VALUES (:email, :first, :last, GETDATE())
+            INSERT INTO dbo.USERS (Email, FirstName, LastName, RoleID, Created)
+            VALUES (:email, :first, :last, 1, GETDATE())
         ";
 
         $stmt = $pdo->prepare($insertUser) ->execute([                

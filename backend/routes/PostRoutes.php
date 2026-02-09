@@ -265,16 +265,8 @@ $app->get('/api/categories/{id}/posts', function (Request $req, Response $res, a
         }
 
         $params = $req->getQueryParams();
-
         $limit = min(max((int)($params['limit'] ?? 5), 1), 50);
         $page  = max((int)($params['page'] ?? 1), 1);
-
-        $sort = strtolower($params['sort'] ?? 'latest');
-        $orderBy = match($sort) {
-            'oldest' => 'p.CreatedAt ASC',
-            'title'  => 'p.Title ASC',
-            default  => 'p.CreatedAt DESC',
-        };
 
         $qRaw = trim((string)($params['q'] ?? ''));
         $mode = strtolower(trim((string)($params['mode'] ?? 'title')));
@@ -282,6 +274,13 @@ $app->get('/api/categories/{id}/posts', function (Request $req, Response $res, a
 
         $hasSearch = $qRaw !== '';
         $qLike = '%' . $qRaw . '%';
+
+        $sort = strtolower($params['sort'] ?? 'latest');
+        $orderBy = match($sort) {
+            'oldest' => 'p.CreatedAt ASC',
+            'title'  => 'p.Title ASC',
+            default  => 'p.CreatedAt DESC',
+        };
 
         $searchWhere = '';
         if ($hasSearch) {
@@ -348,7 +347,6 @@ $app->get('/api/categories/{id}/posts', function (Request $req, Response $res, a
             $postIds = array_map(fn($r) => (int)$r['PostID'], $rows);
             $placeholders = implode(',', array_fill(0, count($postIds), '?'));
 
-            // Retrieve the tags for the posts
             $tagsByPostId = [];
             $tagSql = "SELECT pt.PostID, t.Name FROM dbo.PostTags pt
                        JOIN dbo.Tags t ON t.TagID = pt.TagID
@@ -385,11 +383,10 @@ $app->get('/api/categories/{id}/posts', function (Request $req, Response $res, a
             'posts'        => $posts,
             'meta'         => [
                 'limit'      => $limit,
-                'sort'       => ($sort === 'oldest' || $sort === 'title') ? $sort : 'latest',
+                'sort'       => $sort,
                 'page'       => $page,
                 'totalPosts' => $totalPosts,
                 'totalPages' => $totalPages,
-                // NEW: echo back search params
                 'q'          => $qRaw,
                 'mode'       => $mode,
             ],
