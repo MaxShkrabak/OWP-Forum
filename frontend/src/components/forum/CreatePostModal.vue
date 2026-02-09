@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from "vue";
+import { useRouter } from "vue-router"; 
 import { createPost, getTags, getCategories } from "@/api/posts";
-import { uploadImage } from "@/api/media";
 import { fullName, userAvatar, isLoggedIn, userRole, userRoleId } from "@/stores/userStore";
 import UserRole from "@/components/user/UserRole.vue";
 import TextEditor from "@/components/forum/TextEditor.vue";
@@ -14,6 +14,9 @@ const props = defineProps({
   loading: Boolean
 });
 const emit = defineEmits(["close", "published"]);
+
+const router = useRouter();
+const showPublishedConfirmation = ref(false);
 
 // Form state
 const form = ref({
@@ -126,14 +129,34 @@ async function doPublish() {
       tags: form.value.tags,
       category: form.value.category || null,
     });
-    form.value = { title: "", category: "", content: "", tags: [] };
-    emit("published");
+
+    // show success confirmation immediately
+    showPublishedConfirmation.value = true;
+
+    // close the confirm dialog
+    showPublishConfirm.value = false;
+
+    // redirect + THEN notify parent (so parent doesn't unmount instantly)
+    setTimeout(() => {
+      showPublishedConfirmation.value = false;
+
+      // reset form
+      form.value = { title: "", category: "", content: "", tags: [] };
+
+      // go home
+      router.push("/");
+
+      // now tell parent (safe if parent closes modal)
+      emit("published");
+      emit("close");
+    }, 1200);
+
   } catch (err) {
     alert("An error occurred while publishing.");
-  } finally {
     showPublishConfirm.value = false;
   }
 }
+
 
 onMounted(() => {
   loadTags();
@@ -264,6 +287,17 @@ onUnmounted(() => {
               </button>
             </div>
           </footer>
+        </div>
+
+
+        <div
+          v-if="showPublishedConfirmation"
+          class="inner-warning-overlay"
+        >
+          <div class="warning-card shadow-lg">
+            <p class="fs-5 fw-bold">Post Published</p>
+            <p>Redirecting to home…</p>
+          </div>
         </div>
 
         <!-- Publish Confirmation -->
