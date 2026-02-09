@@ -15,8 +15,8 @@ $app->post("/api/create-post", function (Request $req, Response $res) use ($make
         // Tag limit: 5 tags per post
         $data = $req->getParsedBody() ?? [];
         $title = trim((string)($data['title'] ?? ''));
-        
-        $categoryIdIn = (int)($data['category'] ?? 0); 
+
+        $categoryIdIn = (int)($data['category'] ?? 0);
         $content = (string)($data['content'] ?? '');
 
         if ($title === '' || $content === '' || $categoryIdIn === 0) {
@@ -40,7 +40,7 @@ $app->post("/api/create-post", function (Request $req, Response $res) use ($make
 
         $catStmt = $pdo->prepare($getCategorySql);
         $catStmt->execute([
-            ':catId'  => $categoryIdIn, 
+            ':catId'  => $categoryIdIn,
             ':userId' => $userId
         ]);
         $categoryData = $catStmt->fetch(PDO::FETCH_ASSOC);
@@ -62,7 +62,7 @@ $app->post("/api/create-post", function (Request $req, Response $res) use ($make
         // Store post information section
         $storePost = "
             INSERT INTO dbo.Posts (Title, CategoryID, AuthorID, Content)
-            OUTPUT INSERTED.PostID, INSERTED.CreatedAt  -- 1. Ensure CreatedAt is here
+            OUTPUT INSERTED.PostID, INSERTED.CreatedAt
             VALUES (:title, :categoryId, :authorId, :content)
         ";
 
@@ -74,18 +74,18 @@ $app->post("/api/create-post", function (Request $req, Response $res) use ($make
             ':content'    => $content,
         ]);
 
-        $newPost = $storeStmt->fetch(PDO::FETCH_ASSOC); 
+        $newPost = $storeStmt->fetch(PDO::FETCH_ASSOC);
         $postId = (int)($newPost['PostID'] ?? 0);
 
         if (!empty($tagsIn) && $postId > 0) {
             $placeholders = implode(',', array_fill(0, count($tagsIn), '?'));
-    
+
             $checkTagsSql = "
                 SELECT TagID FROM dbo.Tags 
                 WHERE TagID IN ($placeholders)
                 AND UsableByRoleID <= ISNULL((SELECT RoleID FROM dbo.Users WHERE User_ID = ?), 1)
             ";
-            
+
             $checkStmt = $pdo->prepare($checkTagsSql);
             $checkStmt->execute(array_merge($tagsIn, [$userId]));
             $validTagIds = $checkStmt->fetchAll(PDO::FETCH_COLUMN, 0);
@@ -108,7 +108,7 @@ $app->post("/api/create-post", function (Request $req, Response $res) use ($make
         return json($res, [
             'ok'        => true,
             'postId'    => $postId,
-            'createdAt' => $createdAtIso, 
+            'createdAt' => $createdAtIso,
         ]);
 
     } catch (Throwable $e) {
@@ -124,6 +124,10 @@ $app->get('/api/posts', function (Request $req, Response $res) use ($makePdo) {
         $userId = $req->getAttribute("user_id") ?? 0;
         $pdo = $makePdo();
 
+        $params = $req->getQueryParams();
+        $sort = strtolower($params['sort'] ?? 'latest');
+        $orderBy = ($sort === 'oldest') ? 'p.CreatedAt ASC' : 'p.CreatedAt DESC';
+
         $getPostsSql = "
             SELECT p.PostID, p.Title, p.CreatedAt, p.CategoryID, p.TotalScore,
                    u.FirstName, u.LastName, u.Avatar,
@@ -135,7 +139,7 @@ $app->get('/api/posts', function (Request $req, Response $res) use ($makePdo) {
             LEFT JOIN dbo.Categories c ON p.CategoryID = c.CategoryID
             LEFT JOIN dbo.PostVotes pv ON p.PostID = pv.PostID AND pv.User_ID = :userId
             WHERE p.IsDeleted = 0
-            ORDER BY p.CreatedAt DESC
+            ORDER BY $orderBy
         ";
 
         $stmt = $pdo->prepare($getPostsSql);
@@ -201,6 +205,10 @@ $app->get('/api/posts', function (Request $req, Response $res) use ($makePdo) {
         }
 
         $postsByCategory = array_values($categoriesMap);
+        foreach ($postsByCategory as &$cat) {
+            $cat['postCount'] = count($cat['posts']);
+        }
+        unset($cat);
         usort($postsByCategory, fn($a, $b) => strcmp($a['categoryName'], $b['categoryName']));
 
         return json($res, [
@@ -259,9 +267,13 @@ $app->get('/api/categories/{id}/posts', function (Request $req, Response $res, a
         $params = $req->getQueryParams();
         $limit = min(max((int)($params['limit'] ?? 5), 1), 50);
         $page  = max((int)($params['page'] ?? 1), 1);
-        
-        $tags = !empty($params['tags']) ? array_values(array_filter(array_map('trim', explode(',', $params['tags'])))) : [];
-        $hasTags = count($tags) > 0;
+
+        $qRaw = trim((string)($params['q'] ?? ''));
+        $mode = strtolower(trim((string)($params['mode'] ?? 'title')));
+        if (!in_array($mode, ['title', 'tag', 'author'], true)) $mode = 'title';
+
+        $hasSearch = $qRaw !== '';
+        $qLike = '%' . $qRaw . '%';
 
         $sort = strtolower($params['sort'] ?? 'latest');
         $orderBy = match($sort) {
@@ -270,24 +282,37 @@ $app->get('/api/categories/{id}/posts', function (Request $req, Response $res, a
             default  => 'p.CreatedAt DESC',
         };
 
-        $tagSubQuery = "";
-        $tagParams = [];
-        if ($hasTags) {
-            $ph = implode(',', array_fill(0, count($tags), '?'));
-
-            $tagSubQuery = " AND p.PostID IN (
-                SELECT pt.PostID FROM dbo.PostTags pt 
-                JOIN dbo.Tags t ON pt.TagID = t.TagID 
-                WHERE t.Name IN ($ph) 
-                GROUP BY pt.PostID HAVING COUNT(DISTINCT t.Name) = ?
-            )";
-            
-            $tagParams = array_merge($tags, [count($tags)]);
+        $searchWhere = '';
+        if ($hasSearch) {
+            if ($mode === 'title') {
+                $searchWhere = " AND p.Title LIKE :q ";
+            } elseif ($mode === 'author') {
+                $searchWhere = " AND (
+                    u.FirstName LIKE :q OR u.LastName LIKE :q OR (u.FirstName + ' ' + u.LastName) LIKE :q
+                ) ";
+            } else { // tag
+                $searchWhere = " AND EXISTS (
+                    SELECT 1
+                    FROM dbo.PostTags pt
+                    JOIN dbo.Tags t ON t.TagID = pt.TagID
+                    WHERE pt.PostID = p.PostID
+                      AND t.Name LIKE :q
+                ) ";
+            }
         }
 
-        $countSql = "SELECT COUNT(*) FROM dbo.Posts p WHERE p.CategoryID = ? AND p.IsDeleted = 0 $tagSubQuery";
+        // Count with search support
+        $countSql = "
+            SELECT COUNT(*)
+            FROM dbo.Posts p
+            LEFT JOIN dbo.Users u ON p.AuthorID = u.User_ID
+            WHERE p.CategoryID = :id AND p.IsDeleted = 0
+            $searchWhere
+        ";
         $countStmt = $pdo->prepare($countSql);
-        $countStmt->execute(array_merge([$categoryId], $tagParams));
+        $countStmt->bindValue(':id', $categoryId, PDO::PARAM_INT);
+        if ($hasSearch) $countStmt->bindValue(':q', $qLike, PDO::PARAM_STR);
+        $countStmt->execute();
         $totalPosts = (int)$countStmt->fetchColumn();
 
         $totalPages = (int)ceil($totalPosts / $limit);
@@ -301,27 +326,19 @@ $app->get('/api/categories/{id}/posts', function (Request $req, Response $res, a
             FROM dbo.Posts p
             LEFT JOIN dbo.Users u ON p.AuthorID = u.User_ID
             LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
-            LEFT JOIN dbo.PostVotes pv ON p.PostID = pv.PostID AND pv.User_ID = ?
-            WHERE p.CategoryID = ? AND p.IsDeleted = 0 $tagSubQuery
+            LEFT JOIN dbo.PostVotes pv ON p.PostID = pv.PostID AND pv.User_ID = :userId
+            WHERE p.CategoryID = :categoryId AND p.IsDeleted = 0
+            $searchWhere
             ORDER BY $orderBy
-            OFFSET ? ROWS FETCH NEXT ? ROWS ONLY
+            OFFSET :offset ROWS FETCH NEXT :limit ROWS ONLY
         ";
 
-        $mainParams = array_merge(
-            [$userId],      
-            [$categoryId], 
-            $tagParams,     
-            [$offset],      
-            [$limit]        
-        );
-
         $postStmt = $pdo->prepare($sql);
-        foreach ($mainParams as $index => $value) {
-            $paramPos = $index + 1;
-            $type = is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR;
-            $postStmt->bindValue($paramPos, $value, $type);
-        }
-        
+        $postStmt->bindValue(':categoryId', $categoryId, PDO::PARAM_INT);
+        $postStmt->bindValue(':userId', $userId, PDO::PARAM_INT);
+        $postStmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $postStmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        if ($hasSearch) $postStmt->bindValue(':q', $qLike, PDO::PARAM_STR);
         $postStmt->execute();
         $rows = $postStmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -340,6 +357,7 @@ $app->get('/api/categories/{id}/posts', function (Request $req, Response $res, a
                 $tagsByPostId[(int)$t['PostID']][] = $t['Name'];
             }
 
+            // Comment count
             $commentCounts = fetchCounts($pdo, 'dbo.Comments', $placeholders, $postIds, 'CommentCount');
 
             foreach ($rows as $row) {
@@ -369,6 +387,8 @@ $app->get('/api/categories/{id}/posts', function (Request $req, Response $res, a
                 'page'       => $page,
                 'totalPosts' => $totalPosts,
                 'totalPages' => $totalPages,
+                'q'          => $qRaw,
+                'mode'       => $mode,
             ],
         ]);
 
@@ -433,7 +453,7 @@ $app->post('/api/posts/{id}/vote', function (Request $req, Response $res, array 
 
         $pdo = $makePdo();
         $postId = (int)$args['id'];
-        
+
         $body = $req->getParsedBody();
         $action = $body['action'] ?? '';
 
@@ -454,8 +474,8 @@ $app->post('/api/posts/{id}/vote', function (Request $req, Response $res, array 
         $score = (int)$stmt->fetchColumn();
 
         return json($res, [
-            'ok'     => true, 
-            'myVote' => $val, 
+            'ok'     => true,
+            'myVote' => $val,
             'score'  => $score
         ]);
 
@@ -468,18 +488,15 @@ $app->get('/api/get-post/{id}', function(Request $req, Response $res, array $arg
     try {
         $pdo = $makePdo();
 
-
         $postID = (int)$args['id'];
-       
+
         $stmt = $pdo->prepare('SELECT Content FROM dbo.Posts WHERE PostID = :id');
         $stmt->execute(['id' => $postID]);
         $content = $stmt->fetchcolumn();
 
-
         if(!$content){
             throw new Error("Does not exist.");
         }
-
 
         $res->getBody()->write(json_encode(['ok' => true, 'content' => $content]));
         return $res->withHeader('Content-Type', 'application/json');

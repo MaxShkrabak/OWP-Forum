@@ -1,13 +1,13 @@
 <script setup>
 import { ref, onMounted, watch, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import ForumHeader from "@/components/layout/ForumHeader.vue";
-import PostCard from "@/components/forum/PostCard.vue";
-import UserCard from "@/components/user/UserCard.vue";
-import CreatePostButton from "@/components/forum/CreatePostButton.vue";
-import ViewReportsButton from "@/components/admin/ViewReportsButton.vue";
-import { isLoggedIn } from "@/stores/userStore";
-import { fetchPosts as apiGetPosts, getTags as apiGetTags } from "@/api/posts";
+import ForumHeader from '@/components/layout/ForumHeader.vue';
+import PostCard from '@/components/forum/PostCard.vue';
+import UserCard from '@/components/user/UserCard.vue';
+import CreatePostButton from '@/components/forum/CreatePostButton.vue';
+import ViewReportsButton from '@/components/admin/ViewReportsButton.vue';
+import { isLoggedIn } from '@/stores/userStore';
+import { fetchPosts as apiGetPosts, getTags as apiGetTags } from '@/api/posts';
 import { getPaginationRange } from '@/utils/pagination';
 
 const route = useRoute();
@@ -19,6 +19,7 @@ const error = ref(null);
 
 const currentPage = ref(1);
 const totalPages = ref(1);
+const totalPosts = ref(0);
 const limit = ref(Number(localStorage.getItem('category_limit')) || 5);
 const sort = ref(localStorage.getItem('category_sort') || 'latest');
 
@@ -44,22 +45,21 @@ async function loadCategoryPosts() {
       sort: sort.value,
       page: currentPage.value,
       limit: limit.value,
-      tags: selectedTags.value.length > 0 ? selectedTags.value : null
     };
 
     const data = await apiGetPosts(args);
    
     posts.value = data.posts || [];
-    categoryName.value = data.categoryName || "Category";
+    categoryName.value = data.categoryName || 'Category';
 
     if (data.meta) {
       totalPages.value = data.meta.totalPages || 1;
-    } else if (data.totalPosts) {
-       totalPages.value = Math.ceil(data.totalPosts / limit.value);
+      totalPosts.value = data.meta.totalPosts ?? 0;
     }
   } catch (e) {
-    error.value = "Failed to load posts.";
-    console.error(e);
+    console.error('Fetch error:', e);
+    error.value = e.message;
+    posts.value = [];
   } finally {
     loading.value = false;
   }
@@ -99,18 +99,20 @@ onMounted(async () => {
 
 <template>
   <ForumHeader />
- 
+
   <div class="category-page">
     <div class="container-xl py-4">
       <div class="row g-4">
- 
         <!-- User card and buttons -->
         <aside class="col-12 col-lg-3 order-1 order-lg-1">
           <div class="sticky-sidebar">
             <UserCard />
-           
+
             <div class="action-buttons-container mt-4" v-if="isLoggedIn">
-              <CreatePostButton @post-refresh="loadCategoryPosts" class="w-100 shadow-sm" />
+              <CreatePostButton
+                @post-refresh="loadCategoryPosts"
+                class="w-100 shadow-sm"
+              />
               <ViewReportsButton class="w-100 mt-2" />
             </div>
 
@@ -150,15 +152,19 @@ onMounted(async () => {
           <!-- Category header -->
           <header class="category-header mb-4">
             <div class="header-main-content">
-              <button class="back-btn" @click="router.back()" aria-label="Go Back">
+              <button
+                class="back-btn"
+                @click="router.back()"
+                aria-label="Go Back"
+              >
                 <i class="pi pi-arrow-left"></i>
               </button>
-             
+
               <div class="v-divider"></div>
-             
               <div>
                 <span class="category-badge">Viewing Category</span>
                 <h4 class="category-title">{{ categoryName }}</h4>
+                <span class="category-post-count">{{ totalPosts }} posts</span>
               </div>
             </div>
 
@@ -167,10 +173,12 @@ onMounted(async () => {
               <div class="sort-pill">
                 <span class="sort-label">Limit</span>
                 <select v-model="limit" class="sort-select">
-                  <option v-for="n in [5, 10, 15, 20]" :key="n" :value="n">{{ n }}</option>
+                  <option v-for="n in [5, 10, 15, 20]" :key="n" :value="n">
+                    {{ n }}
+                  </option>
                 </select>
               </div>
-           
+
               <div class="sort-pill">
                 <span class="sort-label">Sort</span>
                 <select v-model="sort" class="sort-select">
@@ -182,24 +190,37 @@ onMounted(async () => {
           </header>
 
           <!-- Loading status -->
-          <div v-if="loading" class="text-center py-5"><div class="spinner-border text-success"></div></div>
-         
+          <div v-if="loading" class="text-center py-5">
+            <div class="spinner-border text-success"></div>
+          </div>
+
           <div v-else class="post-feed">
             <div v-if="posts.length === 0" class="empty-state text-center py-5">
-              <p class="fw-medium text-secondary">No posts found in this category.</p>
+              <p class="fw-medium text-secondary">
+                No posts found in this category.
+              </p>
             </div>
-           
-            <PostCard v-for="post in posts" :key="post.postId" :post="post" class="mb-3" />
+
+            <PostCard
+              v-for="post in posts"
+              :key="post.postId"
+              :post="post"
+              class="mb-3"
+            />
 
             <!-- Page navigation
              -- TODO: would be nice to add "Go to page" input box
              -- for larger number of pages and just make it look cleaner in general
              -->
             <nav v-if="totalPages > 1" class="page-nav-wraper mt-5">
-              <button class="page-nav-btn" :disabled="currentPage === 1" @click="currentPage--">
+              <button
+                class="page-nav-btn"
+                :disabled="currentPage === 1"
+                @click="currentPage--"
+              >
                 <i class="pi pi-chevron-left"></i>
               </button>
-             
+
               <div class="page-pages d-none d-sm-flex">
                 <template v-for="p in displayedPages" :key="p">
                   <button
@@ -210,7 +231,7 @@ onMounted(async () => {
                   >
                     {{ p }}
                   </button>
-                 
+
                   <span v-else class="page-dots">
                     {{ p }}
                   </span>
@@ -221,7 +242,11 @@ onMounted(async () => {
                 {{ currentPage }} / {{ totalPages }}
               </div>
 
-              <button class="page-nav-btn" :disabled="currentPage === totalPages" @click="currentPage++">
+              <button
+                class="page-nav-btn"
+                :disabled="currentPage === totalPages"
+                @click="currentPage++"
+              >
                 <i class="pi pi-chevron-right"></i>
               </button>
             </nav>
@@ -289,6 +314,13 @@ onMounted(async () => {
   color: #ffffff;
   line-height: 1.2;
   overflow-wrap: break-word;
+}
+.category-post-count {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+  margin-top: 0.25rem;
 }
 
 .header-sorting {
