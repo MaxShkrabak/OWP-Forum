@@ -1,15 +1,15 @@
 <script setup>
-import { ref, onMounted, watch, computed } from "vue";
-import { useRoute } from "vue-router";
+import { ref, onMounted, computed } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { getPost, votePost } from "@/api/posts";
 import ViewPostContent from "@/components/forum/ViewPostContent.vue";
+import ViewPostHeader from "@/components/forum/ViewPostHeader.vue";
 import { isLoggedIn, userRole } from "@/stores/userStore";
 
-// Access the current route details
 const route = useRoute();
+const router = useRouter();
 const postId = route.params.id;
 
-// Reactive state
 const post = ref(null);
 const loading = ref(true);
 const error = ref(null);
@@ -68,10 +68,13 @@ const isAdminOrMod = computed(() => {
   return role === "admin" || role === "moderator";
 });
 
-// Fetch post
+function goBack() {
+  if (window.history.length > 1) router.back();
+  else router.push("/");
+}
+
 onMounted(async () => {
   try {
-    // We send the ID at the end of the URL
     post.value = await getPost(postId);
   } catch (err) {
     error.value = "Post could not be loaded.";
@@ -84,82 +87,62 @@ onMounted(async () => {
 
 <template>
   <div class="page">
-    <div class="container">
+    <div class="container position-relative">
+      <div class="go-back-floating" role="button" tabindex="0" @click="goBack" @keydown.enter="goBack">
+        <span class="back-arrow">←</span>
+      </div>
+
+      <!-- Loading -->
       <div v-if="loading" class="loader pt-5">
         <div class="spinner-border"></div>
       </div>
 
-      <!-- Displays error if the Post doen't exist -->
+      <!-- Error -->
       <div v-else-if="error" class="error empty-state text-center">
         <p class="fw-medium text-secondary">
           The post has been deleted or does not exist.
         </p>
       </div>
 
+      <!-- Page -->
       <div v-else-if="post" class="page-container">
         <div class="center-container col text-center">
-
-          <!-- Header -->
-          <div class="post-header row mb-1">
-            <div
-              class="go-back pi pi-arrow-left col-1 text-white"
-              style="font-size: 1.5rem"
-            ></div>
-
-            <div class="content-head col">
-              <span class="text-white"> title</span>
+          <div class="row gx-0">
+            <div class="col-12 header-align mb-2">
+              <ViewPostHeader />
             </div>
           </div>
 
-          <div class="row">
-            <!-- Sidebar -->
+          <div class="row gx-0">
             <div class="post-sidebar col-md-3 col-lg-2 text-white mb-3 mb-md-0">
               <div class="sidebar-actions">
-
                 <div class="voteFol">
                   <div class="vote-container vote-container--sidebar">
-                    <button
-                      class="vote-btn-up pi pi-chevron-up mb-1"
-                      :class="{ active: Number(post.myVote) === 1 }"
-                      :disabled="isVoting"
-                      @click="handleVote('up')"
-                    ></button>
+                    <button class="vote-btn-up pi pi-chevron-up mb-1" :class="{ active: Number(post.myVote) === 1 }"
+                      :disabled="isVoting" @click="handleVote('up')"></button>
 
-                    <span
-                      class="vote-count"
-                      :class="{
-                        upvoted: Number(post.myVote) === 1,
-                        downvoted: Number(post.myVote) === -1
-                      }"
-                    >
+                    <span class="vote-count" :class="{
+                      upvoted: Number(post.myVote) === 1,
+                      downvoted: Number(post.myVote) === -1,
+                    }">
                       {{ post.TotalScore ?? 0 }}
                     </span>
 
-                    <button
-                      class="vote-btn-down pi pi-chevron-down mt-1"
-                      :class="{ active: Number(post.myVote) === -1 }"
-                      :disabled="isVoting"
-                      @click="handleVote('down')"
-                    ></button>
+                    <button class="vote-btn-down pi pi-chevron-down mt-1"
+                      :class="{ active: Number(post.myVote) === -1 }" :disabled="isVoting"
+                      @click="handleVote('down')"></button>
                   </div>
 
-                  <button
-                    class="follow-btn"
-                    :class="{ following: isFollowing }"
-                    type="button"
-                    @click="toggleFollow"
-                  >
+                  <button class="follow-btn" :class="{ following: isFollowing }" type="button" @click="toggleFollow">
                     {{ isFollowing ? "❤︎" : "Follow ❤︎" }}
                   </button>
                 </div>
 
-                <!-- Report -->
                 <button v-if="canReport" class="report-btn" type="button">
                   <i class="pi pi-flag report-icon"></i>
                   <span>Report</span>
                 </button>
 
-                <!--Admin and Mod only-->>
                 <div v-if="isAdminOrMod" class="edit-delete-actions">
                   <button class="edit-delete edit-btn" type="button">
                     Edit
@@ -168,7 +151,6 @@ onMounted(async () => {
                     Delete
                   </button>
                 </div>
-
               </div>
             </div>
 
@@ -178,11 +160,9 @@ onMounted(async () => {
             </div>
           </div>
 
-          <!-- Comments -->
           <div class="row">
             <div class="post-comments mt-4">comments</div>
           </div>
-
         </div>
       </div>
     </div>
@@ -190,6 +170,7 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+/* Page background */
 .page {
   background-color: #cbdad5;
   min-height: 90vh;
@@ -198,6 +179,7 @@ onMounted(async () => {
   padding-right: 1vh;
 }
 
+/* Loader */
 .loader {
   display: flex;
   justify-content: center;
@@ -205,7 +187,7 @@ onMounted(async () => {
   padding-bottom: 25%;
 }
 
-/* Error when post not found */
+/* Error */
 .empty-state {
   background: rgba(255, 255, 255, 0.6);
   border-radius: 20px;
@@ -248,11 +230,10 @@ onMounted(async () => {
   gap: 18px;
 }
 
-.voteFol{
-  height: 100%
-  
-
+.voteFol {
+  height: 100%;
 }
+
 /* Voting base */
 .vote-container {
   display: flex;
@@ -281,6 +262,7 @@ onMounted(async () => {
   transform: translateY(-1px);
   text-shadow: 0 4px 2px #04392791;
 }
+
 .vote-btn-down:hover {
   color: #5e2b2c;
   transform: translateY(1px);
@@ -295,6 +277,7 @@ onMounted(async () => {
 .vote-btn-up.active {
   color: #043927;
 }
+
 .vote-btn-down.active {
   color: #5e2b2c;
 }
@@ -321,11 +304,26 @@ onMounted(async () => {
 }
 
 @keyframes count-bounce {
-  0%  { transform: translateY(0); }
-  25% { transform: translateY(-5px); }
-  50% { transform: translateY(3px); }
-  70% { transform: translateY(-1px); }
-  85%, 100% { transform: translateY(0); }
+  0% {
+    transform: translateY(0);
+  }
+
+  25% {
+    transform: translateY(-5px);
+  }
+
+  50% {
+    transform: translateY(3px);
+  }
+
+  70% {
+    transform: translateY(-1px);
+  }
+
+  85%,
+  100% {
+    transform: translateY(0);
+  }
 }
 
 .voting-bounce {
@@ -341,15 +339,15 @@ onMounted(async () => {
   border-radius: 8px;
   border-style: none;
   color: #ffffff;
-  background-color:#004750 ;
+  background-color: #004750;
   font-weight: 800;
   font-size: 1rem;
   cursor: pointer;
   transition: 0.3s;
 }
 
-.follow-btn:hover{
-  background-color: #007C8A ;
+.follow-btn:hover {
+  background-color: #007c8a;
 }
 
 .follow-btn.following {
@@ -357,7 +355,6 @@ onMounted(async () => {
   color: #ffffff;
   width: 45px;
   font-size: 1.5rem;
-  
 }
 
 .follow-btn.following:hover {
@@ -376,7 +373,6 @@ onMounted(async () => {
   gap: 6px;
   font-size: 0.9rem;
   font-weight: 700;
-  
 }
 
 .report-icon {
@@ -391,10 +387,11 @@ onMounted(async () => {
   border: 2px black solid;
   border-radius: 3px;
 }
+
 /* box of votes and follow */
-.voteFol{
-  display: flex; 
-  flex-direction: column; 
+.voteFol {
+  display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 10px;
@@ -406,6 +403,7 @@ onMounted(async () => {
   flex-direction: column;
   gap: 8px;
 }
+
 .edit-delete {
   width: 70px;
   height: 40px;
@@ -416,7 +414,7 @@ onMounted(async () => {
 }
 
 .edit-btn {
-  background-color: #007C8A;
+  background-color: #007c8a;
   color: white;
   transition: 0.15s;
 }
@@ -427,7 +425,7 @@ onMounted(async () => {
 }
 
 .delete-btn {
-  background-color:  #9f3323;
+  background-color: #9f3323;
   color: white;
   transition: 0.15s;
 }
@@ -435,5 +433,79 @@ onMounted(async () => {
 .delete-btn:hover {
   background-color: #737373;
   transition: 0.15s;
+}
+
+/* HEADER alignment */
+.header-align {
+  padding-left: 0;
+  padding-right: 0;
+  text-align: left;
+}
+
+/* FLOATING BACK ARROW */
+.go-back-floating {
+  position: absolute;
+  left: -88px;
+  /* further left */
+  top: 4px;
+  /* slightly higher */
+
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 3px solid #000;
+  background: #fff;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  cursor: pointer;
+  z-index: 10;
+}
+
+.go-back-floating:hover {
+  background: #f1f5f9;
+}
+
+.back-arrow {
+  font-size: 26px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+/* Sidebar */
+.post-sidebar {
+  border: 2px solid #000;
+  border-radius: 3px;
+}
+
+/* Replace Bootstrap gutter between sidebar/content */
+.post-content {
+  padding-left: 16px;
+}
+
+/* Comments */
+.post-comments {
+  border: 2px solid #000;
+  border-radius: 3px;
+}
+
+/* Mobile safety */
+@media (max-width: 576px) {
+  .go-back-floating {
+    left: 0;
+    top: -64px;
+    width: 52px;
+    height: 52px;
+  }
+
+  .back-arrow {
+    font-size: 24px;
+  }
+
+  .post-content {
+    padding-left: 0;
+  }
 }
 </style>

@@ -124,6 +124,10 @@ $app->get('/api/posts', function (Request $req, Response $res) use ($makePdo) {
         $userId = $req->getAttribute("user_id") ?? 0;
         $pdo = $makePdo();
 
+        $params = $req->getQueryParams();
+        $sort = strtolower($params['sort'] ?? 'latest');
+        $orderBy = ($sort === 'oldest') ? 'p.CreatedAt ASC' : 'p.CreatedAt DESC';
+
         $getPostsSql = "
             SELECT p.PostID, p.Title, p.CreatedAt, p.CategoryID, p.TotalScore,
                    u.FirstName, u.LastName, u.Avatar,
@@ -135,7 +139,7 @@ $app->get('/api/posts', function (Request $req, Response $res) use ($makePdo) {
             LEFT JOIN dbo.Categories c ON p.CategoryID = c.CategoryID
             LEFT JOIN dbo.PostVotes pv ON p.PostID = pv.PostID AND pv.User_ID = :userId
             WHERE p.IsDeleted = 0
-            ORDER BY p.CreatedAt DESC
+            ORDER BY $orderBy
         ";
 
         $stmt = $pdo->prepare($getPostsSql);
@@ -201,6 +205,10 @@ $app->get('/api/posts', function (Request $req, Response $res) use ($makePdo) {
         }
 
         $postsByCategory = array_values($categoriesMap);
+        foreach ($postsByCategory as &$cat) {
+            $cat['postCount'] = count($cat['posts']);
+        }
+        unset($cat);
         usort($postsByCategory, fn($a, $b) => strcmp($a['categoryName'], $b['categoryName']));
 
         return json($res, [
