@@ -1,75 +1,79 @@
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
 import { checkAuth, logout } from '@/api/auth';
 
 // Import all images to get default avatar
 const allImages = import.meta.glob('/src/assets/img/user-pfps-premade/*.(png|jpeg|jpg|svg)', { eager: true });
-const images = computed(() => {
-  return Object.values(allImages).map((module) => module.default);
-});
 
-const defaultAvatar = images.value[0] || '';
+const resolveAvatarPath = (filename) => {
+  if (!filename) return null;
+  const match = Object.keys(allImages).find(path => path.endsWith(filename));
+  return match ? allImages[match].default : null;
+};
+
+const defaultAvatar = resolveAvatarPath('default-pfp.png') || '';
 
 export const isLoggedIn = ref(false);
-export const fullName= ref(localStorage.getItem('fullName' || ''));
+export const uid = ref(localStorage.getItem('uid') || 0);
+export const fullName = ref(localStorage.getItem('fullName') || '');
 export const userAvatar = ref(localStorage.getItem('userAvatar') || defaultAvatar);
+export const userRole = ref(localStorage.getItem('userRole') || 'Guest');
+export const userRoleId = ref(localStorage.getItem('userRoleId') || 0 )
 
 export const syncProfileOnLoad = async () => {
   try {
     const data = await checkAuth();
 
-    if (data && data.ok && data.user) {
-      const user = data.user;
+    if (data?.ok && data?.user) {
+      const { user } = data;
       isLoggedIn.value = true;
+
+      uid.value = user.User_ID;
+      fullName.value = `${user.FirstName} ${user.LastName}`;
+      userRole.value = user.RoleName || 'User';
+      userRoleId.value = user.RoleID;
      
-      // Users name
-      const name = `${user.FirstName} ${user.LastName}`;
-      fullName.value = name;
-      localStorage.setItem('fullName', name);
+      // User avatar
+      const avatarPath = resolveAvatarPath(user.Avatar);
+      userAvatar.value = avatarPath || defaultAvatar;
 
-      // User profile icon
-      const dbAvatarFilename = user.Avatar;
-      if (dbAvatarFilename) {
-        const matchingPathKey = Object.keys(allImages).find(path => path.endsWith(dbAvatarFilename));
-        if (matchingPathKey) {
-          const fullImagePath = allImages[matchingPathKey].default;
-          userAvatar.value = fullImagePath;
-          localStorage.setItem('userAvatar', fullImagePath);
-        } else {
-          userAvatar.value = defaultAvatar;
-          localStorage.setItem('userAvatar', defaultAvatar);
-        }
-      } else {
-        userAvatar.value = defaultAvatar;
-        localStorage.setItem('userAvatar', defaultAvatar);
-      }
-
+      localStorage.setItem('uid', uid.value);
+      localStorage.setItem('fullName', fullName.value);
+      localStorage.setItem('userRole', userRole.value);
+      localStorage.setItem('userAvatar', userAvatar.value);
+      localStorage.setItem('userRoleId', userRoleId.value)
     } else {
       // User isn't signed in
-      isLoggedIn.value = false;
-      fullName.value = '';
-      userAvatar.value = defaultAvatar;
-      localStorage.clear();
+      resetStore();
     }
   } catch (error) {
-    // Something went wrong
-    isLoggedIn.value = false;
-    console.error('Something went wrong with syncing the profile', error);
+    console.error('Profile sync failed:', error);
+    resetStore();
   }
 };
 
-// Logout helper
+const resetStore = () => {
+  isLoggedIn.value = false;
+  fullName.value = '';
+  userRole.value = 'Guest';
+  userAvatar.value = defaultAvatar;
+  uid.value = 0;
+  userRoleId.value = 0;
+
+  localStorage.removeItem('fullName');
+  localStorage.removeItem('userRole');
+  localStorage.removeItem('userAvatar');
+  localStorage.removeItem('uid');
+  localStorage.removeItem('userRoleId')
+};
+
 export async function logoutUser() {
-    try {
-        await logout();
-    } catch (e) {
-        console.error('Logout error', e)
-    }
-
-    isLoggedIn.value = false;
-    fullName.value = '';
-    userAvatar.value = defaultAvatar;
-
-    localStorage.clear();
+  try {
+    await logout();
+  } catch (e) {
+    console.error('Logout API error:', e);
+  } finally {
+    resetStore();
+  }
 }
 
 syncProfileOnLoad(); // run when app starts
