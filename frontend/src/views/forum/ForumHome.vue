@@ -12,11 +12,11 @@ import PostCard from '@/components/forum/PostCard.vue';
 const postsByCategory = ref([]);
 const totalPosts = ref(0);
 const loading = ref(true);
-const error = ref(null); // error message
+const error = ref(null);
 
-const categorySearch = ref(''); // todo: make this general search
+const categorySearch = ref('');
 const selectedCategories = ref([]);
-const sort = ref('latest'); // latest | oldest
+const sort = ref('latest');
 
 const INITIAL_LIMIT = 5; // post limit per category
 
@@ -40,16 +40,36 @@ async function fetchPosts() {
 
 // Handle category filtering via search and selection
 const filteredCategories = computed(() => {
-  return postsByCategory.value.filter((cat) => {
-    const matchesSearch = cat.categoryName
-      .toLowerCase()
-      .includes(categorySearch.value.toLowerCase());
-    const matchesSelection =
-      selectedCategories.value.length === 0 ||
-      selectedCategories.value.includes(cat.categoryId);
-    return matchesSearch && matchesSelection;
-  });
+  const search = categorySearch.value.toLowerCase();
+  const selectedCats = selectedCategories.value;
+
+  return postsByCategory.value
+    .filter(cat => {
+      const matchesSearch = cat.categoryName.toLowerCase().includes(search);
+      const matchesSelection =
+        selectedCats.length === 0 || selectedCats.includes(cat.categoryId);
+      return matchesSearch && matchesSelection;
+    });
 });
+
+// Detect if any filters are active
+const filtersActive = computed(() =>
+  selectedCategories.value.length > 0 ||
+  categorySearch.value.trim() !== ""
+);
+
+// Clear ALL filters at once
+function clearAllFilters() {
+  selectedCategories.value = [];
+  categorySearch.value = "";
+}
+
+// Show no-results message when filters return nothing
+const noResults = computed(() =>
+  !loading.value &&
+  !error.value &&
+  filteredCategories.value.length === 0
+);
 
 // Category icon helper
 function getCategoryIcon(categoryName) {
@@ -62,7 +82,10 @@ function getCategoryIcon(categoryName) {
   return 'pi pi-file';
 }
 
-onMounted(fetchPosts);
+onMounted(async () => {
+  await fetchPosts();
+});
+
 </script>
 
 <template>
@@ -133,6 +156,7 @@ onMounted(fetchPosts);
                 </label>
               </div>
             </div>
+              
           </div>
         </div>
 
@@ -150,6 +174,7 @@ onMounted(fetchPosts);
                 placeholder="Search..."
                 class="category-search-input"
               />
+              <button v-if="categorySearch" @click="categorySearch = ''" class="search-clear-btn" > ✕ </button>
             </div>
             <div class="d-flex align-items-center gap-4">
               <div
@@ -183,6 +208,27 @@ onMounted(fetchPosts);
               :id="`category-${category.categoryId}`"
               class="category-group mb-5"
             >
+            </div>
+
+            <!-- Active Filter Banner -->
+            <div v-if="filtersActive" class="active-filter-banner mb-3">
+              <div>
+                <strong>Filters active:</strong>
+                <span v-if="categorySearch"> Search "{{ categorySearch }}"</span>
+                <span v-if="selectedCategories.length"> Categories ({{ selectedCategories.length }})</span>
+              </div>
+              <button @click="clearAllFilters">Clear all</button>   
+            </div>
+
+            <!-- No Results Message -->
+            <div v-if="noResults" class="no-results-box">
+              <i class="pi pi-search"></i>
+              <h5>No posts match your search or filters</h5>
+              <p>Try adjusting your search or clearing filters.</p>
+              <button @click="categorySearch = ''">Clear search</button>
+            </div>
+
+            <div v-for="category in filteredCategories" :key="category.categoryId" :id="`category-${category.categoryId}`" class="category-group mb-5">
               <!-- Category Banner -->
               <RouterLink :to="`/categories/${category.categoryId}`">
                 <div class="category-banner mb-3 shadow-sm">
@@ -215,6 +261,32 @@ onMounted(fetchPosts);
   min-height: 100vh;
 }
 
+/* Active filter banner */
+.active-filter-banner {
+  background: #ffffff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+}
+
+.active-filter-banner button {
+  border: none;
+  background: #c62828;
+  color: white;
+  padding: 5px 10px;
+  border-radius: 20px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.active-filter-banner button:hover {
+  background: #b71c1c;
+}
+
 .action-buttons-container {
   display: flex;
   flex-direction: column;
@@ -224,6 +296,27 @@ onMounted(fetchPosts);
 .filter-header {
   background: linear-gradient(135deg, #064e3b 0%, #065f46 100%);
   color: #ffffff;
+}
+
+.search-clear-btn {
+  border: none;
+  background: transparent;
+  color: #666;
+  font-size: 15px;
+  margin-right: 12px;
+  cursor: pointer;
+  border-radius: 50%;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.search-clear-btn:hover {
+  background: rgba(0, 0, 0, 0.08);
+  color: #000;
 }
 
 /* Clear filters button */
@@ -237,9 +330,41 @@ onMounted(fetchPosts);
   border-radius: 6px;
   text-transform: uppercase;
   cursor: pointer;
+
+  opacity: 0.9;
 }
 .clear-btn:hover {
   text-decoration: underline;
+}
+
+.no-results-box {
+  text-align: center;
+  padding: 40px 20px;
+  background: #ffffff;
+  border-radius: 10px;
+  border: 1px dashed #ccc;
+  margin-bottom: 30px;
+}
+
+.no-results-box i {
+  font-size: 28px;
+  margin-bottom: 10px;
+  color: #888;
+}
+
+.no-results-box h5 {
+  margin: 8px 0 4px;
+}
+
+.no-results-box button {
+  margin-top: 12px;
+  background: #145a32;
+  color: white;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 .clickable-label {
