@@ -2,6 +2,10 @@
 import UserIcon from "@/assets/img/user-pfps-premade/pfp-0.png";
 import { isLoggedIn, fullName, userAvatar, userRole} from "@/stores/userStore";
 import UserRole from "@/components/user/UserRole.vue";
+
+const props = defineProps({
+  isProfile: Boolean,
+});
 </script>
 
 <template>
@@ -10,10 +14,14 @@ import UserRole from "@/components/user/UserRole.vue";
     <div class="user-main-card shadow-sm border" v-if="isLoggedIn">
       <div class="card-header-gradient"></div>
       <div class="card-body-content px-3 pb-3">
-        <div class="profile-section text-center">
-          <RouterLink to="/profile" class="pfp-wrapper shadow-sm">
-            <img :src="userAvatar" alt="avatar" class="profile-img" />
+        <div class="profile-section text-center" >
+          <RouterLink to="/profile" class="pfp-wrapper shadow-sm" v-if="!isProfile">
+            <img :src="userAvatar" alt="avatar" class="img-fluid profile-img" />
           </RouterLink>
+          <button class="pfp-wrapper-profile shadow-sm" data-bs-toggle="modal" data-bs-target="#pfpChange" v-else>
+                <img v-if="userAvatar" :src="userAvatar" class="img-fluid profile-img" alt="User avatar">
+                <img v-else src="@\assets\img\user-pfps-premade\pfp-0.png" class="img-fluid profile-img" alt="Default avatar">
+            </button>
           <h5 class="user-name mt-2 mb-1">{{ fullName }}</h5>
           <UserRole :role="userRole" />
         </div>
@@ -37,6 +45,13 @@ import UserRole from "@/components/user/UserRole.vue";
           </div>
         </div>
       </div>
+      <button class="btn-edit-prof text-center mb-3" 
+      data-bs-toggle="modal" data-bs-target="#userSettingsModal"
+      v-if="isProfile"> <!--Edit Profile button-->
+        <span class="edit-prof-text text-center">
+           Edit Profile
+        </span>
+      </button>
     </div>
 
     <!-- Signed Out User Card -->
@@ -66,6 +81,35 @@ import UserRole from "@/components/user/UserRole.vue";
 </template>
 
 <style scoped>
+
+.btn-edit-prof {
+  width: 85%;
+  max-width: 250px;
+  min-height: 80px;
+  padding: 10px 15px;
+
+  background: linear-gradient(135deg, #007C8A 0%, #004750 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+.btn-edit-prof:hover {
+  transform: translateY(-3px);
+  box-shadow: -2px 3px 5px black;
+}
+.edit-prof-text {
+  font-weight: 700;
+  font-family: 'Roboto', sans-serif;
+  text-transform: uppercase;
+  font-size: 1rem;
+  letter-spacing: 1px;
+  text-align: center;
+  line-height: 1.2;
+}
+
 .user-main-card {
   background-color: white;
   border-radius: 12px;
@@ -94,11 +138,34 @@ import UserRole from "@/components/user/UserRole.vue";
   overflow: hidden;
   border: 2px solid #7e9291;
 }
+.pfp-wrapper-profile {
+  display: inline-block;
+  width: 130px;
+  border-radius: 50%;
+  padding: 3px;
+  background: white;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  overflow: hidden;
+  border: 2px solid #7e9291;
+}
+@media (max-width: 767px){
+  .pfp-wrapper-profile {
+    width: 200px;
+  }
+}
+@media (min-width: 992px){
+  .pfp-wrapper-profile {
+    width: 180px;
+  }
+}
+.pfp-wrapper-profile:hover,
 .pfp-wrapper:hover {
   transform: scale(1.05);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
   border-color: #ff8f1c;
 }
+.pfp-wrapper-profile:hover,
 .pfp-wrapper:hover .profile-img {
   transform: scale(1.1);
 }

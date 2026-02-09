@@ -47,6 +47,10 @@ watch(isLoggedIn, (loggedIn) => {
     props.post.myVote = 0;
   }
 });
+
+function isOfficialTag(name){
+  return name === 'Official';
+}
 </script>
 
 <template>
@@ -58,6 +62,7 @@ watch(isLoggedIn, (loggedIn) => {
           <button
             class="vote-btn-up pi pi-chevron-up mb-1"
             :class="{ active: Number(post.myVote) === 1, 'is-voting': isVoting }"
+            :disabled="!isLoggedIn"
             @click="handleVote('up')">
           </button>
 
@@ -72,6 +77,7 @@ watch(isLoggedIn, (loggedIn) => {
           <!-- Downvote -->
           <button
             class="vote-btn-down pi pi-chevron-down mt-1"
+            :disabled="!isLoggedIn"
             :class="{ active: Number(post.myVote) === -1, 'is-voting': isVoting }"
             @click="handleVote('down')">
           </button>
@@ -104,9 +110,8 @@ watch(isLoggedIn, (loggedIn) => {
           </div>
 
           <div class="d-flex flex-wrap gap-2 mb-2">
-            <span v-for="tag in post.tags" :key="tag" class="post-tag">{{
-              tag
-            }}</span>
+            <span v-for="tag in post.tags" :key="tag" :class="isOfficialTag(tag) ? 'post-tag-mod-admin' : 'post-tag'">
+              {{ tag }}</span>
           </div>
 
           <div class="meta-footer">
@@ -331,15 +336,21 @@ watch(isLoggedIn, (loggedIn) => {
   display: inline-block;
   opacity: 0.8;
 }
-
+.post-tag-mod-admin,
 .post-tag {
-  background: #2e6c44;
-  color: white;
   font-size: 0.65rem;
   font-weight: 700;
   padding: 1px 8px;
   border-radius: 4px;
   white-space: nowrap;
+}
+.post-tag-mod-admin {
+  background: linear-gradient(170deg, #fa9805c0 0%, #f17500b0 100%);
+  color: black;
+}
+.post-tag {
+  background: #2e6c44;
+  color: white;
 }
 
 .meta-footer {

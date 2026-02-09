@@ -1,4 +1,4 @@
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
 import { checkAuth, logout } from '@/api/auth';
 
 // Import all images to get default avatar
@@ -13,9 +13,11 @@ const resolveAvatarPath = (filename) => {
 const defaultAvatar = resolveAvatarPath('default-pfp.png') || '';
 
 export const isLoggedIn = ref(false);
-export const fullName= ref(localStorage.getItem('fullName' || ''));
+export const uid = ref(localStorage.getItem('uid') || 0);
+export const fullName = ref(localStorage.getItem('fullName') || '');
 export const userAvatar = ref(localStorage.getItem('userAvatar') || defaultAvatar);
 export const userRole = ref(localStorage.getItem('userRole') || 'Guest');
+export const userRoleId = ref(localStorage.getItem('userRoleId') || 0 )
 
 export const syncProfileOnLoad = async () => {
   try {
@@ -24,17 +26,21 @@ export const syncProfileOnLoad = async () => {
     if (data?.ok && data?.user) {
       const { user } = data;
       isLoggedIn.value = true;
-     
+
+      uid.value = user.User_ID;
       fullName.value = `${user.FirstName} ${user.LastName}`;
       userRole.value = user.RoleName || 'User';
+      userRoleId.value = user.RoleID;
      
       // User avatar
       const avatarPath = resolveAvatarPath(user.Avatar);
       userAvatar.value = avatarPath || defaultAvatar;
 
+      localStorage.setItem('uid', uid.value);
       localStorage.setItem('fullName', fullName.value);
       localStorage.setItem('userRole', userRole.value);
       localStorage.setItem('userAvatar', userAvatar.value);
+      localStorage.setItem('userRoleId', userRoleId.value)
     } else {
       // User isn't signed in
       resetStore();
@@ -50,10 +56,14 @@ const resetStore = () => {
   fullName.value = '';
   userRole.value = 'Guest';
   userAvatar.value = defaultAvatar;
+  uid.value = 0;
+  userRoleId.value = 0;
 
   localStorage.removeItem('fullName');
   localStorage.removeItem('userRole');
   localStorage.removeItem('userAvatar');
+  localStorage.removeItem('uid');
+  localStorage.removeItem('userRoleId')
 };
 
 export async function logoutUser() {
