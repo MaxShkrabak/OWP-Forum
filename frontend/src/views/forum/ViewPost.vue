@@ -1,8 +1,9 @@
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, watch, computed } from "vue";
 import { useRoute } from "vue-router";
-import { getPost } from "@/api/posts";
+import { getPost, votePost } from "@/api/posts";
 import ViewPostContent from "@/components/forum/ViewPostContent.vue";
+import { isLoggedIn, userRole } from "@/stores/userStore";
 
 // Access the current route details
 const route = useRoute();
@@ -13,7 +14,61 @@ const post = ref(null);
 const loading = ref(true);
 const error = ref(null);
 
-// Fetch data when the component is mounted
+// Follow toggle state
+const isFollowing = ref(false);
+
+// Voting state
+const isVoting = ref(false);
+
+async function handleVote(dir) {
+  if (isVoting.value || !post.value) return;
+
+  const currentVote = Number(post.value.myVote ?? 0);
+
+  let action = dir;
+  if (
+    (dir === "up" && currentVote === 1) ||
+    (dir === "down" && currentVote === -1)
+  ) {
+    action = "clear";
+  }
+
+  isVoting.value = true;
+
+  try {
+    const data = await votePost(post.value.PostID, action);
+
+    if (data?.ok) {
+      post.value.myVote = data.myVote;
+      post.value.TotalScore = data.score;
+    }
+  } catch (err) {
+    console.error("Vote error:", err);
+  } finally {
+    isVoting.value = false;
+  }
+}
+
+// Toggle Follow button
+const toggleFollow = () => {
+  isFollowing.value = !isFollowing.value;
+};
+
+// Can report
+const canReport = computed(() => {
+  if (!isLoggedIn.value) return true;
+
+  const role = (userRole?.value || "").toLowerCase();
+  return !(role === "admin" || role === "moderator");
+});
+
+//Admin and Mod only
+const isAdminOrMod = computed(() => {
+  const role = (userRole?.value || "").toLowerCase();
+  return role === "admin" || role === "moderator";
+});
+
+// Fetch post
 onMounted(async () => {
   try {
     // We send the ID at the end of the URL
@@ -30,58 +85,111 @@ onMounted(async () => {
 <template>
   <div class="page">
     <div class="container">
-      <!-- Loads while it fetches -->
       <div v-if="loading" class="loader pt-5">
-          <div class="spinner-border"></div>
+        <div class="spinner-border"></div>
       </div>
 
       <!-- Displays error if the Post doen't exist -->
       <div v-else-if="error" class="error empty-state text-center">
-        <p class="fw-medium text-secondary">The post has been deleted or does not exist.</p>
+        <p class="fw-medium text-secondary">
+          The post has been deleted or does not exist.
+        </p>
       </div>
 
-      <!-- If the Post is found, constructs page -->
       <div v-else-if="post" class="page-container">
         <div class="center-container col text-center">
-          
-          <!-- Header Part -->
+
+          <!-- Header -->
           <div class="post-header row mb-1">
-              
-            <!-- Go Back arrow -->
             <div
               class="go-back pi pi-arrow-left col-1 text-white"
               style="font-size: 1.5rem"
             ></div>
 
-            <!-- Header Card -->
             <div class="content-head col">
-              <span class="text-white"> title </span>
+              <span class="text-white"> title</span>
             </div>
           </div>
 
-          <!-- Sidebar and Content in a row -->
           <div class="row">
+            <!-- Sidebar -->
+            <div class="post-sidebar col-md-3 col-lg-2 text-white mb-3 mb-md-0">
+              <div class="sidebar-actions">
 
-            <!-- Sidebar part -->
-            <div class="post-sidebar col-md-3 col-lg-2 text-white mb-3 mb-md-0">sidebar</div>
+                <div class="voteFol">
+                  <div class="vote-container vote-container--sidebar">
+                    <button
+                      class="vote-btn-up pi pi-chevron-up mb-1"
+                      :class="{ active: Number(post.myVote) === 1 }"
+                      :disabled="isVoting"
+                      @click="handleVote('up')"
+                    ></button>
 
-            <!-- Content part -->
-            <div class="post-content col-md-9 col-lg-10">
-              <ViewPostContent :content = post.content /> 
+                    <span
+                      class="vote-count"
+                      :class="{
+                        upvoted: Number(post.myVote) === 1,
+                        downvoted: Number(post.myVote) === -1
+                      }"
+                    >
+                      {{ post.TotalScore ?? 0 }}
+                    </span>
+
+                    <button
+                      class="vote-btn-down pi pi-chevron-down mt-1"
+                      :class="{ active: Number(post.myVote) === -1 }"
+                      :disabled="isVoting"
+                      @click="handleVote('down')"
+                    ></button>
+                  </div>
+
+                  <button
+                    class="follow-btn"
+                    :class="{ following: isFollowing }"
+                    type="button"
+                    @click="toggleFollow"
+                  >
+                    {{ isFollowing ? "❤︎" : "Follow ❤︎" }}
+                  </button>
+                </div>
+
+                <!-- Report -->
+                <button v-if="canReport" class="report-btn" type="button">
+                  <i class="pi pi-flag report-icon"></i>
+                  <span>Report</span>
+                </button>
+
+                <!--Admin and Mod only-->>
+                <div v-if="isAdminOrMod" class="edit-delete-actions">
+                  <button class="edit-delete edit-btn" type="button">
+                    Edit
+                  </button>
+                  <button class="edit-delete delete-btn" type="button">
+                    Delete
+                  </button>
+                </div>
+
+              </div>
             </div>
 
+            <!-- Content -->
+            <div class="post-content col-md-9 col-lg-10">
+              <ViewPostContent :content="post.content" />
+            </div>
           </div>
-          <!-- Comment Section -->
+
+          <!-- Comments -->
           <div class="row">
             <div class="post-comments mt-4">comments</div>
           </div>
+
         </div>
       </div>
     </div>
   </div>
 </template>
 
-<style scoped> 
+<style scoped>
 .page {
   background-color: #cbdad5;
   min-height: 90vh;
@@ -89,11 +197,12 @@ onMounted(async () => {
   padding-left: 1vh;
   padding-right: 1vh;
 }
+
 .loader {
-    display: flex;
-    justify-content: center;
-    padding-top: 25%;
-    padding-bottom: 25%;
+  display: flex;
+  justify-content: center;
+  padding-top: 25%;
+  padding-bottom: 25%;
 }
 
 /* Error when post not found */
@@ -104,43 +213,227 @@ onMounted(async () => {
   padding: 3rem;
 }
 
-/* Central page layout */
-.page-container {
-  background-color: none;
-}
-.center-container {
-  background-color: none;
-}
-
 /* Header */
-.post-header {
-
-}
 .go-back {
-  background-color: none;
-  border: 2px black solid;
-  border-radius: 3px;
-}
-.content-head {
-  background-color: none;
   border: 2px black solid;
   border-radius: 3px;
 }
 
-/* Body */
+.content-head {
+  border: 2px black solid;
+  border-radius: 3px;
+}
+
+/* Content */
 .post-content {
   background-color: none;
 }
+
+/* Sidebar*/
 .post-sidebar {
-  background-color: none;
+  background-color: #ffffff;
+  border-radius: 12px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+.sidebar-actions {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.voteFol{
+  height: 100%
+  
+
+}
+/* Voting base */
+.vote-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.vote-container--sidebar {
+  min-width: 60px;
+}
+
+.vote-btn-up,
+.vote-btn-down {
+  background: none;
+  border: none;
+  color: #bac7c4;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  font-size: 1.8rem;
+  padding: 0;
+}
+
+.vote-btn-up:hover {
+  color: #1a3c34;
+  transform: translateY(-1px);
+  text-shadow: 0 4px 2px #04392791;
+}
+.vote-btn-down:hover {
+  color: #5e2b2c;
+  transform: translateY(1px);
+  text-shadow: 0 -4px 2px #5e2b2c91;
+}
+
+.vote-btn-up.active,
+.vote-btn-down.active {
+  scale: 115%;
+}
+
+.vote-btn-up.active {
+  color: #043927;
+}
+.vote-btn-down.active {
+  color: #5e2b2c;
+}
+
+.vote-btn-up:disabled,
+.vote-btn-down:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.vote-count {
+  font-weight: 900;
+  font-size: 1.35rem;
+  margin: -6px 0;
+  color: #1a1a1b;
+}
+
+.vote-count.upvoted {
+  color: #043927;
+}
+
+.vote-count.downvoted {
+  color: #5e2b2c;
+}
+
+@keyframes count-bounce {
+  0%  { transform: translateY(0); }
+  25% { transform: translateY(-5px); }
+  50% { transform: translateY(3px); }
+  70% { transform: translateY(-1px); }
+  85%, 100% { transform: translateY(0); }
+}
+
+.voting-bounce {
+  animation: count-bounce 0.8s infinite ease-in-out;
+  display: inline-block;
+  opacity: 0.8;
+}
+
+/* Follow */
+.follow-btn {
+  width: 130px;
+  height: 40px;
+  border-radius: 8px;
+  border-style: none;
+  color: #ffffff;
+  background-color:#004750 ;
+  font-weight: 800;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.follow-btn:hover{
+  background-color: #007C8A ;
+}
+
+.follow-btn.following {
+  background-color: #b91657;
+  color: #ffffff;
+  width: 45px;
+  font-size: 1.5rem;
+  
+}
+
+.follow-btn.following:hover {
+  background-color: #737373;
+}
+
+/* Report */
+.report-btn {
+  background: none;
+  border: none;
+  color: #adb5bd;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  
+}
+
+.report-icon {
+  font-size: 1.6rem;
+}
+
+.report-btn:hover {
+  color: #dc3545;
+}
+
+.post-comments {
   border: 2px black solid;
   border-radius: 3px;
 }
+/* box of votes and follow */
+.voteFol{
+  display: flex; 
+  flex-direction: column; 
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
 
-/* Comments */
-.post-comments {
-  background-color: none;
-  border: 2px black solid;
-  border-radius: 3px;
+/* Delete Edit buttons*/
+.edit-delete-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.edit-delete {
+  width: 70px;
+  height: 40px;
+  border-radius: 6px;
+  border: none;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.edit-btn {
+  background-color: #007C8A;
+  color: white;
+  transition: 0.15s;
+}
+
+.edit-btn:hover {
+  background-color: #18a7b7;
+  transition: 0.15s;
+}
+
+.delete-btn {
+  background-color:  #9f3323;
+  color: white;
+  transition: 0.15s;
+}
+
+.delete-btn:hover {
+  background-color: #737373;
+  transition: 0.15s;
 }
 </style>
