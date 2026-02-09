@@ -1,24 +1,29 @@
 <script setup>
-import CreatePostButton from '@/components/forum/CreatePostButton.vue';
-import { ref, onMounted, computed } from 'vue';
-import { RouterLink } from 'vue-router';
-import ForumHeader from '@/components/layout/ForumHeader.vue';
-import { fetchPosts as apiGetPosts } from '@/api/posts';
-import { isLoggedIn } from '@/stores/userStore';
-import UserCard from '@/components/user/UserCard.vue';
-import ViewReportsButton from '@/components/admin/ViewReportsButton.vue';
-import PostCard from '@/components/forum/PostCard.vue';
+import CreatePostButton from "@/components/forum/CreatePostButton.vue";
+import { ref, onMounted, computed } from "vue";
+import { RouterLink } from "vue-router";
+import ForumHeader from "@/components/layout/ForumHeader.vue";
+import { fetchPosts as apiGetPosts } from "@/api/posts";
+import { isLoggedIn } from "@/stores/userStore";
+import UserCard from "@/components/user/UserCard.vue";
+import ViewReportsButton from "@/components/admin/ViewReportsButton.vue";
+import PostCard from "@/components/forum/PostCard.vue";
 
 const postsByCategory = ref([]);
 const totalPosts = ref(0);
 const loading = ref(true);
 const error = ref(null);
 
-const categorySearch = ref('');
-const selectedCategories = ref([]);
-const sort = ref('latest');
+// Homepage search & Category search
+const searchQuery = ref("");
+const searchMode = ref("title"); // 'title' | 'tag' | 'author'
+const categorySearch = ref("");
 
-const INITIAL_LIMIT = 5; // post limit per category
+// Category checkbox filter (left sidebar)
+const selectedCategories = ref([]);
+const sort = ref("latest");
+
+const INITIAL_LIMIT = 5; // post limit per category on homepage
 
 // Fetch posts and initialize category state
 async function fetchPosts() {
@@ -31,61 +36,100 @@ async function fetchPosts() {
       totalPosts.value = data.totalPosts || 0;
     }
   } catch (e) {
-    console.error('Error fetching posts:', e);
+    console.error("Error fetching posts:", e);
     error.value = e.message;
   } finally {
     loading.value = false;
   }
 }
 
-// Handle category filtering via search and selection
+function normalize(str) {
+  return (str ?? "").toString().trim().toLowerCase();
+}
+
+function postMatchesSearch(post, q, mode) {
+  if (!q) return true;
+  const nq = normalize(q);
+
+  if (mode === "title") {
+    return normalize(post.title || post.Title).includes(nq);
+  }
+
+  if (mode === "author") {
+    return normalize(post.authorName || post.AuthorName).includes(nq);
+  }
+
+  // mode === 'tag'
+  const tags = Array.isArray(post.tags) ? post.tags : post.Tags || [];
+  return tags.some((t) => normalize(t).includes(nq));
+}
+
+// Handle both category filtering and inner post filtering
 const filteredCategories = computed(() => {
-  const search = categorySearch.value.toLowerCase();
-  const selectedCats = selectedCategories.value;
+  const q = normalize(searchQuery.value);
+  const catQ = normalize(categorySearch.value);
+  const mode = searchMode.value;
 
   return postsByCategory.value
-    .filter(cat => {
-      const matchesSearch = cat.categoryName.toLowerCase().includes(search);
+    .filter((cat) => {
       const matchesSelection =
-        selectedCats.length === 0 || selectedCats.includes(cat.categoryId);
-      return matchesSearch && matchesSelection;
+        selectedCategories.value.length === 0 ||
+        selectedCategories.value.includes(cat.categoryId);
+
+      const matchesCatSearch = normalize(cat.categoryName).includes(catQ);
+
+      return matchesSelection && matchesCatSearch;
+    })
+    .map((cat) => {
+      const homepagePosts = (cat.posts || []).slice(0, INITIAL_LIMIT);
+      const filteredHomepagePosts = homepagePosts.filter((p) =>
+        postMatchesSearch(p, q, mode),
+      );
+
+      return {
+        ...cat,
+        _homepagePosts: filteredHomepagePosts,
+      };
+    })
+    .filter((cat) => {
+      // If searching for specific posts, hide categories that have no matches
+      if (!q) return true;
+      return (cat._homepagePosts?.length || 0) > 0;
     });
 });
 
 // Detect if any filters are active
-const filtersActive = computed(() =>
-  selectedCategories.value.length > 0 ||
-  categorySearch.value.trim() !== ""
+const filtersActive = computed(
+  () =>
+    selectedCategories.value.length > 0 ||
+    categorySearch.value.trim() !== "" ||
+    searchQuery.value.trim() !== "",
 );
 
 // Clear ALL filters at once
 function clearAllFilters() {
   selectedCategories.value = [];
   categorySearch.value = "";
+  searchQuery.value = "";
 }
 
 // Show no-results message when filters return nothing
-const noResults = computed(() =>
-  !loading.value &&
-  !error.value &&
-  filteredCategories.value.length === 0
+const noResults = computed(
+  () => !loading.value && !error.value && filteredCategories.value.length === 0,
 );
 
 // Category icon helper
 function getCategoryIcon(categoryName) {
-  const name = (categoryName || '').toLowerCase();
-
-  if (name.includes('announcement')) return 'pi pi-megaphone';
-  if (name.includes('research')) return 'pi pi-chart-line';
-  if (name.includes('help')) return 'pi pi-question-circle';
-
-  return 'pi pi-file';
+  const name = (categoryName || "").toLowerCase();
+  if (name.includes("announcement")) return "pi pi-megaphone";
+  if (name.includes("research")) return "pi pi-chart-line";
+  if (name.includes("help")) return "pi pi-question-circle";
+  return "pi pi-file";
 }
 
 onMounted(async () => {
   await fetchPosts();
 });
-
 </script>
 
 <template>
@@ -94,9 +138,7 @@ onMounted(async () => {
   <div class="forum-home py-4">
     <div class="container-xl">
       <div class="row g-4">
-        <!-- Left container -->
         <div class="col-12 col-lg-3 order-1">
-          <!-- User card and Action Buttons-->
           <div class="sticky-sidebar">
             <UserCard />
 
@@ -105,89 +147,60 @@ onMounted(async () => {
               <ViewReportsButton />
             </div>
 
-            <!-- Category Filter -->
-            <div
-              class="card border-0 shadow-sm rounded-3 mt-4 d-none d-lg-block overflow-hidden"
-            >
-              <div
-                class="filter-header px-3 py-2 d-flex justify-content-between align-items-center"
-              >
-                <span class="fw-bold small text-uppercase tracking-wider"
-                  >Categories</span
-                >
-                <button
-                  v-if="selectedCategories.length > 0"
-                  @click="selectedCategories = []"
-                  class="clear-btn"
-                >
+            <div class="card border-0 shadow-sm rounded-3 mt-4 d-none d-lg-block overflow-hidden">
+              <div class="filter-header px-3 py-2 d-flex justify-content-between align-items-center">
+                <span class="fw-bold small text-uppercase tracking-wider">Categories</span>
+                <button v-if="selectedCategories.length > 0" @click="selectedCategories = []" class="clear-btn">
                   Clear
                 </button>
               </div>
               <div class="list-group list-group-flush">
-                <label
-                  v-for="cat in postsByCategory"
-                  :key="cat.categoryId"
+                <label v-for="cat in postsByCategory" :key="cat.categoryId"
                   class="list-group-item list-group-item-action d-flex align-items-center justify-content-between border-0 py-2 px-3 clickable-label"
                   :class="{
                     'active-category': selectedCategories.includes(
-                      cat.categoryId
+                      cat.categoryId,
                     ),
-                  }"
-                >
+                  }">
                   <div class="d-flex align-items-center">
-                    <input
-                      type="checkbox"
-                      class="form-check-input me-3 mt-0"
-                      :value="cat.categoryId"
-                      v-model="selectedCategories"
-                    />
-                    <i
-                      :class="getCategoryIcon(cat.categoryName)"
-                      class="me-2 text-muted"
-                    ></i>
+                    <input type="checkbox" class="form-check-input me-3 mt-0" :value="cat.categoryId"
+                      v-model="selectedCategories" />
+                    <i :class="getCategoryIcon(cat.categoryName)" class="me-2 text-muted"></i>
                     <span class="category-name-text">{{
                       cat.categoryName
                     }}</span>
                   </div>
-                  <span
-                    class="badge rounded-pill bg-light text-dark small border"
-                    >{{ cat.postCount }}</span
-                  >
+                  <span class="badge rounded-pill bg-light text-dark small border">{{ cat.postCount }}</span>
                 </label>
               </div>
             </div>
-              
           </div>
         </div>
 
-        <!-- Search and Sorting -->
         <div class="col-12 col-lg-9 order-2">
-          <div
-            class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3 px-1 gap-3"
-          >
-            <!-- Search Box -->
-            <div class="category-search-wrap shadow-sm">
-              <i class="pi pi-search ms-3 text-muted"></i>
-              <input
-                v-model="categorySearch"
-                type="text"
-                placeholder="Search..."
-                class="category-search-input"
-              />
-              <button v-if="categorySearch" @click="categorySearch = ''" class="search-clear-btn" > ✕ </button>
+          <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3 px-1 gap-3">
+            <div class="d-flex gap-2 align-items-center flex-grow-1">
+              <div class="category-search-wrap shadow-sm">
+                <i class="pi pi-search ms-3 text-muted"></i>
+                <input v-model="searchQuery" type="text" :placeholder="`Search by ${searchMode}...`"
+                  class="category-search-input" />
+                <button v-if="searchQuery" @click="searchQuery = ''" class="search-clear-btn">
+                  ✕
+                </button>
+              </div>
+
+              <select v-model="searchMode" class="sort-select shadow-sm" style="min-width: 140px">
+                <option value="title">Title</option>
+                <option value="tag">Tag</option>
+                <option value="author">Author</option>
+              </select>
             </div>
+
             <div class="d-flex align-items-center gap-4">
-              <div
-                class="small text-secondary fw-bold text-uppercase tracking-wider"
-              >
+              <div class="small text-secondary fw-bold text-uppercase tracking-wider">
                 {{ totalPosts }} posts
               </div>
-              <!-- Sort Selection -->
-              <select
-                v-model="sort"
-                @change="fetchPosts"
-                class="sort-select shadow-sm"
-              >
+              <select v-model="sort" @change="fetchPosts" class="sort-select shadow-sm">
                 <option value="latest">Latest</option>
                 <option value="oldest">Oldest</option>
               </select>
@@ -202,51 +215,35 @@ onMounted(async () => {
           </div>
 
           <template v-else>
-            <div
-              v-for="category in filteredCategories"
-              :key="category.categoryId"
-              :id="`category-${category.categoryId}`"
-              class="category-group mb-5"
-            >
-            </div>
-
-            <!-- Active Filter Banner -->
             <div v-if="filtersActive" class="active-filter-banner mb-3">
               <div>
                 <strong>Filters active:</strong>
-                <span v-if="categorySearch"> Search "{{ categorySearch }}"</span>
-                <span v-if="selectedCategories.length"> Categories ({{ selectedCategories.length }})</span>
+                <span v-if="searchQuery"> Search "{{ searchQuery }}"</span>
+                <span v-if="selectedCategories.length">
+                  Categories ({{ selectedCategories.length }})</span>
               </div>
-              <button @click="clearAllFilters">Clear all</button>   
+              <button @click="clearAllFilters">Clear all</button>
             </div>
 
-            <!-- No Results Message -->
             <div v-if="noResults" class="no-results-box">
               <i class="pi pi-search"></i>
               <h5>No posts match your search or filters</h5>
               <p>Try adjusting your search or clearing filters.</p>
-              <button @click="categorySearch = ''">Clear search</button>
+              <button @click="clearAllFilters">Reset everything</button>
             </div>
 
-            <div v-for="category in filteredCategories" :key="category.categoryId" :id="`category-${category.categoryId}`" class="category-group mb-5">
-              <!-- Category Banner -->
+            <div v-for="category in filteredCategories" :key="category.categoryId"
+              :id="`category-${category.categoryId}`" class="category-group mb-5">
               <RouterLink :to="`/categories/${category.categoryId}`">
                 <div class="category-banner mb-3 shadow-sm">
-                  <i
-                    :class="getCategoryIcon(category.categoryName) + ' me-2'"
-                  ></i>
+                  <i :class="getCategoryIcon(category.categoryName) + ' me-2'"></i>
                   <span class="category-title">{{
                     category.categoryName
                   }}</span>
                 </div>
               </RouterLink>
 
-              <!-- Post information card -->
-              <PostCard
-                v-for="post in category.posts.slice(0, INITIAL_LIMIT)"
-                :key="post.postId"
-                :post="post"
-              />
+              <PostCard v-for="post in category._homepagePosts" :key="post.postId ?? post.PostID" :post="post" />
             </div>
           </template>
         </div>
@@ -311,7 +308,9 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
 }
 
 .search-clear-btn:hover {
@@ -333,6 +332,7 @@ onMounted(async () => {
 
   opacity: 0.9;
 }
+
 .clear-btn:hover {
   text-decoration: underline;
 }
@@ -371,6 +371,7 @@ onMounted(async () => {
   cursor: pointer;
   transition: background 0.2s;
 }
+
 .clickable-label:hover {
   background-color: #e2e3e4;
 }
@@ -401,26 +402,27 @@ onMounted(async () => {
   position: relative;
   overflow: hidden;
 }
+
 .category-banner::after {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.1),
-    transparent
-  );
+  background: linear-gradient(90deg,
+      transparent,
+      rgba(255, 255, 255, 0.1),
+      transparent);
   transition: 0.5s;
 }
+
 .category-banner:hover {
   filter: brightness(1.1);
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(6, 78, 59, 0.25) !important;
 }
+
 .category-banner:hover::after {
   left: 100%;
 }
