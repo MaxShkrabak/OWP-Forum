@@ -1,22 +1,25 @@
 <script setup>
 import { ref, onMounted } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { getPost } from "@/api/posts";
 import ViewPostContent from "@/components/forum/ViewPostContent.vue";
+import ViewPostHeader from "@/components/forum/ViewPostHeader.vue";
 
-// Access the current route details
 const route = useRoute();
+const router = useRouter();
 const postId = route.params.id;
 
-// Reactive state
 const post = ref(null);
 const loading = ref(true);
 const error = ref(null);
 
-// Fetch data when the component is mounted
+function goBack() {
+  if (window.history.length > 1) router.back();
+  else router.push("/");
+}
+
 onMounted(async () => {
   try {
-    // We send the ID at the end of the URL
     post.value = await getPost(postId);
   } catch (err) {
     error.value = "Post could not be loaded.";
@@ -29,59 +32,68 @@ onMounted(async () => {
 
 <template>
   <div class="page">
-    <div class="container">
-      <!-- Loads while it fetches -->
+    <div class="container position-relative">
+
+      <!-- FLOATING BACK ARROW (SEPARATE FROM HEADER) -->
+      <div
+        class="go-back-floating"
+        role="button"
+        tabindex="0"
+        @click="goBack"
+        @keydown.enter="goBack"
+      >
+        <span class="back-arrow">←</span>
+      </div>
+
+      <!-- Loading -->
       <div v-if="loading" class="loader pt-5">
-          <div class="spinner-border"></div>
+        <div class="spinner-border"></div>
       </div>
 
-      <!-- Displays error if the Post doen't exist -->
+      <!-- Error -->
       <div v-else-if="error" class="error empty-state text-center">
-        <p class="fw-medium text-secondary">The post has been deleted or does not exist.</p>
+        <p class="fw-medium text-secondary">
+          The post has been deleted or does not exist.
+        </p>
       </div>
 
-      <!-- If the Post is found, constructs page -->
+      <!-- Page -->
       <div v-else-if="post" class="page-container">
         <div class="center-container col text-center">
-          
-          <!-- Header Part -->
-          <div class="post-header row mb-1">
-              
-            <!-- Go Back arrow -->
-            <div
-              class="go-back pi pi-arrow-left col-1 text-white"
-              style="font-size: 1.5rem"
-            ></div>
 
-            <!-- Header Card -->
-            <div class="content-head col">
-              <span class="text-white"> title </span>
+          <!-- HEADER (ALIGNED WITH SIDEBAR + CONTENT EDGES) -->
+          <div class="row gx-0">
+            <div class="col-12 header-align mb-2">
+              <ViewPostHeader />
             </div>
           </div>
 
-          <!-- Sidebar and Content in a row -->
-          <div class="row">
+          <!-- SIDEBAR + CONTENT (MATCH HEADER WIDTH) -->
+          <div class="row gx-0">
+            <!-- Sidebar -->
+            <div class="post-sidebar col-md-3 col-lg-2 mb-3 mb-md-0">
+              sidebar
+            </div>
 
-            <!-- Sidebar part -->
-            <div class="post-sidebar col-md-3 col-lg-2 text-white mb-3 mb-md-0">sidebar</div>
-
-            <!-- Content part -->
+            <!-- Content -->
             <div class="post-content col-md-9 col-lg-10">
-              <ViewPostContent :content = post.content /> 
+              <ViewPostContent :content="post.content" />
             </div>
-
           </div>
-          <!-- Comment Section -->
+
+          <!-- COMMENTS (ALREADY FULL WIDTH) -->
           <div class="row">
             <div class="post-comments mt-4">comments</div>
           </div>
+
         </div>
       </div>
     </div>
   </div>
 </template>
 
-<style scoped> 
+<style scoped>
+/* Page background */
 .page {
   background-color: #cbdad5;
   min-height: 90vh;
@@ -89,14 +101,16 @@ onMounted(async () => {
   padding-left: 1vh;
   padding-right: 1vh;
 }
+
+/* Loader */
 .loader {
-    display: flex;
-    justify-content: center;
-    padding-top: 25%;
-    padding-bottom: 25%;
+  display: flex;
+  justify-content: center;
+  padding-top: 25%;
+  padding-bottom: 25%;
 }
 
-/* Error when post not found */
+/* Error */
 .empty-state {
   background: rgba(255, 255, 255, 0.6);
   border-radius: 20px;
@@ -104,43 +118,75 @@ onMounted(async () => {
   padding: 3rem;
 }
 
-/* Central page layout */
-.page-container {
-  background-color: none;
-}
-.center-container {
-  background-color: none;
-}
-
-/* Header */
-.post-header {
-
-}
-.go-back {
-  background-color: none;
-  border: 2px black solid;
-  border-radius: 3px;
-}
-.content-head {
-  background-color: none;
-  border: 2px black solid;
-  border-radius: 3px;
+/* HEADER alignment */
+.header-align {
+  padding-left: 0;
+  padding-right: 0;
+  text-align: left;
 }
 
-/* Body */
-.post-content {
-  background-color: none;
+/* FLOATING BACK ARROW */
+.go-back-floating {
+  position: absolute;
+  left: -88px;   /* further left */
+  top: 4px;      /* slightly higher */
+
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 3px solid #000;
+  background: #fff;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  cursor: pointer;
+  z-index: 10;
 }
+
+.go-back-floating:hover {
+  background: #f1f5f9;
+}
+
+.back-arrow {
+  font-size: 26px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+/* Sidebar */
 .post-sidebar {
-  background-color: none;
-  border: 2px black solid;
+  border: 2px solid #000;
   border-radius: 3px;
+}
+
+/* Replace Bootstrap gutter between sidebar/content */
+.post-content {
+  padding-left: 16px;
 }
 
 /* Comments */
 .post-comments {
-  background-color: none;
-  border: 2px black solid;
+  border: 2px solid #000;
   border-radius: 3px;
+}
+
+/* Mobile safety */
+@media (max-width: 576px) {
+  .go-back-floating {
+    left: 0;
+    top: -64px;
+    width: 52px;
+    height: 52px;
+  }
+
+  .back-arrow {
+    font-size: 24px;
+  }
+
+  .post-content {
+    padding-left: 0;
+  }
 }
 </style>
