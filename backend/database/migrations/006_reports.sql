@@ -36,7 +36,7 @@ MERGE dbo.ReportTags AS target
 USING (VALUES 
     ('Spam'),
     ('Harassment'),
-    ('Inappropriate Content'),
+    ('Inappropriate'),
     ('Misinformation'),
     ('Other')
 ) AS source (TagName)
