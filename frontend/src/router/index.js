@@ -7,6 +7,7 @@
     import CreatePost from '../components/forum/CreatePostModal.vue';
     import CategoryPost from '@/views/forum/CategoryPosts.vue';
     import ViewPost from '@/views/forum/ViewPost.vue';
+    import AdminPanel from '@/views/admin/AdminPanel.vue';
     import client from '@/api/client';
 
     const routes = [
@@ -17,7 +18,8 @@
       { path: '/create-post', name: 'CreatePost', component: CreatePost, meta: { requiresAuth: true } },
       { path: '/profile', name: 'User Profile', component: ForumUserProfile, meta: { requiresAuth: true } },
       { path: '/categories/:categoryId/:slug?', name: 'CategoryPosts', component: CategoryPost, },
-      { path: '/posts/:id', name: 'ViewPost', component: ViewPost, props: true}
+      { path: '/posts/:id', name: 'ViewPost', component: ViewPost, props: true},
+      { path: '/admin', name: 'AdminPanel', component: AdminPanel, meta: { requiresAdmin: true } }
     ];
  
     const router = createRouter({
@@ -38,9 +40,23 @@
           // User isn't logged in or some other issue, route to login page
           next('/login');
         }
+
+      } else if (to.meta.requiresAdmin) {
+        // Admin privileges are required for the page
+        try {
+          const res = await client.get(`/me`);
+          if (res.data.ok && res.data.user.RoleName === 'admin') {
+            next(); // user is admin, route to panel
+          } else {
+            next('/'); // user is not admin, route to home page
+          }
+        } catch (e) {
+          next('/');
+        }
+
       } else {
         next(); // no auth is needed for that page
       }
     });
 
-    export default router; 
+    export default router;
