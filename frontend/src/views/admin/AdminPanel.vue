@@ -91,7 +91,7 @@ const tabs = ref([
 }
 
 .nav-logo {
-    width: 4rem;
+    width: 3.5rem;
 }
 
 .nav-divider {
