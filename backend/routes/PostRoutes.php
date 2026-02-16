@@ -487,21 +487,37 @@ $app->post('/api/posts/{id}/vote', function (Request $req, Response $res, array 
 $app->get('/api/get-post/{id}', function(Request $req, Response $res, array $args) use ($makePdo) {
     try {
         $pdo = $makePdo();
-
         $postID = (int)$args['id'];
 
-        $stmt = $pdo->prepare('SELECT Content FROM dbo.Posts WHERE PostID = :id');
+        // 1. Fetch Post Details (Title, Category, Content)
+        $stmt = $pdo->prepare('SELECT PostID, Title, CategoryID, Content FROM dbo.Posts WHERE PostID = :id AND IsDeleted = 0');
         $stmt->execute(['id' => $postID]);
-        $content = $stmt->fetchcolumn();
+        $post = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if(!$content){
-            throw new Error("Does not exist.");
+        if (!$post) {
+            return json($res, ['ok' => false, 'error' => 'Post not found'], 404);
         }
 
-        $res->getBody()->write(json_encode(['ok' => true, 'content' => $content]));
-        return $res->withHeader('Content-Type', 'application/json');
+        // 2. Fetch Tags for this post
+        $tagStmt = $pdo->prepare('
+            SELECT t.TagID, t.Name 
+            FROM dbo.PostTags pt
+            JOIN dbo.Tags t ON pt.TagID = t.TagID
+            WHERE pt.PostID = :id
+        ');
+        $tagStmt->execute(['id' => $postID]);
+        $tags = $tagStmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // 3. Return everything to the frontend
+        return json($res, [
+            'ok'         => true,
+            'PostID'     => (int)$post['PostID'],
+            'title'      => $post['Title'],
+            'category'   => (int)$post['CategoryID'],
+            'content'    => $post['Content'],
+            'tags'       => $tags
+        ]);
     } catch (Throwable $e) {
-        $res->getBody()->write(json_encode(['ok' => false, 'error' => $e->getMessage()]));
-        return $res->withStatus(500)->withHeader('Content-Type', 'application/json');
+        return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
     }
 });
