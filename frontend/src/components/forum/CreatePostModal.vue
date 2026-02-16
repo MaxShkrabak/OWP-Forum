@@ -8,6 +8,7 @@ import TextEditor from "@/components/forum/TextEditor.vue";
 
 const MAX_TITLE_LEN = 125;
 const MAX_TAGS = 5;
+const isUploading = ref(false)
 
 const props = defineProps({
   show: Boolean,
@@ -270,7 +271,7 @@ onUnmounted(() => {
               </div>
             </div>
             <!-- Text Editor -->
-            <TextEditor v-model="form.content" class="custom-editor" ref="editor" />
+            <TextEditor v-model="form.content" v-model:isUploading="isUploading" class="custom-editor" ref="editor" />
           </main>
 
           <!-- Publish or Cancel Options-->
@@ -297,6 +298,14 @@ onUnmounted(() => {
           <div class="warning-card shadow-lg">
             <p class="fs-5 fw-bold">Post Published</p>
             <p>Redirecting to home…</p>
+          </div>
+        </div>
+
+        <div v-if="isUploading" class="inner-warning-overlay">
+          <div class="warning-card shadow-lg upload-card">
+            <div class="spinner"></div>
+            <p class="fs-5 fw-bold" style="margin-top: 12px;">Uploading image…</p>
+            <p>Please wait.</p>
           </div>
         </div>
 
@@ -401,6 +410,25 @@ p {
   width: 90%;
   max-width: 400px;
   text-align: center;
+}
+
+.upload-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.spinner {
+  width: 44px;
+  height: 44px;
+  border: 4px solid #e2e8f0;
+  border-top: 4px solid #2E6C44;
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 .modal-header h3 {
