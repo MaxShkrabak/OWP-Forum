@@ -187,11 +187,11 @@ onMounted(async () => {
 
                 <div class="nav-opts" v-for="tab in tabs" :key="tab.name">
                     <div class="btn-container mb-1" :class="{ 'nav-btn-active-container': activeTab === tab.name }">
-                        <button class="nav-btns ms-1 ms-sm-3 py-2 px-0 px-md-1 text-start row w-100"
+                        <button class="nav-btns ms-1 ms-sm-3 py-2 px-0 px-md-1 text-start row"
                             :class="{ 'nav-btn-active': activeTab === tab.name }" @click="activeTab = tab.name">
                             <i class="bi col-auto d-none d-sm-block" :class="tab.icon"></i>
                             <span class="nav-name col-auto">{{ tab.name }}</span>
-                            <i class="bi bi-arrow-right-short col-auto d-none d-lg-block ms-auto"></i>
+                            <i class="bi bi-arrow-right-short col-auto d-none d-lg-block"></i>
                         </button>
                     </div>
                 </div>
