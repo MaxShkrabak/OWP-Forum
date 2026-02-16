@@ -1,17 +1,20 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useRouter } from "vue-router"; 
 import { createPost, getTags, getCategories } from "@/api/posts";
 import { fullName, userAvatar, isLoggedIn, userRole, userRoleId } from "@/stores/userStore";
 import UserRole from "@/components/user/UserRole.vue";
 import TextEditor from "@/components/forum/TextEditor.vue";
+import client from '@/api/client';
 
 const MAX_TITLE_LEN = 125;
 const MAX_TAGS = 5;
 
 const props = defineProps({
   show: Boolean,
-  loading: Boolean
+  loading: Boolean,
+  postData: Object,
+  isRestricted: Boolean
 });
 const emit = defineEmits(["close", "published"]);
 
@@ -23,7 +26,8 @@ const form = ref({
   title: "",
   category: "",
   content: "",
-  tags: []
+  tags: [],
+  disableComments: false
 });
 
 const editor = ref(null);
@@ -87,7 +91,8 @@ const filteredTags = computed(() => {
 });
 
 function tagNameById(id) {
-  return allTags.value.find(t => t.tagId === id)?.name || `#${id}`;
+  const found = allTags.value.find(t => t.tagId == id);
+  return found ? found.name : `#${id}`;
 }
 
 function isOfficialTag(id) {
@@ -120,49 +125,122 @@ function confirmDiscard() {
   emit("close");
 }
 
+const originalMetadata = ref({ category: "", tags: [], disableComments: false });
+
+function populateForm() {
+  if (props.postData) {
+    // Prepare the values first so they are identical for both form and originalMetadata
+    const cat = props.postData.category ? Number(props.postData.category) : "";
+    const tgs = props.postData.tags && Array.isArray(props.postData.tags) 
+                ? props.postData.tags.map(t => Number(t.TagID || t.tagId || t)) 
+                : [];
+    const dc = !!(props.postData.is_comments_disabled || props.postData.disableComments);
+
+    // Set current form values
+    form.value.title = props.postData.title || "";
+    form.value.content = props.postData.content || "";
+    form.value.category = cat;
+    form.value.tags = [...tgs];
+    form.value.disableComments = dc;
+
+    originalMetadata.value = { 
+      category: cat, 
+      tags: [...tgs], 
+      disableComments: dc 
+    };
+  }
+}
+
+const hasMetadataChanges = computed(() => {
+  const categoryChanged = form.value.category !== originalMetadata.value.category;
+  const commentsChanged = form.value.disableComments !== originalMetadata.value.disableComments;
+  
+  // Sort both tag arrays to compare content regardless of order
+  const tagsChanged = JSON.stringify([...form.value.tags].sort()) !== 
+                      JSON.stringify([...originalMetadata.value.tags].sort());
+
+  return categoryChanged || commentsChanged || tagsChanged;
+});
+
+const isInitialLoading = ref(true);
+
+onMounted(async () => {
+  // Wait for both essential lists to load before showing the form
+  await Promise.all([loadTags(), loadCategories()]);
+  
+  document.addEventListener("mousedown", handleClickOutside);
+  populateForm();
+  
+  // Now that data is here, turn off the loader
+  isInitialLoading.value = false; 
+});
+
+// Watch the prop to force an update if Vue passes the data a millisecond late
+watch(() => props.postData, () => {
+  populateForm();
+}, { immediate: true });
+
 // Publish post
 async function doPublish() {
   try {
-    await createPost({
-      title: form.value.title.trim(),
-      content: form.value.content,
-      tags: form.value.tags,
-      category: form.value.category || null,
-    });
+    if (props.isRestricted) {
+      // Grab ID from the URL using the router that is already set up in this file
+      const targetId = router.currentRoute.value.params.id; 
+      
+      await client.patch(`/admin/posts/${targetId}/metadata`, {
+        CategoryID: form.value.category,
+        TagIDs: form.value.tags
+      });
+    } else {
+      // Standard post creation
+      await createPost({
+        title: form.value.title.trim(),
+        content: form.value.content,
+        tags: form.value.tags,
+        category: form.value.category || null,
+      });
+    }
 
-    // show success confirmation immediately
     showPublishedConfirmation.value = true;
-
-    // close the confirm dialog
     showPublishConfirm.value = false;
 
-    // redirect + THEN notify parent (so parent doesn't unmount instantly)
     setTimeout(() => {
       showPublishedConfirmation.value = false;
-
-      // reset form
       form.value = { title: "", category: "", content: "", tags: [] };
-
-      // go home
-      router.push("/");
-
-      // now tell parent (safe if parent closes modal)
+      
+      // Only redirect home if it was a new post creation
+      if (!props.isRestricted) {
+        router.push("/"); 
+      } else {
+        location.reload(); // Reload to show updated tags/category on the ViewPost page
+      }
+      
       emit("published");
       emit("close");
     }, 1200);
 
   } catch (err) {
-    const msg = err?.response?.data?.error || err?.message || "An error occurred while publishing.";
-    alert(msg);
+    alert(props.isRestricted ? "Error updating metadata." : "An error occurred while publishing.");
     showPublishConfirm.value = false;
   }
 }
-
 
 onMounted(() => {
   loadTags();
   loadCategories();
   document.addEventListener("mousedown", handleClickOutside);
+
+  // If we are editing an existing post, populate the fields
+  if (props.postData) {
+    form.value.title = props.postData.Title || props.postData.title || "";
+    form.value.content = props.postData.Content || props.postData.content || "";
+    form.value.category = props.postData.CategoryID || props.postData.categoryId || "";
+    
+    // Map the existing tags into an array of IDs for the form
+    if (props.postData.tags && Array.isArray(props.postData.tags)) {
+      form.value.tags = props.postData.tags.map(t => t.TagID || t.tagId || t);
+    }
+  }
 });
 
 onUnmounted(() => {
@@ -175,133 +253,130 @@ onUnmounted(() => {
     <Transition name="modal" appear>
       <div v-if="show" class="modal-mask" @mousedown.self="handleCloseRequest">
 
-        <!-- Create Post Modal -->
         <div class="modal-container">
           <header class="modal-header">
-            <h3>CREATE POST</h3>
+            <h3>{{ isRestricted ? 'UPDATE POST METADATA' : 'CREATE POST' }}</h3>
             <button class="close-x" @click="handleCloseRequest">&times;</button>
           </header>
 
           <main class="modal-body">
-            <div class="title-row">
-              <!-- Title Input -->
-              <div class="input-group flex-grow-1 position-relative">
-                <label v-if="!form.title" class="title-placeholder">
-                  Title<span class="star-red">*</span>
-                </label>
-                
-                <input
-                  v-model="form.title"
-                  class="title-input"
-                  :maxlength="MAX_TITLE_LEN"
-                />
-                <span class="char-counter" :class="{ 'text-danger': titleLength >= MAX_TITLE_LEN }">
-                  {{ titleLength }}/{{ MAX_TITLE_LEN }}
-                </span>
-              </div>
-              
-              <!-- User Details -->
-              <div class="user-info-section" v-if="isLoggedIn">
-                <div class="user-meta text-end">
-                  <span class="user-name">{{ fullName }}</span>
-                  <UserRole :role="userRole" />
-                </div>
-                <div class="avatar-circle">
-                   <img :src="userAvatar" alt="icon" class="avatar-img" />                   
-                </div>
-              </div>
+            <div v-if="isInitialLoading" class="text-center py-5">
+              <div class="spinner-border text-success" role="status"></div>
+              <p class="mt-2 text-muted">Loading post data...</p>
             </div>
 
-            <div class="controls-bar">
-              <!-- Category Select -->
-              <div class="category-side">
-                <label class="form-label-small">Category<span v-if="!form.category" class="star-red">*</span></label>
-                <select v-model="form.category" class="clean-select-rect">
-                  <option value="">Select Category</option>
-                  <option v-for="cat in allCategories" :key="cat.categoryId" :value="cat.categoryId">
-                    {{ cat.name }}
-                  </option>
-                </select>
+            <template v-else>
+              <div class="title-row">
+                <div class="input-group flex-grow-1 position-relative">
+                  <label v-if="!form.title" class="title-placeholder">
+                    Title<span class="star-red">*</span>
+                  </label>
+                  
+                  <input
+                    v-model="form.title"
+                    class="title-input"
+                    :class="{ 'restricted-input': isRestricted }"
+                    :maxlength="MAX_TITLE_LEN"
+                    :disabled="isRestricted"
+                  />
+                  <span class="char-counter" :class="{ 'text-danger': titleLength >= MAX_TITLE_LEN }">
+                    {{ titleLength }}/{{ MAX_TITLE_LEN }}
+                  </span>
+                </div>
+                
+                <div class="user-info-section" v-if="isLoggedIn">
+                  <div class="user-meta text-end">
+                    <span class="user-name">{{ fullName }}</span>
+                    <UserRole :role="userRole" />
+                  </div>
+                  <div class="avatar-circle">
+                    <img :src="userAvatar" alt="icon" class="avatar-img" />                   
+                  </div>
+                </div>
               </div>
-              
-              <div class="tags-side" ref="tagContainerRef">
-                <label class="form-label-small">Tags ({{ form.tags.length }}/{{ MAX_TAGS }})</label>
-                <div class="tag-adder-container">
-                  <!-- Tags Button-->
-                  <div class="tag-trigger-group">
-                    <button
-                      type="button"
-                      class="tag-circle-add"
-                      @click="showTagPopup = !showTagPopup"
-                      :disabled="form.tags.length >= MAX_TAGS"
-                    >
-                      +
-                    </button>
-                    <!-- Tag Dropdown Box -->
-                    <div v-if="showTagPopup" class="tag-floating-box shadow-lg">
-                      <input v-model="tagSearch" class="tag-search-mini" placeholder="Search..." @click.stop />
-                      <div class="tag-options-list">
-                        <button
-                          v-for="t in filteredTags"
-                          :key="t.tagId"
-                          class="tag-opt"
-                          @click="() => { form.tags.push(t.tagId); tagSearch = ''; showTagPopup = false; }"
-                          >
-                          {{ t.name }}
-                        </button>
+
+              <div class="controls-bar">
+                <div class="category-side">
+                  <label class="form-label-small">Category<span v-if="!form.category" class="star-red">*</span></label>
+                  <select v-model="form.category" class="clean-select-rect">
+                    <option value="">Select Category</option>
+                    <option v-for="cat in allCategories" :key="cat.categoryId" :value="cat.categoryId">
+                      {{ cat.name }}
+                    </option>
+                  </select>
+                </div>
+                
+                <div class="tags-side" ref="tagContainerRef">
+                  <label class="form-label-small">Tags ({{ form.tags.length }}/{{ MAX_TAGS }})</label>
+                  <div class="tag-adder-container">
+                    <div class="tag-trigger-group">
+                      <button
+                        type="button"
+                        class="tag-circle-add"
+                        @click="showTagPopup = !showTagPopup"
+                        :disabled="form.tags.length >= MAX_TAGS"
+                      >
+                        +
+                      </button>
+                      <div v-if="showTagPopup" class="tag-floating-box shadow-lg">
+                        <input v-model="tagSearch" class="tag-search-mini" placeholder="Search..." @click.stop />
+                        <div class="tag-options-list">
+                          <button
+                            v-for="t in filteredTags"
+                            :key="t.tagId"
+                            class="tag-opt"
+                            @click="() => { form.tags.push(t.tagId); tagSearch = ''; showTagPopup = false; }"
+                            >
+                            {{ t.name }}
+                          </button>
+                        </div>
                       </div>
                     </div>
+                    <div class="tag-chips-flow">
+                      <span v-for="tid in form.tags" :key="tid" :class="isOfficialTag(tid) ? 'tag-chip-pill-mod-admin' : 'tag-chip-pill'">
+                        {{ tagNameById(tid) }}
+                        <button class="chip-remove" @click="removeTag(tid)">&times;</button>
+                      </span>
+                      <span v-if="form.tags.length === 0" class="muted-hint">No tags added yet</span>
+                    </div>
                   </div>
-                  <!-- Active Tags -->
-                  <div class="tag-chips-flow">
-                    <span v-for="tid in form.tags" :key="tid" :class="isOfficialTag(tid) ? 'tag-chip-pill-mod-admin' : 'tag-chip-pill'">
-                      {{ tagNameById(tid) }}
-                      <button class="chip-remove" @click="removeTag(tid)">&times;</button>
-                    </span>
-                    <span v-if="form.tags.length === 0" class="muted-hint">No tags added yet</span>
-                  </div>
+                </div>
+
+                <div class="comment-ctrl comm-checkbox-style" v-if="userRoleId >= 3">
+                  <span class="me-3">Disable Comments?</span>
+                    <input class="form-check-input" type="checkbox" id="checkComment" v-model="form.disableComments">
+                    <label class="form-check-label" for="checkComment"></label>
                 </div>
               </div>
 
-              <div class="comment-ctrl comm-checkbox-style" v-if="userRoleId >= 3">
-                <span class="me-3">Disable Comments?</span>
-                  <input class="form-check-input" type="checkbox" value="" id="checkComment">
-                    <label class="form-check-label" for="checkComment">
-                    </label>
+              <div :class="{ 'restricted-input': isRestricted }">
+                <TextEditor v-model="form.content" class="custom-editor" ref="editor" />
               </div>
-            </div>
-            <!-- Text Editor -->
-            <TextEditor v-model="form.content" class="custom-editor" ref="editor" />
+            </template>
           </main>
 
-          <!-- Publish or Cancel Options-->
           <footer class="modal-footer">
             <div class="footer-hint"></div>
             <div class="footer-actions">
               <button class="cancel-btn" @click="handleCloseRequest">Cancel</button>
-              <button
-                class="publish-btn"
-                :disabled="!canPublish || loading"
-                @click="showPublishConfirm = true"
-              >
-                {{ loading ? 'Publishing...' : 'Publish Post' }}
-              </button>
+                <button
+                  class="publish-btn"
+                  :disabled="(isRestricted ? (!form.category || !hasMetadataChanges) : !canPublish) || loading"
+                  @click="showPublishConfirm = true"
+                >
+                  {{ loading ? 'Processing...' : (isRestricted ? 'Update Metadata' : 'Publish Post') }}
+                </button>
             </div>
           </footer>
         </div>
 
-
-        <div
-          v-if="showPublishedConfirmation"
-          class="inner-warning-overlay"
-        >
+        <div v-if="showPublishedConfirmation" class="inner-warning-overlay">
           <div class="warning-card shadow-lg">
             <p class="fs-5 fw-bold">Post Published</p>
             <p>Redirecting to home…</p>
           </div>
         </div>
 
-        <!-- Publish Confirmation -->
         <div v-if="showPublishConfirm" class="inner-warning-overlay" @mousedown.self="showPublishConfirm = false">
           <div class="warning-card shadow-lg">
             <p class="fs-5 fw-bold">Ready to Publish?</p>
@@ -313,7 +388,6 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <!-- Discard Post Draft -->
         <div v-if="showWarningDialog" class="inner-warning-overlay" @mousedown.self="showWarningDialog = false">
           <div class="warning-card shadow-lg">
             <p class="fs-5 fw-bold">Unsaved Changes</p>
@@ -740,4 +814,12 @@ p {
     width: 100%;
   }
 }
+
+.restricted-input {
+  opacity: 0.6;
+  pointer-events: none; /* Prevents clicking/typing completely */
+  background-color: #f1f5f9;
+  border-radius: 8px;
+}
+
 </style>
