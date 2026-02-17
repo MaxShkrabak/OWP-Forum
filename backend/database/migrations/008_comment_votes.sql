@@ -20,7 +20,7 @@ BEGIN
         UserId INT NOT NULL REFERENCES dbo.Users(User_ID),
         VoteValue SMALLINT NOT NULL,
         CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
-        updatedAt DATETIME2 NULL,
+        UpdatedAt DATETIME2 NULL,
         CONSTRAINT UQ_CommentVotes_UserId_CommentId UNIQUE (UserId, CommentId),
         CONSTRAINT CK_CommentVotes_VoteValue CHECK (VoteValue IN (1, -1))
     );
