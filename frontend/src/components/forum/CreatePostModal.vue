@@ -372,18 +372,31 @@ onUnmounted(() => {
 
         <div v-if="showPublishedConfirmation" class="inner-warning-overlay">
           <div class="warning-card shadow-lg">
-            <p class="fs-5 fw-bold">Post Published</p>
-            <p>Redirecting to home…</p>
+            <p class="fs-5 fw-bold">
+              {{ isRestricted ? 'Changes Saved' : 'Post Published' }}
+            </p>
+            
+            <p>
+              {{ isRestricted ? 'Refreshing details...' : 'Redirecting to home...' }}
+            </p>
           </div>
         </div>
 
         <div v-if="showPublishConfirm" class="inner-warning-overlay" @mousedown.self="showPublishConfirm = false">
           <div class="warning-card shadow-lg">
-            <p class="fs-5 fw-bold">Ready to Publish?</p>
-            <p>Your post will be visible to everyone</p>
+            <p class="fs-5 fw-bold">
+              {{ isRestricted ? 'Save Changes?' : 'Ready to Publish?' }}
+            </p>
+            
+            <p>
+              {{ isRestricted ? 'This will update the post metadata immediately.' : 'Your post will be visible to everyone.' }}
+            </p>
+            
             <div class="modal-actions justify-content-center">
               <button class="cancel-btn" @click="showPublishConfirm = false">Back</button>
-              <button class="publish-btn" @click="doPublish">Confirm & Publish</button>
+              <button class="publish-btn" @click="doPublish">
+                {{ isRestricted ? 'Confirm & Update' : 'Confirm & Publish' }}
+              </button>
             </div>
           </div>
         </div>
