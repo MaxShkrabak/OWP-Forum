@@ -110,7 +110,7 @@ onMounted(async () => {
         <div class="center-container col text-center">
           <div class="row gx-0">
             <div class="col-12 header-align mb-2">
-              <ViewPostHeader />
+              <ViewPostHeader :post="post"/>
             </div>
           </div>
 
