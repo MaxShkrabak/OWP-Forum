@@ -3,7 +3,7 @@ import { ref } from 'vue';
 import OWPLogoSmall from '@/assets/img/svg/owp-symbol-wht.svg'
 import { RouterLink } from 'vue-router';
 import AdminRoles from '@/components/admin/AdminRoles.vue'; 
-
+import AdminTags from '@/components/admin/AdminTags.vue';
 const activeTab = ref('Roles');
 const tabs = ref([
     { name: 'Users', icon: 'bi-person-fill-gear' },
@@ -47,6 +47,9 @@ const tabs = ref([
                     
                     <template v-if="tab.name === 'Roles'">
                         <AdminRoles />
+                    </template>
+                    <template v-if="tab.name === 'Tags'">
+                        <AdminTags />
                     </template>
 
                     <template v-else>
