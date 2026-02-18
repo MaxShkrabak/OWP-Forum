@@ -5,6 +5,7 @@ import { getPost, votePost } from "@/api/posts";
 import ViewPostContent from "@/components/forum/ViewPostContent.vue";
 import ViewPostHeader from "@/components/forum/ViewPostHeader.vue";
 import { isLoggedIn, userRole } from "@/stores/userStore";
+import CommentSection from "@/components/forum/CommentSection.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -160,9 +161,12 @@ onMounted(async () => {
             </div>
           </div>
 
-          <div class="row">
-            <div class="post-comments mt-4">comments</div>
+          <div class="row gx-0 ">
+            <div class="post-comments mt-2 mb-4">
+               <CommentSection />
+            </div>
           </div>
+          
         </div>
       </div>
     </div>
