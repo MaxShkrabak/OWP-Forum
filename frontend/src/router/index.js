@@ -15,7 +15,7 @@
       { path: '/register', name: 'Register', component: RegistrationPage },
       { path: '/verify', name: 'VerifyPasscode', component: VerifyPasscode, props: (route) => ({ email: route.query.email || '' }) },
       { path: '/create-post', name: 'CreatePost', component: CreatePost, meta: { requiresAuth: true } },
-      { path: '/profile', name: 'User Profile', component: ForumUserProfile, meta: { requiresAuth: true } },
+      { path: '/profile', name: 'User Profile', component: ForumUserProfile },
       { path: '/categories/:categoryId/:slug?', name: 'CategoryPosts', component: CategoryPost, },
       { path: '/posts/:id', name: 'ViewPost', component: ViewPost, props: true}
     ];

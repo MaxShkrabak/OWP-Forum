@@ -5,7 +5,15 @@ import UserRole from "@/components/user/UserRole.vue";
 
 const props = defineProps({
   isProfile: Boolean,
+  isCurrUser: Boolean,
+  avatar: String,
+  newFullName: String,
+  newRole: String
 });
+
+function getAvatarSrc(file) {
+  return new URL(`../../assets/img/user-pfps-premade/${file}`, import.meta.url).href;
+}
 </script>
 
 <template>
@@ -18,12 +26,15 @@ const props = defineProps({
           <RouterLink to="/profile" class="pfp-wrapper shadow-sm" v-if="!isProfile">
             <img :src="userAvatar" alt="avatar" class="img-fluid profile-img" />
           </RouterLink>
-          <button class="pfp-wrapper-profile shadow-sm" data-bs-toggle="modal" data-bs-target="#pfpChange" v-else>
+          <button class="pfp-wrapper-profile shadow-sm" data-bs-toggle="modal" data-bs-target="#pfpChange" v-else-if="isProfile && isCurrUser">
                 <img v-if="userAvatar" :src="userAvatar" class="img-fluid profile-img" alt="User avatar">
                 <img v-else src="@\assets\img\user-pfps-premade\pfp-0.png" class="img-fluid profile-img" alt="Default avatar">
-            </button>
-          <h5 class="user-name mt-2 mb-1">{{ fullName }}</h5>
-          <UserRole :role="userRole" />
+          </button>
+          <div class="pfp-wrapper-profile shadow-sm" v-else-if="isProfile && !isCurrUser">
+                <img v-if="avatar" :src="getAvatarSrc(avatar)" class="profile-img" alt="User avatar">
+          </div>
+          <h5 class="user-name mt-2 mb-1">{{ isCurrUser ? fullName : newFullName }}</h5>
+          <UserRole :role="isCurrUser ? userRole : newRole" />
         </div>
         <!-- User Stats Section -->
         <div class="stats-divider my-3"></div>
@@ -47,7 +58,7 @@ const props = defineProps({
       </div>
       <button class="btn-edit-prof text-center mb-3" 
       data-bs-toggle="modal" data-bs-target="#userSettingsModal"
-      v-if="isProfile"> <!--Edit Profile button-->
+      v-if="isProfile && isCurrUser"> <!--Edit Profile button-->
         <span class="edit-prof-text text-center">
            Edit Profile
         </span>

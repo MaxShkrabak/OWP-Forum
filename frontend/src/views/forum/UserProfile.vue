@@ -7,6 +7,7 @@ import { getPaginationRange } from '@/utils/pagination';
 import { onMounted, ref, watch, computed } from 'vue';
 import { uid } from '@/stores/userStore';
 import { fetchPosts as apiGetPosts } from "@/api/posts";
+import { fetchUser } from "@/api/users";
 import PostCard from '@/components/forum/PostCard.vue';
 import UserCard from '@/components/user/UserCard.vue';
 
@@ -22,6 +23,39 @@ const totalPages = ref(1);
 const limit = ref(Number(localStorage.getItem('category_limit')) || 5);
 const sort = ref(localStorage.getItem('category_sort') || 'latest');
 
+// Used for user card if it's not the current user
+const setAvatar = ref(null);
+const setFullName = ref(null);
+const setRole = ref(null);
+
+function getUrlParams() {
+  const params = new URLSearchParams(window.location.search);
+  const id = params.get('id') || uid.value || false;
+  return id;
+}
+
+function checkIfCurrUser() {
+  const urlUserId = getUrlParams();
+  return urlUserId === String(uid.value);
+}
+
+async function checkAndSetUser() {
+  const userId = getUrlParams();
+  
+  if (userId && userId !== String(uid.value)) {
+    try {
+      const data = await fetchUser(userId);
+      if(data.ok) {
+        setAvatar.value = data.user.Avatar || 'pfp-0.png';
+        setFullName.value = data.user.FirstName + " " + data.user.LastName;
+        setRole.value = data.user.RoleName || 'User';
+      }
+    } catch (e) {
+      console.error("User fetch error:", e);
+    }
+  }
+}
+
 async function getPosts() {
   loading.value = true;
   error.value = null;
@@ -33,10 +67,11 @@ async function getPosts() {
         limit: limit.value,
         sort: sort.value,
         page: currentPage.value,
-        userId: uid.value
+        userId: getUrlParams()
       });
 
       posts.value = data.posts || [];
+
       if (data.meta) {
         totalPages.value = data.meta.totalPages || 1;
       }
@@ -77,10 +112,12 @@ const displayedPages = computed(() => {
   return getPaginationRange(currentPage.value, totalPages.value, 2);
 });
 
-watch(currentPage, getPosts);
-watch(activeTab, getPosts);
+watch([activeTab, currentPage], getPosts);
 
-onMounted(getPosts);
+onMounted(() => {
+  checkAndSetUser();
+  getPosts();
+});
 </script>
 
 <template>
@@ -89,9 +126,20 @@ onMounted(getPosts);
     <pfpModal/>
     <UserSettings/>
       <div class="container-fluid text-center">
-        <div class="row">
+        
+        <div v-if="!getUrlParams()" class="empty-state text-center py-5">
+          Guest users do not have profiles. Please sign in to view your profile.
+        </div>
 
-          <UserCard is-profile class="col-md-3"></UserCard>
+        <div class="row" v-else>
+
+          <UserCard
+          is-profile 
+          :is-curr-user="checkIfCurrUser()"
+          :avatar="setAvatar"
+          :new-full-name="setFullName"
+          :new-role="setRole"
+          class="col-md-3"></UserCard>
 
           <!--Filter header-->
           <div class="col-md-9 text-center">
