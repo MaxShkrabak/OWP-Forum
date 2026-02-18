@@ -61,7 +61,7 @@ $app->get('/api/profile/{uid}/posts', function (Request $req, Response $res, arr
 
         $getPostsSql = "
             SELECT p.AuthorID, p.PostID, p.Title, p.CreatedAt, p.CategoryID,
-                   u.FirstName, u.LastName, u.Avatar,
+                   u.FirstName, u.LastName, u.Avatar, u.User_ID,
                    r.Name AS RoleName, c.Name AS CategoryName
             FROM dbo.Posts p
             LEFT JOIN dbo.Users u ON p.AuthorID = u.User_ID
@@ -111,6 +111,7 @@ $app->get('/api/profile/{uid}/posts', function (Request $req, Response $res, arr
                 'categoryId'   => $catId,
                 'title'        => $row['Title'],
                 'createdAt'    => $row['CreatedAt'],
+                'authorId'   => (int)($row['User_ID'] ?? 0),
                 'authorName'   => trim(($row['FirstName'] ?? '') . ' ' . ($row['LastName'] ?? '')),
                 'authorRole'   => $row['RoleName'] ?? 'User',
                 'authorAvatar' => $row['Avatar'] ?? null,

@@ -12,6 +12,11 @@ import PostCard from '@/components/forum/PostCard.vue';
 import UserCard from '@/components/user/UserCard.vue';
 
 const activeTab = ref('yourPosts');
+const isCurrUser = computed(() => {
+  const urlUserId = getUrlParams();
+  return urlUserId === String(uid.value);
+});
+const isExistingUser = ref(true); // Used to check if the user exists when visiting other user's profile
 
 const router = useRouter();
 const posts = ref([]);
@@ -51,6 +56,7 @@ async function checkAndSetUser() {
         setRole.value = data.user.RoleName || 'User';
       }
     } catch (e) {
+      isExistingUser.value = false;
       console.error("User fetch error:", e);
     }
   }
@@ -113,6 +119,9 @@ const displayedPages = computed(() => {
 });
 
 watch([activeTab, currentPage], getPosts);
+watch(getUrlParams, () => {
+
+});
 
 onMounted(() => {
   checkAndSetUser();
@@ -129,6 +138,10 @@ onMounted(() => {
         
         <div v-if="!getUrlParams()" class="empty-state text-center py-5">
           Guest users do not have profiles. Please sign in to view your profile.
+        </div>
+
+        <div v-else-if="!isExistingUser" class="empty-state text-center py-5">
+          User does not exist.
         </div>
 
         <div class="row" v-else>
@@ -155,15 +168,23 @@ onMounted(() => {
                 <div class="row justify-content-evenly pr-3 fs-4 gap-4">
                 
                 <!-- Filter Options -->  
-                <button class="col-12 col-sm-12 col-lg-auto filter-options" :class="{ 'activeBox' : activeTab === 'yourPosts' }" @click="activeTab = 'yourPosts'">
-                  <span class="activeText">Your Posts</span>
+                <button class="col-12 col-sm-12 col-lg-auto filter-options"
+                :class="{ 'activeBox' : activeTab === 'yourPosts' }"
+                @click="activeTab = 'yourPosts'">
+                  <span class="activeText">{{ isCurrUser ? "Your" : setFullName + "'s" }} Posts</span>
                   <div class="activeLine"></div>
                 </button>
-                <button class="col-12 col-sm-12 col-lg-auto filter-options" :class="{ 'activeBox' : activeTab === 'followedPosts' }" @click="activeTab = 'followedPosts'">
+                <button class="col-12 col-sm-12 col-lg-auto filter-options"
+                :class="{ 'activeBox' : activeTab === 'followedPosts' }"
+                @click="activeTab = 'followedPosts'"
+                v-if="isCurrUser">
                   <span class="activeText">Followed Posts</span>
                   <div class="activeLine"></div>
                 </button>
-                <button class="col-12 col-sm-12 col-lg-auto filter-options" :class="{ 'activeBox' : activeTab === 'likedPosts' }" @click="activeTab = 'likedPosts'">
+                <button class="col-12 col-sm-12 col-lg-auto filter-options"
+                :class="{ 'activeBox' : activeTab === 'likedPosts' }"
+                @click="activeTab = 'likedPosts'"
+                v-if="isCurrUser">
                   <span class="activeText">Liked Posts</span>
                   <div class="activeLine"></div>
                 </button>

@@ -33,8 +33,8 @@ function getAvatarSrc(file) {
           <div class="pfp-wrapper-profile shadow-sm" v-else-if="isProfile && !isCurrUser">
                 <img v-if="avatar" :src="getAvatarSrc(avatar)" class="profile-img" alt="User avatar">
           </div>
-          <h5 class="user-name mt-2 mb-1">{{ isCurrUser ? fullName : newFullName }}</h5>
-          <UserRole :role="isCurrUser ? userRole : newRole" />
+          <h5 class="user-name mt-2 mb-1">{{ isCurrUser ? fullName : newFullName || fullName}}</h5>
+          <UserRole :role="isCurrUser ? userRole : newRole || userRole" />
         </div>
         <!-- User Stats Section -->
         <div class="stats-divider my-3"></div>
@@ -63,6 +63,38 @@ function getAvatarSrc(file) {
            Edit Profile
         </span>
       </button>
+    </div>
+
+    <div class="user-main-card shadow-sm border" v-else-if="!isLoggedIn && isProfile">
+      <div class="card-header-gradient"></div>
+      <div class="card-body-content px-3 pb-3">
+        <div class="profile-section text-center" >
+          <div class="pfp-wrapper-profile shadow-sm">
+                <img v-if="avatar" :src="getAvatarSrc(avatar)" class="profile-img" alt="User avatar">
+          </div>
+          <h5 class="user-name mt-2 mb-1">{{ newFullName }}</h5>
+          <UserRole :role="newRole" />
+        </div>
+        <!-- User Stats Section -->
+        <div class="stats-divider my-3"></div>
+        <div class="stats-container d-flex justify-content-around text-center">
+          <!-- Posts count-->
+          <div class="stat-item">
+            <span class="stat-value">0</span>
+            <span class="stat-label text-uppercase">Posts</span>
+          </div>
+          <!-- Likes count -->
+          <div class="stat-item">
+            <span class="stat-value">0</span>
+            <span class="stat-label text-uppercase">Likes</span>
+          </div>
+          <!-- Comment count -->
+          <div class="stat-item">
+            <span class="stat-value">0</span>
+            <span class="stat-label text-uppercase">Comments</span>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Signed Out User Card -->

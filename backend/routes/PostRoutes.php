@@ -130,7 +130,7 @@ $app->get('/api/posts', function (Request $req, Response $res) use ($makePdo) {
 
         $getPostsSql = "
             SELECT p.PostID, p.Title, p.CreatedAt, p.CategoryID, p.TotalScore,
-                   u.FirstName, u.LastName, u.Avatar,
+                   u.FirstName, u.LastName, u.Avatar, u.User_ID,
                    r.Name AS RoleName, c.Name AS CategoryName,
                    pv.VoteValue AS myVote
             FROM dbo.Posts p
@@ -183,6 +183,7 @@ $app->get('/api/posts', function (Request $req, Response $res) use ($makePdo) {
                 'categoryId'   => $catId,
                 'title'        => $row['Title'],
                 'createdAt'    => $row['CreatedAt'],
+                'authorId'   => (int)($row['User_ID'] ?? 0),
                 'authorName'   => trim(($row['FirstName'] ?? '') . ' ' . ($row['LastName'] ?? '')),
                 'authorRole'   => $row['RoleName'] ?? 'User',
                 'authorAvatar' => $row['Avatar'] ?? null,
