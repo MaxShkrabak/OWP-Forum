@@ -45,6 +45,7 @@ async function loadCategoryPosts() {
       sort: sort.value,
       page: currentPage.value,
       limit: limit.value,
+      tags: selectedTags.value
     };
 
     const data = await apiGetPosts(args);
