@@ -1,7 +1,7 @@
 <script setup>
 import { useRoute, useRouter, RouterLink } from 'vue-router';
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
-import { isLoggedIn, fullName, logoutUser } from '@/stores/userStore';
+import { isLoggedIn, fullName, userRole, logoutUser } from '@/stores/userStore';
 
 // Image imports
 import owpLogo from '@/assets/img/svg/owp-logo-horizontal-WHT-2color.svg';
@@ -17,6 +17,7 @@ const onLoginPage = computed(() => route.path.startsWith('/login'));
 const onRegisterPage = computed(() => route.path.startsWith('/register'));
 const logoType = computed(() => (width.value <= 584 ? owpSymbol : owpLogo));
 const fname = computed(() => fullName.value.split(' ')[0] || '');
+const isAdmin = computed(() => (userRole.value || '').toLowerCase() === 'admin');
 
 function handleResize() {
   width.value = window.innerWidth;
@@ -74,6 +75,7 @@ async function handleLogout() {
           <span class="greeting">Hello, {{ fname }}!</span>
            <!-- Doesn't actually route anywhere, just to match UI -->
           <RouterLink to="" class="account-action">My Account</RouterLink>
+          <RouterLink v-if="isAdmin" to="/admin" class="account-action">Admin Panel</RouterLink>
 
           <button class="account-action" @click="handleLogout">Logout</button>
         </template>
