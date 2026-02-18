@@ -1,18 +1,33 @@
 <script setup>
+import { computed } from 'vue';
 import UserRole from "@/components/user/UserRole.vue";
 
 /**
  * FILLER DATA ONLY
  * Styles intentionally reused from PostCard.vue
  */
+const props = defineProps ({
+  post: {
+    type: Object,
+    requried: true
+  }
+});
 
-// Filler data
-const title = "Test2";
-const tags = ["Discussion", "Information", "Research"];
-const dateText = "9/15/2025";
-const timeText = "6:12 PM";
-const authorName = "Joe Joey";
-const authorRole = "USER";
+const getLocalDate = (input) => {
+  if (!input) return null;
+  const dateStr = input.trim().replace(' ', 'T') + 'Z';
+  return new Date(dateStr);
+};
+// Extract date portion of post creation time
+const dateText = computed(() => {
+  const d = getLocalDate(props.post.createdAt);
+  return d ? d.toLocaleDateString() : '';
+});
+// Extract time portion of post creation time
+const timeText = computed(() => {
+  const d = getLocalDate(props.post.createdAt);
+  return d ? d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
+});
 
 // Use the same avatar system as PostCard.vue
 function getAvatarSrc(file) {
@@ -30,10 +45,10 @@ const avatarFile = "tree.png";
   <header class="top-header">
     <!-- Left: Title + tags -->
     <div class="left">
-      <div class="post-title">{{ title }}</div>
+      <div class="post-title">{{ post.title }}</div>
 
       <div class="tags">
-        <span v-for="t in tags" :key="t" class="post-tag">{{ t }}</span>
+        <span v-for="t in post.tags" :key="t" class="post-tag">{{ t }}</span>
       </div>
     </div>
 
@@ -46,13 +61,13 @@ const avatarFile = "tree.png";
     <!-- Right: Author (same as PostCard) -->
     <div class="author-info-wrap">
       <div class="text-end d-flex flex-column align-items-end">
-        <span class="author-name text-truncate">{{ authorName }}</span>
-        <UserRole :role="authorRole" />
+        <span class="author-name text-truncate">{{ post.authorName }}</span>
+        <UserRole :role="post.authorRole" />
       </div>
 
       <div class="avatar-box shadow-sm">
         <img
-          :src="getAvatarSrc(avatarFile)"
+          :src="getAvatarSrc(post.authorAvatar)"
           class="avatar-img"
           alt="user"
         />
@@ -152,6 +167,12 @@ const avatarFile = "tree.png";
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+:deep(.role-pill) {
+  border-radius: 3px !important;
+  padding: 1px 4px !important;
+  font-size: 0.5rem !important;
 }
 
 /* Responsive */
