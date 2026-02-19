@@ -48,7 +48,7 @@ const avatarFile = "tree.png";
       <div class="post-title">{{ post.title }}</div>
 
       <div class="tags">
-        <span v-for="t in post.tags" :key="t" class="post-tag">{{ t }}</span>
+        <span v-for="t in post.tags" :key="t" class="post-tag">{{ t.Name }}</span>
       </div>
     </div>
 

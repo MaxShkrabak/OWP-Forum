@@ -509,8 +509,9 @@ $app->get('/api/get-post/{id}', function(Request $req, Response $res, array $arg
         $pdo = $makePdo();
         $postID = (int)$args['id'];
 
+        // 1. Fetch comprehensive post details (hybrid query)
         $sql = "
-            SELECT p.PostID, p.Title, p.Content, p.CreatedAt,
+            SELECT p.PostID, p.Title, p.Content, p.CreatedAt, p.CategoryID,
                    u.FirstName, u.LastName, u.Avatar,
                    r.Name AS RoleName, 
                    c.Name AS CategoryName
@@ -525,33 +526,38 @@ $app->get('/api/get-post/{id}', function(Request $req, Response $res, array $arg
         $stmt->execute(['id' => $postID]);
         $post = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if(!$post){
-            return json($res, ['ok' => false, 'error' => "Post content does not exist."], 404);
+        if (!$post) {
+            return json($res, ['ok' => false, 'error' => "Post not found or has been deleted."], 404);
         }
 
+        // 2. Fetch tags as an array of objects (from HEAD)
         $tagStmt = $pdo->prepare("
-            SELECT t.Name 
+            SELECT t.TagID, t.Name 
             FROM dbo.PostTags pt 
             JOIN dbo.Tags t ON t.TagID = pt.TagID 
             WHERE pt.PostID = :id
         ");
 
         $tagStmt->execute(['id' => $postID]);
-        $tags = $tagStmt->fetchAll(PDO::FETCH_COLUMN);
+        $tags = $tagStmt->fetchAll(PDO::FETCH_ASSOC);
 
+        // 3. Assemble hybrid response data
         $responseData = [
             'PostID'       => (int)$post['PostID'],
             'title'        => $post['Title'],
             'content'      => $post['Content'],
             'createdAt'    => $post['CreatedAt'],
+            'category'     => (int)$post['CategoryID'],     // Raw ID for Edit mode (HEAD)
+            'categoryName' => $post['CategoryName'],        // String for View mode (dev)
             'authorName'   => trim(($post['FirstName'] ?? '') . ' ' . ($post['LastName'] ?? '')),
             'authorAvatar' => $post['Avatar'],
             'authorRole'   => $post['RoleName'] ?? 'User',
-            'categoryName' => $post['CategoryName'],
-            'tags'         => $tags
+            'tags'         => $tags                         // Array of objects (TagID & Name)
         ];
 
+        // Ensure the response uses the wrapper standard from dev
         return json($res, ['ok' => true, 'post' => $responseData]);
+
     } catch (Throwable $e) {
         return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
     }

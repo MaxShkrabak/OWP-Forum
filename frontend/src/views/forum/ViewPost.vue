@@ -4,8 +4,12 @@ import { useRoute, useRouter } from "vue-router";
 import { getPost, votePost } from "@/api/posts";
 import ViewPostContent from "@/components/forum/ViewPostContent.vue";
 import ViewPostHeader from "@/components/forum/ViewPostHeader.vue";
-import { isLoggedIn, userRole } from "@/stores/userStore";
+import { isLoggedIn, userRole, userRoleId } from "@/stores/userStore";
+import axios from "axios";
+import CreatePostModal from "@/components/forum/CreatePostModal.vue";
+import PostModerationSidebar from "@/components/admin/PostModerationSidebar.vue";
 import CommentSection from "@/components/forum/CommentSection.vue";
+
 
 const route = useRoute();
 const router = useRouter();
@@ -14,6 +18,9 @@ const postId = route.params.id;
 const post = ref(null);
 const loading = ref(true);
 const error = ref(null);
+
+const showEditModal = ref(false);
+const isRestricted = ref(false);
 
 // Follow toggle state
 const isFollowing = ref(false);
@@ -63,16 +70,39 @@ const canReport = computed(() => {
   return !(role === "admin" || role === "moderator");
 });
 
-//Admin and Mod only
+// Admin and Mod only
 const isAdminOrMod = computed(() => {
-  const role = (userRole?.value || "").toLowerCase();
-  return role === "admin" || role === "moderator";
-});
+  // Convert to Number just in case localStorage is returning a string like "4"
+  return Number(userRoleId.value) >= 3; 
+})
 
 function goBack() {
   if (window.history.length > 1) router.back();
   else router.push("/");
 }
+
+// Soft Delete and Redirect Home
+async function handleSoftDelete() {
+  if (!confirm("Are you sure? This post will be soft-deleted.")) return;
+  
+  try {
+    const res = await axios.patch(`/api/admin/posts/${post.value.PostID}/soft-delete`);
+    if (res.data.ok) {
+      alert("Post successfully deleted.");
+      router.push("/"); // Take the user home
+    }
+  } catch (err) {
+    alert("Error deleting post.");
+  }
+}
+
+// Make sure this function looks EXACTLY like this in ViewPost.vue
+function openRestrictedModal(modalType) {
+  console.log("ViewPost caught the event! Opening modal for:", modalType);
+  isRestricted.value = true; 
+  showEditModal.value = true;
+}
+
 
 onMounted(async () => {
   try {
@@ -143,15 +173,20 @@ onMounted(async () => {
                   <i class="pi pi-flag report-icon"></i>
                   <span>Report</span>
                 </button>
+                  <PostModerationSidebar 
+                      v-if="isAdminOrMod"
+                      :post="post" 
+                      :user="{ RoleID: Number(userRoleId) }" 
+                      @open-modal="openRestrictedModal" 
+                  />
 
-                <div v-if="isAdminOrMod" class="edit-delete-actions">
-                  <button class="edit-delete edit-btn" type="button">
-                    Edit
-                  </button>
-                  <button class="edit-delete delete-btn" type="button">
-                    Delete
-                  </button>
-                </div>
+                  <CreatePostModal 
+                      v-if="showEditModal" 
+                      :show="showEditModal" 
+                      :post-data="post"
+                      :is-restricted="isRestricted" 
+                      @close="showEditModal = false"
+                  />
               </div>
             </div>
 
