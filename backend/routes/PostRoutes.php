@@ -510,7 +510,7 @@ $app->get('/api/get-post/{id}', function(Request $req, Response $res, array $arg
         $postID = (int)$args['id'];
 
         $sql = "
-            SELECT p.PostID, p.Title, p.Content, p.CreatedAt,
+            SELECT p.PostID, p.Title, p.Content, p.CreatedAt, p.CategoryID, p.UpdatedAt,
                    u.FirstName, u.LastName, u.Avatar,
                    r.Name AS RoleName, 
                    c.Name AS CategoryName
@@ -530,14 +530,17 @@ $app->get('/api/get-post/{id}', function(Request $req, Response $res, array $arg
         }
 
         $tagStmt = $pdo->prepare("
-            SELECT t.Name 
+            SELECT t.Name, t.TagID 
             FROM dbo.PostTags pt 
             JOIN dbo.Tags t ON t.TagID = pt.TagID 
             WHERE pt.PostID = :id
+            ORDER BY t.Name ASC
         ");
 
         $tagStmt->execute(['id' => $postID]);
-        $tags = $tagStmt->fetchAll(PDO::FETCH_COLUMN);
+        $tagRows = $tagStmt->fetchAll(PDO::FETCH_ASSOC);
+        $tagNames = array_map(fn($t) => $t['Name'], $tagRows);
+        $tagIds = array_map(fn($t) => (int)$t['TagID'], $tagRows);
 
         $responseData = [
             'PostID'       => (int)$post['PostID'],
@@ -548,7 +551,10 @@ $app->get('/api/get-post/{id}', function(Request $req, Response $res, array $arg
             'authorAvatar' => $post['Avatar'],
             'authorRole'   => $post['RoleName'] ?? 'User',
             'categoryName' => $post['CategoryName'],
-            'tags'         => $tags
+            'tags'         => $tagNames,
+            'categoryId'   => (int)$post['CategoryID'],
+            'updatedAt'    => $post['UpdatedAt'],
+            'tagIds'      => $tagIds,
         ];
 
         return json($res, ['ok' => true, 'post' => $responseData]);
