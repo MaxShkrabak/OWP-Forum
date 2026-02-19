@@ -306,3 +306,141 @@ $app->patch('/api/admin/users/{id}/ban', function(Request $req, Response $res, a
         return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
     }
 });
+
+// --- Admin Categories (BB-148) ---
+
+function requireAdmin(Request $req, Response $res, $makePdo) {
+    $userId = $req->getAttribute('user_id');
+    if ($userId === null) {
+        return [json($res, ['ok' => false, 'error' => 'Not Authenticated'], 401), null];
+    }
+    $pdo = $makePdo();
+    $roleStmt = $pdo->prepare("SELECT RoleID FROM dbo.Users WHERE User_ID = :uid");
+    $roleStmt->execute([':uid' => $userId]);
+    $role = (int)($roleStmt->fetchColumn() ?? 0);
+    if ($role < 4) {
+        return [json($res, ['ok' => false, 'error' => 'Forbidden (admin only)'], 403), null];
+    }
+    return [null, $pdo];
+}
+
+// List all categories (admin)
+$app->get('/api/admin/categories', function (Request $req, Response $res) use ($makePdo) {
+    [$err, $pdo] = requireAdmin($req, $res, $makePdo);
+    if ($err !== null) return $err;
+
+    try {
+        $stmt = $pdo->query("SELECT CategoryID, Name, UsableByRoleID FROM dbo.Categories ORDER BY Name ASC");
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $items = array_map(fn($r) => [
+            'categoryId' => (int)$r['CategoryID'],
+            'name' => $r['Name'],
+            'usableByRoleID' => (int)$r['UsableByRoleID'],
+        ], $rows);
+        return json($res, ['ok' => true, 'items' => $items]);
+    } catch (Throwable $e) {
+        return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+    }
+});
+
+// Create category (admin), prevent duplicates
+$app->post('/api/admin/categories', function (Request $req, Response $res) use ($makePdo) {
+    [$err, $pdo] = requireAdmin($req, $res, $makePdo);
+    if ($err !== null) return $err;
+
+    $data = $req->getParsedBody() ?? [];
+    $name = trim((string)($data['name'] ?? ''));
+    $usableByRoleID = (int)($data['usableByRoleID'] ?? 1);
+    if ($name === '') {
+        return json($res, ['ok' => false, 'error' => 'Category name is required.'], 400);
+    }
+    if ($usableByRoleID < 1 || $usableByRoleID > 4) {
+        return json($res, ['ok' => false, 'error' => 'usableByRoleID must be between 1 and 4.'], 400);
+    }
+
+    try {
+        $check = $pdo->prepare("SELECT CategoryID FROM dbo.Categories WHERE Name = :name");
+        $check->execute([':name' => $name]);
+        if ($check->fetch()) {
+            return json($res, ['ok' => false, 'error' => 'A category with this name already exists.'], 409);
+        }
+        $pdo->prepare("INSERT INTO dbo.Categories (Name, UsableByRoleID) VALUES (:name, :rid)")
+            ->execute([':name' => $name, ':rid' => $usableByRoleID]);
+        $idStmt = $pdo->query("SELECT SCOPE_IDENTITY() AS id");
+        $newId = (int)($idStmt->fetch(PDO::FETCH_ASSOC)['id'] ?? 0);
+        return json($res, ['ok' => true, 'categoryId' => $newId, 'name' => $name]);
+    } catch (Throwable $e) {
+        return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+    }
+});
+
+// Update category (admin), prevent duplicates
+$app->patch('/api/admin/categories/{id}', function (Request $req, Response $res, array $args) use ($makePdo) {
+    [$err, $pdo] = requireAdmin($req, $res, $makePdo);
+    if ($err !== null) return $err;
+
+    $id = (int)($args['id'] ?? 0);
+    if ($id <= 0) return json($res, ['ok' => false, 'error' => 'Invalid category id.'], 400);
+
+    $data = $req->getParsedBody() ?? [];
+    $name = trim((string)($data['name'] ?? ''));
+    $usableByRoleID = isset($data['usableByRoleID']) ? (int)$data['usableByRoleID'] : null;
+    if ($name === '') {
+        return json($res, ['ok' => false, 'error' => 'Category name is required.'], 400);
+    }
+
+    try {
+        $check = $pdo->prepare("SELECT CategoryID FROM dbo.Categories WHERE Name = :name AND CategoryID != :id");
+        $check->execute([':name' => $name, ':id' => $id]);
+        if ($check->fetch()) {
+            return json($res, ['ok' => false, 'error' => 'A category with this name already exists.'], 409);
+        }
+        if ($usableByRoleID !== null) {
+            if ($usableByRoleID < 1 || $usableByRoleID > 4) {
+                return json($res, ['ok' => false, 'error' => 'usableByRoleID must be between 1 and 4.'], 400);
+            }
+            $pdo->prepare("UPDATE dbo.Categories SET Name = :name, UsableByRoleID = :rid WHERE CategoryID = :id")
+                ->execute([':name' => $name, ':rid' => $usableByRoleID, ':id' => $id]);
+        } else {
+            $pdo->prepare("UPDATE dbo.Categories SET Name = :name WHERE CategoryID = :id")
+                ->execute([':name' => $name, ':id' => $id]);
+        }
+        return json($res, ['ok' => true]);
+    } catch (Throwable $e) {
+        return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+    }
+});
+
+// Delete category (admin): move posts to General, then delete
+$app->delete('/api/admin/categories/{id}', function (Request $req, Response $res, array $args) use ($makePdo) {
+    [$err, $pdo] = requireAdmin($req, $res, $makePdo);
+    if ($err !== null) return $err;
+
+    $id = (int)($args['id'] ?? 0);
+    if ($id <= 0) return json($res, ['ok' => false, 'error' => 'Invalid category id.'], 400);
+
+    try {
+        $pdo->beginTransaction();
+        $generalStmt = $pdo->prepare("SELECT CategoryID FROM dbo.Categories WHERE Name = N'General'");
+        $generalStmt->execute();
+        $general = $generalStmt->fetch(PDO::FETCH_ASSOC);
+        if (!$general) {
+            $pdo->rollBack();
+            return json($res, ['ok' => false, 'error' => 'General category not found. Cannot delete.'], 400);
+        }
+        $generalId = (int)$general['CategoryID'];
+        if ($generalId === $id) {
+            $pdo->rollBack();
+            return json($res, ['ok' => false, 'error' => 'Cannot delete the General category.'], 400);
+        }
+        $move = $pdo->prepare("UPDATE dbo.Posts SET CategoryID = :generalId WHERE CategoryID = :id");
+        $move->execute([':generalId' => $generalId, ':id' => $id]);
+        $del = $pdo->prepare("DELETE FROM dbo.Categories WHERE CategoryID = :id");
+        $del->execute([':id' => $id]);
+        $pdo->commit();
+        return json($res, ['ok' => true]);
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+    }
+});
