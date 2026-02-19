@@ -30,6 +30,15 @@ const form = ref({
   disableComments: false
 });
 
+// Original state tracker for edits
+const originalForm = ref({
+  title: "",
+  category: "",
+  content: "",
+  tags: [],
+  disableComments: false
+});
+
 const editor = ref(null);
 
 // UI State
@@ -40,29 +49,6 @@ const showTagPopup = ref(false);
 const allTags = ref([]);
 const tagContainerRef = ref(null);
 const allCategories = ref([]);
-
-// Validation
-const hasUnsavedChanges = computed(() => {
-  const textContent = form.value.content.replace(/<[^>]*>/g, '').trim();
-  return form.value.title.trim().length > 0 ||
-         textContent.length > 0 ||
-         form.value.category !== "" ||
-         form.value.tags.length > 0;
-});
-
-const titleLength = computed(() => form.value.title.length);
-
-const canPublish = computed(() => {
-  let textContent = form.value.content.replace(/<[^>]*>/g, "");
-  textContent = textContent.replace(/&nbsp;/g, " ").trim();
-  const hasContent = textContent.length > 0 || form.value.content.includes("<img");
-
-  return (
-    form.value.title.trim().length > 0 &&
-    form.value.title.trim().length <= MAX_TITLE_LEN &&
-    form.value.category !== "" && hasContent
-  );
-});
 
 // Tag Logic
 async function loadTags() {
@@ -85,18 +71,22 @@ async function loadCategories() {
 const filteredTags = computed(() => {
   const q = tagSearch.value.trim().toLowerCase();
   return allTags.value
-    .filter(t => !form.value.tags.includes(t.tagId))
-    .filter(t => (q ? t.name.toLowerCase().includes(q) : true))
+    .filter(t => !form.value.tags.includes(t.TagID || t.tagId))
+    .filter(t => {
+      const n = t.Name || t.name || "";
+      return q ? n.toLowerCase().includes(q) : true;
+    })
     .slice(0, 20);
 });
 
 function tagNameById(id) {
-  const found = allTags.value.find(t => t.tagId == id);
-  return found ? found.name : `#${id}`;
+  const found = allTags.value.find(t => (t.TagID || t.tagId) == id);
+  return found ? (found.Name || found.name) : `#${id}`;
 }
 
 function isOfficialTag(id) {
-  return allTags.value.find(t => t.tagId === id)?.name == 'Official' || false
+  const found = allTags.value.find(t => (t.TagID || t.tagId) == id);
+  return found && (found.Name || found.name) == 'Official';
 }
 
 const removeTag = (id) => {
@@ -108,6 +98,81 @@ function handleClickOutside(event) {
     showTagPopup.value = false;
   }
 }
+
+function populateForm() {
+  if (props.postData) {
+    // Extract everything safely accounting for both uppercase/lowercase variations
+    const title = props.postData.Title || props.postData.title || "";
+    const content = props.postData.Content || props.postData.content || "";
+    const cat = props.postData.CategoryID || props.postData.categoryId || props.postData.category || "";
+    const dc = !!(props.postData.is_comments_disabled || props.postData.disableComments);
+
+    const tgs = props.postData.tags && Array.isArray(props.postData.tags) 
+                ? props.postData.tags.map(t => Number(t.TagID || t.tagId || t)) 
+                : [];
+
+    // Set current form values
+    form.value.title = title;
+    form.value.content = content;
+    form.value.category = cat;
+    form.value.tags = [...tgs];
+    form.value.disableComments = dc;
+
+    // Track the original values to prevent false warnings on close
+    originalForm.value = { 
+      title,
+      content,
+      category: cat, 
+      tags: [...tgs], 
+      disableComments: dc 
+    };
+  }
+}
+
+// Validation
+const hasUnsavedChanges = computed(() => {
+  if (props.postData) {
+    // Edit mode: only warn if they actually changed something from the original
+    const titleChanged = form.value.title !== originalForm.value.title;
+    const contentChanged = form.value.content !== originalForm.value.content;
+    const categoryChanged = form.value.category !== originalForm.value.category;
+    const commentsChanged = form.value.disableComments !== originalForm.value.disableComments;
+    const tagsChanged = JSON.stringify([...form.value.tags].sort()) !== 
+                        JSON.stringify([...originalForm.value.tags].sort());
+    
+    return titleChanged || contentChanged || categoryChanged || commentsChanged || tagsChanged;
+  } else {
+    // Create mode: warn if they typed anything into a blank slate
+    const textContent = form.value.content.replace(/<[^>]*>/g, '').trim();
+    return form.value.title.trim().length > 0 ||
+           textContent.length > 0 ||
+           form.value.category !== "" ||
+           form.value.tags.length > 0;
+  }
+});
+
+const hasMetadataChanges = computed(() => {
+  const categoryChanged = form.value.category !== originalForm.value.category;
+  const commentsChanged = form.value.disableComments !== originalForm.value.disableComments;
+  const tagsChanged = JSON.stringify([...form.value.tags].sort()) !== 
+                      JSON.stringify([...originalForm.value.tags].sort());
+
+  return categoryChanged || commentsChanged || tagsChanged;
+});
+
+const titleLength = computed(() => form.value.title.length);
+
+const canPublish = computed(() => {
+  let textContent = form.value.content.replace(/<[^>]*>/g, "");
+  textContent = textContent.replace(/&nbsp;/g, " ").trim();
+  const hasContent = textContent.length > 0 || form.value.content.includes("<img");
+
+  return (
+    form.value.title.trim().length > 0 &&
+    form.value.title.trim().length <= MAX_TITLE_LEN &&
+    form.value.category !== "" && hasContent
+  );
+});
 
 // Handle closing create post modal
 function handleCloseRequest() {
@@ -125,43 +190,6 @@ function confirmDiscard() {
   emit("close");
 }
 
-const originalMetadata = ref({ category: "", tags: [], disableComments: false });
-
-function populateForm() {
-  if (props.postData) {
-    // Prepare the values first so they are identical for both form and originalMetadata
-    const cat = props.postData.category ? Number(props.postData.category) : "";
-    const tgs = props.postData.tags && Array.isArray(props.postData.tags) 
-                ? props.postData.tags.map(t => Number(t.TagID || t.tagId || t)) 
-                : [];
-    const dc = !!(props.postData.is_comments_disabled || props.postData.disableComments);
-
-    // Set current form values
-    form.value.title = props.postData.title || "";
-    form.value.content = props.postData.content || "";
-    form.value.category = cat;
-    form.value.tags = [...tgs];
-    form.value.disableComments = dc;
-
-    originalMetadata.value = { 
-      category: cat, 
-      tags: [...tgs], 
-      disableComments: dc 
-    };
-  }
-}
-
-const hasMetadataChanges = computed(() => {
-  const categoryChanged = form.value.category !== originalMetadata.value.category;
-  const commentsChanged = form.value.disableComments !== originalMetadata.value.disableComments;
-  
-  // Sort both tag arrays to compare content regardless of order
-  const tagsChanged = JSON.stringify([...form.value.tags].sort()) !== 
-                      JSON.stringify([...originalMetadata.value.tags].sort());
-
-  return categoryChanged || commentsChanged || tagsChanged;
-});
-
 const isInitialLoading = ref(true);
 
 onMounted(async () => {
@@ -175,6 +203,10 @@ onMounted(async () => {
   isInitialLoading.value = false; 
 });
 
+onUnmounted(() => {
+  document.removeEventListener("mousedown", handleClickOutside);
+});
+
 // Watch the prop to force an update if Vue passes the data a millisecond late
 watch(() => props.postData, () => {
   populateForm();
@@ -184,7 +216,6 @@ watch(() => props.postData, () => {
 async function doPublish() {
   try {
     if (props.isRestricted) {
-      // Grab ID from the URL using the router that is already set up in this file
       const targetId = router.currentRoute.value.params.id; 
       
       await client.patch(`/admin/posts/${targetId}/metadata`, {
@@ -192,7 +223,6 @@ async function doPublish() {
         TagIDs: form.value.tags
       });
     } else {
-      // Standard post creation
       await createPost({
         title: form.value.title.trim(),
         content: form.value.content,
@@ -208,11 +238,10 @@ async function doPublish() {
       showPublishedConfirmation.value = false;
       form.value = { title: "", category: "", content: "", tags: [] };
       
-      // Only redirect home if it was a new post creation
       if (!props.isRestricted) {
         router.push("/"); 
       } else {
-        location.reload(); // Reload to show updated tags/category on the ViewPost page
+        location.reload(); 
       }
       
       emit("published");
@@ -224,28 +253,6 @@ async function doPublish() {
     showPublishConfirm.value = false;
   }
 }
-
-onMounted(() => {
-  loadTags();
-  loadCategories();
-  document.addEventListener("mousedown", handleClickOutside);
-
-  // If we are editing an existing post, populate the fields
-  if (props.postData) {
-    form.value.title = props.postData.Title || props.postData.title || "";
-    form.value.content = props.postData.Content || props.postData.content || "";
-    form.value.category = props.postData.CategoryID || props.postData.categoryId || "";
-    
-    // Map the existing tags into an array of IDs for the form
-    if (props.postData.tags && Array.isArray(props.postData.tags)) {
-      form.value.tags = props.postData.tags.map(t => t.TagID || t.tagId || t);
-    }
-  }
-});
-
-onUnmounted(() => {
-  document.removeEventListener("mousedown", handleClickOutside);
-});
 </script>
 
 <template>
@@ -323,11 +330,11 @@ onUnmounted(() => {
                         <div class="tag-options-list">
                           <button
                             v-for="t in filteredTags"
-                            :key="t.tagId"
+                            :key="t.TagID || t.tagId"
                             class="tag-opt"
-                            @click="() => { form.tags.push(t.tagId); tagSearch = ''; showTagPopup = false; }"
+                            @click="() => { form.tags.push(t.TagID || t.tagId); tagSearch = ''; showTagPopup = false; }"
                             >
-                            {{ t.name }}
+                            {{ t.Name || t.name }}
                           </button>
                         </div>
                       </div>

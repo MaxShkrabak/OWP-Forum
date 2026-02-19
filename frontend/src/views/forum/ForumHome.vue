@@ -4,7 +4,7 @@ import { ref, onMounted, computed } from "vue";
 import { RouterLink } from "vue-router";
 import ForumHeader from "@/components/layout/ForumHeader.vue";
 import { fetchPosts as apiGetPosts } from "@/api/posts";
-import { isLoggedIn } from "@/stores/userStore";
+import { isLoggedIn, isBanned } from "@/stores/userStore";
 import UserCard from "@/components/user/UserCard.vue";
 import ViewReportsButton from "@/components/admin/ViewReportsButton.vue";
 import PostCard from "@/components/forum/PostCard.vue";
@@ -142,7 +142,7 @@ onMounted(async () => {
           <div class="sticky-sidebar">
             <UserCard />
 
-            <div class="action-buttons-container mt-3" v-if="isLoggedIn">
+            <div class="action-buttons-container mt-3" v-if="isLoggedIn && !isBanned">
               <CreatePostButton @post-refresh="fetchPosts" />
               <ViewReportsButton />
             </div>

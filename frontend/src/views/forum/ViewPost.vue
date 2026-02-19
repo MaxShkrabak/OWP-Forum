@@ -8,6 +8,8 @@ import { isLoggedIn, userRole, userRoleId } from "@/stores/userStore";
 import axios from "axios";
 import CreatePostModal from "@/components/forum/CreatePostModal.vue";
 import PostModerationSidebar from "@/components/admin/PostModerationSidebar.vue";
+import CommentSection from "@/components/forum/CommentSection.vue";
+
 
 const route = useRoute();
 const router = useRouter();
@@ -138,7 +140,7 @@ onMounted(async () => {
         <div class="center-container col text-center">
           <div class="row gx-0">
             <div class="col-12 header-align mb-2">
-              <ViewPostHeader />
+              <ViewPostHeader :post="post"/>
             </div>
           </div>
 
@@ -194,9 +196,12 @@ onMounted(async () => {
             </div>
           </div>
 
-          <div class="row">
-            <div class="post-comments mt-4">comments</div>
+          <div class="row gx-0 ">
+            <div class="post-comments mt-2 mb-4">
+               <CommentSection />
+            </div>
           </div>
+          
         </div>
       </div>
     </div>

@@ -35,9 +35,11 @@ export async function fetchPosts({ categoryId = null, limit, sort = 'latest', pa
   const params = { limit, sort, page };
 
   if (Array.isArray(tags) && tags.length > 0) {
-    params.tags = tags.join(',');
-  } else if (tags) {
-    params.tags = tags;
+    params.q = tags.join(',');
+    params.mode = 'tag';
+  } else if (tags && typeof tags === 'string') {
+    params.q = tags;
+    params.mode = 'tag';
   }
 
   const { data } = await client.get(endpoint, { params });
@@ -72,6 +74,6 @@ export async function getPost(id) {
   const res = await client.get(`/get-post/${id}`);
   const data = res?.data;
   if (data?.ok) {
-    return data;
+    return data.post;
   }
 }
