@@ -17,7 +17,8 @@ export const uid = ref(localStorage.getItem('uid') || 0);
 export const fullName = ref(localStorage.getItem('fullName') || '');
 export const userAvatar = ref(localStorage.getItem('userAvatar') || defaultAvatar);
 export const userRole = ref(localStorage.getItem('userRole') || 'Guest');
-export const userRoleId = ref(localStorage.getItem('userRoleId') || 0 )
+export const userRoleId = ref(localStorage.getItem('userRoleId') || 0);
+export const isBanned = ref(localStorage.getItem('isBanned') === 'true');
 
 export const syncProfileOnLoad = async () => {
   try {
@@ -31,7 +32,8 @@ export const syncProfileOnLoad = async () => {
       fullName.value = `${user.FirstName} ${user.LastName}`;
       userRole.value = user.RoleName || 'User';
       userRoleId.value = user.RoleID;
-     
+      isBanned.value = Boolean(Number(user.IsBanned ?? 0));
+
       // User avatar
       const avatarPath = resolveAvatarPath(user.Avatar);
       userAvatar.value = avatarPath || defaultAvatar;
@@ -40,7 +42,8 @@ export const syncProfileOnLoad = async () => {
       localStorage.setItem('fullName', fullName.value);
       localStorage.setItem('userRole', userRole.value);
       localStorage.setItem('userAvatar', userAvatar.value);
-      localStorage.setItem('userRoleId', userRoleId.value)
+      localStorage.setItem('userRoleId', userRoleId.value);
+      localStorage.setItem('isBanned', isBanned.value ? 'true' : 'false');
     } else {
       // User isn't signed in
       resetStore();
@@ -58,12 +61,14 @@ const resetStore = () => {
   userAvatar.value = defaultAvatar;
   uid.value = 0;
   userRoleId.value = 0;
+  isBanned.value = false;
 
   localStorage.removeItem('fullName');
   localStorage.removeItem('userRole');
   localStorage.removeItem('userAvatar');
   localStorage.removeItem('uid');
-  localStorage.removeItem('userRoleId')
+  localStorage.removeItem('userRoleId');
+  localStorage.removeItem('isBanned');
 };
 
 export async function logoutUser() {

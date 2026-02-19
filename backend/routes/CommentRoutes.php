@@ -21,6 +21,17 @@ $createCommentHandler = function (Request $req, Response $res, array $args = [])
             return json($res, ['ok' => false, 'error' => 'Not Authenticated'], 401);
         }
 
+        $pdo = $makePdo();
+        try {
+            $banStmt = $pdo->prepare("SELECT ISNULL(IsBanned, 0) FROM dbo.Users WHERE User_ID = :uid");
+            $banStmt->execute([':uid' => $userId]);
+            if ((int)($banStmt->fetchColumn() ?? 0) === 1) {
+                return json($res, ['ok' => false, 'error' => 'You are banned and cannot comment.'], 403);
+            }
+        } catch (Throwable $e) {
+            // IsBanned column may not exist yet (migration 008 not run)
+        }
+
         //Check what post the comment belongs to, and the content of the comment
         $data = $req->getParsedBody() ?? [];
         $postId = isset($args['postId']) ? (int)$args['postId'] : (int)($data['post_id'] ?? 0);
@@ -30,8 +41,6 @@ $createCommentHandler = function (Request $req, Response $res, array $args = [])
         if (!$postId || trim($content) === '') {
             return json($res, ['ok' => false, 'error' => 'Missing post_id or content'], 400);
         }
-
-        $pdo = $makePdo();
 
         // Check if the post exists
         $getPostSql = "SELECT 1 FROM dbo.Posts WHERE PostID = :postId AND IsDeleted = 0";
