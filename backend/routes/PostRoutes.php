@@ -525,12 +525,13 @@ $app->get('/api/get-post/{id}', function(Request $req, Response $res, array $arg
         $stmt->execute(['id' => $postID]);
         $post = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if(!$post){
-            return json($res, ['ok' => false, 'error' => "Post content does not exist."], 404);
+        if (!$post) {
+            return json($res, ['ok' => false, 'error' => "Post not found or has been deleted."], 404);
         }
 
+        // 2. Fetch tags as an array of objects (from HEAD)
         $tagStmt = $pdo->prepare("
-            SELECT t.Name, t.TagID 
+            SELECT t.TagID, t.Name 
             FROM dbo.PostTags pt 
             JOIN dbo.Tags t ON t.TagID = pt.TagID 
             WHERE pt.PostID = :id

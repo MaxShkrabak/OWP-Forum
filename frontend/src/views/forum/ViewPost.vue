@@ -8,6 +8,8 @@ import { isLoggedIn, userRole, userRoleId } from "@/stores/userStore";
 import axios from "axios";
 import CreatePostModal from "@/components/forum/CreatePostModal.vue";
 import PostModerationSidebar from "@/components/admin/PostModerationSidebar.vue";
+import CommentSection from "@/components/forum/CommentSection.vue";
+
 
 const route = useRoute();
 const router = useRouter();
