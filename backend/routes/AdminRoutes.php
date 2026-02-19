@@ -250,12 +250,18 @@ $app->patch('/api/admin/users/{id}/ban', function(Request $req, Response $res, a
             if (empty($bannedUntil)) {
                 return json($res, ['ok' => false, 'error' => 'bannedUntil is required for a temporary ban'], 400);
             }
-            $until = \DateTimeImmutable::createFromFormat('Y-m-d', $bannedUntil, new \DateTimeZone('UTC'));
+            $until = \DateTimeImmutable::createFromFormat('Y-m-d', trim($bannedUntil), new \DateTimeZone('UTC'));
             if (!$until) {
                 $until = \DateTimeImmutable::createFromFormat(\DateTime::ATOM, $bannedUntil, new \DateTimeZone('UTC'));
             }
-            if (!$until || $until <= new \DateTimeImmutable('now', new \DateTimeZone('UTC'))) {
-                return json($res, ['ok' => false, 'error' => 'bannedUntil must be a future date (YYYY-MM-DD)'], 400);
+            if (!$until) {
+                return json($res, ['ok' => false, 'error' => 'bannedUntil must be a date (YYYY-MM-DD)'], 400);
+            }
+            // Compare calendar dates only so "tomorrow" in user's timezone is valid
+            $todayUtc = (new \DateTimeImmutable('now', new \DateTimeZone('UTC')))->format('Y-m-d');
+            $untilDate = $until->format('Y-m-d');
+            if ($untilDate < $todayUtc) {
+                return json($res, ['ok' => false, 'error' => 'bannedUntil must be today or a future date (YYYY-MM-DD)'], 400);
             }
             $until = $until->setTime(23, 59, 59);
             $bannedUntil = $until->format('Y-m-d H:i:s');

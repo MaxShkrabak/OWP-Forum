@@ -3,17 +3,8 @@ import CSUSHeader from './components/layout/CSUSHeader.vue'
 import OWPHeader from './components/layout/OWPHeader.vue';
 import Footer from './components/layout/Footer.vue';
 import { isLoggedIn, isBanned, banType, bannedUntil } from '@/stores/userStore';
+import { formatBannedUntilDateTime } from '@/utils/banDate';
 // import Category from './components/Category.vue';
-
-function formatBannedUntil(iso) {
-  if (!iso) return '';
-  try {
-    const d = new Date(iso);
-    return d.toLocaleDateString(undefined, { dateStyle: 'long' });
-  } catch {
-    return iso;
-  }
-}
 </script>
 
 <template>
@@ -22,7 +13,7 @@ function formatBannedUntil(iso) {
   <div v-if="isLoggedIn && isBanned" class="banned-banner" role="alert">
     <span class="banned-icon" aria-hidden="true">⚠</span>
     <template v-if="banType === 'temporary' && bannedUntil">
-      <strong>Your account is temporarily banned until {{ formatBannedUntil(bannedUntil) }}.</strong>
+      <strong>Your account is temporarily banned until {{ formatBannedUntilDateTime(bannedUntil, { dateStyle: 'long', timeStyle: 'short' }) }}.</strong>
       You cannot create posts or comments until then. If you believe this is an error, please contact an administrator.
     </template>
     <template v-else>

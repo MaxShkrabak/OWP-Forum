@@ -1,6 +1,7 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import client from '@/api/client'
+import { formatBannedUntilDateTime } from '@/utils/banDate'
 
 const q = ref('')
 const users = ref([])
@@ -12,10 +13,14 @@ const banTarget = ref(null)
 const banKind = ref('permanent') // 'permanent' | 'temporary'
 const banUntilDate = ref('')
 
+// Tomorrow in local time (YYYY-MM-DD) so date picker min is correct in user's timezone
 const minBanDate = computed(() => {
   const d = new Date()
   d.setDate(d.getDate() + 1)
-  return d.toISOString().slice(0, 10)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
 })
 
 let searchTimeout = null
@@ -50,6 +55,13 @@ function openBanModal(user) {
   banUntilDate.value = minBanDate.value
   showBanModal.value = true
 }
+
+// Keep date in sync when switching to temporary (ensure not before min)
+watch(banKind, (kind) => {
+  if (kind === 'temporary' && (!banUntilDate.value || banUntilDate.value < minBanDate.value)) {
+    banUntilDate.value = minBanDate.value
+  }
+})
 
 function closeBanModal() {
   showBanModal.value = false
@@ -94,11 +106,8 @@ async function unban(user) {
 function banStatusLabel(u) {
   if (!u.IsBanned) return 'Active'
   if (u.BanType === 'temporary' && u.BannedUntil) {
-    try {
-      return 'Until ' + new Date(u.BannedUntil).toLocaleDateString(undefined, { dateStyle: 'short' })
-    } catch {
-      return 'Temporary'
-    }
+    const formatted = formatBannedUntilDateTime(u.BannedUntil, { dateStyle: 'short', timeStyle: 'short' })
+    return formatted ? 'Until ' + formatted : 'Temporary'
   }
   return 'Permanent'
 }
@@ -384,9 +393,15 @@ onMounted(() => loadUsers())
 }
 
 .btn-unban {
-  border-color: #059669;
+  padding: 6px 14px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 13px;
+  border: 1px solid #059669;
   background: #ecfdf5;
   color: #059669;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .btn-unban:hover {
