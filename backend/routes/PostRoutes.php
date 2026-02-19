@@ -562,3 +562,153 @@ $app->get('/api/get-post/{id}', function(Request $req, Response $res, array $arg
         return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
     }
 });
+
+$app->put('/api/posts/{id}', function(Request $req, Response $res, array $args) use ($makePdo) {
+    try {
+        $userId = (int)$req->getAttribute("user_id");
+        if (!$userId) return json($res, ['ok' => false, 'error' => 'Not Authenticated'], 401);
+
+        $postId = (int)$args['id'];
+
+        if ($postId <= 0) {
+            return json($res, ['ok' => false, 'error' => 'Invalid post ID.'], 400);
+        }
+
+        $data = $req->getParsedBody() ?? [];
+        $title = trim((string)($data['title'] ?? ''));
+        $content = (string)($data['content'] ?? '');
+        $categoryIdIn = (int)($data['category'] ?? 0);
+
+        if ($title === '' || $content === '' || $categoryIdIn === 0) {
+            return json($res, ['ok' => false, 'error' => 'Title, content, and category are required.'], 400);
+        }
+
+        $tagsIn = (array)($data['tags'] ?? []);
+        $tagsIn = array_values(array_unique(array_map('intval', $tagsIn)));
+        $tagsIn = array_slice(array_filter($tagsIn, fn($v) => $v > 0), 0, 5);
+
+        $pdo = $makePdo();
+
+        $postStmt = $pdo->prepare("SELECT PostID, AuthorID, IsDeleted FROM dbo.Posts WHERE PostID = :id");
+        $postStmt->execute(['id' => $postId]);
+        $post = $postStmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$post || (int)$post['IsDeleted'] === 1) {
+            return json($res, ['ok' => false, 'error' => 'Post not found.'], 404);
+        }
+
+        $authorId = (int)$post['AuthorID'];
+        $roleStmt = $pdo->prepare("SELECT ISNULL(RoleID, 1) FROM dbo.Users WHERE User_ID = :uid");
+        $roleStmt->execute(['uid' => $userId]);
+        $userRoleId = (int)($roleStmt->fetchColumn() ?? 1);
+        if ($userRoleId <= 0) $userRoleId = 1;
+
+        if ($userId !== $authorId && $userRoleId < 3) {
+            return json($res, ['ok' => false, 'error' => 'Permission denied.'], 403);
+        }
+
+        $catStmt = $pdo->prepare("SELECT CategoryID, UsableByRoleID FROM dbo.Categories WHERE CategoryID = :catId");
+        $catStmt->execute(['catId' => $categoryIdIn]);
+        $categoryData = $catStmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$categoryData) {
+            return json($res, ['ok' => false, 'error' => 'Invalid category.'], 400);
+        }
+        if ($userRoleId < (int)$categoryData['UsableByRoleID']) {
+            return json($res, ['ok' => false, 'error' => 'Permission denied for this category.'], 403);
+        }
+
+        $pdo->beginTransaction();
+
+        $updatePostSql = $pdo->prepare("
+            UPDATE dbo.Posts 
+            SET Title = :title, Content = :content, CategoryID = :categoryId, UpdatedAt = SYSUTCDATETIME()
+            WHERE PostID = :postId AND IsDeleted = 0
+        ");
+
+        $updatePostSql->execute([
+            ':title'      => $title,
+            ':content'    => $content,
+            ':categoryId' => (int)$categoryData['CategoryID'],
+            ':postId'     => $postId
+        ]);
+
+        if ($updatePostSql->rowCount() === 0) {
+            $pdo->rollBack();
+            return json($res, ['ok' => false, 'error' => 'Failed to update post.'], 500);
+        }
+
+        $pdo->prepare("DELETE FROM dbo.PostTags WHERE PostID = :postId")->execute(['postId' => $postId]);
+
+        if (!empty($tagsIn)) {
+            $placeholders = implode(',', array_fill(0, count($tagsIn), '?'));
+
+            $checkTagsSql = "
+                SELECT TagID FROM dbo.Tags 
+                WHERE TagID IN ($placeholders)
+                AND UsableByRoleID <= ?
+            ";
+
+            $checkStmt = $pdo->prepare($checkTagsSql);
+            $checkStmt->execute(array_merge($tagsIn, [$userRoleId]));
+            $validTagIds = $checkStmt->fetchAll(PDO::FETCH_COLUMN, 0);
+
+            if (!empty($validTagIds)) {
+                $insTagSql = "INSERT INTO dbo.PostTags (PostID, TagID) VALUES (:pid, :tid)";
+                $insTagStmt = $pdo->prepare($insTagSql);
+                foreach ($validTagIds as $tid) {
+                    $insTagStmt->execute([':pid' => $postId, ':tid' => (int)$tid]);
+                }
+            }
+        }
+
+        $pdo->commit();
+
+        $outStmt = $pdo->prepare("
+            SELECT p.PostID, p.Title, p.Content, p.CreatedAt, p.CategoryID, p.UpdatedAt,
+                c.Name AS CategoryName
+            FROM dbo.Posts p
+            LEFT JOIN dbo.Categories c ON c.CategoryID = p.CategoryID
+            WHERE p.PostID = :id
+        ");
+
+        $outStmt->execute(['id' => $postId]);
+        $updatedPost = $outStmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$updatedPost) {
+            return json($res, ['ok' => false, 'error' => 'Post not found after update.'], 404);
+        }
+
+        $tagOutStmt = $pdo->prepare("
+            SELECT t.Name, t.TagID 
+            FROM dbo.PostTags pt 
+            JOIN dbo.Tags t ON t.TagID = pt.TagID 
+            WHERE pt.PostID = :id
+            ORDER BY t.Name ASC
+        ");
+
+        $tagOutStmt->execute(['id' => $postId]);
+        $updatedTags = $tagOutStmt->fetchAll(PDO::FETCH_ASSOC);
+
+        return json($res, [
+            'ok' => true,
+            'post' => [
+                'PostID'       => (int)$updatedPost['PostID'],
+                'title'        => $updatedPost['Title'],
+                'content'      => $updatedPost['Content'],
+                'createdAt'    => $updatedPost['CreatedAt'],
+                'categoryId'   => (int)$updatedPost['CategoryID'],
+                'categoryName' => $updatedPost['CategoryName'] ?? null,
+                'updatedAt'    => $updatedPost['UpdatedAt'],
+                'tags'         => array_map(fn($t) => $t['Name'], $updatedTags),
+                'tagIds'      => array_map(fn($t) => (int)$t['TagID'], $updatedTags),
+            ]
+        ]);
+
+    } catch (Throwable $e) {
+        if (isset($pdo) && $pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+    }
+});
