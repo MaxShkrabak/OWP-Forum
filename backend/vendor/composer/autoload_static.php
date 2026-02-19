@@ -4,7 +4,7 @@
 
 namespace Composer\Autoload;
 
-class ComposerStaticInit29615e5d807cff3d0e0fc3dac4269945
+class ComposerStaticInit680f9c2a46bcd6eb62f759830639a1ec
 {
     public static $files = array (
         '7b11c4dc42b3b3023073cb14e519683c' => __DIR__ . '/..' . '/ralouphie/getallheaders/src/getallheaders.php',
@@ -34,12 +34,12 @@ class ComposerStaticInit29615e5d807cff3d0e0fc3dac4269945
             'Psr\\Container\\' => 14,
             'PhpOption\\' => 10,
         ),
-        'M' => 
+        'M' =>
         array (
             'MicrosoftAzure\\Storage\\Common\\' => 30,
             'MicrosoftAzure\\Storage\\Blob\\' => 28,
         ),
-        'G' => 
+        'G' =>
         array (
             'GuzzleHttp\\Psr7\\' => 16,
             'GuzzleHttp\\Promise\\' => 19,
@@ -92,11 +92,11 @@ class ComposerStaticInit29615e5d807cff3d0e0fc3dac4269945
             0 => __DIR__ . '/..' . '/psr/http-factory/src',
             1 => __DIR__ . '/..' . '/psr/http-message/src',
         ),
-        'Psr\\Http\\Client\\' => 
+        'Psr\\Http\\Client\\' =>
         array (
             0 => __DIR__ . '/..' . '/psr/http-client/src',
         ),
-        'Psr\\Container\\' => 
+        'Psr\\Container\\' =>
         array (
             0 => __DIR__ . '/..' . '/psr/container/src',
         ),
@@ -104,27 +104,27 @@ class ComposerStaticInit29615e5d807cff3d0e0fc3dac4269945
         array (
             0 => __DIR__ . '/..' . '/phpoption/phpoption/src/PhpOption',
         ),
-        'MicrosoftAzure\\Storage\\Common\\' => 
+        'MicrosoftAzure\\Storage\\Common\\' =>
         array (
             0 => __DIR__ . '/..' . '/microsoft/azure-storage-common/src/Common',
         ),
-        'MicrosoftAzure\\Storage\\Blob\\' => 
+        'MicrosoftAzure\\Storage\\Blob\\' =>
         array (
             0 => __DIR__ . '/..' . '/microsoft/azure-storage-blob/src/Blob',
         ),
-        'GuzzleHttp\\Psr7\\' => 
+        'GuzzleHttp\\Psr7\\' =>
         array (
             0 => __DIR__ . '/..' . '/guzzlehttp/psr7/src',
         ),
-        'GuzzleHttp\\Promise\\' => 
+        'GuzzleHttp\\Promise\\' =>
         array (
             0 => __DIR__ . '/..' . '/guzzlehttp/promises/src',
         ),
-        'GuzzleHttp\\' => 
+        'GuzzleHttp\\' =>
         array (
             0 => __DIR__ . '/..' . '/guzzlehttp/guzzle/src',
         ),
-        'GrahamCampbell\\ResultType\\' => 
+        'GrahamCampbell\\ResultType\\' =>
         array (
             0 => __DIR__ . '/..' . '/graham-campbell/result-type/src',
         ),
@@ -244,9 +244,9 @@ class ComposerStaticInit29615e5d807cff3d0e0fc3dac4269945
     public static function getInitializer(ClassLoader $loader)
     {
         return \Closure::bind(function () use ($loader) {
-            $loader->prefixLengthsPsr4 = ComposerStaticInit29615e5d807cff3d0e0fc3dac4269945::$prefixLengthsPsr4;
-            $loader->prefixDirsPsr4 = ComposerStaticInit29615e5d807cff3d0e0fc3dac4269945::$prefixDirsPsr4;
-            $loader->classMap = ComposerStaticInit29615e5d807cff3d0e0fc3dac4269945::$classMap;
+            $loader->prefixLengthsPsr4 = ComposerStaticInit680f9c2a46bcd6eb62f759830639a1ec::$prefixLengthsPsr4;
+            $loader->prefixDirsPsr4 = ComposerStaticInit680f9c2a46bcd6eb62f759830639a1ec::$prefixDirsPsr4;
+            $loader->classMap = ComposerStaticInit680f9c2a46bcd6eb62f759830639a1ec::$classMap;
 
         }, null, ClassLoader::class);
     }
