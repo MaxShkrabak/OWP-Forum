@@ -2,7 +2,7 @@
 import ForumHeader from '@/components/layout/ForumHeader.vue';
 import pfpModal from '@/components/user/UserPfpModal.vue';
 import UserSettings from '@/components/user/UserSettings.vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { getPaginationRange } from '@/utils/pagination';
 import { onMounted, ref, watch, computed } from 'vue';
 import { uid } from '@/stores/userStore';
@@ -12,12 +12,9 @@ import PostCard from '@/components/forum/PostCard.vue';
 import UserCard from '@/components/user/UserCard.vue';
 
 const activeTab = ref('yourPosts');
-const isCurrUser = computed(() => {
-  const urlUserId = getUrlParams();
-  return urlUserId === String(uid.value);
-});
 const isExistingUser = ref(true); // Used to check if the user exists when visiting other user's profile
 
+const route = useRoute();
 const router = useRouter();
 const posts = ref([]);
 const loading = ref(true);
@@ -34,8 +31,7 @@ const setFullName = ref(null);
 const setRole = ref(null);
 
 function getUrlParams() {
-  const params = new URLSearchParams(window.location.search);
-  const id = params.get('id') || uid.value || false;
+  const id = route.query.id || uid.value || false;
   return id;
 }
 
@@ -106,6 +102,7 @@ async function getPosts() {
   }
 }
 
+
 watch([limit, sort], () => {
   currentPage.value = 1;
   getPosts();
@@ -119,8 +116,15 @@ const displayedPages = computed(() => {
 });
 
 watch([activeTab, currentPage], getPosts);
-watch(getUrlParams, () => {
 
+watch(() => route.query.id, (newId, oldId) => {
+  if (newId !== oldId) {
+    isExistingUser.value = true;
+    currentPage.value = 1;
+    activeTab.value = 'yourPosts';
+    checkAndSetUser();
+    getPosts();
+  }
 });
 
 onMounted(() => {
@@ -165,29 +169,42 @@ onMounted(() => {
               <div class="v-divider"></div>
               
               <div>
-                <div class="row justify-content-evenly pr-3 fs-4 gap-4">
+                <div class="row justify-content-evenly pr-3 fs-4 gap-4" v-if="!checkIfCurrUser()">
                 
                 <!-- Filter Options -->  
                 <button class="col-12 col-sm-12 col-lg-auto filter-options"
                 :class="{ 'activeBox' : activeTab === 'yourPosts' }"
                 @click="activeTab = 'yourPosts'">
-                  <span class="activeText">{{ isCurrUser ? "Your" : setFullName + "'s" }} Posts</span>
+                  <span class="activeText">{{ setFullName + "'s" }} Posts</span>
                   <div class="activeLine"></div>
                 </button>
+                
+                </div>
+
+                <div class="row justify-content-evenly pr-3 fs-4 gap-4" v-else>
+                
+                <!-- Filter Options -->  
+                <button class="col-12 col-sm-12 col-lg-auto filter-options"
+                :class="{ 'activeBox' : activeTab === 'yourPosts' }"
+                @click="activeTab = 'yourPosts'">
+                  <span class="activeText">Your Posts</span>
+                  <div class="activeLine"></div>
+                </button>
+
                 <button class="col-12 col-sm-12 col-lg-auto filter-options"
                 :class="{ 'activeBox' : activeTab === 'followedPosts' }"
-                @click="activeTab = 'followedPosts'"
-                v-if="isCurrUser">
+                @click="activeTab = 'followedPosts'">
                   <span class="activeText">Followed Posts</span>
                   <div class="activeLine"></div>
                 </button>
+
                 <button class="col-12 col-sm-12 col-lg-auto filter-options"
                 :class="{ 'activeBox' : activeTab === 'likedPosts' }"
-                @click="activeTab = 'likedPosts'"
-                v-if="isCurrUser">
+                @click="activeTab = 'likedPosts'">
                   <span class="activeText">Liked Posts</span>
                   <div class="activeLine"></div>
                 </button>
+
                 </div>
               </div>
             </div>
