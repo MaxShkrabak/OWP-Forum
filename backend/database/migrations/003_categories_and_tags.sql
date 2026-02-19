@@ -24,13 +24,20 @@ BEGIN
 END;
 GO
 
--- Seed categories
-INSERT INTO dbo.Categories (Name, UsableByRoleID)
-VALUES
+-- Seed categories (MERGE so already-applied or re-run is safe)
+MERGE dbo.Categories AS c
+USING (VALUES
   ('Announcements & News', 3), -- Mods and Admins
   ('Training Courses',     1),
   ('Research Projects',    1),
-  ('Help',                 1);
+  ('Help',                 1)
+) AS s(Name, UsableByRoleID)
+    ON c.Name = s.Name
+WHEN NOT MATCHED BY TARGET THEN
+    INSERT (Name, UsableByRoleID) VALUES (s.Name, s.UsableByRoleID)
+WHEN MATCHED THEN
+    UPDATE SET UsableByRoleID = s.UsableByRoleID;
+GO
 
 -- Seed Tags
 MERGE dbo.Tags AS t

@@ -6,7 +6,7 @@ import PostCard from '@/components/forum/PostCard.vue';
 import UserCard from '@/components/user/UserCard.vue';
 import CreatePostButton from '@/components/forum/CreatePostButton.vue';
 import ViewReportsButton from '@/components/admin/ViewReportsButton.vue';
-import { isLoggedIn } from '@/stores/userStore';
+import { isLoggedIn, isBanned } from '@/stores/userStore';
 import { fetchPosts as apiGetPosts, getTags as apiGetTags } from '@/api/posts';
 import { getPaginationRange } from '@/utils/pagination';
 
@@ -109,7 +109,7 @@ onMounted(async () => {
           <div class="sticky-sidebar">
             <UserCard />
 
-            <div class="action-buttons-container mt-4" v-if="isLoggedIn">
+            <div class="action-buttons-container mt-4" v-if="isLoggedIn && !isBanned">
               <CreatePostButton
                 @post-refresh="loadCategoryPosts"
                 class="w-100 shadow-sm"

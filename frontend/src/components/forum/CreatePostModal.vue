@@ -152,7 +152,8 @@ async function doPublish() {
     }, 1200);
 
   } catch (err) {
-    alert("An error occurred while publishing.");
+    const msg = err?.response?.data?.error || err?.message || "An error occurred while publishing.";
+    alert(msg);
     showPublishConfirm.value = false;
   }
 }

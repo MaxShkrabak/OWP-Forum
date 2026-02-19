@@ -12,6 +12,27 @@ $app->post("/api/create-post", function (Request $req, Response $res) use ($make
             return json($res, ['ok' => false, 'error' => 'Not Authenticated'], 401);
         }
 
+        $pdo = $makePdo();
+        try {
+            $banStmt = $pdo->prepare("
+                SELECT ISNULL(IsBanned, 0), BanType, BannedUntil
+                FROM dbo.Users WHERE User_ID = :uid
+            ");
+            $banStmt->execute([':uid' => $userId]);
+            $row = $banStmt->fetch(PDO::FETCH_NUM);
+            if ($row && (int)$row[0] === 1) {
+                $banType = $row[1] ? trim((string)$row[1]) : null;
+                $bannedUntil = $row[2] ?? null;
+                $effective = ($banType !== 'temporary' || !$bannedUntil)
+                    || (new \DateTimeImmutable($bannedUntil, new \DateTimeZone('UTC')) > new \DateTimeImmutable('now', new \DateTimeZone('UTC')));
+                if ($effective) {
+                    return json($res, ['ok' => false, 'error' => 'You are banned and cannot create posts.'], 403);
+                }
+            }
+        } catch (Throwable $e) {
+            // Columns may not exist yet (migration 008/009 not run)
+        }
+
         // Tag limit: 5 tags per post
         $data = $req->getParsedBody() ?? [];
         $title = trim((string)($data['title'] ?? ''));
@@ -27,7 +48,6 @@ $app->post("/api/create-post", function (Request $req, Response $res) use ($make
         $tagsIn = array_values(array_unique(array_map('intval', $tagsIn)));
         $tagsIn = array_slice(array_filter($tagsIn, fn($v) => $v > 0), 0, 5);
 
-        $pdo = $makePdo();
         $pdo->beginTransaction();
 
         // Category section
