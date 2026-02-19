@@ -2,8 +2,18 @@
 import CSUSHeader from './components/layout/CSUSHeader.vue'
 import OWPHeader from './components/layout/OWPHeader.vue';
 import Footer from './components/layout/Footer.vue';
-import { isLoggedIn, isBanned } from '@/stores/userStore';
+import { isLoggedIn, isBanned, banType, bannedUntil } from '@/stores/userStore';
 // import Category from './components/Category.vue';
+
+function formatBannedUntil(iso) {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString(undefined, { dateStyle: 'long' });
+  } catch {
+    return iso;
+  }
+}
 </script>
 
 <template>
@@ -11,8 +21,14 @@ import { isLoggedIn, isBanned } from '@/stores/userStore';
   <OWPHeader />
   <div v-if="isLoggedIn && isBanned" class="banned-banner" role="alert">
     <span class="banned-icon" aria-hidden="true">⚠</span>
-    <strong>Your account is banned.</strong>
-    You cannot create posts or comments. If you believe this is an error, please contact an administrator.
+    <template v-if="banType === 'temporary' && bannedUntil">
+      <strong>Your account is temporarily banned until {{ formatBannedUntil(bannedUntil) }}.</strong>
+      You cannot create posts or comments until then. If you believe this is an error, please contact an administrator.
+    </template>
+    <template v-else>
+      <strong>Your account is permanently banned.</strong>
+      You cannot create posts or comments. If you believe this is an error, please contact an administrator.
+    </template>
   </div>
   <router-view />
   <Footer />

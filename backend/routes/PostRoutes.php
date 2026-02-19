@@ -14,13 +14,23 @@ $app->post("/api/create-post", function (Request $req, Response $res) use ($make
 
         $pdo = $makePdo();
         try {
-            $banStmt = $pdo->prepare("SELECT ISNULL(IsBanned, 0) FROM dbo.Users WHERE User_ID = :uid");
+            $banStmt = $pdo->prepare("
+                SELECT ISNULL(IsBanned, 0), BanType, BannedUntil
+                FROM dbo.Users WHERE User_ID = :uid
+            ");
             $banStmt->execute([':uid' => $userId]);
-            if ((int)($banStmt->fetchColumn() ?? 0) === 1) {
-                return json($res, ['ok' => false, 'error' => 'You are banned and cannot create posts.'], 403);
+            $row = $banStmt->fetch(PDO::FETCH_NUM);
+            if ($row && (int)$row[0] === 1) {
+                $banType = $row[1] ? trim((string)$row[1]) : null;
+                $bannedUntil = $row[2] ?? null;
+                $effective = ($banType !== 'temporary' || !$bannedUntil)
+                    || (new \DateTimeImmutable($bannedUntil, new \DateTimeZone('UTC')) > new \DateTimeImmutable('now', new \DateTimeZone('UTC')));
+                if ($effective) {
+                    return json($res, ['ok' => false, 'error' => 'You are banned and cannot create posts.'], 403);
+                }
             }
         } catch (Throwable $e) {
-            // IsBanned column may not exist yet (migration 008 not run)
+            // Columns may not exist yet (migration 008/009 not run)
         }
 
         // Tag limit: 5 tags per post

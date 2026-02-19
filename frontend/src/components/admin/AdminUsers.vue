@@ -1,11 +1,22 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import client from '@/api/client'
 
 const q = ref('')
 const users = ref([])
 const loading = ref(false)
 const error = ref('')
+
+const showBanModal = ref(false)
+const banTarget = ref(null)
+const banKind = ref('permanent') // 'permanent' | 'temporary'
+const banUntilDate = ref('')
+
+const minBanDate = computed(() => {
+  const d = new Date()
+  d.setDate(d.getDate() + 1)
+  return d.toISOString().slice(0, 10)
+})
 
 let searchTimeout = null
 function onSearchInput() {
@@ -21,7 +32,9 @@ async function loadUsers() {
     const res = await client.get('/admin/users', { params })
     users.value = (res.data.users || []).map(u => ({
       ...u,
-      IsBanned: Boolean(Number(u.IsBanned ?? 0))
+      IsBanned: Boolean(Number(u.IsBanned ?? 0)),
+      BanType: u.BanType && (u.BanType === 'permanent' || u.BanType === 'temporary') ? u.BanType : null,
+      BannedUntil: u.BannedUntil ? String(u.BannedUntil) : null
     }))
   } catch (e) {
     error.value = e?.response?.data?.error || e.message || 'Failed to load users'
@@ -31,14 +44,63 @@ async function loadUsers() {
   }
 }
 
-async function toggleBan(user) {
-  const newBanned = !user.IsBanned
+function openBanModal(user) {
+  banTarget.value = user
+  banKind.value = 'permanent'
+  banUntilDate.value = minBanDate.value
+  showBanModal.value = true
+}
+
+function closeBanModal() {
+  showBanModal.value = false
+  banTarget.value = null
+}
+
+async function confirmBan() {
+  if (!banTarget.value) return
+  const payload = { banned: true }
+  if (banKind.value === 'temporary') {
+    if (!banUntilDate.value) {
+      alert('Please choose an end date for the temporary ban.')
+      return
+    }
+    payload.banType = 'temporary'
+    payload.bannedUntil = banUntilDate.value
+  } else {
+    payload.banType = 'permanent'
+  }
   try {
-    await client.patch(`/admin/users/${user.User_ID}/ban`, { banned: newBanned })
-    user.IsBanned = newBanned
+    await client.patch(`/admin/users/${banTarget.value.User_ID}/ban`, payload)
+    banTarget.value.IsBanned = true
+    banTarget.value.BanType = payload.banType
+    banTarget.value.BannedUntil = payload.bannedUntil || null
+    closeBanModal()
   } catch (e) {
     alert(e?.response?.data?.error || 'Failed to update ban status')
   }
+}
+
+async function unban(user) {
+  try {
+    await client.patch(`/admin/users/${user.User_ID}/ban`, { banned: false })
+    user.IsBanned = false
+    user.BanType = null
+    user.BannedUntil = null
+  } catch (e) {
+    alert(e?.response?.data?.error || 'Failed to update ban status')
+  }
+}
+
+function banStatusLabel(u) {
+  if (!u.IsBanned) return 'Active'
+  if (u.BanType === 'temporary' && u.BannedUntil) {
+    try {
+      return 'Until ' + new Date(u.BannedUntil).toLocaleDateString(undefined, { dateStyle: 'short' })
+    } catch {
+      return 'Temporary'
+    }
+  }
+  return 'Permanent'
 }
 
 function formatUserDisplay(u) {
@@ -98,17 +160,25 @@ onMounted(() => loadUsers())
             <td class="admin-email">{{ u.Email || '—' }}</td>
             <td class="admin-role">{{ u.RoleName || '—' }}</td>
             <td>
-              <span v-if="u.IsBanned" class="badge badge-banned">Banned</span>
+              <span v-if="u.IsBanned" class="badge badge-banned">{{ banStatusLabel(u) }}</span>
               <span v-else class="badge badge-active">Active</span>
             </td>
             <td>
               <button
+                v-if="!u.IsBanned"
                 type="button"
                 class="btn-ban"
-                :class="{ 'btn-unban': u.IsBanned }"
-                @click="toggleBan(u)"
+                @click="openBanModal(u)"
               >
-                {{ u.IsBanned ? 'Unban' : 'Ban' }}
+                Ban
+              </button>
+              <button
+                v-else
+                type="button"
+                class="btn-unban"
+                @click="unban(u)"
+              >
+                Unban
               </button>
             </td>
           </tr>
@@ -117,6 +187,38 @@ onMounted(() => loadUsers())
 
       <div v-if="!loading && users.length === 0" class="state mt-4 text-center">
         No users found.
+      </div>
+    </div>
+
+    <!-- Ban type modal -->
+    <div v-if="showBanModal && banTarget" class="modal-overlay" @mousedown.self="closeBanModal">
+      <div class="modal-card">
+        <h3 class="modal-title">Ban user</h3>
+        <p class="modal-subtitle">{{ formatUserDisplay(banTarget) }}</p>
+        <div class="ban-type-options">
+          <label class="ban-option">
+            <input type="radio" v-model="banKind" value="permanent" />
+            <span>Permanent ban</span>
+          </label>
+          <label class="ban-option">
+            <input type="radio" v-model="banKind" value="temporary" />
+            <span>Temporary ban</span>
+          </label>
+        </div>
+        <div v-if="banKind === 'temporary'" class="ban-until-row">
+          <label for="ban-until">Banned until</label>
+          <input
+            id="ban-until"
+            type="date"
+            v-model="banUntilDate"
+            :min="minBanDate"
+            class="ban-date-input"
+          />
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-modal-cancel" @click="closeBanModal">Cancel</button>
+          <button type="button" class="btn-modal-confirm" @click="confirmBan">Confirm ban</button>
+        </div>
       </div>
     </div>
   </div>
@@ -290,5 +392,112 @@ onMounted(() => loadUsers())
 .btn-unban:hover {
   background: #059669;
   color: #fff;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.modal-card {
+  background: #fff;
+  color: #1f2937;
+  width: min(420px, 90vw);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+}
+
+.modal-title {
+  margin: 0 0 4px;
+  font-size: 20px;
+  font-weight: 700;
+  color: #004750;
+}
+
+.modal-subtitle {
+  margin: 0 0 20px;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.ban-type-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.ban-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.ban-option input {
+  width: 18px;
+  height: 18px;
+}
+
+.ban-until-row {
+  margin-bottom: 20px;
+}
+
+.ban-until-row label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 6px;
+}
+
+.ban-date-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 15px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.btn-modal-cancel {
+  padding: 10px 20px;
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #374151;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-modal-cancel:hover {
+  background: #f3f4f6;
+}
+
+.btn-modal-confirm {
+  padding: 10px 20px;
+  border-radius: 10px;
+  border: none;
+  background: #dc2626;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-modal-confirm:hover {
+  background: #b91c1c;
 }
 </style>

@@ -67,67 +67,88 @@ $app->get('/api/admin/users', function(Request $req, Response $res) use ($makePd
         $params = $req->getQueryParams();
         $q = trim((string)($params['q'] ?? ''));
 
-        // Basic search (email / first / last). If empty, just return top 50 users.
-        // IsBanned not in SELECT so this works before migration 008_user_ban.sql is run
-        $sql = "
-            SELECT TOP 50
-                u.User_ID, u.Email, u.FirstName, u.LastName, u.RoleID,
-                r.Name as RoleName
-            FROM dbo.Users u
-            LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
-        ";
-
         $bindings = [];
+        $where = '';
 
         if ($q !== '') {
-            $sql .= "
+            $where = "
                 WHERE (
                     u.Email     LIKE :emailLike
                     OR u.FirstName LIKE :firstLike
                     OR u.LastName  LIKE :lastLike
             ";
-
             $bindings[':emailLike'] = '%' . $q . '%';
             $bindings[':firstLike'] = '%' . $q . '%';
             $bindings[':lastLike']  = '%' . $q . '%';
-
-            // If numeric, allow User_ID match too
             if (ctype_digit($q)) {
-                $sql .= " OR u.User_ID = :uidSearch";
+                $where .= " OR u.User_ID = :uidSearch";
                 $bindings[':uidSearch'] = (int)$q;
             }
-
-            $sql .= ")";
+            $where .= ")";
         }
 
-        $sql .= " ORDER BY u.User_ID DESC";
-
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute($bindings);
-        $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-        // Add IsBanned if column exists
-        foreach ($users as &$u) {
-            $u['IsBanned'] = 0;
-        }
-        unset($u);
+        // Single query when ban columns exist (migrations 008, 009)
+        $users = [];
         try {
-            $ids = array_map(fn($u) => (int)$u['User_ID'], $users);
-            if (!empty($ids)) {
-                $placeholders = implode(',', array_fill(0, count($ids), '?'));
-                $banStmt = $pdo->prepare("SELECT User_ID, ISNULL(IsBanned, 0) FROM dbo.Users WHERE User_ID IN ($placeholders)");
-                $banStmt->execute($ids);
-                $banMap = [];
-                while ($row = $banStmt->fetch(PDO::FETCH_NUM)) {
-                    $banMap[(int)$row[0]] = (int)$row[1];
-                }
-                foreach ($users as &$u) {
-                    $u['IsBanned'] = $banMap[(int)$u['User_ID']] ?? 0;
-                }
-                unset($u);
-            }
+            $sql = "
+                SELECT TOP 50
+                    u.User_ID, u.Email, u.FirstName, u.LastName, u.RoleID,
+                    r.Name as RoleName,
+                    ISNULL(u.IsBanned, 0) as IsBanned, u.BanType, u.BannedUntil
+                FROM dbo.Users u
+                LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
+                $where
+                ORDER BY u.User_ID DESC
+            ";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($bindings);
+            $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
         } catch (Throwable $e) {
-            // IsBanned column may not exist yet
+            // Ban columns may not exist: run without them, then fetch ban data in second query
+            $sql = "
+                SELECT TOP 50
+                    u.User_ID, u.Email, u.FirstName, u.LastName, u.RoleID,
+                    r.Name as RoleName
+                FROM dbo.Users u
+                LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
+                $where
+                ORDER BY u.User_ID DESC
+            ";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($bindings);
+            $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($users as &$u) {
+                $u['IsBanned'] = 0;
+                $u['BanType'] = null;
+                $u['BannedUntil'] = null;
+            }
+            unset($u);
+            try {
+                $ids = array_map(fn($u) => (int)$u['User_ID'], $users);
+                if (!empty($ids)) {
+                    $placeholders = implode(',', array_fill(0, count($ids), '?'));
+                    $banStmt = $pdo->prepare("SELECT User_ID, ISNULL(IsBanned, 0), BanType, BannedUntil FROM dbo.Users WHERE User_ID IN ($placeholders)");
+                    $banStmt->execute($ids);
+                    $banMap = [];
+                    while ($row = $banStmt->fetch(PDO::FETCH_NUM)) {
+                        $uid = (int)$row[0];
+                        $banMap[$uid] = [
+                            'IsBanned' => (int)$row[1],
+                            'BanType' => $row[2] ? trim((string)$row[2]) : null,
+                            'BannedUntil' => $row[3] ? $row[3] : null,
+                        ];
+                    }
+                    foreach ($users as &$u) {
+                        $bid = (int)$u['User_ID'];
+                        $u['IsBanned'] = $banMap[$bid]['IsBanned'] ?? 0;
+                        $u['BanType'] = $banMap[$bid]['BanType'] ?? null;
+                        $u['BannedUntil'] = $banMap[$bid]['BannedUntil'] ?? null;
+                    }
+                    unset($u);
+                }
+            } catch (Throwable $e2) {
+                // ignore
+            }
         }
 
         return json($res, ['ok' => true, 'users' => $users]);
@@ -219,29 +240,61 @@ $app->patch('/api/admin/users/{id}/ban', function(Request $req, Response $res, a
 
         $data = $req->getParsedBody() ?? [];
         $banned = isset($data['banned']) ? (bool)$data['banned'] : true;
+        $banType = $banned ? trim(strtolower((string)($data['banType'] ?? 'permanent'))) : null;
+        $bannedUntil = $banned && $banType === 'temporary' ? ($data['bannedUntil'] ?? null) : null;
+
+        if ($banType !== null && $banType !== 'permanent' && $banType !== 'temporary') {
+            $banType = 'permanent';
+        }
+        if ($banned && $banType === 'temporary') {
+            if (empty($bannedUntil)) {
+                return json($res, ['ok' => false, 'error' => 'bannedUntil is required for a temporary ban'], 400);
+            }
+            $until = \DateTimeImmutable::createFromFormat('Y-m-d', $bannedUntil, new \DateTimeZone('UTC'));
+            if (!$until) {
+                $until = \DateTimeImmutable::createFromFormat(\DateTime::ATOM, $bannedUntil, new \DateTimeZone('UTC'));
+            }
+            if (!$until || $until <= new \DateTimeImmutable('now', new \DateTimeZone('UTC'))) {
+                return json($res, ['ok' => false, 'error' => 'bannedUntil must be a future date (YYYY-MM-DD)'], 400);
+            }
+            $until = $until->setTime(23, 59, 59);
+            $bannedUntil = $until->format('Y-m-d H:i:s');
+        } else {
+            $bannedUntil = null;
+        }
 
         if ($targetUserId === (int)$adminId) {
             return json($res, ['ok' => false, 'error' => 'You cannot ban yourself'], 400);
         }
 
         try {
-            $update = $pdo->prepare("
-                UPDATE dbo.Users
-                SET IsBanned = :banned
-                WHERE User_ID = :uid
-            ");
-            $update->execute([
-                ':banned' => $banned ? 1 : 0,
-                ':uid'    => $targetUserId
-            ]);
+            if ($banned) {
+                $update = $pdo->prepare("
+                    UPDATE dbo.Users
+                    SET IsBanned = 1, BanType = :banType, BannedUntil = :bannedUntil
+                    WHERE User_ID = :uid
+                ");
+                $update->execute([
+                    ':banType' => $banType,
+                    ':bannedUntil' => $bannedUntil,
+                    ':uid' => $targetUserId
+                ]);
+            } else {
+                $update = $pdo->prepare("
+                    UPDATE dbo.Users
+                    SET IsBanned = 0, BanType = NULL, BannedUntil = NULL
+                    WHERE User_ID = :uid
+                ");
+                $update->execute([':uid' => $targetUserId]);
+            }
         } catch (Throwable $e) {
-            if (strpos($e->getMessage(), 'IsBanned') !== false) {
+            if (strpos($e->getMessage(), 'IsBanned') !== false || strpos($e->getMessage(), 'BanType') !== false) {
                 return json($res, ['ok' => false, 'error' => 'Ban feature requires database migration. Run: php database/migrate.php from the backend folder.'], 503);
             }
             throw $e;
         }
 
-        return json($res, ['ok' => true, 'banned' => $banned]);
+        return json($res, ['ok' => true, 'banned' => $banned, 'banType' => $banType, 'bannedUntil' => $bannedUntil]);
 
     } catch (Throwable $e) {
         return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
