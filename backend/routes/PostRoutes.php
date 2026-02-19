@@ -712,3 +712,61 @@ $app->put('/api/posts/{id}', function(Request $req, Response $res, array $args) 
         return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
     }
 });
+
+$app->delete('/api/posts/{id}', function(Request $req, Response $res, array $args) use ($makePdo) {
+    try {
+        $userId = (int)$req->getAttribute("user_id");
+        if (!$userId) return json($res, ['ok' => false, 'error' => 'Not Authenticated'], 401);
+
+        $postId = (int)$args['id'];
+        if ($postId <= 0) {
+            return json($res, ['ok' => false, 'error' => 'Invalid post ID.'], 400);
+        }
+
+        $pdo = $makePdo();
+
+        $postStmt = $pdo->prepare("SELECT PostID, AuthorID, IsDeleted FROM dbo.Posts WHERE PostID = :id");
+        $postStmt->execute(['id' => $postId]);
+        $post = $postStmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$post) {
+            return json($res, ['ok' => false, 'error' => 'Post not found.'], 404);
+        }
+
+        if ((int)$post['IsDeleted'] === 1) {
+            return json($res, ['ok' => false, 'error' => 'Post already deleted.'], 404);
+        }
+
+        $authorId = (int)$post['AuthorID'];
+        $roleStmt = $pdo->prepare("SELECT ISNULL(RoleID, 1) FROM dbo.Users WHERE User_ID = :uid");
+        $roleStmt->execute(['uid' => $userId]);
+        $userRoleId = (int)($roleStmt->fetchColumn() ?? 1);
+        if ($userRoleId <= 0) $userRoleId = 1;
+
+        if ($userId !== $authorId && $userRoleId < 3) {
+            return json($res, ['ok' => false, 'error' => 'Permission denied.'], 403);
+        }
+
+        $delStmt = $pdo->prepare("UPDATE dbo.Posts SET IsDeleted = 1, UpdatedAt = SYSUTCDATETIME(), DeletedAt = SYSUTCDATETIME() WHERE PostID = :id AND IsDeleted = 0");
+        $delStmt->execute(['id' => $postId]);
+
+        if ($delStmt->rowCount() === 0) {
+            return json($res, ['ok' => false, 'error' => 'Failed to delete post.'], 500);
+        }
+
+        $outStmt = $pdo->prepare("SELECT IsDeleted, DeletedAt, UpdatedAt FROM dbo.Posts WHERE PostID = :id");
+        $outStmt->execute(['id' => $postId]);
+        $result = $outStmt->fetch(PDO::FETCH_ASSOC);
+
+        return json($res, [
+            'ok' => true,
+            'postId' => $postId,
+            'isDeleted' => (bool)($result['IsDeleted'] ?? 1),
+            'deletedAt' => $result['DeletedAt'] ?? null,
+            'updatedAt' => $result['UpdatedAt'] ?? null,
+        ]);
+
+    } catch (Throwable $e) {
+        return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+    }
+});
