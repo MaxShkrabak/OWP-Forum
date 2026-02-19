@@ -507,21 +507,52 @@ $app->post('/api/posts/{id}/vote', function (Request $req, Response $res, array 
 $app->get('/api/get-post/{id}', function(Request $req, Response $res, array $args) use ($makePdo) {
     try {
         $pdo = $makePdo();
-
         $postID = (int)$args['id'];
 
-        $stmt = $pdo->prepare('SELECT Content FROM dbo.Posts WHERE PostID = :id');
-        $stmt->execute(['id' => $postID]);
-        $content = $stmt->fetchcolumn();
+        $sql = "
+            SELECT p.PostID, p.Title, p.Content, p.CreatedAt,
+                   u.FirstName, u.LastName, u.Avatar,
+                   r.Name AS RoleName, 
+                   c.Name AS CategoryName
+            FROM dbo.Posts p
+            LEFT JOIN dbo.Users u ON p.AuthorID = u.User_ID
+            LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
+            LEFT JOIN dbo.Categories c ON p.CategoryID = c.CategoryID
+            WHERE p.PostID = :id AND p.IsDeleted = 0
+        ";
 
-        if(!$content){
-            throw new Error("Does not exist.");
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute(['id' => $postID]);
+        $post = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if(!$post){
+            return json($res, ['ok' => false, 'error' => "Post content does not exist."], 404);
         }
 
-        $res->getBody()->write(json_encode(['ok' => true, 'content' => $content]));
-        return $res->withHeader('Content-Type', 'application/json');
+        $tagStmt = $pdo->prepare("
+            SELECT t.Name 
+            FROM dbo.PostTags pt 
+            JOIN dbo.Tags t ON t.TagID = pt.TagID 
+            WHERE pt.PostID = :id
+        ");
+
+        $tagStmt->execute(['id' => $postID]);
+        $tags = $tagStmt->fetchAll(PDO::FETCH_COLUMN);
+
+        $responseData = [
+            'PostID'       => (int)$post['PostID'],
+            'title'        => $post['Title'],
+            'content'      => $post['Content'],
+            'createdAt'    => $post['CreatedAt'],
+            'authorName'   => trim(($post['FirstName'] ?? '') . ' ' . ($post['LastName'] ?? '')),
+            'authorAvatar' => $post['Avatar'],
+            'authorRole'   => $post['RoleName'] ?? 'User',
+            'categoryName' => $post['CategoryName'],
+            'tags'         => $tags
+        ];
+
+        return json($res, ['ok' => true, 'post' => $responseData]);
     } catch (Throwable $e) {
-        $res->getBody()->write(json_encode(['ok' => false, 'error' => $e->getMessage()]));
-        return $res->withStatus(500)->withHeader('Content-Type', 'application/json');
+        return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
     }
 });
