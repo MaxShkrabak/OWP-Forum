@@ -279,7 +279,7 @@ async function doPublish() {
                   <label v-if="!form.title" class="title-placeholder">
                     Title<span class="star-red">*</span>
                   </label>
-                  
+
                   <input
                     v-model="form.title"
                     class="title-input"
@@ -291,14 +291,14 @@ async function doPublish() {
                     {{ titleLength }}/{{ MAX_TITLE_LEN }}
                   </span>
                 </div>
-                
+
                 <div class="user-info-section" v-if="isLoggedIn">
                   <div class="user-meta text-end">
                     <span class="user-name">{{ fullName }}</span>
                     <UserRole :role="userRole" />
                   </div>
                   <div class="avatar-circle">
-                    <img :src="userAvatar" alt="icon" class="avatar-img" />                   
+                    <img :src="userAvatar" alt="icon" class="avatar-img" />
                   </div>
                 </div>
               </div>
@@ -313,7 +313,7 @@ async function doPublish() {
                     </option>
                   </select>
                 </div>
-                
+
                 <div class="tags-side" ref="tagContainerRef">
                   <label class="form-label-small">Tags ({{ form.tags.length }}/{{ MAX_TAGS }})</label>
                   <div class="tag-adder-container">
@@ -334,7 +334,7 @@ async function doPublish() {
                             :key="t.TagID || t.tagId"
                             class="tag-opt"
                             @click="() => { form.tags.push(t.TagID || t.tagId); tagSearch = ''; showTagPopup = false; }"
-                            >
+                          >
                             {{ t.Name || t.name }}
                           </button>
                         </div>
@@ -352,30 +352,28 @@ async function doPublish() {
 
                 <div class="comment-ctrl comm-checkbox-style" v-if="userRoleId >= 3">
                   <span class="me-3">Disable Comments?</span>
-                    <input class="form-check-input" type="checkbox" id="checkComment" v-model="form.disableComments">
-                    <label class="form-check-label" for="checkComment"></label>
+                  <input class="form-check-input" type="checkbox" id="checkComment" v-model="form.disableComments"/>
+                  <label class="form-check-label" for="checkComment"></label>
                 </div>
               </div>
 
               <div :class="{ 'restricted-input': isRestricted }">
-                <TextEditor v-model="form.content" class="custom-editor" ref="editor" />
+                <TextEditor v-model="form.content" v-model:isUploading="isUploading" class="custom-editor" ref="editor" />
               </div>
-            </div>
-            <!-- Text Editor -->
-            <TextEditor v-model="form.content" v-model:isUploading="isUploading" class="custom-editor" ref="editor" />
+            </template>
           </main>
 
           <footer class="modal-footer">
             <div class="footer-hint"></div>
             <div class="footer-actions">
               <button class="cancel-btn" @click="handleCloseRequest">Cancel</button>
-                <button
-                  class="publish-btn"
-                  :disabled="(isRestricted ? (!form.category || !hasMetadataChanges) : !canPublish) || loading"
-                  @click="showPublishConfirm = true"
-                >
-                  {{ loading ? 'Processing...' : (isRestricted ? 'Update Metadata' : 'Publish Post') }}
-                </button>
+              <button
+                class="publish-btn"
+                :disabled="(isRestricted ? (!form.category || !hasMetadataChanges) : !canPublish) || loading"
+                @click="showPublishConfirm = true"
+              >
+                {{ loading ? 'Processing...' : (isRestricted ? 'Update Metadata' : 'Publish Post') }}
+              </button>
             </div>
           </footer>
         </div>
@@ -385,7 +383,7 @@ async function doPublish() {
             <p class="fs-5 fw-bold">
               {{ isRestricted ? 'Changes Saved' : 'Post Published' }}
             </p>
-            
+
             <p>
               {{ isRestricted ? 'Refreshing details...' : 'Redirecting to home...' }}
             </p>
@@ -406,11 +404,11 @@ async function doPublish() {
             <p class="fs-5 fw-bold">
               {{ isRestricted ? 'Save Changes?' : 'Ready to Publish?' }}
             </p>
-            
+
             <p>
               {{ isRestricted ? 'This will update the post metadata immediately.' : 'Your post will be visible to everyone.' }}
             </p>
-            
+
             <div class="modal-actions justify-content-center">
               <button class="cancel-btn" @click="showPublishConfirm = false">Back</button>
               <button class="publish-btn" @click="doPublish">
