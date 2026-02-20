@@ -12,11 +12,12 @@ import { TextAlign } from '@tiptap/extension-text-align';
 import { Link } from '@tiptap/extension-link';
 
 const props = defineProps({
-    modelValue: String,
-    placeholder: String
+  modelValue: String,
+  placeholder: String,
+  isUploading: Boolean
 });
 
-const emit = defineEmits(['update:modelValue']);
+const emit = defineEmits(['update:modelValue', 'update:isUploading']);
 
 // Defaults
 const DEFAULT_TEXT_COLOR = '#000000';
@@ -132,10 +133,15 @@ const triggerImageUpload = async () => {
     input.onchange = async () => {
         const file = input.files?.[0];
         if (file) {
+            emit('update:isUploading', true);
             try {
                 const data = await uploadImage(file);
                 editor.value.chain().focus().setImage({ src: data.url }).run();
-            } catch (err) { console.error(err); }
+            } catch (err) { 
+                console.error(err); 
+            } finally {
+                emit('update:isUploading', false); 
+            }
         }
     };
     input.click();

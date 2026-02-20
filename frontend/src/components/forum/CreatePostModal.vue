@@ -9,6 +9,7 @@ import client from '@/api/client';
 
 const MAX_TITLE_LEN = 125;
 const MAX_TAGS = 5;
+const isUploading = ref(false)
 
 const props = defineProps({
   show: Boolean,
@@ -359,7 +360,9 @@ async function doPublish() {
               <div :class="{ 'restricted-input': isRestricted }">
                 <TextEditor v-model="form.content" class="custom-editor" ref="editor" />
               </div>
-            </template>
+            </div>
+            <!-- Text Editor -->
+            <TextEditor v-model="form.content" v-model:isUploading="isUploading" class="custom-editor" ref="editor" />
           </main>
 
           <footer class="modal-footer">
@@ -389,6 +392,15 @@ async function doPublish() {
           </div>
         </div>
 
+        <div v-if="isUploading" class="inner-warning-overlay">
+          <div class="warning-card shadow-lg upload-card">
+            <div class="spinner"></div>
+            <p class="fs-5 fw-bold" style="margin-top: 12px;">Uploading image…</p>
+            <p>Please wait.</p>
+          </div>
+        </div>
+
+        <!-- Publish Confirmation -->
         <div v-if="showPublishConfirm" class="inner-warning-overlay" @mousedown.self="showPublishConfirm = false">
           <div class="warning-card shadow-lg">
             <p class="fs-5 fw-bold">
@@ -496,6 +508,25 @@ p {
   width: 90%;
   max-width: 400px;
   text-align: center;
+}
+
+.upload-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.spinner {
+  width: 44px;
+  height: 44px;
+  border: 4px solid #e2e8f0;
+  border-top: 4px solid #2E6C44;
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 .modal-header h3 {
