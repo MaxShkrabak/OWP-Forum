@@ -5,7 +5,15 @@ import UserRole from "@/components/user/UserRole.vue";
 
 const props = defineProps({
   isProfile: Boolean,
+  isCurrUser: Boolean,
+  avatar: String,
+  newFullName: String,
+  newRole: String
 });
+
+function getAvatarSrc(file) {
+  return new URL(`../../assets/img/user-pfps-premade/${file}`, import.meta.url).href;
+}
 </script>
 
 <template>
@@ -18,12 +26,15 @@ const props = defineProps({
           <RouterLink to="/profile" class="pfp-wrapper shadow-sm" v-if="!isProfile">
             <img :src="userAvatar" alt="avatar" class="img-fluid profile-img" />
           </RouterLink>
-          <button class="pfp-wrapper-profile shadow-sm" data-bs-toggle="modal" data-bs-target="#pfpChange" v-else>
+          <button class="pfp-wrapper-profile shadow-sm" data-bs-toggle="modal" data-bs-target="#pfpChange" v-else-if="isProfile && isCurrUser">
                 <img v-if="userAvatar" :src="userAvatar" class="img-fluid profile-img" alt="User avatar">
                 <img v-else src="@\assets\img\user-pfps-premade\pfp-0.png" class="img-fluid profile-img" alt="Default avatar">
-            </button>
-          <h5 class="user-name mt-2 mb-1">{{ fullName }}</h5>
-          <UserRole :role="userRole" />
+          </button>
+          <div class="pfp-wrapper-profile shadow-sm" v-else-if="isProfile && !isCurrUser">
+                <img v-if="avatar" :src="getAvatarSrc(avatar)" class="profile-img" alt="User avatar">
+          </div>
+          <h5 class="user-name mt-2 mb-1">{{ isCurrUser ? fullName : newFullName || fullName}}</h5>
+          <UserRole :role="isCurrUser ? userRole : newRole || userRole" />
         </div>
         <!-- User Stats Section -->
         <div class="stats-divider my-3"></div>
@@ -47,11 +58,43 @@ const props = defineProps({
       </div>
       <button class="btn-edit-prof text-center mb-3" 
       data-bs-toggle="modal" data-bs-target="#userSettingsModal"
-      v-if="isProfile"> <!--Edit Profile button-->
+      v-if="isProfile && isCurrUser"> <!--Edit Profile button-->
         <span class="edit-prof-text text-center">
            Edit Profile
         </span>
       </button>
+    </div>
+
+    <div class="user-main-card shadow-sm border" v-else-if="!isLoggedIn && isProfile">
+      <div class="card-header-gradient"></div>
+      <div class="card-body-content px-3 pb-3">
+        <div class="profile-section text-center" >
+          <div class="pfp-wrapper-profile shadow-sm">
+                <img v-if="avatar" :src="getAvatarSrc(avatar)" class="profile-img" alt="User avatar">
+          </div>
+          <h5 class="user-name mt-2 mb-1">{{ newFullName }}</h5>
+          <UserRole :role="newRole" />
+        </div>
+        <!-- User Stats Section -->
+        <div class="stats-divider my-3"></div>
+        <div class="stats-container d-flex justify-content-around text-center">
+          <!-- Posts count-->
+          <div class="stat-item">
+            <span class="stat-value">0</span>
+            <span class="stat-label text-uppercase">Posts</span>
+          </div>
+          <!-- Likes count -->
+          <div class="stat-item">
+            <span class="stat-value">0</span>
+            <span class="stat-label text-uppercase">Likes</span>
+          </div>
+          <!-- Comment count -->
+          <div class="stat-item">
+            <span class="stat-value">0</span>
+            <span class="stat-label text-uppercase">Comments</span>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Signed Out User Card -->

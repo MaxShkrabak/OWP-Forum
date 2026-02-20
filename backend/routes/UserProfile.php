@@ -4,14 +4,36 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 
 use function Forum\Helpers\json;
 
+$app->get('/api/profile/{uid}', function(Request $req, Response $res, array $args) use ($makePdo) {
+    try {
+        $userId = (int)$args['uid'];
+
+        $pdo = $makePdo();
+
+        $sql = "
+            SELECT User_ID, FirstName, LastName, Avatar, Name AS RoleName
+            FROM dbo.Users u
+            LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
+            WHERE User_ID = :uid
+        ";
+        
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([':uid' => $userId]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$user) {
+            return json($res, ['ok' => false, 'error' => 'User not found'], 404);
+        }
+
+        return json($res, ['ok' => true, 'user' => $user]);
+    } catch (Throwable $e) {
+        return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+    }
+});
+
 $app->get('/api/profile/{uid}/posts', function (Request $req, Response $res, array $args) use ($makePdo) {
     try {
-        // Verify auth
-        $userId = $req->getAttribute('user_id');
-
-        if ($userId === null) {
-            return json($res, ['ok' => false, 'error' => 'Not Authenticated'], 401);
-        }
+        
         $authorId = (int)$args['uid'];
 
         $pdo = $makePdo();
@@ -39,7 +61,7 @@ $app->get('/api/profile/{uid}/posts', function (Request $req, Response $res, arr
 
         $getPostsSql = "
             SELECT p.AuthorID, p.PostID, p.Title, p.CreatedAt, p.CategoryID,
-                   u.FirstName, u.LastName, u.Avatar,
+                   u.FirstName, u.LastName, u.Avatar, u.User_ID,
                    r.Name AS RoleName, c.Name AS CategoryName
             FROM dbo.Posts p
             LEFT JOIN dbo.Users u ON p.AuthorID = u.User_ID
@@ -89,6 +111,7 @@ $app->get('/api/profile/{uid}/posts', function (Request $req, Response $res, arr
                 'categoryId'   => $catId,
                 'title'        => $row['Title'],
                 'createdAt'    => $row['CreatedAt'],
+                'authorId'   => (int)($row['User_ID'] ?? 0),
                 'authorName'   => trim(($row['FirstName'] ?? '') . ' ' . ($row['LastName'] ?? '')),
                 'authorRole'   => $row['RoleName'] ?? 'User',
                 'authorAvatar' => $row['Avatar'] ?? null,
