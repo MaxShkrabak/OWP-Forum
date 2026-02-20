@@ -13,12 +13,48 @@ function _user_row(array $row): array {
     ];
 }
 
+//Parses the vote value from the request body
+function _parse_vote_value(array $data): ?int {
+    if (isset($data['voteValue'])) {
+        $value = (int)$data['voteValue'];
+        return ($value === 1 || $value === -1) ? $value : null;
+    }
+    $dir = strtolower((string)($data['dir'] ?? $data['type'] ?? ''));
+    if ($dir === 'upvote') {
+        return 1;
+    } if ($dir === 'downvote') {
+        return -1;
+    }
+    return null;
+}
+
 $createCommentHandler = function (Request $req, Response $res, array $args = []) use ($makePdo) {
     try {
         $userId = $req->getAttribute("user_id");
         
         if (!$userId) {
             return json($res, ['ok' => false, 'error' => 'Not Authenticated'], 401);
+        }
+
+        $pdo = $makePdo();
+        try {
+            $banStmt = $pdo->prepare("
+                SELECT ISNULL(IsBanned, 0), BanType, BannedUntil
+                FROM dbo.Users WHERE User_ID = :uid
+            ");
+            $banStmt->execute([':uid' => $userId]);
+            $row = $banStmt->fetch(PDO::FETCH_NUM);
+            if ($row && (int)$row[0] === 1) {
+                $banType = $row[1] ? trim((string)$row[1]) : null;
+                $bannedUntil = $row[2] ?? null;
+                $effective = ($banType !== 'temporary' || !$bannedUntil)
+                    || (new \DateTimeImmutable($bannedUntil, new \DateTimeZone('UTC')) > new \DateTimeImmutable('now', new \DateTimeZone('UTC')));
+                if ($effective) {
+                    return json($res, ['ok' => false, 'error' => 'You are banned and cannot comment.'], 403);
+                }
+            }
+        } catch (Throwable $e) {
+            // Columns may not exist yet (migration 008/009 not run)
         }
 
         //Check what post the comment belongs to, and the content of the comment
@@ -30,8 +66,6 @@ $createCommentHandler = function (Request $req, Response $res, array $args = [])
         if (!$postId || trim($content) === '') {
             return json($res, ['ok' => false, 'error' => 'Missing post_id or content'], 400);
         }
-
-        $pdo = $makePdo();
 
         // Check if the post exists
         $getPostSql = "SELECT 1 FROM dbo.Posts WHERE PostID = :postId AND IsDeleted = 0";
@@ -328,6 +362,108 @@ $app->post("/api/comments/{id}/report", function (Request $req, Response $res, a
         return json($res, ['ok' => true, 'reported' => true]);
     }
     catch (Throwable $e) {
+        return json($res, ['ok' => false, 'error' => 'Server error'], 500);
+    }
+});
+
+$app->post("/api/comments/{id}/vote", function (Request $req, Response $res, array $args) use ($makePdo) {
+    $pdo = null;
+    try {
+        $userId = $req->getAttribute("user_id");
+        if (!$userId) {
+            return json($res, ['ok' => false, 'error' => 'Not authenticated'], 401);
+        }
+
+        $commentId = (int)$args['id'];
+
+        if (!$commentId) {
+            return json($res, ['ok' => false, 'error' => 'Invalid comment ID'], 400);
+        }
+
+        $data = $req->getParsedBody() ?? [];
+        $voteValue = _parse_vote_value($data);
+
+        if ($voteValue === null) {
+            return json($res, ['ok' => false, 'error' => 'Invalid vote value'], 400);
+        }
+
+        $pdo = $makePdo();
+
+        $checkCommentSql = $pdo->prepare("SELECT 1 FROM dbo.Comments WHERE CommentID = :commentId AND IsDeleted = 0");
+        $checkCommentSql->execute([':commentId' => $commentId]);
+        $exists = $checkCommentSql->fetchColumn();
+
+        if (!$exists) {
+            return json($res, ['ok' => false, 'error' => 'Comment not found'], 404);
+        }
+        
+        $pdo->beginTransaction();
+
+        // Check if the user has already voted on this comment
+        $checkVoteSql = $pdo->prepare("SELECT VoteValue FROM dbo.CommentVotes WITH (UPDLOCK, HOLDLOCK) WHERE CommentID = :commentId AND UserID = :userId");
+        $checkVoteSql->execute([
+            ':commentId' => $commentId,
+            ':userId' => (int)$userId
+        ]);
+
+        $existingVote = $checkVoteSql->fetch(PDO::FETCH_ASSOC);
+        // If no existing vote, insert a new one. If there is an existing vote and the value is different, update it.
+        if (!$existingVote) {
+            $ins = $pdo->prepare("INSERT INTO dbo.CommentVotes (CommentID, UserID, VoteValue) VALUES (:commentId, :userId, :voteValue)");
+            $ins->execute([
+                ':commentId' => $commentId,
+                ':userId' => (int)$userId,
+                ':voteValue' => $voteValue
+            ]);
+            // Update the comment's upvote/downvote counts
+            if ($voteValue === 1) {
+                $pdo->prepare("UPDATE dbo.Comments SET UpVotes = UpVotes + 1 WHERE CommentID = :commentId")->execute([':commentId' => $commentId]);
+            } else {
+                $pdo->prepare("UPDATE dbo.Comments SET DownVotes = DownVotes + 1 WHERE CommentID = :commentId")->execute([':commentId' => $commentId]);
+            }
+        } else {
+            $currentValue = (int)$existingVote['VoteValue'];
+            if ($currentValue !== $voteValue) {
+                // User is changing their vote
+                $upd = $pdo->prepare("UPDATE dbo.CommentVotes SET VoteValue = :voteValue, UpdatedAt = SYSUTCDATETIME() WHERE CommentID = :commentId AND UserID = :userId");
+                $upd->execute([
+                    ':voteValue' => $voteValue,
+                    ':commentId' => $commentId,
+                    ':userId' => (int)$userId
+                ]);
+                // Adjust the comment's upvote/downvote counts accordingly
+                if ($currentValue === 1 && $voteValue === -1) {
+                    $pdo->prepare("UPDATE dbo.Comments SET UpVotes = CASE WHEN UpVotes > 0 THEN UpVotes - 1 ELSE 0 END, DownVotes = DownVotes + 1 WHERE CommentID = :commentId")->execute([':commentId' => $commentId]);
+                } else if ($currentValue === -1 && $voteValue === 1) {
+                    $pdo->prepare("UPDATE dbo.Comments SET DownVotes = CASE WHEN DownVotes > 0 THEN DownVotes - 1 ELSE 0 END, UpVotes = UpVotes + 1 WHERE CommentID = :commentId")->execute([':commentId' => $commentId]);
+                }
+            }
+        }
+
+        $totalVotesSql = $pdo->prepare("SELECT UpVotes, DownVotes FROM dbo.Comments WHERE CommentID = :commentId");
+        $totalVotesSql->execute([':commentId' => $commentId]);
+        $votes = $totalVotesSql->fetch(PDO::FETCH_ASSOC);
+        $pdo->commit();
+
+        return json($res, [
+            'ok' => true,
+            'commentId' => $commentId,
+            'userId' => (int)$userId,
+            'voteValue' => $voteValue,
+            'upvotes' => (int)$votes['UpVotes'],
+            'downvotes' => (int)$votes['DownVotes'],
+            'score' => (int)$votes['UpVotes'] - (int)$votes['DownVotes']
+        ]);
+    }
+    catch (Throwable $e) {
+        try{
+            if (isset($pdo) && $pdo instanceof PDO && $pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+        }
+        catch (Throwable $rollbackException) {
+            // Log rollback failure if necessary, but don't override the original error
+        }
         return json($res, ['ok' => false, 'error' => 'Server error'], 500);
     }
 });

@@ -1,16 +1,19 @@
 <script setup>
 import { ref, watch  } from "vue";
-import { RouterLink } from "vue-router";
+import { RouterLink, useRouter } from "vue-router";
 import { timeAgo } from "@/utils/timeAgo";
 import UserRole from "@/components/user/UserRole.vue";
 import { votePost } from "@/api/posts";
 import { isLoggedIn } from "@/stores/userStore";
+import ReportingModal from "@/components/admin/ReportingModal.vue"
 
 const props = defineProps({
   post: { type: Object, required: true },
 });
 
 const isVoting = ref(false);
+const isReportModalOpen = ref(false);
+const router = useRouter();
 
 async function handleVote(dir) {
   if (isVoting.value) return;
@@ -40,6 +43,18 @@ async function handleVote(dir) {
 
 function getAvatarSrc(file) {
   return new URL(`../../assets/img/user-pfps-premade/${file}`, import.meta.url).href;
+}
+
+function openReportModal() {
+  if (!isLoggedIn.value) {
+    router.push("/login");
+    return;
+  }
+  isReportModalOpen.value = true;
+}
+
+function closeReportModal() {
+  isReportModalOpen.value = false;
 }
 
 watch(isLoggedIn, (loggedIn) => {
@@ -119,11 +134,19 @@ function isOfficialTag(name){
               <i class="pi pi-comment me-1"></i>
               {{ post.commentCount }} comments
             </div>
-            <button class="report-btn">
+            <button class="report-btn" @click="openReportModal">
               <i class="pi pi-flag me-1"></i> Report
             </button>
           </div>
         </div>
+
+        <ReportingModal 
+          :isOpen="isReportModalOpen"
+          :targetId="post.PostID"
+          :targetTitle="post.title"
+          type="post" 
+          @close="closeReportModal"
+        />
       </div>
 
       <div class="author-block desktop-only-author">
