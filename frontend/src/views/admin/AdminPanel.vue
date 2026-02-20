@@ -2,8 +2,10 @@
 import { ref } from 'vue';
 import OWPLogoSmall from '@/assets/img/svg/owp-symbol-wht.svg'
 import { RouterLink } from 'vue-router';
-import AdminRoles from '@/components/admin/AdminRoles.vue'; 
-
+import AdminRoles from '@/components/admin/AdminRoles.vue';
+import AdminUsers from '@/components/admin/AdminUsers.vue';
+import AdminCategories from '@/components/admin/AdminCategories.vue';
+import AdminTags from '@/components/admin/AdminTags.vue';
 const activeTab = ref('Roles');
 const tabs = ref([
     { name: 'Users', icon: 'bi-person-fill-gear' },
@@ -45,8 +47,18 @@ const tabs = ref([
             <div class="panel-content w-75 pt-4 px-4 overflow-auto">
                 <div class="tab-content h-100" v-for="tab in tabs" :key="'content-'+tab.name" v-show="activeTab === tab.name">
                     
-                    <template v-if="tab.name === 'Roles'">
+                    <template v-if="tab.name === 'Users'">
+                        <AdminUsers />
+                    </template>
+                    <template v-else-if="tab.name === 'Roles'">
                         <AdminRoles />
+                    </template>
+                    <template v-if="tab.name === 'Tags'">
+                        <AdminTags />
+                    </template>
+
+                    <template v-else-if="tab.name === 'Categories'">
+                        <AdminCategories />
                     </template>
 
                     <template v-else>

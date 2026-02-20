@@ -12,6 +12,27 @@ $app->post("/api/create-post", function (Request $req, Response $res) use ($make
             return json($res, ['ok' => false, 'error' => 'Not Authenticated'], 401);
         }
 
+        $pdo = $makePdo();
+        try {
+            $banStmt = $pdo->prepare("
+                SELECT ISNULL(IsBanned, 0), BanType, BannedUntil
+                FROM dbo.Users WHERE User_ID = :uid
+            ");
+            $banStmt->execute([':uid' => $userId]);
+            $row = $banStmt->fetch(PDO::FETCH_NUM);
+            if ($row && (int)$row[0] === 1) {
+                $banType = $row[1] ? trim((string)$row[1]) : null;
+                $bannedUntil = $row[2] ?? null;
+                $effective = ($banType !== 'temporary' || !$bannedUntil)
+                    || (new \DateTimeImmutable($bannedUntil, new \DateTimeZone('UTC')) > new \DateTimeImmutable('now', new \DateTimeZone('UTC')));
+                if ($effective) {
+                    return json($res, ['ok' => false, 'error' => 'You are banned and cannot create posts.'], 403);
+                }
+            }
+        } catch (Throwable $e) {
+            // Columns may not exist yet (migration 008/009 not run)
+        }
+
         // Tag limit: 5 tags per post
         $data = $req->getParsedBody() ?? [];
         $title = trim((string)($data['title'] ?? ''));
@@ -27,7 +48,6 @@ $app->post("/api/create-post", function (Request $req, Response $res) use ($make
         $tagsIn = array_values(array_unique(array_map('intval', $tagsIn)));
         $tagsIn = array_slice(array_filter($tagsIn, fn($v) => $v > 0), 0, 5);
 
-        $pdo = $makePdo();
         $pdo->beginTransaction();
 
         // Category section
@@ -487,21 +507,58 @@ $app->post('/api/posts/{id}/vote', function (Request $req, Response $res, array 
 $app->get('/api/get-post/{id}', function(Request $req, Response $res, array $args) use ($makePdo) {
     try {
         $pdo = $makePdo();
-
         $postID = (int)$args['id'];
 
-        $stmt = $pdo->prepare('SELECT Content FROM dbo.Posts WHERE PostID = :id');
-        $stmt->execute(['id' => $postID]);
-        $content = $stmt->fetchcolumn();
+        // 1. Fetch comprehensive post details (hybrid query)
+        $sql = "
+            SELECT p.PostID, p.Title, p.Content, p.CreatedAt, p.CategoryID,
+                   u.FirstName, u.LastName, u.Avatar,
+                   r.Name AS RoleName, 
+                   c.Name AS CategoryName
+            FROM dbo.Posts p
+            LEFT JOIN dbo.Users u ON p.AuthorID = u.User_ID
+            LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
+            LEFT JOIN dbo.Categories c ON p.CategoryID = c.CategoryID
+            WHERE p.PostID = :id AND p.IsDeleted = 0
+        ";
 
-        if(!$content){
-            throw new Error("Does not exist.");
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute(['id' => $postID]);
+        $post = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$post) {
+            return json($res, ['ok' => false, 'error' => "Post not found or has been deleted."], 404);
         }
 
-        $res->getBody()->write(json_encode(['ok' => true, 'content' => $content]));
-        return $res->withHeader('Content-Type', 'application/json');
+        // 2. Fetch tags as an array of objects (from HEAD)
+        $tagStmt = $pdo->prepare("
+            SELECT t.TagID, t.Name 
+            FROM dbo.PostTags pt 
+            JOIN dbo.Tags t ON t.TagID = pt.TagID 
+            WHERE pt.PostID = :id
+        ");
+
+        $tagStmt->execute(['id' => $postID]);
+        $tags = $tagStmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // 3. Assemble hybrid response data
+        $responseData = [
+            'PostID'       => (int)$post['PostID'],
+            'title'        => $post['Title'],
+            'content'      => $post['Content'],
+            'createdAt'    => $post['CreatedAt'],
+            'category'     => (int)$post['CategoryID'],     // Raw ID for Edit mode (HEAD)
+            'categoryName' => $post['CategoryName'],        // String for View mode (dev)
+            'authorName'   => trim(($post['FirstName'] ?? '') . ' ' . ($post['LastName'] ?? '')),
+            'authorAvatar' => $post['Avatar'],
+            'authorRole'   => $post['RoleName'] ?? 'User',
+            'tags'         => $tags                         // Array of objects (TagID & Name)
+        ];
+
+        // Ensure the response uses the wrapper standard from dev
+        return json($res, ['ok' => true, 'post' => $responseData]);
+
     } catch (Throwable $e) {
-        $res->getBody()->write(json_encode(['ok' => false, 'error' => $e->getMessage()]));
-        return $res->withStatus(500)->withHeader('Content-Type', 'application/json');
+        return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
     }
 });

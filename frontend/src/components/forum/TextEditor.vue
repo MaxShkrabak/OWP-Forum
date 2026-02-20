@@ -158,6 +158,17 @@ const handleClickOutside = (e) => {
     }
 };
 
+const clearFormatting = () => {
+    editor.value.chain()
+        .focus()
+        .clearNodes()
+        .unsetAllMarks()
+        .run();
+    
+    activeTextColor.value = DEFAULT_TEXT_COLOR;
+    activeHighlightColor.value = DEFAULT_HIGHLIGHT_COLOR;
+};
+
 onMounted(() => window.addEventListener('click', handleClickOutside));
 onUnmounted(() => window.removeEventListener('click', handleClickOutside));
 
