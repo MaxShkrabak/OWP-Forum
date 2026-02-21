@@ -225,6 +225,8 @@ onMounted(() => {
                 <select v-model="sort" class="sort-select">
                   <option value="latest">Latest</option>
                   <option value="oldest">Oldest</option>
+                  <option value="upvotes">Most Upvotes</option>
+                  <option value="comments">Most Comments</option>
                 </select>
               </div>
             </div>
