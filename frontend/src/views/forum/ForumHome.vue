@@ -203,6 +203,8 @@ onMounted(async () => {
               <select v-model="sort" @change="fetchPosts" class="sort-select shadow-sm">
                 <option value="latest">Latest</option>
                 <option value="oldest">Oldest</option>
+                <option value="upvotes">Most Upvotes</option>
+                <option value="comments">Most Comments</option>
               </select>
             </div>
           </div>
