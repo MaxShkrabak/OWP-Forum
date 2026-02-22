@@ -1,21 +1,21 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from "vue";
-import { useRouter } from "vue-router"; 
+import { useRouter } from "vue-router";
 import { createPost, getTags, getCategories } from "@/api/posts";
 import { fullName, userAvatar, isLoggedIn, userRole, userRoleId } from "@/stores/userStore";
 import UserRole from "@/components/user/UserRole.vue";
 import TextEditor from "@/components/forum/TextEditor.vue";
-import client from '@/api/client';
+import client from "@/api/client";
 
 const MAX_TITLE_LEN = 125;
 const MAX_TAGS = 5;
-const isUploading = ref(false)
+const isUploading = ref(false);
 
 const props = defineProps({
   show: Boolean,
   loading: Boolean,
   postData: Object,
-  isRestricted: Boolean
+  isRestricted: Boolean,
 });
 const emit = defineEmits(["close", "published"]);
 
@@ -28,7 +28,7 @@ const form = ref({
   category: "",
   content: "",
   tags: [],
-  disableComments: false
+  disableComments: false,
 });
 
 // Original state tracker for edits
@@ -37,7 +37,7 @@ const originalForm = ref({
   category: "",
   content: "",
   tags: [],
-  disableComments: false
+  disableComments: false,
 });
 
 const editor = ref(null);
@@ -72,8 +72,8 @@ async function loadCategories() {
 const filteredTags = computed(() => {
   const q = tagSearch.value.trim().toLowerCase();
   return allTags.value
-    .filter(t => !form.value.tags.includes(t.TagID || t.tagId))
-    .filter(t => {
+    .filter((t) => !form.value.tags.includes(t.TagID || t.tagId))
+    .filter((t) => {
       const n = t.Name || t.name || "";
       return q ? n.toLowerCase().includes(q) : true;
     })
@@ -81,17 +81,17 @@ const filteredTags = computed(() => {
 });
 
 function tagNameById(id) {
-  const found = allTags.value.find(t => (t.TagID || t.tagId) == id);
+  const found = allTags.value.find((t) => (t.TagID || t.tagId) == id);
   return found ? (found.Name || found.name) : `#${id}`;
 }
 
 function isOfficialTag(id) {
-  const found = allTags.value.find(t => (t.TagID || t.tagId) == id);
-  return found && (found.Name || found.name) == 'Official';
+  const found = allTags.value.find((t) => (t.TagID || t.tagId) == id);
+  return found && (found.Name || found.name) == "Official";
 }
 
 const removeTag = (id) => {
-  form.value.tags = form.value.tags.filter(tid => tid !== id);
+  form.value.tags = form.value.tags.filter((tid) => tid !== id);
 };
 
 function handleClickOutside(event) {
@@ -105,12 +105,17 @@ function populateForm() {
     // Extract everything safely accounting for both uppercase/lowercase variations
     const title = props.postData.Title || props.postData.title || "";
     const content = props.postData.Content || props.postData.content || "";
-    const cat = props.postData.CategoryID || props.postData.categoryId || props.postData.category || "";
+    const cat =
+      props.postData.CategoryID ||
+      props.postData.categoryId ||
+      props.postData.category ||
+      "";
     const dc = !!(props.postData.is_comments_disabled || props.postData.disableComments);
 
-    const tgs = props.postData.tags && Array.isArray(props.postData.tags) 
-                ? props.postData.tags.map(t => Number(t.TagID || t.tagId || t)) 
-                : [];
+    const tgs =
+      props.postData.tags && Array.isArray(props.postData.tags)
+        ? props.postData.tags.map((t) => Number(t.TagID || t.tagId || t))
+        : [];
 
     // Set current form values
     form.value.title = title;
@@ -120,12 +125,12 @@ function populateForm() {
     form.value.disableComments = dc;
 
     // Track the original values to prevent false warnings on close
-    originalForm.value = { 
+    originalForm.value = {
       title,
       content,
-      category: cat, 
-      tags: [...tgs], 
-      disableComments: dc 
+      category: cat,
+      tags: [...tgs],
+      disableComments: dc,
     };
   }
 }
@@ -138,25 +143,29 @@ const hasUnsavedChanges = computed(() => {
     const contentChanged = form.value.content !== originalForm.value.content;
     const categoryChanged = form.value.category !== originalForm.value.category;
     const commentsChanged = form.value.disableComments !== originalForm.value.disableComments;
-    const tagsChanged = JSON.stringify([...form.value.tags].sort()) !== 
-                        JSON.stringify([...originalForm.value.tags].sort());
-    
+    const tagsChanged =
+      JSON.stringify([...form.value.tags].sort()) !==
+      JSON.stringify([...originalForm.value.tags].sort());
+
     return titleChanged || contentChanged || categoryChanged || commentsChanged || tagsChanged;
   } else {
     // Create mode: warn if they typed anything into a blank slate
-    const textContent = form.value.content.replace(/<[^>]*>/g, '').trim();
-    return form.value.title.trim().length > 0 ||
-           textContent.length > 0 ||
-           form.value.category !== "" ||
-           form.value.tags.length > 0;
+    const textContent = form.value.content.replace(/<[^>]*>/g, "").trim();
+    return (
+      form.value.title.trim().length > 0 ||
+      textContent.length > 0 ||
+      form.value.category !== "" ||
+      form.value.tags.length > 0
+    );
   }
 });
 
 const hasMetadataChanges = computed(() => {
   const categoryChanged = form.value.category !== originalForm.value.category;
   const commentsChanged = form.value.disableComments !== originalForm.value.disableComments;
-  const tagsChanged = JSON.stringify([...form.value.tags].sort()) !== 
-                      JSON.stringify([...originalForm.value.tags].sort());
+  const tagsChanged =
+    JSON.stringify([...form.value.tags].sort()) !==
+    JSON.stringify([...originalForm.value.tags].sort());
 
   return categoryChanged || commentsChanged || tagsChanged;
 });
@@ -171,7 +180,8 @@ const canPublish = computed(() => {
   return (
     form.value.title.trim().length > 0 &&
     form.value.title.trim().length <= MAX_TITLE_LEN &&
-    form.value.category !== "" && hasContent
+    form.value.category !== "" &&
+    hasContent
   );
 });
 
@@ -196,10 +206,10 @@ const isInitialLoading = ref(true);
 onMounted(async () => {
   // Wait for both essential lists to load before showing the form
   await Promise.all([loadTags(), loadCategories()]);
-  
+
   document.addEventListener("mousedown", handleClickOutside);
   populateForm();
-  
+
   // Now that data is here, turn off the loader
   isInitialLoading.value = false; 
 });
@@ -209,19 +219,23 @@ onUnmounted(() => {
 });
 
 // Watch the prop to force an update if Vue passes the data a millisecond late
-watch(() => props.postData, () => {
-  populateForm();
-}, { immediate: true });
+watch(
+  () => props.postData,
+  () => {
+    populateForm();
+  },
+  { immediate: true }
+);
 
 // Publish post
 async function doPublish() {
   try {
     if (props.isRestricted) {
-      const targetId = router.currentRoute.value.params.id; 
-      
+      const targetId = router.currentRoute.value.params.id;
+
       await client.patch(`/admin/posts/${targetId}/metadata`, {
         CategoryID: form.value.category,
-        TagIDs: form.value.tags
+        TagIDs: form.value.tags,
       });
     } else {
       await createPost({
@@ -238,17 +252,16 @@ async function doPublish() {
     setTimeout(() => {
       showPublishedConfirmation.value = false;
       form.value = { title: "", category: "", content: "", tags: [] };
-      
+
       if (!props.isRestricted) {
-        router.push("/"); 
+        router.push("/");
       } else {
-        location.reload(); 
+        location.reload();
       }
-      
+
       emit("published");
       emit("close");
     }, 1200);
-
   } catch (err) {
     alert(props.isRestricted ? "Error updating metadata." : "An error occurred while publishing.");
     showPublishConfirm.value = false;
@@ -260,7 +273,6 @@ async function doPublish() {
   <Teleport to="body">
     <Transition name="modal" appear>
       <div v-if="show" class="modal-mask" @mousedown.self="handleCloseRequest">
-
         <div class="modal-container">
           <header class="modal-header">
             <h3>{{ isRestricted ? 'UPDATE POST METADATA' : 'CREATE POST' }}</h3>
@@ -291,21 +303,23 @@ async function doPublish() {
                     {{ titleLength }}/{{ MAX_TITLE_LEN }}
                   </span>
                 </div>
-                
+
                 <div class="user-info-section" v-if="isLoggedIn">
                   <div class="user-meta text-end">
                     <span class="user-name">{{ fullName }}</span>
                     <UserRole :role="userRole" />
                   </div>
                   <div class="avatar-circle">
-                    <img :src="userAvatar" alt="icon" class="avatar-img" />                   
+                    <img :src="userAvatar" alt="icon" class="avatar-img" />
                   </div>
                 </div>
               </div>
 
               <div class="controls-bar">
                 <div class="category-side">
-                  <label class="form-label-small">Category<span v-if="!form.category" class="star-red">*</span></label>
+                  <label class="form-label-small"
+                    >Category<span v-if="!form.category" class="star-red">*</span></label
+                  >
                   <select v-model="form.category" class="clean-select-rect">
                     <option value="">Select Category</option>
                     <option v-for="cat in allCategories" :key="cat.categoryId" :value="cat.categoryId">
@@ -313,7 +327,7 @@ async function doPublish() {
                     </option>
                   </select>
                 </div>
-                
+
                 <div class="tags-side" ref="tagContainerRef">
                   <label class="form-label-small">Tags ({{ form.tags.length }}/{{ MAX_TAGS }})</label>
                   <div class="tag-adder-container">
@@ -326,22 +340,39 @@ async function doPublish() {
                       >
                         +
                       </button>
+
                       <div v-if="showTagPopup" class="tag-floating-box shadow-lg">
-                        <input v-model="tagSearch" class="tag-search-mini" placeholder="Search..." @click.stop />
+                        <input
+                          v-model="tagSearch"
+                          class="tag-search-mini"
+                          placeholder="Search..."
+                          @click.stop
+                        />
                         <div class="tag-options-list">
                           <button
                             v-for="t in filteredTags"
                             :key="t.TagID || t.tagId"
                             class="tag-opt"
-                            @click="() => { form.tags.push(t.TagID || t.tagId); tagSearch = ''; showTagPopup = false; }"
-                            >
+                            @click="
+                              () => {
+                                form.tags.push(t.TagID || t.tagId);
+                                tagSearch = '';
+                                showTagPopup = false;
+                              }
+                            "
+                          >
                             {{ t.Name || t.name }}
                           </button>
                         </div>
                       </div>
                     </div>
+
                     <div class="tag-chips-flow">
-                      <span v-for="tid in form.tags" :key="tid" :class="isOfficialTag(tid) ? 'tag-chip-pill-mod-admin' : 'tag-chip-pill'">
+                      <span
+                        v-for="tid in form.tags"
+                        :key="tid"
+                        :class="isOfficialTag(tid) ? 'tag-chip-pill-mod-admin' : 'tag-chip-pill'"
+                      >
                         {{ tagNameById(tid) }}
                         <button class="chip-remove" @click="removeTag(tid)">&times;</button>
                       </span>
@@ -352,81 +383,102 @@ async function doPublish() {
 
                 <div class="comment-ctrl comm-checkbox-style" v-if="userRoleId >= 3">
                   <span class="me-3">Disable Comments?</span>
-                    <input class="form-check-input" type="checkbox" id="checkComment" v-model="form.disableComments">
-                    <label class="form-check-label" for="checkComment"></label>
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    id="checkComment"
+                    v-model="form.disableComments"
+                  />
+                  <label class="form-check-label" for="checkComment"></label>
                 </div>
               </div>
 
               <div :class="{ 'restricted-input': isRestricted }">
-                <TextEditor v-model="form.content" class="custom-editor" ref="editor" />
+                <!-- keep only editor -->
+                <TextEditor
+                  v-model="form.content"
+                  v-model:isUploading="isUploading"
+                  class="custom-editor"
+                  ref="editor"
+                />
               </div>
-            </div>
-            <!-- Text Editor -->
-            <TextEditor v-model="form.content" v-model:isUploading="isUploading" class="custom-editor" ref="editor" />
+            </template>
           </main>
 
           <footer class="modal-footer">
             <div class="footer-hint"></div>
             <div class="footer-actions">
               <button class="cancel-btn" @click="handleCloseRequest">Cancel</button>
-                <button
-                  class="publish-btn"
-                  :disabled="(isRestricted ? (!form.category || !hasMetadataChanges) : !canPublish) || loading"
-                  @click="showPublishConfirm = true"
-                >
-                  {{ loading ? 'Processing...' : (isRestricted ? 'Update Metadata' : 'Publish Post') }}
-                </button>
-            </div>
-          </footer>
-        </div>
-
-        <div v-if="showPublishedConfirmation" class="inner-warning-overlay">
-          <div class="warning-card shadow-lg">
-            <p class="fs-5 fw-bold">
-              {{ isRestricted ? 'Changes Saved' : 'Post Published' }}
-            </p>
-            
-            <p>
-              {{ isRestricted ? 'Refreshing details...' : 'Redirecting to home...' }}
-            </p>
-          </div>
-        </div>
-
-        <div v-if="isUploading" class="inner-warning-overlay">
-          <div class="warning-card shadow-lg upload-card">
-            <div class="spinner"></div>
-            <p class="fs-5 fw-bold" style="margin-top: 12px;">Uploading image…</p>
-            <p>Please wait.</p>
-          </div>
-        </div>
-
-        <!-- Publish Confirmation -->
-        <div v-if="showPublishConfirm" class="inner-warning-overlay" @mousedown.self="showPublishConfirm = false">
-          <div class="warning-card shadow-lg">
-            <p class="fs-5 fw-bold">
-              {{ isRestricted ? 'Save Changes?' : 'Ready to Publish?' }}
-            </p>
-            
-            <p>
-              {{ isRestricted ? 'This will update the post metadata immediately.' : 'Your post will be visible to everyone.' }}
-            </p>
-            
-            <div class="modal-actions justify-content-center">
-              <button class="cancel-btn" @click="showPublishConfirm = false">Back</button>
-              <button class="publish-btn" @click="doPublish">
-                {{ isRestricted ? 'Confirm & Update' : 'Confirm & Publish' }}
+              <button
+                class="publish-btn"
+                :disabled="(isRestricted ? (!form.category || !hasMetadataChanges) : !canPublish) || loading"
+                @click="showPublishConfirm = true"
+              >
+                {{ loading ? "Processing..." : isRestricted ? "Update Metadata" : "Publish Post" }}
               </button>
             </div>
-          </div>
-        </div>
+          </footer>
 
-        <div v-if="showWarningDialog" class="inner-warning-overlay" @mousedown.self="showWarningDialog = false">
-          <div class="warning-card shadow-lg">
-            <p class="fs-5 fw-bold">Unsaved Changes</p>
-            <p>Are you sure you want to discard your draft? Your changes will be lost.</p>
-            <div class="modal-actions justify-content-center">
-              <button class="cancel-btn" @click="showWarningDialog = false">Back</button>
-              <button class="publish-btn" @click="confirmDiscard">Confirm & Discard</button>
+          <!-- Overlays live inside the ONE Transition root -->
+          <div v-if="showPublishedConfirmation" class="inner-warning-overlay">
+            <div class="warning-card shadow-lg">
+              <p class="fs-5 fw-bold">
+                {{ isRestricted ? "Changes Saved" : "Post Published" }}
+              </p>
+              <p>
+                {{ isRestricted ? "Refreshing details..." : "Redirecting to home..." }}
+              </p>
+            </div>
+          </div>
+
+          <div v-if="isUploading" class="inner-warning-overlay">
+            <div class="warning-card shadow-lg upload-card">
+              <div class="spinner"></div>
+              <p class="fs-5 fw-bold" style="margin-top: 12px;">Uploading image…</p>
+              <p>Please wait.</p>
+            </div>
+          </div>
+
+          <!-- Publish Confirmation -->
+          <div
+            v-if="showPublishConfirm"
+            class="inner-warning-overlay"
+            @mousedown.self="showPublishConfirm = false"
+          >
+            <div class="warning-card shadow-lg">
+              <p class="fs-5 fw-bold">
+                {{ isRestricted ? "Save Changes?" : "Ready to Publish?" }}
+              </p>
+
+              <p>
+                {{
+                  isRestricted
+                    ? "This will update the post metadata immediately."
+                    : "Your post will be visible to everyone."
+                }}
+              </p>
+
+              <div class="modal-actions justify-content-center">
+                <button class="cancel-btn" @click="showPublishConfirm = false">Back</button>
+                <button class="publish-btn" @click="doPublish">
+                  {{ isRestricted ? "Confirm & Update" : "Confirm & Publish" }}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div
+            v-if="showWarningDialog"
+            class="inner-warning-overlay"
+            @mousedown.self="showWarningDialog = false"
+          >
+            <div class="warning-card shadow-lg">
+              <p class="fs-5 fw-bold">Unsaved Changes</p>
+              <p>Are you sure you want to discard your draft? Your changes will be lost.</p>
+              <div class="modal-actions justify-content-center">
+                <button class="cancel-btn" @click="showWarningDialog = false">Back</button>
+                <button class="publish-btn" @click="confirmDiscard">Confirm & Discard</button>
+              </div>
             </div>
           </div>
         </div>
@@ -526,7 +578,9 @@ p {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .modal-header h3 {
@@ -616,7 +670,7 @@ p {
   align-items: center;
   gap: 1em;
   min-width: fit-content;
-  padding: 8px 18px; 
+  padding: 8px 18px;
   border-radius: 50px;
   background: #f8fafc;
   border: 1px solid #aebad4;
@@ -625,7 +679,7 @@ p {
 .user-meta {
   display: flex;
   flex-direction: column;
-  align-items: center; 
+  align-items: center;
   line-height: 1.2;
 }
 
@@ -753,29 +807,31 @@ p {
   cursor: pointer;
 }
 
-.tag-opt:hover { 
-  background: #f1f5f9; 
-  color: #2E6C44; 
+.tag-opt:hover {
+  background: #f1f5f9;
+  color: #2E6C44;
 }
 
-.chip-remove { 
-  background: none; 
-  border: none; 
-  color: white; 
-  cursor: pointer; 
+.chip-remove {
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
   transition: all 0.35s ease;
 }
 .chip-remove:hover {
   transform: translateY(-1px);
 }
 
-.muted-hint { 
-  color: #94a3b8; 
-  font-size: 0.8rem; 
-  font-style: italic; 
+.muted-hint {
+  color: #94a3b8;
+  font-size: 0.8rem;
+  font-style: italic;
 }
 
-.publish-btn, .cancel-btn, .discard-btn {
+.publish-btn,
+.cancel-btn,
+.discard-btn {
   padding: 0.75em 1.6em;
   border-radius: 10px;
   font-weight: 700;
@@ -790,7 +846,8 @@ p {
   outline: none;
 }
 
-.publish-btn, .discard-btn {
+.publish-btn,
+.discard-btn {
   background: #2E6C44;
   color: white;
   border: none;
@@ -803,7 +860,7 @@ p {
   transform: none;
 }
 
-.publish-btn:hover:not(:disabled), 
+.publish-btn:hover:not(:disabled),
 .discard-btn:hover {
   background: #3d8a59;
   box-shadow: 0 4px 12px rgba(46, 108, 68, 0.25);
@@ -823,22 +880,22 @@ p {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
-.close-x { 
-  background: none; 
-  border: none; 
-  font-size: 1.75rem; 
-  color: #ffffff; 
-  cursor: pointer; 
+.close-x {
+  background: none;
+  border: none;
+  font-size: 1.75rem;
+  color: #ffffff;
+  cursor: pointer;
 }
 
 .footer-actions,
-.modal-actions { 
-  display: flex; 
-  gap: 12px; 
+.modal-actions {
+  display: flex;
+  gap: 12px;
 }
 
 .modal-actions {
-  gap: 20px; 
+  gap: 20px;
 }
 
 @media (max-width: 822px) {
@@ -872,5 +929,4 @@ p {
   background-color: #f1f5f9;
   border-radius: 8px;
 }
-
 </style>

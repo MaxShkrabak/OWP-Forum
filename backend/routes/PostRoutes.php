@@ -504,6 +504,43 @@ $app->post('/api/posts/{id}/vote', function (Request $req, Response $res, array 
     }
 });
 
+$app->patch('/api/posts/{id}/soft-delete', function(Request $req, Response $res, array $args) use ($makePdo) {
+    try {
+        $userId = (int)$req->getAttribute("user_id");
+        if (!$userId) {
+            return json($res, ['ok' => false, 'error' => 'Not Authenticated'], 401);
+        }
+
+        $pdo = $makePdo();
+        $postId = (int)$args['id'];
+
+        // Verify ownership
+        $ownerStmt = $pdo->prepare("SELECT AuthorID FROM dbo.Posts WHERE PostID = :pid AND IsDeleted = 0");
+        $ownerStmt->execute([':pid' => $postId]);
+        $authorId = (int)$ownerStmt->fetchColumn();
+
+        if (!$authorId) {
+            return json($res, ['ok' => false, 'error' => 'Post not found or already deleted'], 404);
+        }
+
+        if ($authorId !== $userId) {
+            return json($res, ['ok' => false, 'error' => 'Forbidden'], 403);
+        }
+
+        // Soft delete
+        $stmt = $pdo->prepare("
+            UPDATE dbo.Posts
+            SET IsDeleted = 1, DeletedAt = SYSUTCDATETIME()
+            WHERE PostID = :pid
+        ");
+        $stmt->execute([':pid' => $postId]);
+
+        return json($res, ['ok' => true]);
+    } catch (Throwable $e) {
+        return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+    }
+});
+
 $app->get('/api/get-post/{id}', function(Request $req, Response $res, array $args) use ($makePdo) {
     try {
         $pdo = $makePdo();
@@ -511,7 +548,7 @@ $app->get('/api/get-post/{id}', function(Request $req, Response $res, array $arg
 
         // 1. Fetch comprehensive post details (hybrid query)
         $sql = "
-            SELECT p.PostID, p.Title, p.Content, p.CreatedAt, p.CategoryID,
+            SELECT p.PostID, p.Title, p.Content, p.CreatedAt, p.CategoryID, p.AuthorID,
                    u.FirstName, u.LastName, u.Avatar,
                    r.Name AS RoleName, 
                    c.Name AS CategoryName
@@ -549,6 +586,7 @@ $app->get('/api/get-post/{id}', function(Request $req, Response $res, array $arg
             'createdAt'    => $post['CreatedAt'],
             'category'     => (int)$post['CategoryID'],     // Raw ID for Edit mode (HEAD)
             'categoryName' => $post['CategoryName'],        // String for View mode (dev)
+            'authorId'     => (int)$post['AuthorID'],
             'authorName'   => trim(($post['FirstName'] ?? '') . ' ' . ($post['LastName'] ?? '')),
             'authorAvatar' => $post['Avatar'],
             'authorRole'   => $post['RoleName'] ?? 'User',
