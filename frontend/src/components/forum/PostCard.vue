@@ -160,11 +160,13 @@ function isOfficialTag(name){
             <UserRole :role="post.authorRole" />
           </div>
           <div class="avatar-box shadow-sm">
-            <img
-              :src="getAvatarSrc(post.authorAvatar)"
-              class="avatar-img"
-              alt="user"
-            />
+            <RouterLink :to="`/profile?id=${post.authorId}`">
+              <img
+                :src="getAvatarSrc(post.authorAvatar)"
+                class="avatar-img"
+                alt="user"
+              />
+            </RouterLink>
           </div>
         </div>
       </div>

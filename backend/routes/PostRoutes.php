@@ -146,11 +146,16 @@ $app->get('/api/posts', function (Request $req, Response $res) use ($makePdo) {
 
         $params = $req->getQueryParams();
         $sort = strtolower($params['sort'] ?? 'latest');
-        $orderBy = ($sort === 'oldest') ? 'p.CreatedAt ASC' : 'p.CreatedAt DESC';
+        $orderBy = match ($sort) { 'oldest'   => 'p.CreatedAt ASC',
+            'upvotes'  => 'p.TotalScore DESC, p.CreatedAt DESC',
+            'comments' => 'commentCount DESC, p.CreatedAt DESC',
+            default    => 'p.CreatedAt DESC',
+        };
 
         $getPostsSql = "
             SELECT p.PostID, p.Title, p.CreatedAt, p.CategoryID, p.TotalScore,
-                   u.FirstName, u.LastName, u.Avatar,
+                   (SELECT COUNT(*) FROM dbo.Comments cm WHERE cm.PostID = p.PostID) AS commentCount,
+                   u.FirstName, u.LastName, u.Avatar, u.User_ID,
                    r.Name AS RoleName, c.Name AS CategoryName,
                    pv.VoteValue AS myVote
             FROM dbo.Posts p
@@ -188,9 +193,6 @@ $app->get('/api/posts', function (Request $req, Response $res) use ($makePdo) {
             $tagsByPostId[(int)$tag['PostID']][] = $tag['Name'];
         }
 
-        // TODO: Might not need this function call
-        $commentCounts = fetchCounts($pdo, 'dbo.Comments', $placeholders, $postIds, 'CommentCount');
-
         $posts = [];
         $categoriesMap = [];
 
@@ -203,11 +205,12 @@ $app->get('/api/posts', function (Request $req, Response $res) use ($makePdo) {
                 'categoryId'   => $catId,
                 'title'        => $row['Title'],
                 'createdAt'    => $row['CreatedAt'],
+                'authorId'     => (int)($row['User_ID'] ?? 0),
                 'authorName'   => trim(($row['FirstName'] ?? '') . ' ' . ($row['LastName'] ?? '')),
                 'authorRole'   => $row['RoleName'] ?? 'User',
                 'authorAvatar' => $row['Avatar'] ?? null,
                 'tags'         => $tagsByPostId[$pid] ?? [],
-                'commentCount' => $commentCounts[$pid] ?? 0,
+                'commentCount' => (int)($row['commentCount'] ?? 0),
                 'TotalScore'   => (int)($row['TotalScore'] ?? 0),
                 'myVote'       => (int)($row['myVote'] ?? 0),
             ];
@@ -296,10 +299,12 @@ $app->get('/api/categories/{id}/posts', function (Request $req, Response $res, a
         $qLike = '%' . $qRaw . '%';
 
         $sort = strtolower($params['sort'] ?? 'latest');
-        $orderBy = match($sort) {
-            'oldest' => 'p.CreatedAt ASC',
-            'title'  => 'p.Title ASC',
-            default  => 'p.CreatedAt DESC',
+        $orderBy = match ($sort) {
+            'oldest'   => 'p.CreatedAt ASC',
+            'title'    => 'p.Title ASC',
+            'upvotes'  => 'p.TotalScore DESC, p.CreatedAt DESC',
+            'comments' => 'commentCount DESC, p.CreatedAt DESC',
+            default    => 'p.CreatedAt DESC',
         };
 
         $searchWhere = '';
@@ -341,6 +346,7 @@ $app->get('/api/categories/{id}/posts', function (Request $req, Response $res, a
 
         $sql = "
             SELECT p.PostID, p.Title, p.CreatedAt, p.TotalScore,
+                   (SELECT COUNT(*) FROM dbo.Comments cm WHERE cm.PostID = p.PostID) AS commentCount,
                    u.FirstName, u.LastName, u.Avatar, r.Name AS RoleName,
                    ISNULL(pv.VoteValue, 0) AS myVote
             FROM dbo.Posts p
@@ -377,9 +383,6 @@ $app->get('/api/categories/{id}/posts', function (Request $req, Response $res, a
                 $tagsByPostId[(int)$t['PostID']][] = $t['Name'];
             }
 
-            // Comment count
-            $commentCounts = fetchCounts($pdo, 'dbo.Comments', $placeholders, $postIds, 'CommentCount');
-
             foreach ($rows as $row) {
                 $pid = (int)$row['PostID'];
                 $posts[] = [
@@ -390,7 +393,7 @@ $app->get('/api/categories/{id}/posts', function (Request $req, Response $res, a
                     'authorRole'   => $row['RoleName'] ?? 'User',
                     'authorAvatar' => $row['Avatar'] ?? null,
                     'tags'         => $tagsByPostId[$pid] ?? [],
-                    'commentCount' => $commentCounts[$pid] ?? 0,
+                    'commentCount' => (int)($row['commentCount'] ?? 0),
                     'TotalScore'   => (int)($row['TotalScore'] ?? 0),
                     'myVote'       => (int)($row['myVote'] ?? 0),
                 ];
