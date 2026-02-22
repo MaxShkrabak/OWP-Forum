@@ -153,7 +153,7 @@ Key highlights of the database design:
 This structure ensures data integrity while supporting all major features of the platform, including posting, comment threads, moderation tools, and user identity verification.
 
 ### 📘 ERD Diagram
-![ERD](./erd.jpg)
+![ERD](./docs/images/erd.png)
 ---
 
 ## Getting Started
