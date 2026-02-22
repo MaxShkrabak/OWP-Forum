@@ -1,0 +1,29 @@
+name: Backend Testing
+
+on:
+  push:
+    branches: [ "main", "dev" ]
+    paths:
+      - 'backend/**' # runs if backend files changed
+  pull_request:
+    branches: [ "main", "dev" ]
+    paths:
+      - 'backend/**'
+
+jobs:
+  backend-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, dom, curl, libxml, mysql
+      - name: Install Composer Dependencies
+        run: composer install
+      - name: Run PHP Tests
+        run: ./vendor/bin/phpunit tests
