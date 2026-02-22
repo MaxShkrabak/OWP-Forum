@@ -33,7 +33,7 @@ $app->get('/api/profile/{uid}', function(Request $req, Response $res, array $arg
 
 $app->get('/api/profile/{uid}/posts', function (Request $req, Response $res, array $args) use ($makePdo) {
     try {
-        
+
         $authorId = (int)$args['uid'];
 
         $pdo = $makePdo();
@@ -43,12 +43,13 @@ $app->get('/api/profile/{uid}/posts', function (Request $req, Response $res, arr
         $limit = min(max((int)($params['limit'] ?? 5), 1), 50);
         $page  = max((int)($params['page'] ?? 1), 1);
         
-        // Sorting options
         $sort = strtolower($params['sort'] ?? 'latest');
         $orderBy = match($sort) {
-            'oldest' => 'p.CreatedAt ASC',
-            'title'  => 'p.Title ASC',
-            default  => 'p.CreatedAt DESC',
+            'oldest'   => 'p.CreatedAt ASC',
+            'title'    => 'p.Title ASC',
+            'upvotes'  => 'p.TotalScore DESC, p.CreatedAt DESC',
+            'comments' => 'commentCount DESC, p.CreatedAt DESC',
+            default    => 'p.CreatedAt DESC',
         };
 
         $countStmt = $pdo->prepare("SELECT COUNT(*) FROM dbo.Posts WHERE AuthorID = :uid");
@@ -60,7 +61,8 @@ $app->get('/api/profile/{uid}/posts', function (Request $req, Response $res, arr
         $offset = ($page - 1) * $limit;
 
         $getPostsSql = "
-            SELECT p.AuthorID, p.PostID, p.Title, p.CreatedAt, p.CategoryID,
+            SELECT p.AuthorID, p.PostID, p.Title, p.CreatedAt, p.CategoryID, p.TotalScore,
+                   (SELECT COUNT(*) FROM dbo.Comments cm WHERE cm.PostID = p.PostID) AS commentCount,
                    u.FirstName, u.LastName, u.Avatar, u.User_ID,
                    r.Name AS RoleName, c.Name AS CategoryName
             FROM dbo.Posts p
@@ -96,7 +98,6 @@ $app->get('/api/profile/{uid}/posts', function (Request $req, Response $res, arr
             $tagsByPostId[(int)$tag['PostID']][] = $tag['Name'];
         }
 
-        $commentCounts = fetchCounts($pdo, 'dbo.Comments', $placeholders, $postIds, 'CommentCount');
         $likeCounts    = fetchCounts($pdo, 'dbo.PostLikes', $placeholders, $postIds, 'LikeCount');
 
         $posts = [];
@@ -111,13 +112,14 @@ $app->get('/api/profile/{uid}/posts', function (Request $req, Response $res, arr
                 'categoryId'   => $catId,
                 'title'        => $row['Title'],
                 'createdAt'    => $row['CreatedAt'],
-                'authorId'   => (int)($row['User_ID'] ?? 0),
+                'authorId'     => (int)($row['User_ID'] ?? 0),
                 'authorName'   => trim(($row['FirstName'] ?? '') . ' ' . ($row['LastName'] ?? '')),
                 'authorRole'   => $row['RoleName'] ?? 'User',
                 'authorAvatar' => $row['Avatar'] ?? null,
                 'tags'         => $tagsByPostId[$pid] ?? [],
-                'commentCount' => $commentCounts[$pid] ?? 0,
+                'commentCount' => (int)($row['commentCount'] ?? 0),
                 'likeCount'    => $likeCounts[$pid] ?? 0,
+                'TotalScore'   => (int)($row['TotalScore'] ?? 0),
             ];
 
             $posts[] = $post;
