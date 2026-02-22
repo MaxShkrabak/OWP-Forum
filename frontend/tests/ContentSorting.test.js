@@ -11,6 +11,12 @@ vi.mock("@/api/posts.js", () => ({
   })),
 }));
 
+vi.mock("@/api/auth.js", () => ({
+  checkAuth: vi.fn(async () => ({
+    data: null
+  })),
+}));
+
 describe("ForumHome.vue", () => {
   const createWrapper = () =>
     mount(ForumHome, {
