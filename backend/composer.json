@@ -8,5 +8,13 @@
     },
     "require-dev": {
         "phpunit/phpunit": "^12.5"
+    },
+    "autoload": {
+        "psr-4": {
+            "Forum\\": "src/"
+        },
+        "files": [
+            "src/Helpers.php"
+        ]
     }
 }

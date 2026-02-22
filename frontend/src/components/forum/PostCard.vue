@@ -5,7 +5,7 @@ import { timeAgo } from "@/utils/timeAgo";
 import UserRole from "@/components/user/UserRole.vue";
 import { votePost } from "@/api/posts";
 import { isLoggedIn } from "@/stores/userStore";
-import ReportingModal from "@/components/admin/ReportingModal.vue"
+import ReportingModal from "@/components/user/ReportingModal.vue"
 
 const props = defineProps({
   post: { type: Object, required: true },
