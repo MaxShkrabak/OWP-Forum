@@ -1,8 +1,11 @@
 <?php
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
+use Forum\Controllers\ReportController;
 
 use function Forum\Helpers\json;
+
+$reportController = new ReportController($makePdo);
 
 $app->get('/api/reports', function (Request $req, Response $res) use ($makePdo) {
     try {
@@ -82,3 +85,7 @@ $app->patch('/api/reports/{id}/resolve', function (Request $req, Response $res, 
         return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
     }
 });
+
+$app->get('/api/report/tags', [$reportController, 'getReportTags']);
+
+$app->post('/api/report', [$reportController, 'submitReport']);

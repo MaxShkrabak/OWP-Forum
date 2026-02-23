@@ -2,16 +2,19 @@
 import ForumHeader from '@/components/layout/ForumHeader.vue';
 import pfpModal from '@/components/user/UserPfpModal.vue';
 import UserSettings from '@/components/user/UserSettings.vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { getPaginationRange } from '@/utils/pagination';
 import { onMounted, ref, watch, computed } from 'vue';
 import { uid } from '@/stores/userStore';
 import { fetchPosts as apiGetPosts } from "@/api/posts";
+import { fetchUser } from "@/api/users";
 import PostCard from '@/components/forum/PostCard.vue';
 import UserCard from '@/components/user/UserCard.vue';
 
 const activeTab = ref('yourPosts');
+const isExistingUser = ref(true); // Used to check if the user exists when visiting other user's profile
 
+const route = useRoute();
 const router = useRouter();
 const posts = ref([]);
 const loading = ref(true);
@@ -21,6 +24,39 @@ const currentPage = ref(1);
 const totalPages = ref(1);
 const limit = ref(Number(localStorage.getItem('category_limit')) || 5);
 const sort = ref(localStorage.getItem('category_sort') || 'latest');
+
+// Used for user card if it's not the current user
+const setAvatar = ref(null);
+const setFullName = ref(null);
+const setRole = ref(null);
+
+function getUrlParams() {
+  const id = route.query.id || uid.value || false;
+  return id;
+}
+
+function checkIfCurrUser() {
+  const urlUserId = getUrlParams();
+  return urlUserId === String(uid.value);
+}
+
+async function checkAndSetUser() {
+  const userId = getUrlParams();
+  
+  if (userId && userId !== String(uid.value)) {
+    try {
+      const data = await fetchUser(userId);
+      if(data.ok) {
+        setAvatar.value = data.user.Avatar || 'pfp-0.png';
+        setFullName.value = data.user.FirstName + " " + data.user.LastName;
+        setRole.value = data.user.RoleName || 'User';
+      }
+    } catch (e) {
+      isExistingUser.value = false;
+      console.error("User fetch error:", e);
+    }
+  }
+}
 
 async function getPosts() {
   loading.value = true;
@@ -33,10 +69,11 @@ async function getPosts() {
         limit: limit.value,
         sort: sort.value,
         page: currentPage.value,
-        userId: uid.value
+        userId: getUrlParams()
       });
 
       posts.value = data.posts || [];
+
       if (data.meta) {
         totalPages.value = data.meta.totalPages || 1;
       }
@@ -65,6 +102,7 @@ async function getPosts() {
   }
 }
 
+
 watch([limit, sort], () => {
   currentPage.value = 1;
   getPosts();
@@ -77,10 +115,22 @@ const displayedPages = computed(() => {
   return getPaginationRange(currentPage.value, totalPages.value, 2);
 });
 
-watch(currentPage, getPosts);
-watch(activeTab, getPosts);
+watch([activeTab, currentPage], getPosts);
 
-onMounted(getPosts);
+watch(() => route.query.id, (newId, oldId) => {
+  if (newId !== oldId) {
+    isExistingUser.value = true;
+    currentPage.value = 1;
+    activeTab.value = 'yourPosts';
+    checkAndSetUser();
+    getPosts();
+  }
+});
+
+onMounted(() => {
+  checkAndSetUser();
+  getPosts();
+});
 </script>
 
 <template>
@@ -89,9 +139,24 @@ onMounted(getPosts);
     <pfpModal/>
     <UserSettings/>
       <div class="container-fluid text-center">
-        <div class="row">
+        
+        <div v-if="!getUrlParams()" class="empty-state text-center py-5">
+          Guest users do not have profiles. Please sign in to view your profile.
+        </div>
 
-          <UserCard is-profile class="col-md-3"></UserCard>
+        <div v-else-if="!isExistingUser" class="empty-state text-center py-5">
+          User does not exist.
+        </div>
+
+        <div class="row" v-else>
+
+          <UserCard
+          is-profile 
+          :is-curr-user="checkIfCurrUser()"
+          :avatar="setAvatar"
+          :new-full-name="setFullName"
+          :new-role="setRole"
+          class="col-md-3"></UserCard>
 
           <!--Filter header-->
           <div class="col-md-9 text-center">
@@ -104,21 +169,42 @@ onMounted(getPosts);
               <div class="v-divider"></div>
               
               <div>
-                <div class="row justify-content-evenly pr-3 fs-4 gap-4">
+                <div class="row justify-content-evenly pr-3 fs-4 gap-4" v-if="!checkIfCurrUser()">
                 
                 <!-- Filter Options -->  
-                <button class="col-12 col-sm-12 col-lg-auto filter-options" :class="{ 'activeBox' : activeTab === 'yourPosts' }" @click="activeTab = 'yourPosts'">
+                <button class="col-12 col-sm-12 col-lg-auto filter-options"
+                :class="{ 'activeBox' : activeTab === 'yourPosts' }"
+                @click="activeTab = 'yourPosts'">
+                  <span class="activeText">{{ setFullName + "'s" }} Posts</span>
+                  <div class="activeLine"></div>
+                </button>
+                
+                </div>
+
+                <div class="row justify-content-evenly pr-3 fs-4 gap-4" v-else>
+                
+                <!-- Filter Options -->  
+                <button class="col-12 col-sm-12 col-lg-auto filter-options"
+                :class="{ 'activeBox' : activeTab === 'yourPosts' }"
+                @click="activeTab = 'yourPosts'">
                   <span class="activeText">Your Posts</span>
                   <div class="activeLine"></div>
                 </button>
-                <button class="col-12 col-sm-12 col-lg-auto filter-options" :class="{ 'activeBox' : activeTab === 'followedPosts' }" @click="activeTab = 'followedPosts'">
+
+                <button class="col-12 col-sm-12 col-lg-auto filter-options"
+                :class="{ 'activeBox' : activeTab === 'followedPosts' }"
+                @click="activeTab = 'followedPosts'">
                   <span class="activeText">Followed Posts</span>
                   <div class="activeLine"></div>
                 </button>
-                <button class="col-12 col-sm-12 col-lg-auto filter-options" :class="{ 'activeBox' : activeTab === 'likedPosts' }" @click="activeTab = 'likedPosts'">
+
+                <button class="col-12 col-sm-12 col-lg-auto filter-options"
+                :class="{ 'activeBox' : activeTab === 'likedPosts' }"
+                @click="activeTab = 'likedPosts'">
                   <span class="activeText">Liked Posts</span>
                   <div class="activeLine"></div>
                 </button>
+
                 </div>
               </div>
             </div>
@@ -139,6 +225,8 @@ onMounted(getPosts);
                 <select v-model="sort" class="sort-select">
                   <option value="latest">Latest</option>
                   <option value="oldest">Oldest</option>
+                  <option value="upvotes">Most Upvotes</option>
+                  <option value="comments">Most Comments</option>
                 </select>
               </div>
             </div>

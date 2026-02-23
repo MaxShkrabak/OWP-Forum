@@ -4,7 +4,10 @@ import { useRoute, useRouter } from "vue-router";
 import { getPost, votePost } from "@/api/posts";
 import ViewPostContent from "@/components/forum/ViewPostContent.vue";
 import ViewPostHeader from "@/components/forum/ViewPostHeader.vue";
-import { isLoggedIn, userRole } from "@/stores/userStore";
+import { isLoggedIn, userRole, userRoleId, uid } from "@/stores/userStore";
+import CreatePostModal from "@/components/forum/CreatePostModal.vue";
+import PostModerationSidebar from "@/components/admin/PostModerationSidebar.vue";
+import CommentSection from "@/components/forum/CommentSection.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -14,17 +17,17 @@ const post = ref(null);
 const loading = ref(true);
 const error = ref(null);
 
-// Follow toggle state
-const isFollowing = ref(false);
+const showEditModal = ref(false);
+const isRestricted = ref(false);
 
-// Voting state
+// Follow & Vote toggle states
+const isFollowing = ref(false);
 const isVoting = ref(false);
 
 async function handleVote(dir) {
   if (isVoting.value || !post.value) return;
 
   const currentVote = Number(post.value.myVote ?? 0);
-
   let action = dir;
   if (
     (dir === "up" && currentVote === 1) ||
@@ -34,10 +37,8 @@ async function handleVote(dir) {
   }
 
   isVoting.value = true;
-
   try {
     const data = await votePost(post.value.PostID, action);
-
     if (data?.ok) {
       post.value.myVote = data.myVote;
       post.value.TotalScore = data.score;
@@ -49,28 +50,32 @@ async function handleVote(dir) {
   }
 }
 
-// Toggle Follow button
-const toggleFollow = () => {
-  isFollowing.value = !isFollowing.value;
-};
+const toggleFollow = () => (isFollowing.value = !isFollowing.value);
 
-// Can report
 const canReport = computed(() => {
   if (!isLoggedIn.value) return true;
-
   const role = (userRole?.value || "").toLowerCase();
   return !(role === "admin" || role === "moderator");
 });
 
-//Admin and Mod only
-const isAdminOrMod = computed(() => {
-  const role = (userRole?.value || "").toLowerCase();
-  return role === "admin" || role === "moderator";
+// Admin and Mod only
+const isAdminOrMod = computed(() => Number(userRoleId.value) >= 3);
+
+// Relies on backend sending post.authorId
+const isAuthor = computed(() => {
+  if (!post.value) return false;
+  return Number(post.value.authorId) === Number(uid.value);
 });
 
 function goBack() {
   if (window.history.length > 1) router.back();
   else router.push("/");
+}
+
+// modalType: 'edit' (author/full) OR 'metadata' (restricted)
+function openRestrictedModal(modalType) {
+  isRestricted.value = modalType === "metadata";
+  showEditModal.value = true;
 }
 
 onMounted(async () => {
@@ -92,24 +97,21 @@ onMounted(async () => {
         <span class="back-arrow">←</span>
       </div>
 
-      <!-- Loading -->
       <div v-if="loading" class="loader pt-5">
         <div class="spinner-border"></div>
       </div>
 
-      <!-- Error -->
       <div v-else-if="error" class="error empty-state text-center">
         <p class="fw-medium text-secondary">
           The post has been deleted or does not exist.
         </p>
       </div>
 
-      <!-- Page -->
       <div v-else-if="post" class="page-container">
         <div class="center-container col text-center">
           <div class="row gx-0">
             <div class="col-12 header-align mb-2">
-              <ViewPostHeader />
+              <ViewPostHeader :post="post" />
             </div>
           </div>
 
@@ -118,8 +120,12 @@ onMounted(async () => {
               <div class="sidebar-actions">
                 <div class="voteFol">
                   <div class="vote-container vote-container--sidebar">
-                    <button class="vote-btn-up pi pi-chevron-up mb-1" :class="{ active: Number(post.myVote) === 1 }"
-                      :disabled="isVoting" @click="handleVote('up')"></button>
+                    <button
+                      class="vote-btn-up pi pi-chevron-up mb-1"
+                      :class="{ active: Number(post.myVote) === 1 }"
+                      :disabled="isVoting"
+                      @click="handleVote('up')"
+                    ></button>
 
                     <span class="vote-count" :class="{
                       upvoted: Number(post.myVote) === 1,
@@ -128,9 +134,12 @@ onMounted(async () => {
                       {{ post.TotalScore ?? 0 }}
                     </span>
 
-                    <button class="vote-btn-down pi pi-chevron-down mt-1"
-                      :class="{ active: Number(post.myVote) === -1 }" :disabled="isVoting"
-                      @click="handleVote('down')"></button>
+                    <button
+                      class="vote-btn-down pi pi-chevron-down mt-1"
+                      :class="{ active: Number(post.myVote) === -1 }"
+                      :disabled="isVoting"
+                      @click="handleVote('down')"
+                    ></button>
                   </div>
 
                   <button class="follow-btn" :class="{ following: isFollowing }" type="button" @click="toggleFollow">
@@ -143,25 +152,33 @@ onMounted(async () => {
                   <span>Report</span>
                 </button>
 
-                <div v-if="isAdminOrMod" class="edit-delete-actions">
-                  <button class="edit-delete edit-btn" type="button">
-                    Edit
-                  </button>
-                  <button class="edit-delete delete-btn" type="button">
-                    Delete
-                  </button>
-                </div>
+                <PostModerationSidebar
+                  v-if="isAuthor || isAdminOrMod"
+                  :post="post"
+                  :user="{ RoleID: Number(userRoleId) }"
+                  :is-author="isAuthor"
+                  @open-modal="openRestrictedModal"
+                />
+
+                <CreatePostModal
+                  v-if="showEditModal"
+                  :show="showEditModal"
+                  :post-data="post"
+                  :is-restricted="isRestricted"
+                  @close="showEditModal = false"
+                />
               </div>
             </div>
 
-            <!-- Content -->
             <div class="post-content col-md-9 col-lg-10">
               <ViewPostContent :content="post.content" />
             </div>
           </div>
 
-          <div class="row">
-            <div class="post-comments mt-4">comments</div>
+          <div class="row gx-0">
+            <div class="post-comments mt-2 mb-4">
+              <CommentSection />
+            </div>
           </div>
         </div>
       </div>
@@ -307,19 +324,15 @@ onMounted(async () => {
   0% {
     transform: translateY(0);
   }
-
   25% {
     transform: translateY(-5px);
   }
-
   50% {
     transform: translateY(3px);
   }
-
   70% {
     transform: translateY(-1px);
   }
-
   85%,
   100% {
     transform: translateY(0);
@@ -397,44 +410,6 @@ onMounted(async () => {
   gap: 10px;
 }
 
-/* Delete Edit buttons*/
-.edit-delete-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.edit-delete {
-  width: 70px;
-  height: 40px;
-  border-radius: 6px;
-  border: none;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.edit-btn {
-  background-color: #007c8a;
-  color: white;
-  transition: 0.15s;
-}
-
-.edit-btn:hover {
-  background-color: #18a7b7;
-  transition: 0.15s;
-}
-
-.delete-btn {
-  background-color: #9f3323;
-  color: white;
-  transition: 0.15s;
-}
-
-.delete-btn:hover {
-  background-color: #737373;
-  transition: 0.15s;
-}
-
 /* HEADER alignment */
 .header-align {
   padding-left: 0;
@@ -446,9 +421,7 @@ onMounted(async () => {
 .go-back-floating {
   position: absolute;
   left: -88px;
-  /* further left */
   top: 4px;
-  /* slightly higher */
 
   width: 56px;
   height: 56px;

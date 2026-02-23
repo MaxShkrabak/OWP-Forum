@@ -15,16 +15,58 @@ $app->get('/api/me', function(Request $req, Response $res) use ($makePdo) {
 
         $pdo = $makePdo();
 
-        $sql = "
-            SELECT u.User_ID, u.Email, u.FirstName, u.LastName, u.Avatar, r.Name as RoleName, r.RoleID
-            FROM dbo.Users u
-            LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
-            WHERE u.User_ID = :uid
-        ";
-        
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute([':uid' => $userId]);
-        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        // Single query when ban columns exist (migrations 008, 009); fallback for older DBs
+        $user = null;
+        try {
+            $sql = "
+                SELECT u.User_ID, u.Email, u.FirstName, u.LastName, u.Avatar, r.Name as RoleName, r.RoleID,
+                       ISNULL(u.IsBanned, 0) as IsBanned, u.BanType, u.BannedUntil
+                FROM dbo.Users u
+                LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
+                WHERE u.User_ID = :uid
+            ";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([':uid' => $userId]);
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        } catch (Throwable $e) {
+            // Ban columns may not exist
+        }
+
+        if (!$user) {
+            $sql = "
+                SELECT u.User_ID, u.Email, u.FirstName, u.LastName, u.Avatar, r.Name as RoleName, r.RoleID
+                FROM dbo.Users u
+                LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
+                WHERE u.User_ID = :uid
+            ";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([':uid' => $userId]);
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($user) {
+                $user['IsBanned'] = 0;
+                $user['BanType'] = null;
+                $user['BannedUntil'] = null;
+            }
+        }
+
+        if (!$user) {
+            return json($res, ['ok' => false, 'error' => 'User not found'], 404);
+        }
+
+        $user['IsBanned'] = (int)($user['IsBanned'] ?? 0);
+        $user['BanType'] = isset($user['BanType']) && $user['BanType'] ? trim((string)$user['BanType']) : null;
+        $user['BannedUntil'] = isset($user['BannedUntil']) && $user['BannedUntil'] ? $user['BannedUntil'] : null;
+
+        // Effective ban: treat expired temporary ban as not banned (no DB write)
+        if ($user['IsBanned'] && $user['BanType'] === 'temporary' && $user['BannedUntil']) {
+            $until = $user['BannedUntil'] instanceof \DateTimeInterface
+                ? $user['BannedUntil'] : new \DateTimeImmutable($user['BannedUntil'], new \DateTimeZone('UTC'));
+            if ($until <= new \DateTimeImmutable('now', new \DateTimeZone('UTC'))) {
+                $user['IsBanned'] = 0;
+                $user['BanType'] = null;
+                $user['BannedUntil'] = null;
+            }
+        }
 
         return json($res, ['ok' => true, 'user' => $user]);
     } catch (Throwable $e) {

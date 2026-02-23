@@ -147,3 +147,8 @@ installed.php
 # Uploaded images
 backend/public/uploads/
 backend/vendor/*
+backend/vendor/autoload.php
+backend/vendor/composer/autoload_real.php
+backend/vendor/composer/autoload_static.php
+backend/vendor/composer/installed.json
+backend/vendor/composer/installed.php

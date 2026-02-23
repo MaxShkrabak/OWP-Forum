@@ -1,29 +1,48 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from "vue";
-import { useRouter } from "vue-router"; 
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
+import { useRouter } from "vue-router";
 import { createPost, getTags, getCategories } from "@/api/posts";
 import { fullName, userAvatar, isLoggedIn, userRole, userRoleId } from "@/stores/userStore";
 import UserRole from "@/components/user/UserRole.vue";
 import TextEditor from "@/components/forum/TextEditor.vue";
+import client from "@/api/client";
 
 const MAX_TITLE_LEN = 125;
 const MAX_TAGS = 5;
+const isUploading = ref(false);
 
 const props = defineProps({
   show: Boolean,
-  loading: Boolean
+  loading: Boolean,
+  postData: Object,
+  isRestricted: Boolean,
 });
 const emit = defineEmits(["close", "published"]);
 
 const router = useRouter();
 const showPublishedConfirmation = ref(false);
 
+// distinguish full edit vs create vs restricted metadata
+const isEditMode = computed(() => !!props.postData && !props.isRestricted);
+const isCreateMode = computed(() => !props.postData && !props.isRestricted);
+const isMetadataMode = computed(() => !!props.isRestricted);
+
 // Form state
 const form = ref({
   title: "",
   category: "",
   content: "",
-  tags: []
+  tags: [],
+  disableComments: false,
+});
+
+// Original state tracker for edits
+const originalForm = ref({
+  title: "",
+  category: "",
+  content: "",
+  tags: [],
+  disableComments: false,
 });
 
 const editor = ref(null);
@@ -37,34 +56,11 @@ const allTags = ref([]);
 const tagContainerRef = ref(null);
 const allCategories = ref([]);
 
-// Validation
-const hasUnsavedChanges = computed(() => {
-  const textContent = form.value.content.replace(/<[^>]*>/g, '').trim();
-  return form.value.title.trim().length > 0 ||
-         textContent.length > 0 ||
-         form.value.category !== "" ||
-         form.value.tags.length > 0;
-});
-
-const titleLength = computed(() => form.value.title.length);
-
-const canPublish = computed(() => {
-  let textContent = form.value.content.replace(/<[^>]*>/g, "");
-  textContent = textContent.replace(/&nbsp;/g, " ").trim();
-  const hasContent = textContent.length > 0 || form.value.content.includes("<img");
-
-  return (
-    form.value.title.trim().length > 0 &&
-    form.value.title.trim().length <= MAX_TITLE_LEN &&
-    form.value.category !== "" && hasContent
-  );
-});
-
 // Tag Logic
 async function loadTags() {
   try {
     allTags.value = await getTags();
-  } catch (e) { 
+  } catch (e) {
     console.error("Tag load error:", e);
   }
 }
@@ -81,21 +77,26 @@ async function loadCategories() {
 const filteredTags = computed(() => {
   const q = tagSearch.value.trim().toLowerCase();
   return allTags.value
-    .filter(t => !form.value.tags.includes(t.tagId))
-    .filter(t => (q ? t.name.toLowerCase().includes(q) : true))
+    .filter((t) => !form.value.tags.includes(t.TagID || t.tagId))
+    .filter((t) => {
+      const n = t.Name || t.name || "";
+      return q ? n.toLowerCase().includes(q) : true;
+    })
     .slice(0, 20);
 });
 
 function tagNameById(id) {
-  return allTags.value.find(t => t.tagId === id)?.name || `#${id}`;
+  const found = allTags.value.find((t) => (t.TagID || t.tagId) == id);
+  return found ? (found.Name || found.name) : `#${id}`;
 }
 
 function isOfficialTag(id) {
-  return allTags.value.find(t => t.tagId === id)?.name == 'Official' || false
+  const found = allTags.value.find((t) => (t.TagID || t.tagId) == id);
+  return found && (found.Name || found.name) == "Official";
 }
 
 const removeTag = (id) => {
-  form.value.tags = form.value.tags.filter(tid => tid !== id);
+  form.value.tags = form.value.tags.filter((tid) => tid !== id);
 };
 
 function handleClickOutside(event) {
@@ -103,6 +104,91 @@ function handleClickOutside(event) {
     showTagPopup.value = false;
   }
 }
+
+function populateForm() {
+  if (props.postData) {
+    // Extract everything safely accounting for both uppercase/lowercase variations
+    const title = props.postData.Title || props.postData.title || "";
+    const content = props.postData.Content || props.postData.content || "";
+    const cat =
+      props.postData.CategoryID ||
+      props.postData.categoryId ||
+      props.postData.category ||
+      "";
+    const dc = !!(props.postData.is_comments_disabled || props.postData.disableComments);
+
+    const tgs =
+      props.postData.tags && Array.isArray(props.postData.tags)
+        ? props.postData.tags.map((t) => Number(t.TagID || t.tagId || t))
+        : [];
+
+    // Set current form values
+    form.value.title = title;
+    form.value.content = content;
+    form.value.category = cat;
+    form.value.tags = [...tgs];
+    form.value.disableComments = dc;
+
+    // Track the original values to prevent false warnings on close
+    originalForm.value = {
+      title,
+      content,
+      category: cat,
+      tags: [...tgs],
+      disableComments: dc,
+    };
+  }
+}
+
+// Validation
+const hasUnsavedChanges = computed(() => {
+  if (props.postData) {
+    // Edit mode: only warn if they actually changed something from the original
+    const titleChanged = form.value.title !== originalForm.value.title;
+    const contentChanged = form.value.content !== originalForm.value.content;
+    const categoryChanged = form.value.category !== originalForm.value.category;
+    const commentsChanged = form.value.disableComments !== originalForm.value.disableComments;
+    const tagsChanged =
+      JSON.stringify([...form.value.tags].sort()) !==
+      JSON.stringify([...originalForm.value.tags].sort());
+
+    return titleChanged || contentChanged || categoryChanged || commentsChanged || tagsChanged;
+  } else {
+    // Create mode: warn if they typed anything into a blank slate
+    const textContent = form.value.content.replace(/<[^>]*>/g, "").trim();
+    return (
+      form.value.title.trim().length > 0 ||
+      textContent.length > 0 ||
+      form.value.category !== "" ||
+      form.value.tags.length > 0
+    );
+  }
+});
+
+const hasMetadataChanges = computed(() => {
+  const categoryChanged = form.value.category !== originalForm.value.category;
+  const commentsChanged = form.value.disableComments !== originalForm.value.disableComments;
+  const tagsChanged =
+    JSON.stringify([...form.value.tags].sort()) !==
+    JSON.stringify([...originalForm.value.tags].sort());
+
+  return categoryChanged || commentsChanged || tagsChanged;
+});
+
+const titleLength = computed(() => form.value.title.length);
+
+const canPublish = computed(() => {
+  let textContent = form.value.content.replace(/<[^>]*>/g, "");
+  textContent = textContent.replace(/&nbsp;/g, " ").trim();
+  const hasContent = textContent.length > 0 || form.value.content.includes("<img");
+
+  return (
+    form.value.title.trim().length > 0 &&
+    form.value.title.trim().length <= MAX_TITLE_LEN &&
+    form.value.category !== "" &&
+    hasContent
+  );
+});
 
 // Handle closing create post modal
 function handleCloseRequest() {
@@ -113,59 +199,100 @@ function handleCloseRequest() {
   }
 }
 
-// Discard post content
 function confirmDiscard() {
   form.value = { title: "", category: "", content: "", tags: [] };
   showWarningDialog.value = false;
   emit("close");
 }
 
-// Publish post
-async function doPublish() {
-  try {
-    await createPost({
-      title: form.value.title.trim(),
-      content: form.value.content,
-      tags: form.value.tags,
-      category: form.value.category || null,
-    });
+const isInitialLoading = ref(true);
 
-    // show success confirmation immediately
-    showPublishedConfirmation.value = true;
+onMounted(async () => {
+  // Wait for both essential lists to load before showing the form
+  await Promise.all([loadTags(), loadCategories()]);
 
-    // close the confirm dialog
-    showPublishConfirm.value = false;
-
-    // redirect + THEN notify parent (so parent doesn't unmount instantly)
-    setTimeout(() => {
-      showPublishedConfirmation.value = false;
-
-      // reset form
-      form.value = { title: "", category: "", content: "", tags: [] };
-
-      // go home
-      router.push("/");
-
-      // now tell parent (safe if parent closes modal)
-      emit("published");
-      emit("close");
-    }, 1200);
-
-  } catch (err) {
-    alert("An error occurred while publishing.");
-    showPublishConfirm.value = false;
-  }
-}
-
-
-onMounted(() => {
-  loadTags();
-  loadCategories();
   document.addEventListener("mousedown", handleClickOutside);
+  populateForm();
+
+  // Now that data is here, turn off the loader
+  isInitialLoading.value = false;
 });
 
 onUnmounted(() => {
   document.removeEventListener("mousedown", handleClickOutside);
+});
+
+// Watch the prop to force an update if Vue passes the data a millisecond late
+watch(
+  () => props.postData,
+  () => populateForm(),
+  { immediate: true }
+);
+
+// Publish / Save
+async function doPublish() {
+  try {
+    if (props.isRestricted) {
+      const targetId = router.currentRoute.value.params.id;
+
+      await client.patch(`/admin/posts/${targetId}/metadata`, {
+        CategoryID: form.value.category,
+        TagIDs: form.value.tags,
+      });
+
+    } else if (isEditMode.value) {
+      const targetId = props.postData.PostID || props.postData.postId || props.postData.id;
+
+      await client.put(`/posts/${targetId}`, {
+        title: form.value.title.trim(),
+        content: form.value.content,
+        tags: form.value.tags,
+        category: form.value.category || null,
+      });
+
+    } else {
+      await createPost({
+        title: form.value.title.trim(),
+        content: form.value.content,
+        tags: form.value.tags,
+        category: form.value.category || null,
+      });
+    }
+
+    showPublishedConfirmation.value = true;
+    showPublishConfirm.value = false;
+
+    setTimeout(() => {
+      showPublishedConfirmation.value = false;
+      form.value = { title: "", category: "", content: "", tags: [] };
+
+      if (!props.isRestricted) {
+        router.push("/");
+      } else {
+        location.reload();
+      }
+
+      emit("published");
+      emit("close");
+    }, 1200);
+  } catch (err) {
+    alert(props.isRestricted ? "Error updating metadata." : "An error occurred while publishing.");
+    showPublishConfirm.value = false;
+  }
+}
+
+//header/button for edit
+const modalTitle = computed(() => {
+  if (isMetadataMode.value) return "UPDATE POST";
+  if (isEditMode.value) return "EDIT POST ";
+  return "CREATE POST";
+});
+
+const primaryButtonText = computed(() => {
+  if (props.loading) return "Processing...";
+  if (isMetadataMode.value) return "Save Changes";
+  if (isEditMode.value) return "Save Changes";
+  return "Publish Post";
 });
 </script>
 
@@ -173,155 +300,174 @@ onUnmounted(() => {
   <Teleport to="body">
     <Transition name="modal" appear>
       <div v-if="show" class="modal-mask" @mousedown.self="handleCloseRequest">
-
-        <!-- Create Post Modal -->
         <div class="modal-container">
           <header class="modal-header">
-            <h3>CREATE POST</h3>
+            <h3>{{ modalTitle }}</h3>
             <button class="close-x" @click="handleCloseRequest">&times;</button>
           </header>
 
           <main class="modal-body">
-            <div class="title-row">
-              <!-- Title Input -->
-              <div class="input-group flex-grow-1 position-relative">
-                <label v-if="!form.title" class="title-placeholder">
-                  Title<span class="star-red">*</span>
-                </label>
-                
-                <input
-                  v-model="form.title"
-                  class="title-input"
-                  :maxlength="MAX_TITLE_LEN"
-                />
-                <span class="char-counter" :class="{ 'text-danger': titleLength >= MAX_TITLE_LEN }">
-                  {{ titleLength }}/{{ MAX_TITLE_LEN }}
-                </span>
-              </div>
-              
-              <!-- User Details -->
-              <div class="user-info-section" v-if="isLoggedIn">
-                <div class="user-meta text-end">
-                  <span class="user-name">{{ fullName }}</span>
-                  <UserRole :role="userRole" />
-                </div>
-                <div class="avatar-circle">
-                   <img :src="userAvatar" alt="icon" class="avatar-img" />                   
-                </div>
-              </div>
+            <div v-if="isInitialLoading" class="text-center py-5">
+              <div class="spinner-border text-success" role="status"></div>
+              <p class="mt-2 text-muted">Loading post data...</p>
             </div>
 
-            <div class="controls-bar">
-              <!-- Category Select -->
-              <div class="category-side">
-                <label class="form-label-small">Category<span v-if="!form.category" class="star-red">*</span></label>
-                <select v-model="form.category" class="clean-select-rect">
-                  <option value="">Select Category</option>
-                  <option v-for="cat in allCategories" :key="cat.categoryId" :value="cat.categoryId">
-                    {{ cat.name }}
-                  </option>
-                </select>
+            <template v-else>
+              <div class="title-row">
+                <div class="input-group flex-grow-1 position-relative">
+                  <label v-if="!form.title" class="title-placeholder">
+                    Title<span class="star-red">*</span>
+                  </label>
+
+                  <input v-model="form.title" class="title-input" :class="{ 'restricted-input': isRestricted }"
+                    :maxlength="MAX_TITLE_LEN" :disabled="isRestricted" />
+                  <span class="char-counter" :class="{ 'text-danger': titleLength >= MAX_TITLE_LEN }">
+                    {{ titleLength }}/{{ MAX_TITLE_LEN }}
+                  </span>
+                </div>
+
+                <div class="user-info-section" v-if="isLoggedIn">
+                  <div class="user-meta text-end">
+                    <span class="user-name">{{ fullName }}</span>
+                    <UserRole :role="userRole" />
+                  </div>
+                  <div class="avatar-circle">
+                    <img :src="userAvatar" alt="icon" class="avatar-img" />
+                  </div>
+                </div>
               </div>
-              
-              <div class="tags-side" ref="tagContainerRef">
-                <label class="form-label-small">Tags ({{ form.tags.length }}/{{ MAX_TAGS }})</label>
-                <div class="tag-adder-container">
-                  <!-- Tags Button-->
-                  <div class="tag-trigger-group">
-                    <button
-                      type="button"
-                      class="tag-circle-add"
-                      @click="showTagPopup = !showTagPopup"
-                      :disabled="form.tags.length >= MAX_TAGS"
-                    >
-                      +
-                    </button>
-                    <!-- Tag Dropdown Box -->
-                    <div v-if="showTagPopup" class="tag-floating-box shadow-lg">
-                      <input v-model="tagSearch" class="tag-search-mini" placeholder="Search..." @click.stop />
-                      <div class="tag-options-list">
-                        <button
-                          v-for="t in filteredTags"
-                          :key="t.tagId"
-                          class="tag-opt"
-                          @click="() => { form.tags.push(t.tagId); tagSearch = ''; showTagPopup = false; }"
-                          >
-                          {{ t.name }}
-                        </button>
+
+              <div class="controls-bar">
+                <div class="category-side">
+                  <label class="form-label-small">
+                    Category<span v-if="!form.category" class="star-red">*</span>
+                  </label>
+
+                  <select v-model="form.category" class="clean-select-rect">
+                    <option value="">Select Category</option>
+                    <option v-for="cat in allCategories" :key="cat.categoryId" :value="cat.categoryId">
+                      {{ cat.name }}
+                    </option>
+                  </select>
+                </div>
+
+                <div class="tags-side" ref="tagContainerRef">
+                  <label class="form-label-small">Tags ({{ form.tags.length }}/{{ MAX_TAGS }})</label>
+                  <div class="tag-adder-container">
+                    <div class="tag-trigger-group">
+                      <button type="button" class="tag-circle-add" @click="showTagPopup = !showTagPopup"
+                        :disabled="form.tags.length >= MAX_TAGS">
+                        +
+                      </button>
+
+                      <div v-if="showTagPopup" class="tag-floating-box shadow-lg">
+                        <input v-model="tagSearch" class="tag-search-mini" placeholder="Search..." @click.stop />
+                        <div class="tag-options-list">
+                          <button v-for="t in filteredTags" :key="t.TagID || t.tagId" class="tag-opt" @click="
+                            () => {
+                              form.tags.push(t.TagID || t.tagId);
+                              tagSearch = '';
+                              showTagPopup = false;
+                            }
+                          ">
+                            {{ t.Name || t.name }}
+                          </button>
+                        </div>
                       </div>
                     </div>
+
+                    <div class="tag-chips-flow">
+                      <span v-for="tid in form.tags" :key="tid"
+                        :class="isOfficialTag(tid) ? 'tag-chip-pill-mod-admin' : 'tag-chip-pill'">
+                        {{ tagNameById(tid) }}
+                        <button class="chip-remove" @click="removeTag(tid)">&times;</button>
+                      </span>
+                      <span v-if="form.tags.length === 0" class="muted-hint">No tags added yet</span>
+                    </div>
                   </div>
-                  <!-- Active Tags -->
-                  <div class="tag-chips-flow">
-                    <span v-for="tid in form.tags" :key="tid" :class="isOfficialTag(tid) ? 'tag-chip-pill-mod-admin' : 'tag-chip-pill'">
-                      {{ tagNameById(tid) }}
-                      <button class="chip-remove" @click="removeTag(tid)">&times;</button>
-                    </span>
-                    <span v-if="form.tags.length === 0" class="muted-hint">No tags added yet</span>
-                  </div>
+                </div>
+
+                <div class="comment-ctrl comm-checkbox-style" v-if="userRoleId >= 3">
+                  <span class="me-3">Disable Comments?</span>
+                  <input class="form-check-input" type="checkbox" id="checkComment" v-model="form.disableComments" />
+                  <label class="form-check-label" for="checkComment"></label>
                 </div>
               </div>
 
-              <div class="comment-ctrl comm-checkbox-style" v-if="userRoleId >= 3">
-                <span class="me-3">Disable Comments?</span>
-                  <input class="form-check-input" type="checkbox" value="" id="checkComment">
-                    <label class="form-check-label" for="checkComment">
-                    </label>
+              <div :class="{ 'restricted-input': isRestricted }">
+                <TextEditor v-model="form.content" v-model:isUploading="isUploading" class="custom-editor"
+                  ref="editor" />
               </div>
-            </div>
-            <!-- Text Editor -->
-            <TextEditor v-model="form.content" class="custom-editor" ref="editor" />
+            </template>
           </main>
 
-          <!-- Publish or Cancel Options-->
           <footer class="modal-footer">
             <div class="footer-hint"></div>
             <div class="footer-actions">
               <button class="cancel-btn" @click="handleCloseRequest">Cancel</button>
-              <button
-                class="publish-btn"
-                :disabled="!canPublish || loading"
-                @click="showPublishConfirm = true"
-              >
-                {{ loading ? 'Publishing...' : 'Publish Post' }}
+              <button class="publish-btn"
+                :disabled="(isRestricted ? (!form.category || !hasMetadataChanges) : !canPublish) || loading"
+                @click="showPublishConfirm = true">
+                {{ primaryButtonText }}
               </button>
             </div>
           </footer>
-        </div>
 
-
-        <div
-          v-if="showPublishedConfirmation"
-          class="inner-warning-overlay"
-        >
-          <div class="warning-card shadow-lg">
-            <p class="fs-5 fw-bold">Post Published</p>
-            <p>Redirecting to home…</p>
-          </div>
-        </div>
-
-        <!-- Publish Confirmation -->
-        <div v-if="showPublishConfirm" class="inner-warning-overlay" @mousedown.self="showPublishConfirm = false">
-          <div class="warning-card shadow-lg">
-            <p class="fs-5 fw-bold">Ready to Publish?</p>
-            <p>Your post will be visible to everyone</p>
-            <div class="modal-actions justify-content-center">
-              <button class="cancel-btn" @click="showPublishConfirm = false">Back</button>
-              <button class="publish-btn" @click="doPublish">Confirm & Publish</button>
+          <div v-if="showPublishedConfirmation" class="inner-warning-overlay">
+            <div class="warning-card shadow-lg">
+              <p class="fs-5 fw-bold">
+                {{ isMetadataMode ? "Changes Saved" : isEditMode ? "Changes Saved" : "Post Published" }}
+              </p>
+              <p>
+                {{ isMetadataMode ? "Refreshing details..." : "Redirecting to home..." }}
+              </p>
             </div>
           </div>
-        </div>
 
-        <!-- Discard Post Draft -->
-        <div v-if="showWarningDialog" class="inner-warning-overlay" @mousedown.self="showWarningDialog = false">
-          <div class="warning-card shadow-lg">
-            <p class="fs-5 fw-bold">Unsaved Changes</p>
-            <p>Are you sure you want to discard your draft? Your changes will be lost.</p>
-            <div class="modal-actions justify-content-center">
-              <button class="cancel-btn" @click="showWarningDialog = false">Back</button>
-              <button class="publish-btn" @click="confirmDiscard">Confirm & Discard</button>
+          <div v-if="isUploading" class="inner-warning-overlay">
+            <div class="warning-card shadow-lg upload-card">
+              <div class="spinner"></div>
+              <p class="fs-5 fw-bold" style="margin-top: 12px;">Uploading image…</p>
+              <p>Please wait.</p>
             </div>
           </div>
+
+          <div v-if="showPublishConfirm" class="inner-warning-overlay" @mousedown.self="showPublishConfirm = false">
+            <div class="warning-card shadow-lg">
+              <p class="fs-5 fw-bold">
+                {{ isMetadataMode ? "Save Changes?" : isEditMode ? "Save Changes?" : "Ready to Publish?" }}
+              </p>
+
+              <p>
+                {{
+                  isMetadataMode
+                    ? "This will update the post metadata immediately."
+                    : isEditMode
+                      ? "This will save your edits immediately."
+                      : "Your post will be visible to everyone."
+                }}
+              </p>
+
+              <div class="modal-actions justify-content-center">
+                <button class="cancel-btn" @click="showPublishConfirm = false">Back</button>
+                <button class="publish-btn" @click="doPublish">
+                  {{ isMetadataMode ? "Confirm & Save" : isEditMode ? "Confirm & Save" : "Confirm & Publish" }}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="showWarningDialog" class="inner-warning-overlay" @mousedown.self="showWarningDialog = false">
+            <div class="warning-card shadow-lg">
+              <p class="fs-5 fw-bold">Unsaved Changes</p>
+              <p>Are you sure you want to discard your draft? Your changes will be lost.</p>
+              <div class="modal-actions justify-content-center">
+                <button class="cancel-btn" @click="showWarningDialog = false">Back</button>
+                <button class="publish-btn" @click="confirmDiscard">Confirm & Discard</button>
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
     </Transition>
@@ -332,9 +478,11 @@ onUnmounted(() => {
 p {
   color: #737373;
 }
+
 .comm-checkbox-style input[type="checkbox"]:focus {
   box-shadow: 0 0 0 0.15rem rgba(6, 233, 157, 0.25);
 }
+
 .modal-mask {
   position: fixed;
   inset: 0;
@@ -401,6 +549,27 @@ p {
   width: 90%;
   max-width: 400px;
   text-align: center;
+}
+
+.upload-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.spinner {
+  width: 44px;
+  height: 44px;
+  border: 4px solid #e2e8f0;
+  border-top: 4px solid #2E6C44;
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .modal-header h3 {
@@ -490,7 +659,7 @@ p {
   align-items: center;
   gap: 1em;
   min-width: fit-content;
-  padding: 8px 18px; 
+  padding: 8px 18px;
   border-radius: 50px;
   background: #f8fafc;
   border: 1px solid #aebad4;
@@ -499,7 +668,7 @@ p {
 .user-meta {
   display: flex;
   flex-direction: column;
-  align-items: center; 
+  align-items: center;
   line-height: 1.2;
 }
 
@@ -567,6 +736,7 @@ p {
   flex-wrap: wrap;
   gap: 6px;
 }
+
 .tag-chip-pill-mod-admin,
 .tag-chip-pill {
   padding: 4px 5px 4px 10px;
@@ -578,13 +748,16 @@ p {
   gap: 6px;
   border: 1px solid #d1e7d8;
 }
+
 .tag-chip-pill-mod-admin {
   background: linear-gradient(170deg, #fa9805a4 0%, #f17500b0 100%);
   color: black;
+
   .chip-remove {
     color: black;
   }
 }
+
 .tag-chip-pill {
   background: linear-gradient(170deg, #2e6c44bd 0%, #2e6c44 100%);
   color: white;
@@ -627,29 +800,32 @@ p {
   cursor: pointer;
 }
 
-.tag-opt:hover { 
-  background: #f1f5f9; 
-  color: #2E6C44; 
+.tag-opt:hover {
+  background: #f1f5f9;
+  color: #2E6C44;
 }
 
-.chip-remove { 
-  background: none; 
-  border: none; 
-  color: white; 
-  cursor: pointer; 
+.chip-remove {
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
   transition: all 0.35s ease;
 }
+
 .chip-remove:hover {
   transform: translateY(-1px);
 }
 
-.muted-hint { 
-  color: #94a3b8; 
-  font-size: 0.8rem; 
-  font-style: italic; 
+.muted-hint {
+  color: #94a3b8;
+  font-size: 0.8rem;
+  font-style: italic;
 }
 
-.publish-btn, .cancel-btn, .discard-btn {
+.publish-btn,
+.cancel-btn,
+.discard-btn {
   padding: 0.75em 1.6em;
   border-radius: 10px;
   font-weight: 700;
@@ -664,7 +840,8 @@ p {
   outline: none;
 }
 
-.publish-btn, .discard-btn {
+.publish-btn,
+.discard-btn {
   background: #2E6C44;
   color: white;
   border: none;
@@ -677,7 +854,7 @@ p {
   transform: none;
 }
 
-.publish-btn:hover:not(:disabled), 
+.publish-btn:hover:not(:disabled),
 .discard-btn:hover {
   background: #3d8a59;
   box-shadow: 0 4px 12px rgba(46, 108, 68, 0.25);
@@ -697,22 +874,22 @@ p {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
-.close-x { 
-  background: none; 
-  border: none; 
-  font-size: 1.75rem; 
-  color: #ffffff; 
-  cursor: pointer; 
+.close-x {
+  background: none;
+  border: none;
+  font-size: 1.75rem;
+  color: #ffffff;
+  cursor: pointer;
 }
 
 .footer-actions,
-.modal-actions { 
-  display: flex; 
-  gap: 12px; 
+.modal-actions {
+  display: flex;
+  gap: 12px;
 }
 
 .modal-actions {
-  gap: 20px; 
+  gap: 20px;
 }
 
 @media (max-width: 822px) {
@@ -733,10 +910,19 @@ p {
     flex-direction: column-reverse;
     gap: 2px;
   }
+
   .modal-actions .publish-btn,
   .modal-actions .cancel-btn,
   .modal-actions .discard-btn {
     width: 100%;
   }
+}
+
+.restricted-input {
+  opacity: 0.6;
+  pointer-events: none;
+  /* Prevents clicking/typing completely */
+  background-color: #f1f5f9;
+  border-radius: 8px;
 }
 </style>
