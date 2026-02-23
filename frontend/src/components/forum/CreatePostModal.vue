@@ -356,13 +356,11 @@ async function doPublish() {
                   <label class="form-check-label" for="checkComment"></label>
                 </div>
               </div>
-
+              
               <div :class="{ 'restricted-input': isRestricted }">
                 <TextEditor v-model="form.content" v-model:isUploading="isUploading" class="custom-editor" ref="editor" />
               </div>
-            </div>
-            <!-- Text Editor -->
-            <TextEditor v-model="form.content" v-model:isUploading="isUploading" class="custom-editor" ref="editor" />
+            </template>
           </main>
 
           <footer class="modal-footer">
