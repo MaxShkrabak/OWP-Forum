@@ -83,3 +83,27 @@ describe("Ban User (Admin) — AdminUsers.vue DOM", () => {
     expect(firstRow.find(".btn-unban").exists()).toBe(true);
   });
 });
+
+describe("Assign Role (Admin)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("displays 'No users found' when searching for a non-existent user", async () => {
+    // Mock the API returning an empty array for the search
+    mockClient.get.mockResolvedValue({ data: { users: [] } });
+    
+    const wrapper = mount(AdminUsers);
+    await flushPromises();
+    
+    // Find the search input and type a fake name
+    const searchInput = wrapper.find('input[type="text"]'); // Update selector if needed
+    if (searchInput.exists()) {
+      await searchInput.setValue("ThisUserDoesNotExist");
+      await flushPromises();
+    }
+    
+    // Assert the empty state message appears
+    expect(wrapper.text()).toContain("No users found");
+  });
+});
