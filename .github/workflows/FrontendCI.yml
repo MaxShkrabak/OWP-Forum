@@ -1,0 +1,28 @@
+name: Frontend Testing
+
+on:
+  push:
+    branches: [ "main", "dev" ]
+    paths:
+      - 'frontend/**' # runs if frontend files changed
+  pull_request:
+    branches: [ "main", "dev" ]
+    paths:
+      - 'frontend/**'
+
+jobs:
+  frontend-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install Dependencies
+        run: npm install
+      - name: Run Vue Tests
+        run: npx vitest run

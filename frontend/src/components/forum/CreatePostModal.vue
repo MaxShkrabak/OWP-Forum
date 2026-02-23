@@ -210,12 +210,12 @@ const isInitialLoading = ref(true);
 onMounted(async () => {
   // Wait for both essential lists to load before showing the form
   await Promise.all([loadTags(), loadCategories()]);
-  
+
   document.addEventListener("mousedown", handleClickOutside);
   populateForm();
-  
+
   // Now that data is here, turn off the loader
-  isInitialLoading.value = false; 
+  isInitialLoading.value = false;
 });
 
 onUnmounted(() => {
@@ -242,7 +242,7 @@ async function doPublish() {
 
     } else if (isEditMode.value) {
       const targetId = props.postData.PostID || props.postData.postId || props.postData.id;
-      
+
       await client.put(`/posts/${targetId}`, {
         title: form.value.title.trim(),
         content: form.value.content,
@@ -319,13 +319,8 @@ const primaryButtonText = computed(() => {
                     Title<span class="star-red">*</span>
                   </label>
 
-                  <input
-                    v-model="form.title"
-                    class="title-input"
-                    :class="{ 'restricted-input': isRestricted }"
-                    :maxlength="MAX_TITLE_LEN"
-                    :disabled="isRestricted"
-                  />
+                  <input v-model="form.title" class="title-input" :class="{ 'restricted-input': isRestricted }"
+                    :maxlength="MAX_TITLE_LEN" :disabled="isRestricted" />
                   <span class="char-counter" :class="{ 'text-danger': titleLength >= MAX_TITLE_LEN }">
                     {{ titleLength }}/{{ MAX_TITLE_LEN }}
                   </span>
@@ -360,35 +355,21 @@ const primaryButtonText = computed(() => {
                   <label class="form-label-small">Tags ({{ form.tags.length }}/{{ MAX_TAGS }})</label>
                   <div class="tag-adder-container">
                     <div class="tag-trigger-group">
-                      <button
-                        type="button"
-                        class="tag-circle-add"
-                        @click="showTagPopup = !showTagPopup"
-                        :disabled="form.tags.length >= MAX_TAGS"
-                      >
+                      <button type="button" class="tag-circle-add" @click="showTagPopup = !showTagPopup"
+                        :disabled="form.tags.length >= MAX_TAGS">
                         +
                       </button>
 
                       <div v-if="showTagPopup" class="tag-floating-box shadow-lg">
-                        <input
-                          v-model="tagSearch"
-                          class="tag-search-mini"
-                          placeholder="Search..."
-                          @click.stop
-                        />
+                        <input v-model="tagSearch" class="tag-search-mini" placeholder="Search..." @click.stop />
                         <div class="tag-options-list">
-                          <button
-                            v-for="t in filteredTags"
-                            :key="t.TagID || t.tagId"
-                            class="tag-opt"
-                            @click="
-                              () => {
-                                form.tags.push(t.TagID || t.tagId);
-                                tagSearch = '';
-                                showTagPopup = false;
-                              }
-                            "
-                          >
+                          <button v-for="t in filteredTags" :key="t.TagID || t.tagId" class="tag-opt" @click="
+                            () => {
+                              form.tags.push(t.TagID || t.tagId);
+                              tagSearch = '';
+                              showTagPopup = false;
+                            }
+                          ">
                             {{ t.Name || t.name }}
                           </button>
                         </div>
@@ -396,11 +377,8 @@ const primaryButtonText = computed(() => {
                     </div>
 
                     <div class="tag-chips-flow">
-                      <span
-                        v-for="tid in form.tags"
-                        :key="tid"
-                        :class="isOfficialTag(tid) ? 'tag-chip-pill-mod-admin' : 'tag-chip-pill'"
-                      >
+                      <span v-for="tid in form.tags" :key="tid"
+                        :class="isOfficialTag(tid) ? 'tag-chip-pill-mod-admin' : 'tag-chip-pill'">
                         {{ tagNameById(tid) }}
                         <button class="chip-remove" @click="removeTag(tid)">&times;</button>
                       </span>
@@ -411,23 +389,14 @@ const primaryButtonText = computed(() => {
 
                 <div class="comment-ctrl comm-checkbox-style" v-if="userRoleId >= 3">
                   <span class="me-3">Disable Comments?</span>
-                  <input
-                    class="form-check-input"
-                    type="checkbox"
-                    id="checkComment"
-                    v-model="form.disableComments"
-                  />
+                  <input class="form-check-input" type="checkbox" id="checkComment" v-model="form.disableComments" />
                   <label class="form-check-label" for="checkComment"></label>
                 </div>
               </div>
 
               <div :class="{ 'restricted-input': isRestricted }">
-                <TextEditor
-                  v-model="form.content"
-                  v-model:isUploading="isUploading"
-                  class="custom-editor"
-                  ref="editor"
-                />
+                <TextEditor v-model="form.content" v-model:isUploading="isUploading" class="custom-editor"
+                  ref="editor" />
               </div>
             </template>
           </main>
@@ -436,11 +405,9 @@ const primaryButtonText = computed(() => {
             <div class="footer-hint"></div>
             <div class="footer-actions">
               <button class="cancel-btn" @click="handleCloseRequest">Cancel</button>
-              <button
-                class="publish-btn"
+              <button class="publish-btn"
                 :disabled="(isRestricted ? (!form.category || !hasMetadataChanges) : !canPublish) || loading"
-                @click="showPublishConfirm = true"
-              >
+                @click="showPublishConfirm = true">
                 {{ primaryButtonText }}
               </button>
             </div>
@@ -465,11 +432,7 @@ const primaryButtonText = computed(() => {
             </div>
           </div>
 
-          <div
-            v-if="showPublishConfirm"
-            class="inner-warning-overlay"
-            @mousedown.self="showPublishConfirm = false"
-          >
+          <div v-if="showPublishConfirm" class="inner-warning-overlay" @mousedown.self="showPublishConfirm = false">
             <div class="warning-card shadow-lg">
               <p class="fs-5 fw-bold">
                 {{ isMetadataMode ? "Save Changes?" : isEditMode ? "Save Changes?" : "Ready to Publish?" }}
@@ -494,11 +457,7 @@ const primaryButtonText = computed(() => {
             </div>
           </div>
 
-          <div
-            v-if="showWarningDialog"
-            class="inner-warning-overlay"
-            @mousedown.self="showWarningDialog = false"
-          >
+          <div v-if="showWarningDialog" class="inner-warning-overlay" @mousedown.self="showWarningDialog = false">
             <div class="warning-card shadow-lg">
               <p class="fs-5 fw-bold">Unsaved Changes</p>
               <p>Are you sure you want to discard your draft? Your changes will be lost.</p>
@@ -519,9 +478,11 @@ const primaryButtonText = computed(() => {
 p {
   color: #737373;
 }
+
 .comm-checkbox-style input[type="checkbox"]:focus {
   box-shadow: 0 0 0 0.15rem rgba(6, 233, 157, 0.25);
 }
+
 .modal-mask {
   position: fixed;
   inset: 0;
@@ -775,6 +736,7 @@ p {
   flex-wrap: wrap;
   gap: 6px;
 }
+
 .tag-chip-pill-mod-admin,
 .tag-chip-pill {
   padding: 4px 5px 4px 10px;
@@ -786,13 +748,16 @@ p {
   gap: 6px;
   border: 1px solid #d1e7d8;
 }
+
 .tag-chip-pill-mod-admin {
   background: linear-gradient(170deg, #fa9805a4 0%, #f17500b0 100%);
   color: black;
+
   .chip-remove {
     color: black;
   }
 }
+
 .tag-chip-pill {
   background: linear-gradient(170deg, #2e6c44bd 0%, #2e6c44 100%);
   color: white;
@@ -847,6 +812,7 @@ p {
   cursor: pointer;
   transition: all 0.35s ease;
 }
+
 .chip-remove:hover {
   transform: translateY(-1px);
 }
@@ -944,6 +910,7 @@ p {
     flex-direction: column-reverse;
     gap: 2px;
   }
+
   .modal-actions .publish-btn,
   .modal-actions .cancel-btn,
   .modal-actions .discard-btn {
@@ -953,7 +920,8 @@ p {
 
 .restricted-input {
   opacity: 0.6;
-  pointer-events: none; /* Prevents clicking/typing completely */
+  pointer-events: none;
+  /* Prevents clicking/typing completely */
   background-color: #f1f5f9;
   border-radius: 8px;
 }

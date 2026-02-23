@@ -23,7 +23,8 @@ return function (Request $request, RequestHandler $handler) use ($makePdo) {
     $isPublic = ($method === 'OPTIONS')
         || (isset($publicRoutes[$path]) && in_array($method, $publicRoutes[$path]))
         || ($method === 'GET' && str_starts_with($path, '/api/categories'))
-        || ($method === 'GET' && str_starts_with($path, '/api/get-post'));
+        || ($method === 'GET' && str_starts_with($path, '/api/get-post'))
+        || ($method === 'GET' && str_starts_with($path, '/api/profile'));
 
     $token = $request->getCookieParams()['session'] ?? '';
     $session = null;
