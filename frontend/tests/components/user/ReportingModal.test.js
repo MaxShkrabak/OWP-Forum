@@ -21,7 +21,7 @@ describe("ReportingModal.vue", () => {
   const createWrapper = (props = {}) => {
     return mount(ReportingModal, {
       props: { isOpen: false, ...props },
-      global: { stubs: { Teleport: true, Transition: true } },
+      global: { stubs: { teleport: true } },
     });
   };
 

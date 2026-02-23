@@ -152,5 +152,3 @@ backend/vendor/composer/autoload_real.php
 backend/vendor/composer/autoload_static.php
 backend/vendor/composer/installed.json
 backend/vendor/composer/installed.php
-frontend/package-lock.json
-frontend/package.json

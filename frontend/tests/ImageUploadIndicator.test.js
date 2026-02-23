@@ -4,7 +4,7 @@ import { mount, flushPromises } from "@vue/test-utils";
 import CreatePostModal from "@/components/forum/CreatePostModal.vue";
 
 // Mock posts API calls
-vi.mock("@/api/posts.js", () => ({
+vi.mock("@/api/posts", () => ({
   createPost: vi.fn(async () => ({})),
   getTags: vi.fn(async () => []),
   getCategories: vi.fn(async () => []),
@@ -42,8 +42,8 @@ describe("ImageUploadIndicator (CreatePostModal.vue)", () => {
       },
       global: {
         stubs: {
-          Teleport: true,
-          Transition: true,
+          teleport: true,
+          transition: true,
           UserRole: true,
 
           // Stub TextEditor so we can trigger upload state changes
