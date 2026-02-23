@@ -1,8 +1,21 @@
+/** @vitest-environment jsdom */
 /**
  * Delete Confirmation Tags/Categories (BB-153) — unit tests.
- * Node environment only (no DOM). Tests API contract and confirmation/success message content.
+ * API contract + message content + DOM test for category delete confirmation.
  */
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { mount, flushPromises } from "@vue/test-utils";
+import AdminCategories from "@/components/admin/AdminCategories.vue";
+
+const { mockClient } = vi.hoisted(() => ({
+  mockClient: { get: vi.fn(), delete: vi.fn() },
+}));
+vi.mock("@/api/client", () => ({ default: mockClient }));
+
+const mockCategories = [
+  { categoryId: 1, name: "General", usableByRoleID: 1 },
+  { categoryId: 2, name: "Help", usableByRoleID: 1 },
+];
 
 // API contract: same paths used by AdminCategories.vue and AdminTags.vue
 function getCategoryDeleteEndpoint(categoryId) {
@@ -65,5 +78,22 @@ describe("Delete Confirmation Tags/Categories — success message after delete",
     const msg = getTagDeleteSuccessMessage("spam");
     expect(msg).toContain("spam");
     expect(msg).toContain("deleted successfully");
+  });
+});
+
+describe("Delete Confirmation Tags/Categories — DOM (confirmation displays)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockClient.get.mockResolvedValue({ data: { items: mockCategories.map((c) => ({ categoryId: c.categoryId, name: c.name, usableByRoleID: c.usableByRoleID })) } });
+  });
+
+  it("category delete button opens modal with Delete category? and General", async () => {
+    const wrapper = mount(AdminCategories);
+    await flushPromises();
+    const deleteBtns = wrapper.findAll(".btn-delete");
+    const helpDeleteBtn = deleteBtns[1];
+    await helpDeleteBtn.trigger("click");
+    expect(wrapper.find(".confirm-title").text()).toBe("Delete category?");
+    expect(wrapper.text()).toContain("General");
   });
 });

@@ -1,12 +1,25 @@
+/** @vitest-environment jsdom */
 /**
  * Ban User (Admin) — unit tests.
- * Tests the ban date formatting used by the Admin panel and banned-user bsdanner.
+ * Ban date formatting (no DOM) + AdminUsers component DOM tests.
  */
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { mount, flushPromises } from "@vue/test-utils";
 import {
   formatBannedUntilDate,
   formatBannedUntilDateTime,
 } from "@/utils/banDate";
+import AdminUsers from "@/components/admin/AdminUsers.vue";
+
+const { mockClient } = vi.hoisted(() => ({
+  mockClient: { get: vi.fn(), patch: vi.fn() },
+}));
+vi.mock("@/api/client", () => ({ default: mockClient }));
+
+const mockUsers = [
+  { User_ID: 1, FirstName: "Jane", LastName: "Doe", Email: "jane@example.com", RoleName: "User", IsBanned: 0, BanType: null, BannedUntil: null },
+  { User_ID: 2, FirstName: "John", LastName: "Smith", Email: "john@example.com", RoleName: "Admin", IsBanned: 0, BanType: null, BannedUntil: null },
+];
 
 describe("Ban User (Admin) — ban date formatting", () => {
   it("formatBannedUntilDateTime returns empty string for null/empty", () => {
@@ -39,5 +52,34 @@ describe("Ban User (Admin) — ban date formatting", () => {
     const result = formatBannedUntilDate("2025-03-15");
     expect(result.length).toBeGreaterThan(0);
     expect(result).toMatch(/\d/);
+  });
+});
+
+describe("Ban User (Admin) — AdminUsers.vue DOM", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(window, "alert").mockImplementation(() => {});
+    mockClient.get.mockResolvedValue({ data: { users: [...mockUsers] } });
+    mockClient.patch.mockResolvedValue({});
+  });
+
+  it("loads users and shows Ban button for each active user", async () => {
+    const wrapper = mount(AdminUsers);
+    await flushPromises();
+    const banButtons = wrapper.findAll(".btn-ban");
+    expect(banButtons.length).toBe(2);
+  });
+
+  it("opens ban modal when Ban is clicked and confirm updates row to banned state", async () => {
+    const wrapper = mount(AdminUsers);
+    await flushPromises();
+    await wrapper.find(".btn-ban").trigger("click");
+    expect(wrapper.find(".modal-overlay").exists()).toBe(true);
+    expect(wrapper.text()).toContain("Ban user");
+    await wrapper.find(".btn-modal-confirm").trigger("click");
+    await flushPromises();
+    const firstRow = wrapper.findAll(".admin-table tbody tr")[0];
+    expect(firstRow.classes()).toContain("row-banned");
+    expect(firstRow.find(".btn-unban").exists()).toBe(true);
   });
 });

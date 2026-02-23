@@ -1,8 +1,21 @@
+/** @vitest-environment jsdom */
 /**
  * Manage Tags (Admin) — unit tests.
- * Node environment only (no DOM). Tests duplicate prevention and API contract for add/edit/delete.
+ * Duplicate prevention + API contract (no DOM) + AdminTags.vue DOM tests.
  */
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { mount, flushPromises } from "@vue/test-utils";
+import AdminTags from "@/components/admin/AdminTags.vue";
+
+const { mockClient } = vi.hoisted(() => ({
+  mockClient: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), delete: vi.fn() },
+}));
+vi.mock("@/api/client", () => ({ default: mockClient }));
+
+const mockTags = [
+  { TagID: 1, Name: "help", UsableByRoleID: 1 },
+  { TagID: 2, Name: "spam", UsableByRoleID: 1 },
+];
 
 // Same normalizeName as AdminTags.vue (used for duplicate check and display)
 function normalizeName(s) {
@@ -102,5 +115,22 @@ describe("Manage Tags (Admin) — normalizeName", () => {
   it("handles null/undefined as empty string", () => {
     expect(normalizeName(null)).toBe("");
     expect(normalizeName(undefined)).toBe("");
+  });
+});
+
+describe("Manage Tags (Admin) — AdminTags.vue DOM", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockClient.get.mockResolvedValue({ data: { items: mockTags } });
+  });
+
+  it("displays tags and delete opens confirmation with cannot be undone", async () => {
+    const wrapper = mount(AdminTags);
+    await flushPromises();
+    expect(wrapper.find(".admin-table").exists()).toBe(true);
+    const deleteBtn = wrapper.findAll(".btn-action.danger")[0];
+    await deleteBtn.trigger("click");
+    expect(wrapper.find(".confirm-title").text()).toBe("Confirm delete tag?");
+    expect(wrapper.text()).toContain("cannot be undone");
   });
 });

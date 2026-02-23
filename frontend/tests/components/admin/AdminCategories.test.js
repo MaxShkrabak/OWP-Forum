@@ -1,9 +1,22 @@
+/** @vitest-environment jsdom */
 /**
  * Manage Categories (Admin) — unit tests.
- * Node environment only (no DOM). Tests duplicate-prevention logic and category slugify util.
+ * Duplicate prevention + slugify (no DOM) + AdminCategories.vue DOM tests.
  */
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { mount, flushPromises } from "@vue/test-utils";
 import { slugifyCategoryName } from "@/utils/slugify";
+import AdminCategories from "@/components/admin/AdminCategories.vue";
+
+const { mockClient } = vi.hoisted(() => ({
+  mockClient: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), delete: vi.fn() },
+}));
+vi.mock("@/api/client", () => ({ default: mockClient }));
+
+const mockCategories = [
+  { categoryId: 1, name: "General", usableByRoleID: 1 },
+  { categoryId: 2, name: "Help", usableByRoleID: 1 },
+];
 
 // Same duplicate-check logic as AdminCategories.vue nameExists (for "Prevent duplicates" / BB-151)
 function categoryNameExists(categories, name, excludeId = null) {
@@ -72,5 +85,26 @@ describe("Manage Categories (Admin) — category slugify", () => {
   it("trims leading and trailing dashes", () => {
     expect(slugifyCategoryName("  Help  ")).toBe("help");
     expect(slugifyCategoryName("---test---")).toBe("test");
+  });
+});
+
+describe("Manage Categories (Admin) — AdminCategories.vue DOM", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockClient.get.mockResolvedValue({ data: { items: mockCategories.map((c) => ({ ...c, categoryId: c.categoryId, name: c.name, usableByRoleID: c.usableByRoleID })) } });
+  });
+
+  it("displays categories from the database and delete opens confirmation with name and General", async () => {
+    const wrapper = mount(AdminCategories);
+    await flushPromises();
+    expect(wrapper.find(".admin-table").exists()).toBe(true);
+    const rows = wrapper.findAll(".admin-table tbody tr");
+    expect(rows.length).toBe(2);
+    const deleteButtons = wrapper.findAll(".btn-delete");
+    expect(deleteButtons[0].element.disabled).toBe(true);
+    await deleteButtons[1].trigger("click");
+    expect(wrapper.find(".confirm-title").text()).toBe("Delete category?");
+    expect(wrapper.text()).toContain("Help");
+    expect(wrapper.text()).toContain("General");
   });
 });
