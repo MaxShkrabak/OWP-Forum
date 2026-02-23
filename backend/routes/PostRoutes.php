@@ -1,4 +1,5 @@
 <?php
+
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
@@ -130,7 +131,6 @@ $app->post("/api/create-post", function (Request $req, Response $res) use ($make
             'postId'    => $postId,
             'createdAt' => $createdAtIso,
         ]);
-
     } catch (Throwable $e) {
         if (isset($pdo) && $pdo->inTransaction()) {
             $pdo->rollBack();
@@ -146,7 +146,8 @@ $app->get('/api/posts', function (Request $req, Response $res) use ($makePdo) {
 
         $params = $req->getQueryParams();
         $sort = strtolower($params['sort'] ?? 'latest');
-        $orderBy = match ($sort) { 'oldest'   => 'p.CreatedAt ASC',
+        $orderBy = match ($sort) {
+            'oldest'   => 'p.CreatedAt ASC',
             'upvotes'  => 'p.TotalScore DESC, p.CreatedAt DESC',
             'comments' => 'commentCount DESC, p.CreatedAt DESC',
             default    => 'p.CreatedAt DESC',
@@ -239,7 +240,6 @@ $app->get('/api/posts', function (Request $req, Response $res) use ($makePdo) {
             'postsByCategory' => $postsByCategory,
             'totalPosts'      => count($posts),
         ]);
-
     } catch (Throwable $e) {
         return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
     }
@@ -249,7 +249,8 @@ $app->get('/api/posts', function (Request $req, Response $res) use ($makePdo) {
 // Helper function to fetch counts for comments
 // TODO: Probably wont need anymore since I added total score to posts
 // TODO: STILL NEEDS WORK
-function fetchCounts($pdo, $table, $placeholders, $postIds, $countAlias) {
+function fetchCounts($pdo, $table, $placeholders, $postIds, $countAlias)
+{
     $counts = [];
     try {
         $sql = "
@@ -316,13 +317,23 @@ $app->get('/api/categories/{id}/posts', function (Request $req, Response $res, a
                     u.FirstName LIKE :q OR u.LastName LIKE :q OR (u.FirstName + ' ' + u.LastName) LIKE :q
                 ) ";
             } else { // tag
-                $searchWhere = " AND EXISTS (
-                    SELECT 1
-                    FROM dbo.PostTags pt
-                    JOIN dbo.Tags t ON t.TagID = pt.TagID
-                    WHERE pt.PostID = p.PostID
-                      AND t.Name LIKE :q
-                ) ";
+                $tagList = explode(',', $qRaw);
+                $tagCount = count($tagList);
+                $placeholders = [];
+                foreach ($tagList as $i => $tagName) {
+                    $pName = ":t$i";
+                    $placeholders[] = $pName;
+                    $tagBinds[$pName] = $tagName;
+                }
+                $placeholderStr = implode(',', $placeholders);
+
+                $searchWhere = " AND p.PostID IN (
+        SELECT pt.PostID FROM dbo.PostTags pt
+        JOIN dbo.Tags t ON t.TagID = pt.TagID
+        WHERE t.Name IN ($placeholderStr)
+        GROUP BY pt.PostID
+        HAVING COUNT(DISTINCT t.Name) = $tagCount
+    ) ";
             }
         }
 
@@ -336,7 +347,15 @@ $app->get('/api/categories/{id}/posts', function (Request $req, Response $res, a
         ";
         $countStmt = $pdo->prepare($countSql);
         $countStmt->bindValue(':id', $categoryId, PDO::PARAM_INT);
-        if ($hasSearch) $countStmt->bindValue(':q', $qLike, PDO::PARAM_STR);
+        if ($hasSearch) {
+            if ($mode === 'tag') {
+                foreach ($tagBinds as $param => $val) {
+                    $countStmt->bindValue($param, $val, PDO::PARAM_STR);
+                }
+            } else {
+                $countStmt->bindValue(':q', $qLike, PDO::PARAM_STR);
+            }
+        }
         $countStmt->execute();
         $totalPosts = (int)$countStmt->fetchColumn();
 
@@ -364,7 +383,15 @@ $app->get('/api/categories/{id}/posts', function (Request $req, Response $res, a
         $postStmt->bindValue(':userId', $userId, PDO::PARAM_INT);
         $postStmt->bindValue(':offset', $offset, PDO::PARAM_INT);
         $postStmt->bindValue(':limit', $limit, PDO::PARAM_INT);
-        if ($hasSearch) $postStmt->bindValue(':q', $qLike, PDO::PARAM_STR);
+        if ($hasSearch) {
+            if ($mode === 'tag') {
+                foreach ($tagBinds as $param => $val) {
+                    $postStmt->bindValue($param, $val, PDO::PARAM_STR);
+                }
+            } else {
+                $postStmt->bindValue(':q', $qLike, PDO::PARAM_STR);
+            }
+        }
         $postStmt->execute();
         $rows = $postStmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -414,12 +441,10 @@ $app->get('/api/categories/{id}/posts', function (Request $req, Response $res, a
                 'mode'       => $mode,
             ],
         ]);
-
     } catch (Throwable $e) {
         return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
     }
 });
-
 
 $app->get('/api/verify/categories', function (Request $req, Response $res) use ($makePdo) {
     try {
@@ -501,13 +526,12 @@ $app->post('/api/posts/{id}/vote', function (Request $req, Response $res, array 
             'myVote' => $val,
             'score'  => $score
         ]);
-
     } catch (Throwable $e) {
         return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
     }
 });
 
-$app->patch('/api/posts/{id}/soft-delete', function(Request $req, Response $res, array $args) use ($makePdo) {
+$app->patch('/api/posts/{id}/soft-delete', function (Request $req, Response $res, array $args) use ($makePdo) {
     try {
         $userId = (int)$req->getAttribute("user_id");
         if (!$userId) {
@@ -544,7 +568,7 @@ $app->patch('/api/posts/{id}/soft-delete', function(Request $req, Response $res,
     }
 });
 
-$app->get('/api/get-post/{id}', function(Request $req, Response $res, array $args) use ($makePdo) {
+$app->get('/api/get-post/{id}', function (Request $req, Response $res, array $args) use ($makePdo) {
     try {
         $pdo = $makePdo();
         $postID = (int)$args['id'];
@@ -579,7 +603,7 @@ $app->get('/api/get-post/{id}', function(Request $req, Response $res, array $arg
 
         $tagStmt->execute(['id' => $postID]);
         $tags = $tagStmt->fetchAll(PDO::FETCH_ASSOC);
-        
+
         // Map out the flat arrays for branch compatibility
         $tagNames = array_map(fn($t) => $t['Name'], $tags);
         $tagIds = array_map(fn($t) => (int)$t['TagID'], $tags);
@@ -605,13 +629,12 @@ $app->get('/api/get-post/{id}', function(Request $req, Response $res, array $arg
 
         // Ensure the response uses the wrapper standard from dev
         return json($res, ['ok' => true, 'post' => $responseData]);
-
     } catch (Throwable $e) {
         return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
     }
 });
 
-$app->put('/api/posts/{id}', function(Request $req, Response $res, array $args) use ($makePdo) {
+$app->put('/api/posts/{id}', function (Request $req, Response $res, array $args) use ($makePdo) {
     try {
         $userId = (int)$req->getAttribute("user_id");
         if (!$userId) return json($res, ['ok' => false, 'error' => 'Not Authenticated'], 401);
@@ -752,7 +775,6 @@ $app->put('/api/posts/{id}', function(Request $req, Response $res, array $args) 
                 'tagIds'      => array_map(fn($t) => (int)$t['TagID'], $updatedTags),
             ]
         ]);
-
     } catch (Throwable $e) {
         if (isset($pdo) && $pdo->inTransaction()) {
             $pdo->rollBack();
@@ -761,7 +783,7 @@ $app->put('/api/posts/{id}', function(Request $req, Response $res, array $args) 
     }
 });
 
-$app->delete('/api/posts/{id}', function(Request $req, Response $res, array $args) use ($makePdo) {
+$app->delete('/api/posts/{id}', function (Request $req, Response $res, array $args) use ($makePdo) {
     try {
         $userId = (int)$req->getAttribute("user_id");
         if (!$userId) return json($res, ['ok' => false, 'error' => 'Not Authenticated'], 401);
@@ -813,7 +835,6 @@ $app->delete('/api/posts/{id}', function(Request $req, Response $res, array $arg
             'deletedAt' => $result['DeletedAt'] ?? null,
             'updatedAt' => $result['UpdatedAt'] ?? null,
         ]);
-
     } catch (Throwable $e) {
         return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
     }
