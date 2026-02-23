@@ -20,6 +20,7 @@ const error = ref(null);
 const showEditModal = ref(false);
 const isRestricted = ref(false);
 
+// Follow & Vote toggle states
 const isFollowing = ref(false);
 const isVoting = ref(false);
 
@@ -57,9 +58,10 @@ const canReport = computed(() => {
   return !(role === "admin" || role === "moderator");
 });
 
+// Admin and Mod only
 const isAdminOrMod = computed(() => Number(userRoleId.value) >= 3);
 
-//relies on backend sending post.authorId
+// Relies on backend sending post.authorId
 const isAuthor = computed(() => {
   if (!post.value) return false;
   return Number(post.value.authorId) === Number(uid.value);
@@ -150,7 +152,6 @@ onMounted(async () => {
                   <span>Report</span>
                 </button>
 
-                <!--show sidebar for author OR admin/mod -->
                 <PostModerationSidebar
                   v-if="isAuthor || isAdminOrMod"
                   :post="post"

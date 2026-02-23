@@ -30,11 +30,8 @@ const confirmDelete = async () => {
 
   isDeleting.value = true;
   try {
-    const url = canModerate.value
-      ? `/api/admin/posts/${targetId}/soft-delete`
-      : `/api/posts/${targetId}/soft-delete`;
-
-    await client.patch(url);
+    await client.delete(`posts/${targetId}`); 
+    
     window.location.href = "/";
   } catch (err) {
     console.error("Delete failed:", err);
@@ -47,7 +44,6 @@ const confirmDelete = async () => {
 
 <template>
   <div class="d-flex flex-column gap-2">
-    <!-- FULL EDIT: author only (includes admin/mod on their own post) -->
     <button
       v-if="isAuthor"
       @click="emit('open-modal', 'edit')"
@@ -56,7 +52,6 @@ const confirmDelete = async () => {
       <i class="bi bi-pencil-square me-2"></i> Edit Post
     </button>
 
-    <!-- DELETE: author OR admin/mod -->
     <button
       v-if="canDelete"
       @click="showDeleteConfirm = true"
@@ -65,7 +60,6 @@ const confirmDelete = async () => {
       <i class="bi bi-trash3-fill me-2"></i> Delete Post
     </button>
 
-    <!-- RESTRICTED METADATA: admin/mod ONLY AND NOT author -->
     <button
       v-if="showMetadataButton"
       @click="emit('open-modal', 'metadata')"
@@ -101,6 +95,12 @@ const confirmDelete = async () => {
 </template>
 
 <style scoped>
+.admin-sidebar {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 5px;
+}
+
 .modal-mask {
   position: fixed;
   z-index: 9998;

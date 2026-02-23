@@ -107,6 +107,7 @@ function handleClickOutside(event) {
 
 function populateForm() {
   if (props.postData) {
+    // Extract everything safely accounting for both uppercase/lowercase variations
     const title = props.postData.Title || props.postData.title || "";
     const content = props.postData.Content || props.postData.content || "";
     const cat =
@@ -121,12 +122,14 @@ function populateForm() {
         ? props.postData.tags.map((t) => Number(t.TagID || t.tagId || t))
         : [];
 
+    // Set current form values
     form.value.title = title;
     form.value.content = content;
     form.value.category = cat;
     form.value.tags = [...tgs];
     form.value.disableComments = dc;
 
+    // Track the original values to prevent false warnings on close
     originalForm.value = {
       title,
       content,
@@ -137,9 +140,10 @@ function populateForm() {
   }
 }
 
-// Unsaved changes
+// Validation
 const hasUnsavedChanges = computed(() => {
   if (props.postData) {
+    // Edit mode: only warn if they actually changed something from the original
     const titleChanged = form.value.title !== originalForm.value.title;
     const contentChanged = form.value.content !== originalForm.value.content;
     const categoryChanged = form.value.category !== originalForm.value.category;
@@ -150,6 +154,7 @@ const hasUnsavedChanges = computed(() => {
 
     return titleChanged || contentChanged || categoryChanged || commentsChanged || tagsChanged;
   } else {
+    // Create mode: warn if they typed anything into a blank slate
     const textContent = form.value.content.replace(/<[^>]*>/g, "").trim();
     return (
       form.value.title.trim().length > 0 ||
@@ -185,9 +190,13 @@ const canPublish = computed(() => {
   );
 });
 
+// Handle closing create post modal
 function handleCloseRequest() {
-  if (hasUnsavedChanges.value) showWarningDialog.value = true;
-  else emit("close");
+  if (hasUnsavedChanges.value) {
+    showWarningDialog.value = true;
+  } else {
+    emit("close");
+  }
 }
 
 function confirmDiscard() {
@@ -199,16 +208,21 @@ function confirmDiscard() {
 const isInitialLoading = ref(true);
 
 onMounted(async () => {
+  // Wait for both essential lists to load before showing the form
   await Promise.all([loadTags(), loadCategories()]);
+  
   document.addEventListener("mousedown", handleClickOutside);
   populateForm();
-  isInitialLoading.value = false;
+  
+  // Now that data is here, turn off the loader
+  isInitialLoading.value = false; 
 });
 
 onUnmounted(() => {
   document.removeEventListener("mousedown", handleClickOutside);
 });
 
+// Watch the prop to force an update if Vue passes the data a millisecond late
 watch(
   () => props.postData,
   () => populateForm(),
@@ -221,12 +235,22 @@ async function doPublish() {
     if (props.isRestricted) {
       const targetId = router.currentRoute.value.params.id;
 
-      await client.patch(`/api/admin/posts/${targetId}/metadata`, {
+      await client.patch(`/admin/posts/${targetId}/metadata`, {
         CategoryID: form.value.category,
         TagIDs: form.value.tags,
       });
+
+    } else if (isEditMode.value) {
+      const targetId = props.postData.PostID || props.postData.postId || props.postData.id;
+      
+      await client.put(`/posts/${targetId}`, {
+        title: form.value.title.trim(),
+        content: form.value.content,
+        tags: form.value.tags,
+        category: form.value.category || null,
+      });
+
     } else {
-      // Needs to swap to update endpoint when isEditMode.
       await createPost({
         title: form.value.title.trim(),
         content: form.value.content,
