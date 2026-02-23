@@ -1,66 +1,97 @@
 <script setup>
-import { ref, computed } from 'vue';
-import client from '@/api/client';
-import { useRoute } from 'vue-router';
+import { ref, computed } from "vue";
+import client from "@/api/client";
+import { useRoute } from "vue-router";
 
 const route = useRoute();
+
 const props = defineProps({
-    post: Object,
-    user: Object 
+  post: Object,
+  user: Object,
+  isAuthor: { type: Boolean, default: false },
 });
 
-const emit = defineEmits(['open-modal']);
+const emit = defineEmits(["open-modal"]);
 
-const showDeleteConfirm = ref(false); 
+const showDeleteConfirm = ref(false);
 const isDeleting = ref(false);
 
-const canModerate = computed(() => props.user?.RoleID >= 3);
+const canModerate = computed(() => Number(props.user?.RoleID) >= 3);
+
+//If admin/mod is author: DO NOT show restricted metadata button
+const showMetadataButton = computed(() => canModerate.value && !props.isAuthor);
+
+//Delete allowed for author OR mod/admin
+const canDelete = computed(() => props.isAuthor || canModerate.value);
 
 const confirmDelete = async () => {
-    const targetId = route.params.id;
-    if (!targetId) return;
+  const targetId = route.params.id;
+  if (!targetId || !canDelete.value) return;
 
-    isDeleting.value = true;
-    try {
-        await client.patch(`/admin/posts/${targetId}/soft-delete`);
-        window.location.href = "/"; 
-    } catch (err) {
-        console.error("Delete failed:", err);
-        showDeleteConfirm.value = false;
-    } finally {
-        isDeleting.value = false;
-    }
+  isDeleting.value = true;
+  try {
+    await client.delete(`posts/${targetId}`); 
+    
+    window.location.href = "/";
+  } catch (err) {
+    console.error("Delete failed:", err);
+    showDeleteConfirm.value = false;
+  } finally {
+    isDeleting.value = false;
+  }
 };
 </script>
 
 <template>
-        <div class="d-flex flex-column gap-2">
-            <button @click="showDeleteConfirm = true" class="btn btn-outline-danger btn-sm text-start">
-                <i class="bi bi-trash3-fill me-2"></i> Delete Post
-            </button>
-            <button @click="emit('open-modal', 'metadata')" class="btn btn-outline-dark btn-sm text-start">
-                <i class="bi bi-pencil-square me-2"></i> Update Category & Tags
-            </button>
-        </div>
+  <div class="d-flex flex-column gap-2">
+    <button
+      v-if="isAuthor"
+      @click="emit('open-modal', 'edit')"
+      class="btn btn-outline-dark btn-sm text-start"
+    >
+      <i class="bi bi-pencil-square me-2"></i> Edit Post
+    </button>
 
-    <Teleport to="body">
-        <Transition name="modal" appear>
-            <div v-if="showDeleteConfirm" class="modal-mask" @mousedown.self="showDeleteConfirm = false">
-                <div class="warning-card shadow-lg">
-                    <p class="fs-5 fw-bold">Delete this post?</p>
-                    <p>This post will be soft-deleted and removed from public view.</p>
-                    <div class="modal-actions justify-content-center">
-                        <button class="cancel-btn" @click="showDeleteConfirm = false" :disabled="isDeleting">
-                            Back
-                        </button>
-                        <button class="delete-btn px-4" @click="confirmDelete" :disabled="isDeleting">
-                            {{ isDeleting ? 'Deleting...' : 'Confirm Delete' }}
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </Transition>
-    </Teleport>
+    <button
+      v-if="canDelete"
+      @click="showDeleteConfirm = true"
+      class="btn btn-outline-danger btn-sm text-start"
+    >
+      <i class="bi bi-trash3-fill me-2"></i> Delete Post
+    </button>
+
+    <button
+      v-if="showMetadataButton"
+      @click="emit('open-modal', 'metadata')"
+      class="btn btn-outline-dark btn-sm text-start"
+    >
+      <i class="bi bi-tags-fill me-2"></i> Update Category & Tags
+    </button>
+  </div>
+
+  <Teleport to="body">
+    <Transition name="modal" appear>
+      <div
+        v-if="showDeleteConfirm"
+        class="modal-mask"
+        @mousedown.self="showDeleteConfirm = false"
+      >
+        <div class="warning-card shadow-lg">
+          <p class="fs-5 fw-bold">Delete this post?</p>
+          <p>This post will be soft-deleted and removed from public view.</p>
+
+          <div class="modal-actions justify-content-center">
+            <button class="cancel-btn" @click="showDeleteConfirm = false" :disabled="isDeleting">
+              Back
+            </button>
+            <button class="delete-btn px-4" @click="confirmDelete" :disabled="isDeleting">
+              {{ isDeleting ? "Deleting..." : "Confirm Delete" }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -90,7 +121,7 @@ const confirmDelete = async () => {
   max-width: 400px;
   width: 90%;
   text-align: center;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
 }
 
 .modal-actions {
@@ -122,11 +153,9 @@ const confirmDelete = async () => {
   background-color: #ffffff;
   border: 2px solid #cbd5e1;
   border-radius: 12px;
-  
   color: #475569;
   font-weight: 700;
   font-size: 1rem;
-  
   padding: 10px 24px;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -149,5 +178,4 @@ const confirmDelete = async () => {
   color: #94a3b8;
   font-size: 0.95rem;
 }
-
 </style>
