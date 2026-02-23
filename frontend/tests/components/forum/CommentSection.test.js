@@ -1,8 +1,7 @@
 /** @vitest-environment jsdom */
-import { mount } from "@vue/test-utils";
+import { mount, flushPromises } from "@vue/test-utils";
 import { describe, it, expect, beforeEach } from "vitest";
 import CommentSection from "@/components/forum/CommentSection.vue";
-
 
 describe("CommentSection.vue", () => {
   let wrapper;
@@ -38,17 +37,20 @@ describe("CommentSection.vue", () => {
     const wrapper = mount(CommentSection);
 
     const replyButtons = wrapper.findAll(".action-btn");
-
     expect(replyButtons.length).toBeGreaterThanOrEqual(2);
 
     await replyButtons[0].trigger("click");
 
-    let openReplyBoxes = wrapper.findAll(".reply-box-container");
-    expect(openReplyBoxes.length).toBe(2);
+    let openReplyBoxes = wrapper
+      .find(".comments-container")
+      .findAll(".reply-box-container");
+    expect(openReplyBoxes.length).toBe(1);
 
     await replyButtons[1].trigger("click");
 
-    openReplyBoxes = wrapper.findAll(".reply-box-container");
-    expect(openReplyBoxes.length).toBe(2);
+    openReplyBoxes = wrapper
+      .find(".comments-container")
+      .findAll(".reply-box-container");
+    expect(openReplyBoxes.length).toBe(1);
   });
 });
