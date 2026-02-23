@@ -1,6 +1,6 @@
+/** @vitest-environment jsdom */
 import { mount, flushPromises } from "@vue/test-utils";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { ref } from "vue";
 
 // 1) Mock vue-router used by ViewPost.vue
 vi.mock("vue-router", () => ({
@@ -9,26 +9,25 @@ vi.mock("vue-router", () => ({
 }));
 
 // 2) Mock API call used onMounted
-const getPostMock = vi.fn();
 vi.mock("@/api/posts", () => ({
-  getPost: (...args) => getPostMock(...args),
+  getPost: vi.fn(),
   votePost: vi.fn(),
 }));
 
 // 3) Mock user store refs used by ViewPost.vue
-const isLoggedIn = ref(true);
-const userRole = ref("user");
-const userRoleId = ref(1);
-const uid = ref(0);
-
-vi.mock("@/stores/userStore", () => ({
-  isLoggedIn,
-  userRole,
-  userRoleId,
-  uid,
-}));
+vi.mock("@/stores/userStore", async () => {
+  const { ref } = await import("vue");
+  return {
+    isLoggedIn: ref(true),
+    userRole: ref("user"),
+    userRoleId: ref(1),
+    uid: ref(0),
+  };
+});
 
 // IMPORTANT: import component AFTER mocks
+import { getPost } from "@/api/posts";
+import { isLoggedIn, userRole, userRoleId, uid } from "@/stores/userStore";
 import ViewPost from "@/views/forum/ViewPost.vue";
 
 // 4) Stub child components (we only care about buttons)
@@ -69,12 +68,12 @@ describe("ViewPost - Edit/Delete visibility by role", () => {
     uid.value = 10;
 
     // default post: someone else is author
-    getPostMock.mockResolvedValue(makePost(999));
+    getPost.mockResolvedValue(makePost(999));
   });
 
   it("Author sees Edit + Delete (full), no metadata button", async () => {
     uid.value = 42;
-    getPostMock.mockResolvedValue(makePost(42));
+    getPost.mockResolvedValue(makePost(42));
 
     const wrapper = await mountAndWait();
 
@@ -86,7 +85,7 @@ describe("ViewPost - Edit/Delete visibility by role", () => {
   it("Non-author normal user sees no moderation buttons", async () => {
     uid.value = 10;
     userRoleId.value = 1;
-    getPostMock.mockResolvedValue(makePost(999));
+    getPost.mockResolvedValue(makePost(999));
 
     const wrapper = await mountAndWait();
 
@@ -98,7 +97,7 @@ describe("ViewPost - Edit/Delete visibility by role", () => {
   it("Admin/Moderator non-author sees Delete + Metadata, no Edit", async () => {
     uid.value = 10;
     userRoleId.value = 3; // >=3 => admin/mod in your code
-    getPostMock.mockResolvedValue(makePost(999));
+    getPost.mockResolvedValue(makePost(999));
 
     const wrapper = await mountAndWait();
 
