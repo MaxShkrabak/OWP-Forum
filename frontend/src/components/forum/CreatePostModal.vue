@@ -22,6 +22,11 @@ const emit = defineEmits(["close", "published"]);
 const router = useRouter();
 const showPublishedConfirmation = ref(false);
 
+// distinguish full edit vs create vs restricted metadata
+const isEditMode = computed(() => !!props.postData && !props.isRestricted);
+const isCreateMode = computed(() => !props.postData && !props.isRestricted);
+const isMetadataMode = computed(() => !!props.isRestricted);
+
 // Form state
 const form = ref({
   title: "",
@@ -55,7 +60,7 @@ const allCategories = ref([]);
 async function loadTags() {
   try {
     allTags.value = await getTags();
-  } catch (e) { 
+  } catch (e) {
     console.error("Tag load error:", e);
   }
 }
@@ -102,7 +107,6 @@ function handleClickOutside(event) {
 
 function populateForm() {
   if (props.postData) {
-    // Extract everything safely accounting for both uppercase/lowercase variations
     const title = props.postData.Title || props.postData.title || "";
     const content = props.postData.Content || props.postData.content || "";
     const cat =
@@ -117,14 +121,12 @@ function populateForm() {
         ? props.postData.tags.map((t) => Number(t.TagID || t.tagId || t))
         : [];
 
-    // Set current form values
     form.value.title = title;
     form.value.content = content;
     form.value.category = cat;
     form.value.tags = [...tgs];
     form.value.disableComments = dc;
 
-    // Track the original values to prevent false warnings on close
     originalForm.value = {
       title,
       content,
@@ -135,10 +137,9 @@ function populateForm() {
   }
 }
 
-// Validation
+// Unsaved changes
 const hasUnsavedChanges = computed(() => {
   if (props.postData) {
-    // Edit mode: only warn if they actually changed something from the original
     const titleChanged = form.value.title !== originalForm.value.title;
     const contentChanged = form.value.content !== originalForm.value.content;
     const categoryChanged = form.value.category !== originalForm.value.category;
@@ -149,7 +150,6 @@ const hasUnsavedChanges = computed(() => {
 
     return titleChanged || contentChanged || categoryChanged || commentsChanged || tagsChanged;
   } else {
-    // Create mode: warn if they typed anything into a blank slate
     const textContent = form.value.content.replace(/<[^>]*>/g, "").trim();
     return (
       form.value.title.trim().length > 0 ||
@@ -185,16 +185,11 @@ const canPublish = computed(() => {
   );
 });
 
-// Handle closing create post modal
 function handleCloseRequest() {
-  if (hasUnsavedChanges.value) {
-    showWarningDialog.value = true;
-  } else {
-    emit("close");
-  }
+  if (hasUnsavedChanges.value) showWarningDialog.value = true;
+  else emit("close");
 }
 
-// Discard post content
 function confirmDiscard() {
   form.value = { title: "", category: "", content: "", tags: [] };
   showWarningDialog.value = false;
@@ -204,40 +199,34 @@ function confirmDiscard() {
 const isInitialLoading = ref(true);
 
 onMounted(async () => {
-  // Wait for both essential lists to load before showing the form
   await Promise.all([loadTags(), loadCategories()]);
-
   document.addEventListener("mousedown", handleClickOutside);
   populateForm();
-
-  // Now that data is here, turn off the loader
-  isInitialLoading.value = false; 
+  isInitialLoading.value = false;
 });
 
 onUnmounted(() => {
   document.removeEventListener("mousedown", handleClickOutside);
 });
 
-// Watch the prop to force an update if Vue passes the data a millisecond late
 watch(
   () => props.postData,
-  () => {
-    populateForm();
-  },
+  () => populateForm(),
   { immediate: true }
 );
 
-// Publish post
+// Publish / Save
 async function doPublish() {
   try {
     if (props.isRestricted) {
       const targetId = router.currentRoute.value.params.id;
 
-      await client.patch(`/admin/posts/${targetId}/metadata`, {
+      await client.patch(`/api/admin/posts/${targetId}/metadata`, {
         CategoryID: form.value.category,
         TagIDs: form.value.tags,
       });
     } else {
+      // Needs to swap to update endpoint when isEditMode.
       await createPost({
         title: form.value.title.trim(),
         content: form.value.content,
@@ -267,6 +256,20 @@ async function doPublish() {
     showPublishConfirm.value = false;
   }
 }
+
+//header/button for edit
+const modalTitle = computed(() => {
+  if (isMetadataMode.value) return "UPDATE POST";
+  if (isEditMode.value) return "EDIT POST ";
+  return "CREATE POST";
+});
+
+const primaryButtonText = computed(() => {
+  if (props.loading) return "Processing...";
+  if (isMetadataMode.value) return "Save Changes";
+  if (isEditMode.value) return "Save Changes";
+  return "Publish Post";
+});
 </script>
 
 <template>
@@ -275,7 +278,7 @@ async function doPublish() {
       <div v-if="show" class="modal-mask" @mousedown.self="handleCloseRequest">
         <div class="modal-container">
           <header class="modal-header">
-            <h3>{{ isRestricted ? 'UPDATE POST METADATA' : 'CREATE POST' }}</h3>
+            <h3>{{ modalTitle }}</h3>
             <button class="close-x" @click="handleCloseRequest">&times;</button>
           </header>
 
@@ -291,7 +294,7 @@ async function doPublish() {
                   <label v-if="!form.title" class="title-placeholder">
                     Title<span class="star-red">*</span>
                   </label>
-                  
+
                   <input
                     v-model="form.title"
                     class="title-input"
@@ -317,9 +320,10 @@ async function doPublish() {
 
               <div class="controls-bar">
                 <div class="category-side">
-                  <label class="form-label-small"
-                    >Category<span v-if="!form.category" class="star-red">*</span></label
-                  >
+                  <label class="form-label-small">
+                    Category<span v-if="!form.category" class="star-red">*</span>
+                  </label>
+
                   <select v-model="form.category" class="clean-select-rect">
                     <option value="">Select Category</option>
                     <option v-for="cat in allCategories" :key="cat.categoryId" :value="cat.categoryId">
@@ -394,7 +398,6 @@ async function doPublish() {
               </div>
 
               <div :class="{ 'restricted-input': isRestricted }">
-                <!-- keep only editor -->
                 <TextEditor
                   v-model="form.content"
                   v-model:isUploading="isUploading"
@@ -414,19 +417,18 @@ async function doPublish() {
                 :disabled="(isRestricted ? (!form.category || !hasMetadataChanges) : !canPublish) || loading"
                 @click="showPublishConfirm = true"
               >
-                {{ loading ? "Processing..." : isRestricted ? "Update Metadata" : "Publish Post" }}
+                {{ primaryButtonText }}
               </button>
             </div>
           </footer>
 
-          <!-- Overlays live inside the ONE Transition root -->
           <div v-if="showPublishedConfirmation" class="inner-warning-overlay">
             <div class="warning-card shadow-lg">
               <p class="fs-5 fw-bold">
-                {{ isRestricted ? "Changes Saved" : "Post Published" }}
+                {{ isMetadataMode ? "Changes Saved" : isEditMode ? "Changes Saved" : "Post Published" }}
               </p>
               <p>
-                {{ isRestricted ? "Refreshing details..." : "Redirecting to home..." }}
+                {{ isMetadataMode ? "Refreshing details..." : "Redirecting to home..." }}
               </p>
             </div>
           </div>
@@ -439,7 +441,6 @@ async function doPublish() {
             </div>
           </div>
 
-          <!-- Publish Confirmation -->
           <div
             v-if="showPublishConfirm"
             class="inner-warning-overlay"
@@ -447,21 +448,23 @@ async function doPublish() {
           >
             <div class="warning-card shadow-lg">
               <p class="fs-5 fw-bold">
-                {{ isRestricted ? "Save Changes?" : "Ready to Publish?" }}
+                {{ isMetadataMode ? "Save Changes?" : isEditMode ? "Save Changes?" : "Ready to Publish?" }}
               </p>
 
               <p>
                 {{
-                  isRestricted
+                  isMetadataMode
                     ? "This will update the post metadata immediately."
-                    : "Your post will be visible to everyone."
+                    : isEditMode
+                      ? "This will save your edits immediately."
+                      : "Your post will be visible to everyone."
                 }}
               </p>
 
               <div class="modal-actions justify-content-center">
                 <button class="cancel-btn" @click="showPublishConfirm = false">Back</button>
                 <button class="publish-btn" @click="doPublish">
-                  {{ isRestricted ? "Confirm & Update" : "Confirm & Publish" }}
+                  {{ isMetadataMode ? "Confirm & Save" : isEditMode ? "Confirm & Save" : "Confirm & Publish" }}
                 </button>
               </div>
             </div>
@@ -481,6 +484,7 @@ async function doPublish() {
               </div>
             </div>
           </div>
+
         </div>
       </div>
     </Transition>
