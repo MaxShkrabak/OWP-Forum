@@ -4,7 +4,7 @@ import { mount, flushPromises } from "@vue/test-utils";
 import ReportingModal from "@/components/user/ReportingModal.vue";
 import { submitReport } from "@/api/reports";
 
-vi.mock("@/api/reports.js", () => ({
+vi.mock("@/api/reports", () => ({
   getReportTags: vi.fn(() =>
     Promise.resolve([
       { tagID: 1, name: "Spam" },
@@ -21,7 +21,7 @@ describe("ReportingModal.vue", () => {
   const createWrapper = (props = {}) => {
     return mount(ReportingModal, {
       props: { isOpen: false, ...props },
-      global: { stubs: { Teleport: true } },
+      global: { stubs: { Teleport: true, Transition: true } },
     });
   };
 
@@ -31,6 +31,7 @@ describe("ReportingModal.vue", () => {
     expect(wrapper.find(".report-body").exists()).toBe(false);
 
     await wrapper.setProps({ isOpen: true });
+    await flushPromises();
 
     expect(wrapper.find(".report-body").exists()).toBe(true);
     expect(wrapper.text()).toContain("Report");
@@ -64,15 +65,14 @@ describe("ReportingModal.vue", () => {
     await flushPromises();
 
     const submitButton = wrapper.find(".btn-primary-action");
-    const tag = wrapper.find(".reason-card");
-
     expect(submitButton.element.disabled).toBe(true);
 
-    await tag.trigger("click");
+    await wrapper.find(".reason-card").trigger("click");
+
     expect(submitButton.element.disabled).toBe(false);
 
     // to check that the submit button is disabled again
-    await tag.trigger("click"); // unselect tag
+    await wrapper.find(".reason-card").trigger("click"); // unselect tag
     expect(submitButton.element.disabled).toBe(true);
   });
 
