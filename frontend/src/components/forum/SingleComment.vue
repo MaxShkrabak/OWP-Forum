@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, inject, computed } from 'vue';
 import UserRole from "@/components/user/UserRole.vue";
 
 const props = defineProps({
@@ -7,18 +7,26 @@ const props = defineProps({
   isLastChild: Boolean
 });
 
-const isReplying = ref(false);
 const showReplies = ref(false);
 const replyText = ref('');
 const showMenu = ref(false);
+
+const activeReplyId = inject('activeReplyId');
+
+const isReplying = computed(() => activeReplyId.value === props.comment.id);
 const toggleMenu = () => { showMenu.value = !showMenu.value; };
 
-const toggleReply = () => { isReplying.value = !isReplying.value; };
+const toggleReply = () => { 
+  if (isReplying.value) {
+    activeReplyId.value = null;
+  } else {
+    activeReplyId.value = props.comment.id;
+  }
+};
+
 const toggleRepliesDropdown = () => { showReplies.value = !showReplies.value; };
 
 const totalScore = ref(0);
-
-
 </script>
 
 <template>
@@ -94,7 +102,7 @@ const totalScore = ref(0);
 
             <div class="d-flex justify-content-end align-items-center gap-3 px-3 pb-2">
               <button class="btn-cancel border-0 bg-transparent fw-bold small"
-                @click="isReplying = false">Cancel</button>
+                @click="activeReplyId = null">Cancel</button>
               <button class="btn-submit border-0 rounded-2 fw-bold px-3 py-1 small"
                 :disabled="!replyText">Reply</button>
             </div>

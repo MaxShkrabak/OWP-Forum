@@ -172,8 +172,10 @@ const clearFormatting = () => {
 onMounted(() => window.addEventListener('click', handleClickOutside));
 onUnmounted(() => window.removeEventListener('click', handleClickOutside));
 
-defineExpose({ clearContent: () => editor.value?.commands.setContent("") });
-</script>
+defineExpose({ 
+    editor,
+    clearContent: () => editor.value?.commands.setContent("") 
+});</script>
 
 <template>
     <div class="editor-container">

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, provide } from 'vue';
 import SingleComment from './SingleComment.vue';
 
 // Some random comments
@@ -55,7 +55,7 @@ const comments = ref([
     replies: []
   },
   {
-    id: 6,
+    id: 7,
     author: 'Dev Mike',
     role: 'User',
     time: '5h ago',
@@ -63,7 +63,7 @@ const comments = ref([
     replies: []
   }, 
   {
-    id: 6,
+    id: 8,
     author: 'Dev Mike',
     role: 'User',
     time: '5h ago',
@@ -71,7 +71,7 @@ const comments = ref([
     replies: []
   },
   {
-    id: 6,
+    id: 9,
     author: 'Dev Mike',
     role: 'User',
     time: '5h ago',
@@ -79,7 +79,7 @@ const comments = ref([
     replies: []
   },
   {
-    id: 6,
+    id: 10,
     author: 'Dev Mike',
     role: 'User',
     time: '5h ago',
@@ -91,6 +91,9 @@ const comments = ref([
 const isFocused = ref(false);
 const newComment = ref('');
 const displayLimit = ref(5);
+const activeReplyId = ref(null);
+
+provide('activeReplyId', activeReplyId);
 
 // Helper to count all comments and replies
 const countAll = (commentArray) => {
