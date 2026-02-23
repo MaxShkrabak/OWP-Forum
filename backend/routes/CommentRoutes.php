@@ -366,7 +366,10 @@ $app->post("/api/comments/{id}/report", function (Request $req, Response $res, a
     }
 });
 
-$app->post("/api/comments/{id}/vote", function (Request $req, Response $res, array $args) use ($makePdo) {
+use Forum\Controllers\CommentVoteController;
+$commentVoteController = new CommentVoteController($makePdo);
+
+$app->post("/api/comments/{id}/vote", [$commentVoteController, 'vote']); {
     $pdo = null;
     try {
         $userId = $req->getAttribute("user_id");
