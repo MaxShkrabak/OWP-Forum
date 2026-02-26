@@ -238,8 +238,16 @@ $app->patch('/api/admin/users/{id}/ban', function(Request $req, Response $res, a
             return json($res, ['ok' => false, 'error' => 'Invalid user id'], 400);
         }
 
+        // Prevent banning another administrator (BB-356)
+        $targetRoleStmt = $pdo->prepare("SELECT RoleID FROM dbo.Users WHERE User_ID = :uid");
+        $targetRoleStmt->execute([':uid' => $targetUserId]);
+        $targetRoleId = (int)($targetRoleStmt->fetchColumn() ?? 0);
+
         $data = $req->getParsedBody() ?? [];
         $banned = isset($data['banned']) ? (bool)$data['banned'] : true;
+        if ($banned && $targetRoleId === 4) {
+            return json($res, ['ok' => false, 'error' => 'You cannot ban another administrator'], 403);
+        }
         $banType = $banned ? trim(strtolower((string)($data['banType'] ?? 'permanent'))) : null;
         $bannedUntil = $banned && $banType === 'temporary' ? ($data['bannedUntil'] ?? null) : null;
 

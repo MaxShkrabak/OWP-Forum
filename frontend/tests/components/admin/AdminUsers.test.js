@@ -17,8 +17,8 @@ const { mockClient } = vi.hoisted(() => ({
 vi.mock("@/api/client", () => ({ default: mockClient }));
 
 const mockUsers = [
-  { User_ID: 1, FirstName: "Jane", LastName: "Doe", Email: "jane@example.com", RoleName: "User", IsBanned: 0, BanType: null, BannedUntil: null },
-  { User_ID: 2, FirstName: "John", LastName: "Smith", Email: "john@example.com", RoleName: "Admin", IsBanned: 0, BanType: null, BannedUntil: null },
+  { User_ID: 1, FirstName: "Jane", LastName: "Doe", Email: "jane@example.com", RoleName: "User", RoleID: 1, IsBanned: 0, BanType: null, BannedUntil: null },
+  { User_ID: 2, FirstName: "John", LastName: "Smith", Email: "john@example.com", RoleName: "Admin", RoleID: 4, IsBanned: 0, BanType: null, BannedUntil: null },
 ];
 
 describe("Ban User (Admin) — ban date formatting", () => {
@@ -63,11 +63,20 @@ describe("Ban User (Admin) — AdminUsers.vue DOM", () => {
     mockClient.patch.mockResolvedValue({});
   });
 
-  it("loads users and shows Ban button for each active user", async () => {
+  it("loads users and shows Ban button only for non-admin active users", async () => {
     const wrapper = mount(AdminUsers);
     await flushPromises();
     const banButtons = wrapper.findAll(".btn-ban");
-    expect(banButtons.length).toBe(2);
+    expect(banButtons.length).toBe(1); // Only Jane (User), not John (Admin)
+  });
+
+  it("does not show Ban button for admin users (BB-356)", async () => {
+    const wrapper = mount(AdminUsers);
+    await flushPromises();
+    const rows = wrapper.findAll(".admin-table tbody tr");
+    const adminRow = rows.find(r => r.text().includes("Admin"));
+    expect(adminRow).toBeDefined();
+    expect(adminRow.find(".btn-ban").exists()).toBe(false);
   });
 
   it("opens ban modal when Ban is clicked and confirm updates row to banned state", async () => {
