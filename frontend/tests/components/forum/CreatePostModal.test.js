@@ -65,6 +65,9 @@ describe("Fix Create Post Request Spam", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("disables the publish button immediately after the first click", async () => {
+    const { getCategories } = await import("@/api/posts");
+    vi.mocked(getCategories).mockResolvedValue([{ categoryId: "1", name: "General" }]);
+
     const wrapper = mount(CreatePostModal, {
       props: {
         show: true,
@@ -73,7 +76,11 @@ describe("Fix Create Post Request Spam", () => {
         isRestricted: false,
       },
       global: {
-        stubs: { Teleport: true, Transition: true, TextEditor: true },
+        stubs: {
+          Teleport: { template: "<div><slot /></div>" },
+          Transition: { template: "<div><slot /></div>" },
+          TextEditor: true,
+        },
       },
     });
 
@@ -81,12 +88,13 @@ describe("Fix Create Post Request Spam", () => {
 
     const titleInput = wrapper.find(".title-input");
     if (titleInput.exists()) await titleInput.setValue("Valid Title");
-    const categorySelect = wrapper.find("select.category-dropdown");
+    const categorySelect = wrapper.find("select.clean-select-rect");
     if (categorySelect.exists()) await categorySelect.setValue("1");
     const editor = wrapper.findComponent({ name: "TextEditor" });
     if (editor.exists() && editor.vm) {
       editor.vm.$emit("update:modelValue", "<p>Some content</p>");
     }
+    await wrapper.vm.$nextTick();
 
     const footerPublishBtn = wrapper.findAll(".publish-btn")[0];
     if (!footerPublishBtn?.exists()) {
