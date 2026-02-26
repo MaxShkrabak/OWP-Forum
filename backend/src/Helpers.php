@@ -37,3 +37,34 @@ if (!function_exists('Forum\Helpers\clearSessionCookie')) {
         ]);
     }
 }
+
+if (!function_exists('Forum\Helpers\checkUserBan')) {
+    function checkUserBan(\PDO $pdo, int $userId, Response $res): ?Response {
+        $stmt = $pdo->prepare("
+            SELECT 
+                ISNULL(IsBanned, 0) AS IsBanned,
+                BanType, 
+                BannedUntil 
+            FROM dbo.Users WHERE User_ID = :uid
+        ");
+        $stmt->execute([':uid' => $userId]);
+        $user = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+        if ($user && (int)$user['IsBanned'] === 1) {
+            $banType = $user['BanType'] ? trim((string)$user['BanType']) : null;
+            $bannedUntil = $user['BannedUntil'] ?? null;
+
+            $isRestricted = ($banType !== 'temporary' || !$bannedUntil) 
+                || (new \DateTimeImmutable($bannedUntil, new \DateTimeZone('UTC')) > new \DateTimeImmutable('now', new \DateTimeZone('UTC')));
+
+            if ($isRestricted) {
+                $msg = 'Your account is restricted from performing this action.';
+                if ($banType === 'temporary' && $bannedUntil) {
+                    $msg .= " Banned until: " . $bannedUntil;
+                }
+                return json($res, ['ok' => false, 'error' => $msg], 403);
+            }
+        }
+        return null;
+    }
+}

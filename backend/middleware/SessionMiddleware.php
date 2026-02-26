@@ -24,7 +24,9 @@ return function (Request $request, RequestHandler $handler) use ($makePdo) {
         || (isset($publicRoutes[$path]) && in_array($method, $publicRoutes[$path]))
         || ($method === 'GET' && str_starts_with($path, '/api/categories'))
         || ($method === 'GET' && str_starts_with($path, '/api/get-post'))
-        || ($method === 'GET' && str_starts_with($path, '/api/profile'));
+        || ($method === 'GET' && str_starts_with($path, '/api/profile'))
+        || ($method === 'GET' && str_contains($path, '/comments')) 
+        || ($method === 'GET' && str_contains($path, '/replies'));
 
     $token = $request->getCookieParams()['session'] ?? '';
     $session = null;
