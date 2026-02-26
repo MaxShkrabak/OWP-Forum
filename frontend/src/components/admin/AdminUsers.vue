@@ -138,6 +138,12 @@ function formatUserDisplay(u) {
   return email ? email : `ID: ${u.User_ID}`
 }
 
+function isAdminUser(u) {
+  if (!u) return false
+  if (Number(u.RoleID) === 4) return true
+  return (u.RoleName || '').toLowerCase() === 'admin'
+}
+
 onMounted(() => loadUsers())
 </script>
 
@@ -187,7 +193,7 @@ onMounted(() => loadUsers())
             </td>
             <td>
               <button
-                v-if="!u.IsBanned && u.RoleID !== 4"
+                v-if="!u.IsBanned && !isAdminUser(u)"
                 type="button"
                 class="btn-ban"
                 @click="openBanModal(u)"
@@ -202,7 +208,6 @@ onMounted(() => loadUsers())
               >
                 Unban
               </button>
-              <span v-else class="action-none">—</span>
             </td>
           </tr>
         </tbody>
@@ -435,11 +440,6 @@ onMounted(() => loadUsers())
 .btn-unban:hover {
   background: #059669;
   color: #fff;
-}
-
-.action-none {
-  color: #9ca3af;
-  font-size: 0.9rem;
 }
 
 .modal-overlay {

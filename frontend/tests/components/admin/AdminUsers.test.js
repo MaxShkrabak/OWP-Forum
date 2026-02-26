@@ -77,7 +77,6 @@ describe("Ban User (Admin) — AdminUsers.vue DOM", () => {
     const adminRow = rows.find(r => r.text().includes("Admin"));
     expect(adminRow).toBeDefined();
     expect(adminRow.find(".btn-ban").exists()).toBe(false);
-    expect(adminRow.find(".action-none").exists()).toBe(true);
   });
 
   it("opens ban modal when Ban is clicked and confirm updates row to banned state", async () => {
