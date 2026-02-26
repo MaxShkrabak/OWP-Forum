@@ -13,6 +13,9 @@ const banTarget = ref(null)
 const banKind = ref('permanent') // 'permanent' | 'temporary'
 const banUntilDate = ref('')
 
+const showWarning = ref(false)
+const warningMessage = ref('')
+
 // Tomorrow in local time (YYYY-MM-DD) so date picker min is correct in user's timezone
 const minBanDate = computed(() => {
   const d = new Date()
@@ -68,12 +71,22 @@ function closeBanModal() {
   banTarget.value = null
 }
 
+function showWarningPopup(message) {
+  warningMessage.value = message
+  showWarning.value = true
+}
+
+function closeWarningPopup() {
+  showWarning.value = false
+  warningMessage.value = ''
+}
+
 async function confirmBan() {
   if (!banTarget.value) return
   const payload = { banned: true }
   if (banKind.value === 'temporary') {
     if (!banUntilDate.value) {
-      alert('Please choose an end date for the temporary ban.')
+      showWarningPopup('Please choose an end date for the temporary ban.')
       return
     }
     payload.banType = 'temporary'
@@ -88,7 +101,7 @@ async function confirmBan() {
     banTarget.value.BannedUntil = payload.bannedUntil || null
     closeBanModal()
   } catch (e) {
-    alert(e?.response?.data?.error || 'Failed to update ban status')
+    showWarningPopup(e?.response?.data?.error || 'Failed to update ban status')
   }
 }
 
@@ -99,7 +112,7 @@ async function unban(user) {
     user.BanType = null
     user.BannedUntil = null
   } catch (e) {
-    alert(e?.response?.data?.error || 'Failed to update ban status')
+    showWarningPopup(e?.response?.data?.error || 'Failed to update ban status')
   }
 }
 
@@ -174,7 +187,7 @@ onMounted(() => loadUsers())
             </td>
             <td>
               <button
-                v-if="!u.IsBanned"
+                v-if="!u.IsBanned && u.RoleID !== 4"
                 type="button"
                 class="btn-ban"
                 @click="openBanModal(u)"
@@ -182,13 +195,14 @@ onMounted(() => loadUsers())
                 Ban
               </button>
               <button
-                v-else
+                v-else-if="u.IsBanned"
                 type="button"
                 class="btn-unban"
                 @click="unban(u)"
               >
                 Unban
               </button>
+              <span v-else class="action-none">—</span>
             </td>
           </tr>
         </tbody>
@@ -227,6 +241,20 @@ onMounted(() => loadUsers())
         <div class="modal-actions">
           <button type="button" class="btn-modal-cancel" @click="closeBanModal">Cancel</button>
           <button type="button" class="btn-modal-confirm" @click="confirmBan">Confirm ban</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Warning popup -->
+    <div v-if="showWarning" class="modal-overlay" @mousedown.self="closeWarningPopup">
+      <div class="modal-card modal-warning">
+        <div class="warning-icon">
+          <i class="bi bi-exclamation-triangle-fill"></i>
+        </div>
+        <h3 class="modal-title">Warning</h3>
+        <p class="warning-message">{{ warningMessage }}</p>
+        <div class="modal-actions">
+          <button type="button" class="btn-modal-confirm" @click="closeWarningPopup">OK</button>
         </div>
       </div>
     </div>
@@ -409,6 +437,11 @@ onMounted(() => loadUsers())
   color: #fff;
 }
 
+.action-none {
+  color: #9ca3af;
+  font-size: 0.9rem;
+}
+
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -514,5 +547,30 @@ onMounted(() => loadUsers())
 
 .btn-modal-confirm:hover {
   background: #b91c1c;
+}
+
+.modal-warning .modal-title {
+  color: #b45309;
+}
+
+.warning-icon {
+  margin-bottom: 12px;
+  font-size: 2.5rem;
+  color: #d97706;
+}
+
+.warning-message {
+  margin: 0 0 20px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: #374151;
+}
+
+.modal-warning .btn-modal-confirm {
+  background: #d97706;
+}
+
+.modal-warning .btn-modal-confirm:hover {
+  background: #b45309;
 }
 </style>
