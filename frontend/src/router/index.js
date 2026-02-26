@@ -4,7 +4,6 @@
     import RegistrationPage from '../views/auth/Register.vue';
     import VerifyPasscode from '../views/auth/VerifyPasscode.vue';
     import ForumUserProfile from '../views/forum/UserProfile.vue';
-    import CreatePost from '../components/forum/CreatePostModal.vue';
     import CategoryPost from '@/views/forum/CategoryPosts.vue';
     import ViewPost from '@/views/forum/ViewPost.vue';
     import AdminPanel from '@/views/admin/AdminPanel.vue';
@@ -15,7 +14,6 @@
       { path: '/login', name: 'Log in', component: LoginPage },
       { path: '/register', name: 'Register', component: RegistrationPage },
       { path: '/verify', name: 'VerifyPasscode', component: VerifyPasscode, props: (route) => ({ email: route.query.email || '' }) },
-      { path: '/create-post', name: 'CreatePost', component: CreatePost, meta: { requiresAuth: true } },
       { path: '/profile', name: 'User Profile', component: ForumUserProfile },
       { path: '/categories/:categoryId/:slug?', name: 'CategoryPosts', component: CategoryPost, },
       { path: '/posts/:id', name: 'ViewPost', component: ViewPost, props: true},
@@ -29,6 +27,7 @@
 
     // Route guard
     router.beforeEach(async (to, from, next) => {
+      // For any page that requires user to be signed in.
       if (to.meta.requiresAuth) {
         // Authentication is required for the page
         try {
