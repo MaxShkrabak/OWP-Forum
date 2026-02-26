@@ -76,16 +76,28 @@ describe("Fix Create Post Request Spam", () => {
         stubs: { Teleport: true, Transition: true, TextEditor: true },
       },
     });
-    
+
     await flushPromises();
-    
+
     const titleInput = wrapper.find(".title-input");
     if (titleInput.exists()) await titleInput.setValue("Valid Title");
-    
-    const publishButton = wrapper.find(".btn-submit");
-    if (publishButton.exists()) {
-      await publishButton.trigger("click");
-      expect(publishButton.element.disabled).toBe(true);
+    const categorySelect = wrapper.find("select.category-dropdown");
+    if (categorySelect.exists()) await categorySelect.setValue("1");
+    const editor = wrapper.findComponent({ name: "TextEditor" });
+    if (editor.exists() && editor.vm) {
+      editor.vm.$emit("update:modelValue", "<p>Some content</p>");
+    }
+
+    const footerPublishBtn = wrapper.findAll(".publish-btn")[0];
+    if (footerPublishBtn.exists()) await footerPublishBtn.trigger("click");
+    await wrapper.vm.$nextTick();
+
+    const confirmPublishBtns = wrapper.findAll(".publish-btn");
+    const confirmBtn = confirmPublishBtns.length > 1 ? confirmPublishBtns[1] : null;
+    if (confirmBtn) {
+      confirmBtn.trigger("click");
+      await wrapper.vm.$nextTick();
+      expect(confirmBtn.element.disabled).toBe(true);
     }
   });
 });
