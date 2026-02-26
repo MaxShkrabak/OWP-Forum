@@ -1,22 +1,42 @@
 /** @vitest-environment jsdom */
 import { mount, flushPromises } from "@vue/test-utils";
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import CommentSection from "@/components/forum/CommentSection.vue";
 
+vi.mock("@/api/comments", () => ({
+  fetchComments: vi.fn(() => 
+    Promise.resolve({
+      ok: true,
+      total: 15,
+      items: [
+        { id: 1, content: "This is my first comment!", user: { firstName: "John", lastName: "Rogers" }, replies: [] },
+        { id: 2, content: "Wow this post is cool!", user: { firstName: "Jack", lastName: "Timothy" }, replies: [] }
+      ] 
+    })
+  ),
+  submitComment: vi.fn(),
+  formatCommentData: vi.fn((data) => ({
+    ...data,
+    id: data.id || Math.random(),
+    replies: []
+  }))
+}));
 describe("CommentSection.vue", () => {
   let wrapper;
 
   beforeEach(() => {
     wrapper = mount(CommentSection, {
+      props: {
+        postId: 12
+      },
       global: {
-        stubs: { SingleComment: true },
+        stubs: { SingleComment: false },
       },
     });
   });
 
-  // TODO: this test will need to be changed once backend is linked
   it("displays the correct total number of comments", () => {
-    expect(wrapper.find(".section-title").text()).toContain("10 Comments");
+    expect(wrapper.find(".section-title").text()).toContain("15 Comments");
   });
 
   it("disables the submit button if there is no data, and enables it when text is entered", async () => {
@@ -34,8 +54,6 @@ describe("CommentSection.vue", () => {
   });
 
   it("only allows one reply box to be open at a time", async () => {
-    const wrapper = mount(CommentSection);
-
     const replyButtons = wrapper.findAll(".action-btn");
     expect(replyButtons.length).toBeGreaterThanOrEqual(2);
 

@@ -1,10 +1,8 @@
 <?php
-
 use PHPUnit\Framework\TestCase;
 use Forum\Controllers\ReportController;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Psr7\Response;
-use Slim\Psr7\Factory\StreamFactory;
 
 class ReportControllerTest extends TestCase {
     private $pdo;

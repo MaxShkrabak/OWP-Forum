@@ -3,7 +3,6 @@ require_once __DIR__.'/../vendor/autoload.php';
 
 use PHPUnit\Framework\TestCase;
 use Forum\Controllers\CommentVoteController;
-use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Psr7\Response;
 use Slim\Psr7\Factory\ServerRequestFactory;
 
@@ -21,56 +20,48 @@ final class CommentVoteControllerTest extends TestCase
         $commentId = 1; // Assuming comment with ID 1 exists
         $userId = 1; // Assuming user with ID 1 exists
 
-        $checkComment = $this->createMock(PDOStatement::class);
-        $checkComment->expects($this->once())
+        $checkBanStmt = $this->createMock(PDOStatement::class);
+        $checkBanStmt->expects($this->once())
             ->method('execute')
-            ->with([':commentId' => $commentId]);
-        $checkComment->expects($this->once())
+            ->with([':uid' => $userId]);
+        $checkBanStmt->expects($this->once())
+            ->method('fetch')
+            ->with(PDO::FETCH_ASSOC)
+            ->willReturn(['IsBanned' => 0]);
+
+        $deleteStmt = $this->createMock(PDOStatement::class);
+        $deleteStmt->expects($this->once())
+            ->method('execute')
+            ->with([':cid' => $commentId, ':uid' => $userId]);
+
+        $insertStmt = $this->createMock(PDOStatement::class);
+        $insertStmt->expects($this->once())
+            ->method('execute')
+            ->with([':cid' => $commentId, ':uid' => $userId, ':val' => 1]);
+
+        $scoreStmt = $this->createMock(PDOStatement::class);
+        $scoreStmt->expects($this->once())
+            ->method('execute')
+            ->with([':cid' => $commentId]);
+        $scoreStmt->expects($this->once())
             ->method('fetchColumn')
-            ->willReturn(1); // Comment exists
-
-        $checkVote = $this->createMock(PDOStatement::class);
-        $checkVote->expects($this->once())
-            ->method('execute')
-            ->with([':commentId' => $commentId, ':userId' => $userId]);
-        $checkVote->expects($this->once())
-            ->method('fetch')
-            ->with(PDO::FETCH_ASSOC)
-            ->willReturn(false); // No existing vote
-
-        $insertVote = $this->createMock(PDOStatement::class);
-        $insertVote->expects($this->once())
-            ->method('execute')
-            ->with([':commentId' => $commentId, ':userId' => $userId, ':voteValue' => '1']);
-        
-        $incrementUpvotes = $this->createMock(PDOStatement::class);
-        $incrementUpvotes->expects($this->once())
-            ->method('execute')
-            ->with([':commentId' => $commentId]);
-
-        $totalVotes = $this->createMock(PDOStatement::class);
-        $totalVotes->expects($this->once())
-            ->method('execute')
-            ->with([':commentId' => $commentId]);
-        $totalVotes->expects($this->once())
-            ->method('fetch')
-            ->with(PDO::FETCH_ASSOC)
-            ->willReturn(['UpVotes' => 10, 'DownVotes' => 2]);
+            ->willReturn(8);
 
         $pdo = $this->createMock(PDO::class);
-        $pdo->expects($this->exactly(5))
+        $pdo->expects($this->once())->method('beginTransaction');
+        $pdo->expects($this->once())->method('commit');
+
+        $pdo->expects($this->exactly(4))
             ->method('prepare')
-            ->willReturnCallback(function(string $sql) use ($checkComment, $checkVote, $insertVote, $incrementUpvotes, $totalVotes) {
-                if (strpos($sql, 'SELECT 1 FROM dbo.Comments') !== false) {
-                    return $checkComment;
-                } elseif (strpos($sql, 'SELECT VoteValue FROM dbo.CommentVotes') !== false) {
-                    return $checkVote;
-                } elseif (strpos($sql, 'INSERT INTO dbo.CommentVotes') !== false) {
-                    return $insertVote;
-                } elseif (strpos($sql, 'UPDATE dbo.Comments SET UpVotes = UpVotes + 1') !== false) {
-                    return $incrementUpvotes;
-                } elseif (strpos($sql, 'SELECT UpVotes, DownVotes FROM dbo.Comments') !== false) {
-                    return $totalVotes;
+            ->willReturnCallback(function(string $sql) use ($checkBanStmt, $deleteStmt, $insertStmt, $scoreStmt) {
+                if (str_contains($sql, 'dbo.Users')) {
+                    return $checkBanStmt;
+                } elseif (str_contains($sql, 'DELETE FROM dbo.CommentVotes')) {
+                    return $deleteStmt;
+                } elseif (str_contains($sql, 'INSERT INTO dbo.CommentVotes')) {
+                    return $insertStmt;
+                } elseif (str_contains($sql, 'SELECT TotalScore FROM dbo.Comments')) {
+                    return $scoreStmt;
                 }
                 throw new Exception("Unexpected SQL: $sql");
             });
@@ -79,19 +70,14 @@ final class CommentVoteControllerTest extends TestCase
 
         $request = (new ServerRequestFactory())->createServerRequest('POST', "/api/comments/{$commentId}/vote")
             ->withAttribute('user_id', $userId)
-            ->withParsedBody(['voteValue' => 1]);
+            ->withParsedBody(['dir' => 'upvote']);
 
         $response = $controller->vote($request, new Response(), ['id' => $commentId]);
-
         $this->assertEquals(200, $response->getStatusCode());
-
         $json = $this->decode($response);
+        
         $this->assertEquals(true, $json['ok'] ?? null);
         $this->assertEquals(8, $json['score'] ?? null);
-        $this->assertEquals($commentId, $json['commentId'] ?? null);
-        $this->assertEquals($userId, $json['userId'] ?? null);
-        $this->assertEquals(1, $json['voteValue'] ?? null);
-        $this->assertEquals(10, $json['upvotes'] ?? null);
-        $this->assertEquals(2, $json['downvotes'] ?? null);
+        $this->assertEquals(1, $json['myVote'] ?? null);
     }
 }
