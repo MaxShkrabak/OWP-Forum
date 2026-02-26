@@ -89,13 +89,17 @@ describe("Fix Create Post Request Spam", () => {
     }
 
     const footerPublishBtn = wrapper.findAll(".publish-btn")[0];
-    if (footerPublishBtn.exists()) await footerPublishBtn.trigger("click");
+    if (!footerPublishBtn?.exists()) {
+      throw new Error("Footer Publish button not found");
+    }
+    await footerPublishBtn.trigger("click");
     await wrapper.vm.$nextTick();
 
     const confirmPublishBtns = wrapper.findAll(".publish-btn");
     const confirmBtn = confirmPublishBtns.length > 1 ? confirmPublishBtns[1] : null;
+    expect(confirmBtn).toBeDefined();
     if (confirmBtn) {
-      confirmBtn.trigger("click");
+      await confirmBtn.trigger("click");
       await wrapper.vm.$nextTick();
       expect(confirmBtn.element.disabled).toBe(true);
     }
