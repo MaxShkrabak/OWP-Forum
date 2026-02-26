@@ -47,8 +47,10 @@
           const res = await client.get(`/me`);
           if (res.data.ok && res.data.user.RoleName === 'admin') {
             next(); // user is admin, route to panel
-          } else {
+          } else if (res.data.ok) {
             next('/'); // user is not admin, route to home page
+          } else {
+            next('/login'); // user is not signed in, route to login page
           }
         } catch (e) {
           next('/');
