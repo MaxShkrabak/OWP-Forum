@@ -6,6 +6,7 @@ import AdminRoles from '@/components/admin/AdminRoles.vue';
 import AdminUsers from '@/components/admin/AdminUsers.vue';
 import AdminCategories from '@/components/admin/AdminCategories.vue';
 import AdminTags from '@/components/admin/AdminTags.vue';
+import AdminReports from '@/components/admin/AdminReports.vue';
 const activeTab = ref('Roles');
 const tabs = ref([
     { name: 'Users', icon: 'bi-person-fill-gear' },
@@ -61,9 +62,8 @@ const tabs = ref([
                         <AdminCategories />
                     </template>
 
-                    <template v-else>
-                        <h2 class="page-title text-start mb-4">{{ tab.name }} Overview</h2>
-                        <p class="text-muted text-start">The {{ tab.name }} component will render here.</p>
+                    <template v-else-if="tab.name === 'Reports'">
+                        <AdminReports />
                     </template>
 
                 </div>
