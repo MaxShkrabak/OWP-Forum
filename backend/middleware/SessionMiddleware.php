@@ -9,12 +9,11 @@ return function (Request $request, RequestHandler $handler) use ($makePdo) {
     $path = $request->getUri()->getPath();
     $method = $request->getMethod();
 
-    // TODO: Probably better way to manage public routes (will try to figure out later)
-    // Basic public routes
     $publicRoutes = [
         '/api/login'             => ['POST'],
         '/api/register-new-user' => ['POST'],
         '/api/verify-email'      => ['GET', 'POST'],
+        '/api/me'                => ['GET'],
         '/api/posts'             => ['GET'],
         '/api/tags'              => ['GET'],
     ];

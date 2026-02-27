@@ -10,7 +10,7 @@ $app->get('/api/me', function(Request $req, Response $res) use ($makePdo) {
         $userId = $req->getAttribute('user_id');
 
         if ($userId === null) {
-            return json($res, ['ok' => false, 'error' => 'Not Authenticated'], 401);
+            return json($res, ['ok' => true, 'user' => null], 200);
         }
 
         $pdo = $makePdo();
