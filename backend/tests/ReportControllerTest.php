@@ -1,24 +1,34 @@
 <?php
+namespace Forum\Tests;
+
 use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use Forum\Controllers\ReportController;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Psr7\Response;
+use PDO;
+use PDOStatement;
 
-class ReportControllerTest extends TestCase {
+class ReportControllerTest extends TestCase
+{
     private $pdo;
     private $stmt;
     private $controller;
 
-    protected function setUp(): void {
+    protected function setUp(): void
+    {
         $this->pdo = $this->createMock(PDO::class);
-        $this->stmt = $this->createMock(PDOStatement::class);
-        
+        $this->stmt = $this->createStub(PDOStatement::class);
+
         $this->controller = new ReportController(fn() => $this->pdo);
     }
 
-    public function testSubmitReportFailsWhenNotAuthenticated() {
-        $req = $this->createMock(Request::class);
-        $req->method('getAttribute')->with('user_id')->willReturn(null);
+    #[AllowMockObjectsWithoutExpectations]
+    public function testSubmitReportFailsWhenNotAuthenticated(): void
+    {
+        $req = $this->createStub(Request::class);
+
+        $req->method('getAttribute')->willReturn(null);
 
         $response = $this->controller->submitReport($req, new Response());
 
@@ -28,9 +38,11 @@ class ReportControllerTest extends TestCase {
         $this->assertEquals('Not Authenticated', $body['error']);
     }
 
-    public function testSubmitReportSuccess() {
-        $req = $this->createMock(Request::class);
-        $req->method('getAttribute')->with('user_id')->willReturn(1);
+    public function testSubmitReportSuccess(): void
+    {
+        $req = $this->createStub(Request::class);
+
+        $req->method('getAttribute')->willReturn(1);
         $req->method('getParsedBody')->willReturn([
             'id' => 10,
             'type' => 'post',
@@ -38,11 +50,11 @@ class ReportControllerTest extends TestCase {
         ]);
 
         $this->pdo->expects($this->exactly(2))
-                  ->method('prepare')
-                  ->willReturn($this->stmt);
+            ->method('prepare')
+            ->willReturn($this->stmt);
 
         $this->stmt->method('execute')->willReturn(true);
-        $this->stmt->method('fetch')->willReturn(false); // not a duplicate report
+        $this->stmt->method('fetch')->willReturn(false);
 
         $response = $this->controller->submitReport($req, new Response());
 
@@ -52,9 +64,11 @@ class ReportControllerTest extends TestCase {
         $this->assertEquals('Report submitted successfully', $body['message']);
     }
 
-    public function testSubmitReportFailsOnDuplicate() {
-        $req = $this->createMock(Request::class);
-        $req->method('getAttribute')->with('user_id')->willReturn(1);
+    public function testSubmitReportFailsOnDuplicate(): void
+    {
+        $req = $this->createStub(Request::class);
+
+        $req->method('getAttribute')->willReturn(1);
         $req->method('getParsedBody')->willReturn([
             'id' => 10,
             'type' => 'post',
@@ -62,27 +76,26 @@ class ReportControllerTest extends TestCase {
         ]);
 
         $this->pdo->expects($this->once())
-                  ->method('prepare')
-                  ->willReturn($this->stmt);
+            ->method('prepare')
+            ->willReturn($this->stmt);
 
         $this->stmt->method('execute')->willReturn(true);
-
-        $this->stmt->method('fetch')->willReturn(['ReportID' => 2]); 
+        $this->stmt->method('fetch')->willReturn(['ReportID' => 2]);
 
         $response = $this->controller->submitReport($req, new Response());
 
-        $this->assertEquals(400, $response->getStatusCode()); 
-        
+        $this->assertEquals(400, $response->getStatusCode());
+
         $body = json_decode((string)$response->getBody(), true);
         $this->assertFalse($body['ok']);
-        
-        $this->assertEquals('You have already reported this post.', $body['error']); 
+        $this->assertEquals('You have already reported this post.', $body['error']);
     }
 
-    public function testGetReportTagsSuccess() {
-        $req = $this->createMock(Request::class);
-        
-        $req->method('getAttribute')->with('user_id')->willReturn(1);
+    public function testGetReportTagsSuccess(): void
+    {
+        $req = $this->createStub(Request::class);
+
+        $req->method('getAttribute')->willReturn(1);
 
         $fakeTags = [
             ['ReportTagID' => 1, 'TagName' => 'Spam'],
@@ -93,17 +106,15 @@ class ReportControllerTest extends TestCase {
         ];
 
         $this->pdo->expects($this->once())
-                  ->method('query')
-                  ->willReturn($this->stmt);
+            ->method('query')
+            ->willReturn($this->stmt);
 
-        $this->stmt->method('fetchAll')
-                   ->with(PDO::FETCH_ASSOC)
-                   ->willReturn($fakeTags);
+        $this->stmt->method('fetchAll')->willReturn($fakeTags);
 
         $response = $this->controller->getReportTags($req, new Response());
 
         $this->assertEquals(200, $response->getStatusCode());
-        
+
         $body = json_decode((string)$response->getBody(), true);
         $this->assertTrue($body['ok']);
         $this->assertCount(5, $body['tags']);
