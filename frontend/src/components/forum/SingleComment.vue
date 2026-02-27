@@ -142,7 +142,8 @@ const totalScore = ref(0);
 .avatar-box {
   width: 40px;
   height: 40px;
-  z-index: 5;
+  position: relative;
+  z-index: 0;
 }
 :deep(.role-pill) {
   border-radius: 3px !important;
