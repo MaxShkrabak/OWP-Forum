@@ -8,6 +8,7 @@ import { isLoggedIn, isBanned } from "@/stores/userStore";
 import UserCard from "@/components/user/UserCard.vue";
 import ViewReportsButton from "@/components/admin/ViewReportsButton.vue";
 import PostCard from "@/components/forum/PostCard.vue";
+import AdminPanelButton from "@/components/admin/AdminPanelButton.vue";
 
 const postsByCategory = ref([]);
 const totalPosts = ref(0);
@@ -145,6 +146,7 @@ onMounted(async () => {
             <div class="action-buttons-container mt-3" v-if="isLoggedIn && !isBanned">
               <CreatePostButton @post-refresh="fetchPosts" />
               <ViewReportsButton />
+              <AdminPanelButton />
             </div>
 
             <div class="card border-0 shadow-sm rounded-3 mt-4 d-none d-lg-block overflow-hidden">

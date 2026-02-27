@@ -6,7 +6,7 @@ import AdminRoles from '@/components/admin/AdminRoles.vue';
 import AdminUsers from '@/components/admin/AdminUsers.vue';
 import AdminCategories from '@/components/admin/AdminCategories.vue';
 import AdminTags from '@/components/admin/AdminTags.vue';
-const activeTab = ref('Roles');
+const activeTab = ref('Users');
 const tabs = ref([
     { name: 'Users', icon: 'bi-person-fill-gear' },
     { name: 'Roles', icon: 'bi-diagram-3-fill' },
