@@ -120,12 +120,8 @@ onMounted(async () => {
               <div class="sidebar-actions">
                 <div class="voteFol">
                   <div class="vote-container vote-container--sidebar">
-                    <button
-                      class="vote-btn-up pi pi-chevron-up mb-1"
-                      :class="{ active: Number(post.myVote) === 1 }"
-                      :disabled="isVoting"
-                      @click="handleVote('up')"
-                    ></button>
+                    <button class="vote-btn-up pi pi-chevron-up mb-1" :class="{ active: Number(post.myVote) === 1 }"
+                      :disabled="isVoting" @click="handleVote('up')"></button>
 
                     <span class="vote-count" :class="{
                       upvoted: Number(post.myVote) === 1,
@@ -134,12 +130,9 @@ onMounted(async () => {
                       {{ post.TotalScore ?? 0 }}
                     </span>
 
-                    <button
-                      class="vote-btn-down pi pi-chevron-down mt-1"
-                      :class="{ active: Number(post.myVote) === -1 }"
-                      :disabled="isVoting"
-                      @click="handleVote('down')"
-                    ></button>
+                    <button class="vote-btn-down pi pi-chevron-down mt-1"
+                      :class="{ active: Number(post.myVote) === -1 }" :disabled="isVoting"
+                      @click="handleVote('down')"></button>
                   </div>
 
                   <button class="follow-btn" :class="{ following: isFollowing }" type="button" @click="toggleFollow">
@@ -152,21 +145,11 @@ onMounted(async () => {
                   <span>Report</span>
                 </button>
 
-                <PostModerationSidebar
-                  v-if="isAuthor || isAdminOrMod"
-                  :post="post"
-                  :user="{ RoleID: Number(userRoleId) }"
-                  :is-author="isAuthor"
-                  @open-modal="openRestrictedModal"
-                />
+                <PostModerationSidebar v-if="isAuthor || isAdminOrMod" :post="post"
+                  :user="{ RoleID: Number(userRoleId) }" :is-author="isAuthor" @open-modal="openRestrictedModal" />
 
-                <CreatePostModal
-                  v-if="showEditModal"
-                  :show="showEditModal"
-                  :post-data="post"
-                  :is-restricted="isRestricted"
-                  @close="showEditModal = false"
-                />
+                <CreatePostModal v-if="showEditModal" :show="showEditModal" :post-data="post"
+                  :is-restricted="isRestricted" @close="showEditModal = false" />
               </div>
             </div>
 
@@ -177,7 +160,7 @@ onMounted(async () => {
 
           <div class="row gx-0">
             <div class="post-comments mt-2 mb-4">
-              <CommentSection />
+              <CommentSection :post-id="postId" />
             </div>
           </div>
         </div>

@@ -1,31 +1,38 @@
-IF COL_LENGTH('dbo.Comments', 'UpVotes') IS NULL
-BEGIN
-    ALTER TABLE dbo.Comments
-    ADD UpVotes INT NOT NULL CONSTRAINT DF_Comments_UpVotes DEFAULT 0;
-END;
-GO
-
-IF COL_LENGTH('dbo.Comments', 'DownVotes') IS NULL
-BEGIN
-    ALTER TABLE dbo.Comments
-    ADD DownVotes INT NOT NULL CONSTRAINT DF_Comments_DownVotes DEFAULT 0;
-END;
-GO
-
 IF OBJECT_ID ('dbo.CommentVotes', 'U') IS NULL
 BEGIN
     CREATE TABLE dbo.CommentVotes (
-        CommentVoteId INT IDENTITY(1,1) PRIMARY KEY,
-        CommentId INT NOT NULL REFERENCES dbo.Comments(CommentId),
-        UserId INT NOT NULL REFERENCES dbo.Users(User_ID),
+        CommentId INT NOT NULL,
+        UserId    INT NOT NULL,
         VoteValue SMALLINT NOT NULL,
-        CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
-        UpdatedAt DATETIME2 NULL,
-        CONSTRAINT UQ_CommentVotes_UserId_CommentId UNIQUE (UserId, CommentId),
-        CONSTRAINT CK_CommentVotes_VoteValue CHECK (VoteValue IN (1, -1))
+        CreatedAt DATETIME2(0) NOT NULL CONSTRAINT DF_CommentVotes_CreatedAt DEFAULT (SYSUTCDATETIME()),
+        
+        CONSTRAINT PK_CommentVotes PRIMARY KEY (CommentId, UserId),
+        CONSTRAINT FK_CommentVotes_Comments FOREIGN KEY (CommentId)
+            REFERENCES dbo.Comments(CommentId) ON DELETE CASCADE,
+        CONSTRAINT FK_CommentVotes_Users FOREIGN KEY (UserId)
+            REFERENCES dbo.Users(User_ID)
     );
-    -- Indexes for performance
     CREATE INDEX IX_CommentVotes_CommentId ON dbo.CommentVotes(CommentId);
-    CREATE INDEX IX_CommentVotes_UserId ON dbo.CommentVotes(UserId);
+END;
+GO
+
+-- Trigger for maintaining TotalScore in Comments table
+IF OBJECT_ID('dbo.tr_CommentVotes_SyncScore','TR') IS NOT NULL
+    DROP TRIGGER dbo.tr_CommentVotes_SyncScore;
+GO
+CREATE TRIGGER dbo.tr_CommentVotes_SyncScore
+ON dbo.CommentVotes
+AFTER INSERT, UPDATE, DELETE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE c
+    SET TotalScore = c.TotalScore + ISNULL(ins.Diff, 0) - ISNULL(del.Diff, 0)
+    FROM dbo.Comments c
+    LEFT JOIN (SELECT CommentId, SUM(VoteValue) AS Diff FROM inserted GROUP BY CommentId) ins 
+        ON c.CommentId = ins.CommentId
+    LEFT JOIN (SELECT CommentId, SUM(VoteValue) AS Diff FROM deleted GROUP BY CommentId) del 
+        ON c.CommentId = del.CommentId
+    WHERE ins.CommentId IS NOT NULL OR del.CommentId IS NOT NULL;
 END;
 GO
