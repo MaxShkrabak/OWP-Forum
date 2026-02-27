@@ -2,7 +2,7 @@
 import { mount, flushPromises } from "@vue/test-utils";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import CategoryPage from "@/views/forum/CategoryPosts.vue";
-import { fetchPosts, getTags } from "@/api/posts";
+import { fetchPosts, getFilterTags } from "@/api/posts";
 import { useRoute } from "vue-router";
 
 vi.mock("vue-router", () => ({
@@ -12,7 +12,7 @@ vi.mock("vue-router", () => ({
 
 vi.mock("@/api/posts", () => ({
   fetchPosts: vi.fn(),
-  getTags: vi.fn(),
+  getFilterTags: vi.fn(),
 }));
 
 vi.mock("@/stores/userStore", () => ({
@@ -36,7 +36,7 @@ describe("CategoryPage.vue", () => {
     vi.clearAllMocks();
 
     useRoute.mockReturnValue({ params: { categoryId: "5" } });
-    getTags.mockResolvedValue(mockTags);
+    getFilterTags.mockResolvedValue(mockTags);
   });
 
   const createWrapper = () => {
