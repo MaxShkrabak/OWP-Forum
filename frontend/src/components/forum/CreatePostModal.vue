@@ -486,6 +486,7 @@ p {
 .modal-mask {
   position: fixed;
   inset: 0;
+  z-index: 9999;
   background: rgba(15, 23, 42, 0.6);
   backdrop-filter: blur(6px);
   display: flex;
@@ -503,6 +504,7 @@ p {
   flex-direction: column;
   overflow: hidden;
   position: relative;
+  z-index: 10000;
 }
 
 .modal-header {

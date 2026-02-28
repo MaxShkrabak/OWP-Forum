@@ -10,7 +10,7 @@ describe("PostHeader.vue", () => {
       title: "My first post!",
       authorName: "Bobby Bill",
       authorRole: "Moderator",
-      authorAvatar: "tree.png",
+      authorAvatar: "pfp-1.png",
       createdAt: "2026-02-22 14:20:00",
       tags: [{ Name: "Help" }, { Name: "Official" }, { Name: "Research" }],
     };

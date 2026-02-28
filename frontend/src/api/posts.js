@@ -14,6 +14,15 @@ export async function getTags() {
   }));
 }
 
+export async function getFilterTags() {
+  const { data } = await client.get("/tags/filter");
+
+  return (data.items || []).map((tag) => ({
+    tagId: Number(tag.TagID),
+    name: tag.Name,
+  }));
+}
+
 export async function getCategories() {
   const { data } = await client.get("/verify/categories");
 
