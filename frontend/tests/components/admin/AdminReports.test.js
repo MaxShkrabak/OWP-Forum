@@ -1,4 +1,6 @@
+/** @vitest-environment jsdom */
 /**
+ * 
  * AdminReports (Report Tags) + ViewReportsButton — unit tests.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";

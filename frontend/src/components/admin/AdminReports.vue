@@ -1,355 +1,839 @@
-<!-- AdminReports.vue (updated: View Reports button in top-right of title row) -->
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import client from '@/api/client'
-import ViewReportsButton from '@/components/admin/ViewReportsButton.vue' // adjust path if needed
+import { ref, computed, onMounted } from "vue";
+import { useRouter } from "vue-router";
 
-const q = ref('')
-const items = ref([]) // report tags
-const loading = ref(false)
-const error = ref('')
+// Reports API (already exists in your project)
+import { fetchReports, resolveReport } from "@/api/reports";
 
-/** Info + confirm modal */
-const modal = ref({ open: false, type: 'info', title: '', message: '', onConfirm: null })
-function showInfo(title, message) {
-  modal.value = { open: true, type: 'info', title, message, onConfirm: null }
-}
-function showConfirm(title, message, onConfirm) {
-  modal.value = { open: true, type: 'confirm', title, message, onConfirm }
-}
-function closeModal() {
-  modal.value.open = false
-  modal.value.onConfirm = null
-}
+// Use your existing API client (same approach as AdminTags/AdminTagsRoutes)
+import client from "@/api/client";
 
-/** Add/Edit modal */
-const form = ref({ open: false, mode: 'add', id: null, tagName: '' })
-function openAdd() {
-  form.value = { open: true, mode: 'add', id: null, tagName: '' }
+/* =========================================================
+   SECTION A — Manage Report Tags (top panel)
+   Uses endpoints you already added:
+   GET    /admin/report-tags
+   POST   /admin/report-tags
+   PATCH  /admin/report-tags/:id
+   DELETE /admin/report-tags/:id
+========================================================= */
+
+const tagSearch = ref("");
+const reportTags = ref([]);
+const tagLoading = ref(false);
+const tagError = ref("");
+
+// modal-ish state (simple inline editor)
+const showAdd = ref(false);
+const showEdit = ref(false);
+const showDelete = ref(false);
+
+const addName = ref("");
+const editId = ref(null);
+const editName = ref("");
+
+const deleteId = ref(null);
+const deleteName = ref("");
+
+const toast = ref({ show: false, type: "success", text: "" });
+let toastTimer = null;
+
+function showToast(type, text) {
+  toast.value = { show: true, type, text };
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => (toast.value.show = false), 1800);
 }
-function openEdit(t) {
-  form.value = { open: true, mode: 'edit', id: Number(t.ReportTagID), tagName: String(t.TagName ?? '') }
-}
-function closeForm() { form.value.open = false }
 
 function normalizeName(s) {
-  return String(s ?? '').trim().replace(/\s+/g, ' ')
+  return String(s ?? "").trim().replace(/\s+/g, " ");
 }
-function isDuplicate(name, excludeId = null) {
-  const n = normalizeName(name).toLowerCase()
-  if (!n) return false
-  return items.value.some(t => {
-    const same = normalizeName(t.TagName).toLowerCase() === n
-    const notSelf = excludeId == null ? true : Number(t.ReportTagID) !== Number(excludeId)
-    return same && notSelf
-  })
+function isDuplicateReportTagName(name, excludeId = null) {
+  const n = normalizeName(name).toLowerCase();
+  if (!n) return false;
+  return reportTags.value.some((t) => {
+    const same = normalizeName(t.TagName).toLowerCase() === n;
+    const notSelf =
+      excludeId == null ? true : Number(t.ReportTagID) !== Number(excludeId);
+    return same && notSelf;
+  });
 }
-
-/** Filter + alphabetical sort (case-insensitive) */
-const filtered = computed(() => {
-  const needle = q.value.trim().toLowerCase()
-  const base = needle
-    ? items.value.filter(t => String(t.TagName ?? '').toLowerCase().includes(needle))
-    : items.value
-
-  return [...base].sort((a, b) =>
-    String(a.TagName ?? '').localeCompare(String(b.TagName ?? ''), undefined, { sensitivity: 'base' })
-  )
-})
 
 async function loadReportTags() {
-  loading.value = true
-  error.value = ''
+  tagLoading.value = true;
+  tagError.value = "";
   try {
-    // client baseURL already includes /api
-    const res = await client.get('/admin/report-tags')
-    const rows = res.data.items || []
-    items.value = rows.map(r => ({
-      ReportTagID: Number(r.ReportTagID),
-      TagName: String(r.TagName ?? '')
-    }))
+    const { data } = await client.get("/admin/report-tags");
+    if (data?.ok && Array.isArray(data.items)) {
+      reportTags.value = data.items;
+    } else {
+      reportTags.value = [];
+    }
   } catch (e) {
-    error.value = e?.response?.data?.error || e.message || 'Failed to load report tags'
-    items.value = []
+    tagError.value = e?.message || "Failed to load report tags";
+    reportTags.value = [];
   } finally {
-    loading.value = false
+    tagLoading.value = false;
   }
 }
 
-function requestSave() {
-  const name = normalizeName(form.value.tagName)
-  if (!name) return showInfo('Missing name', 'Please enter a report tag name.')
+const filteredReportTags = computed(() => {
+  const q = tagSearch.value.trim().toLowerCase();
+  const list = [...reportTags.value];
 
-  const excludeId = form.value.mode === 'edit' ? form.value.id : null
-  if (isDuplicate(name, excludeId)) {
-    return showInfo('Duplicate report tag', 'That report tag already exists. Please choose a different name.')
-  }
+  // Always alphabetical (requested earlier)
+  list.sort((a, b) => String(a.TagName).localeCompare(String(b.TagName)));
 
-  if (form.value.mode === 'add') {
-    showConfirm('Confirm add report tag?', `Add report tag "${name}"?`, async () => {
-      closeModal()
-      try {
-        await client.post('/admin/report-tags', { tagName: name })
-        closeForm()
-        await loadReportTags()
-        showInfo('Report tag added', `"${name}" was added successfully.`)
-      } catch (e) {
-        showInfo('Failed to add', e?.response?.data?.error || e.message || 'Server error')
-      }
-    })
-    return
-  }
+  if (!q) return list;
 
-  const original = items.value.find(t => Number(t.ReportTagID) === Number(form.value.id))
-  const from = normalizeName(original?.TagName)
+  return list.filter((t) => String(t.TagName ?? "").toLowerCase().includes(q));
+});
 
-  showConfirm('Confirm edit report tag?', `Change "${from}" to "${name}"?`, async () => {
-    closeModal()
-    try {
-      await client.patch(`/admin/report-tags/${form.value.id}`, { tagName: name })
-      closeForm()
-      await loadReportTags()
-      showInfo('Report tag updated', `"${from}" was updated to "${name}".`)
-    } catch (e) {
-      showInfo('Failed to update', e?.response?.data?.error || e.message || 'Server error')
+// Display # column (not DB ID)
+function rowNumber(index) {
+  return index + 1;
+}
+
+function openAdd() {
+  addName.value = "";
+  showAdd.value = true;
+}
+async function submitAdd() {
+  const name = normalizeName(addName.value);
+  if (!name) return showToast("error", "Tag name is required");
+  if (isDuplicateReportTagName(name)) return showToast("error", "Duplicate tag name");
+
+  try {
+    const { data } = await client.post("/admin/report-tags", { tagName: name });
+    if (data?.ok) {
+      showAdd.value = false;
+      await loadReportTags();
+      showToast("success", "Report tag added");
     }
-  })
+  } catch (e) {
+    showToast("error", e?.response?.data?.error || e?.message || "Add failed");
+  }
 }
 
-function requestDelete(t) {
-  const id = Number(t.ReportTagID)
-  const name = normalizeName(t.TagName)
+function openEdit(t) {
+  editId.value = t.ReportTagID;
+  editName.value = t.TagName;
+  showEdit.value = true;
+}
+async function submitEdit() {
+  const id = editId.value;
+  const name = normalizeName(editName.value);
+  if (!id) return;
+  if (!name) return showToast("error", "Tag name is required");
+  if (isDuplicateReportTagName(name, id)) return showToast("error", "Duplicate tag name");
 
-  showConfirm('Confirm delete report tag?', `Delete "${name}"? This cannot be undone.`, async () => {
-    closeModal()
-    try {
-      await client.delete(`/admin/report-tags/${id}`)
-      await loadReportTags()
-      showInfo('Report tag deleted', `"${name}" was deleted successfully.`)
-    } catch (e) {
-      showInfo('Failed to delete', e?.response?.data?.error || e.message || 'Server error')
+  try {
+    const { data } = await client.patch(`/admin/report-tags/${id}`, { tagName: name });
+    if (data?.ok) {
+      showEdit.value = false;
+      await loadReportTags();
+      showToast("success", "Report tag updated");
     }
-  })
+  } catch (e) {
+    showToast("error", e?.response?.data?.error || e?.message || "Update failed");
+  }
 }
 
-onMounted(loadReportTags)
+function openDelete(t) {
+  deleteId.value = t.ReportTagID;
+  deleteName.value = t.TagName;
+  showDelete.value = true;
+}
+async function submitDelete() {
+  const id = deleteId.value;
+  if (!id) return;
+
+  try {
+    const { data } = await client.delete(`/admin/report-tags/${id}`);
+    if (data?.ok) {
+      showDelete.value = false;
+      await loadReportTags();
+      showToast("success", "Report tag deleted");
+    }
+  } catch (e) {
+    showToast("error", e?.response?.data?.error || e?.message || "Delete failed");
+  }
+}
+
+/* =========================================================
+   SECTION B — Manage Reports (bottom panel)
+   Uses existing endpoints:
+   GET   /api/reports
+   PATCH /api/reports/:id/resolve
+========================================================= */
+
+const router = useRouter();
+
+const reports = ref([]);
+const reportsLoading = ref(false);
+const reportsError = ref("");
+
+const sortMode = ref("newest"); // newest | oldest
+
+async function loadReports() {
+  reportsLoading.value = true;
+  reportsError.value = "";
+  try {
+    const data = await fetchReports();
+    if (data?.ok && Array.isArray(data.reports)) {
+      // should already be unresolved only; still safe to guard:
+      reports.value = data.reports;
+    } else {
+      reports.value = [];
+    }
+  } catch (e) {
+    reportsError.value = e?.message || "Failed to load reports";
+    reports.value = [];
+  } finally {
+    reportsLoading.value = false;
+  }
+}
+
+function toTime(v) {
+  const t = Date.parse(v);
+  return Number.isFinite(t) ? t : 0;
+}
+
+const sortedReports = computed(() => {
+  const list = [...reports.value];
+  list.sort((a, b) => {
+    const diff = toTime(a.createdAt) - toTime(b.createdAt);
+    return sortMode.value === "oldest" ? diff : -diff;
+  });
+  return list;
+});
+
+// UI helpers (handle both "old API" and "new enriched API" gracefully)
+function reportContentLabel(r) {
+  // Expecting your enriched /api/reports shape:
+  // r.source, r.postId, r.commentId, r.contentTitle, r.contentAuthorName, r.contentAuthorId
+  if (r?.source === "Comment") {
+    return `Comment${r.commentId ? " #" + r.commentId : ""}`;
+  }
+  return `Post${r.postId ? " #" + r.postId : ""}`;
+}
+function reportTitle(r) {
+  return r?.contentTitle || r?.title || "(No title)";
+}
+function authorLine(r) {
+  const name = r?.contentAuthorName || r?.authorName || "Unknown";
+  const id = r?.contentAuthorId || r?.authorId || null;
+  return `${name}${id ? ` (#${id})` : ""}`;
+}
+function reporterLine(r) {
+  const name = r?.reporterName || "Unknown";
+  const id = r?.reporterId || null;
+  return `${name}${id ? ` (#${id})` : ""}`;
+}
+
+function goToReportTarget(r) {
+  // Only route confirmed in your app: /posts/:id
+  if (r?.postId) {
+    router.push(`/posts/${r.postId}`);
+  }
+}
+
+async function resolve(r) {
+  try {
+    const data = await resolveReport(r.reportId);
+    if (data?.ok) {
+      reports.value = reports.value.filter((x) => x.reportId !== r.reportId);
+      showToast("success", "Report resolved");
+    }
+  } catch (e) {
+    showToast("error", e?.response?.data?.error || e?.message || "Resolve failed");
+  }
+}
+
+onMounted(async () => {
+  await loadReportTags();
+  await loadReports();
+});
 </script>
 
 <template>
-  <div class="admin-roles-wrapper text-start">
-    <!-- ✅ Title row: button pinned top-right at same height -->
-    <div class="header-row mb-4">
-      <h2 class="page-title m-0">Manage Report Tags</h2>
-      <div class="view-reports-top">
-        <ViewReportsButton />
+  <div class="admin-reports">
+
+    <!-- Toast -->
+    <div v-if="toast.show" class="toast-float" :class="toast.type">
+      {{ toast.text }}
+    </div>
+
+    <!-- =======================
+         TOP: Manage Report Tags
+    ======================== -->
+    <div class="panel">
+      <div class="panel-header">
+        <h2 class="panel-title">Manage Report Tags</h2>
+      </div>
+
+      <div class="panel-body">
+        <div class="toolbar">
+          <div class="search-wrap">
+            <i class="bi bi-search"></i>
+            <input
+              v-model="tagSearch"
+              class="search-input"
+              placeholder="Search report tags..."
+            />
+          </div>
+
+          <button class="btn-primary" type="button" @click="openAdd">
+            <i class="bi bi-plus-lg"></i>
+            Add Report Tag
+          </button>
+        </div>
+
+        <div v-if="tagError" class="alert error">{{ tagError }}</div>
+        <div v-else-if="tagLoading" class="loading">
+          <div class="spinner-border"></div>
+        </div>
+
+        <div v-else class="table-wrap">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th class="col-num">#</th>
+                <th>Tag</th>
+                <th class="col-actions">Actions</th>
+              </tr>
+            </thead>
+
+            <tbody v-if="filteredReportTags.length === 0">
+              <tr>
+                <td colspan="3" class="empty">No report tags found.</td>
+              </tr>
+            </tbody>
+
+            <tbody v-else>
+              <tr v-for="(t, idx) in filteredReportTags" :key="t.ReportTagID">
+                <td class="muted">{{ rowNumber(idx) }}</td>
+                <td class="tag-cell">{{ t.TagName }}</td>
+                <td class="actions">
+                  <button class="btn-action" @click="openEdit(t)">
+                    <i class="bi bi-pencil-square"></i>
+                    Edit
+                  </button>
+                  <button class="btn-action danger" @click="openDelete(t)">
+                    <i class="bi bi-trash3"></i>
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Add -->
+        <div v-if="showAdd" class="dialog-backdrop" @mousedown.self="showAdd=false">
+          <div class="dialog">
+            <div class="dialog-title">Add report tag</div>
+            <input v-model="addName" class="dialog-input" placeholder="Tag name" />
+            <div class="dialog-actions">
+              <button class="btn-secondary" @click="showAdd=false">Cancel</button>
+              <button class="btn-primary" @click="submitAdd">Add</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Edit -->
+        <div v-if="showEdit" class="dialog-backdrop" @mousedown.self="showEdit=false">
+          <div class="dialog">
+            <div class="dialog-title">Edit report tag</div>
+            <input v-model="editName" class="dialog-input" placeholder="Tag name" />
+            <div class="dialog-actions">
+              <button class="btn-secondary" @click="showEdit=false">Cancel</button>
+              <button class="btn-primary" @click="submitEdit">Save</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Delete -->
+        <div v-if="showDelete" class="dialog-backdrop" @mousedown.self="showDelete=false">
+          <div class="dialog">
+            <div class="dialog-title">Confirm delete report tag?</div>
+            <div class="dialog-text">
+              Delete <b>{{ deleteName }}</b>? This cannot be undone.
+            </div>
+            <div class="dialog-actions">
+              <button class="btn-secondary" @click="showDelete=false">Cancel</button>
+              <button class="btn-danger" @click="submitDelete">Delete</button>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
 
-    <div class="admin-card">
-      <div class="toolbar mb-4">
-        <div class="search-wrapper">
-          <i class="bi bi-search search-icon"></i>
-          <input v-model="q" placeholder="Search report tags..." />
-        </div>
+    <!-- =======================
+         BOTTOM: Manage Reports
+    ======================== -->
+    <div class="panel">
+      <div class="panel-header reports-header">
+        <h2 class="panel-title">Manage Reports</h2>
 
-        <button class="btn-add" @click="openAdd">
-          <i class="bi bi-plus-lg"></i>
-          Add Report Tag
-        </button>
-      </div>
+        <div class="reports-controls">
+          <label class="sort-label">Sort</label>
+          <select v-model="sortMode" class="sort-select">
+            <option value="newest">Newest</option>
+            <option value="oldest">Oldest</option>
+          </select>
 
-      <div v-if="loading" class="state mt-3 text-center">Loading…</div>
-      <div v-if="error" class="err mt-3">{{ error }}</div>
-
-      <table v-if="!loading && filtered.length" class="admin-table mt-3">
-        <thead>
-          <tr>
-            <th style="width: 90px;">#</th>
-            <th>Tag</th>
-            <th style="width: 220px;">Actions</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          <tr v-for="(t, idx) in filtered" :key="t.ReportTagID">
-            <td class="admin-id">{{ idx + 1 }}</td>
-            <td class="admin-name">{{ t.TagName }}</td>
-            <td>
-              <div class="actions">
-                <button class="btn-action" @click="openEdit(t)">
-                  <i class="bi bi-pencil-square"></i> Edit
-                </button>
-                <button class="btn-action danger" @click="requestDelete(t)">
-                  <i class="bi bi-trash"></i> Delete
-                </button>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-
-      <div v-if="!loading && filtered.length === 0" class="state mt-4 text-center">
-        No report tags found.
-      </div>
-    </div>
-
-    <!-- Add/Edit Modal -->
-    <div v-if="form.open" class="inner-warning-overlay" @mousedown.self="closeForm">
-      <div class="confirm-card">
-        <h3 class="confirm-title">{{ form.mode === 'add' ? 'Add Report Tag' : 'Edit Report Tag' }}</h3>
-        <p class="confirm-subtitle">{{ form.mode === 'add' ? 'Create a new report tag.' : 'Update the report tag name.' }}</p>
-
-        <div class="form-field">
-          <label class="field-label">Report tag name</label>
-          <input
-            class="field-input"
-            v-model="form.tagName"
-            placeholder="e.g. Spam"
-            @keydown.enter.prevent="requestSave"
-          />
-        </div>
-
-        <div class="confirm-actions">
-          <button class="btn-back" @click="closeForm">Back</button>
-          <button class="btn-confirm" @click="requestSave">{{ form.mode === 'add' ? 'Add' : 'Save' }}</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Info/Confirm Modal -->
-    <div v-if="modal.open" class="inner-warning-overlay" @mousedown.self="closeModal">
-      <div class="confirm-card">
-        <h3 class="confirm-title">{{ modal.title }}</h3>
-        <p class="confirm-subtitle">{{ modal.message }}</p>
-        <div class="confirm-actions">
-          <button v-if="modal.type === 'confirm'" class="btn-back" @click="closeModal">Back</button>
-          <button class="btn-confirm" @click="modal.type === 'confirm' ? modal.onConfirm?.() : closeModal()">
-            {{ modal.type === 'confirm' ? 'Confirm' : 'OK' }}
+          <button class="btn-secondary" type="button" @click="loadReports" :disabled="reportsLoading">
+            {{ reportsLoading ? "Loading..." : "Refresh" }}
           </button>
         </div>
       </div>
+
+      <div class="panel-body">
+        <div v-if="reportsError" class="alert error">{{ reportsError }}</div>
+        <div v-else-if="reportsLoading" class="loading">
+          <div class="spinner-border"></div>
+        </div>
+
+        <div v-else-if="sortedReports.length === 0" class="empty big">
+          No unresolved reports.
+        </div>
+
+        <div v-else class="reports-list">
+          <div v-for="r in sortedReports" :key="r.reportId" class="report-card">
+            <div class="report-left">
+              <div class="report-top">
+                <div class="report-kind">{{ reportContentLabel(r) }}</div>
+                <div class="report-author">
+                  by <b>{{ authorLine(r) }}</b>
+                </div>
+              </div>
+
+              <div class="report-title">
+                {{ reportTitle(r) }}
+              </div>
+
+              <div class="report-bottom">
+                <div class="reporter">
+                  Reported by: <b>{{ reporterLine(r) }}</b>
+                  <span class="reason">for: <b>{{ r.reason || r.Reason || "Other" }}</b></span>
+                </div>
+                <div class="meta muted">
+                  Report #{{ r.reportId }} • {{ r.createdAt }}
+                </div>
+              </div>
+            </div>
+
+            <div class="report-right">
+              <button class="btn-outline" type="button" @click="goToReportTarget(r)" :disabled="!r.postId">
+                Go To
+              </button>
+              <button class="btn-success" type="button" @click="resolve(r)">
+                Resolve
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
+
   </div>
 </template>
 
 <style scoped>
-.page-title { font-size: 24px; font-weight: 700; color: #004750; }
+.admin-reports {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
 
-/* ✅ new: title + button row */
-.header-row {
+/* Panels */
+.panel {
+  background: white;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+}
+
+.panel-header {
+  padding: 14px 16px;
+  border-bottom: 1px solid #e2e8f0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
 }
-.view-reports-top {
-  width: 220px;
-  min-width: 220px;
+
+.panel-title {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 900;
+  color: #004750;
+}
+
+.panel-body {
+  padding: 14px 16px;
 }
 
 /* Toolbar */
-.toolbar { display: flex; align-items: center; width: 100%; gap: 14px; flex-wrap: wrap; }
-.search-wrapper { position: relative; width: 100%; flex: 1; min-width: 240px; }
-.search-icon {
-  position: absolute; left: 18px; top: 50%; transform: translateY(-50%);
-  color: #6b7280; font-size: 1.1rem; pointer-events: none;
+.toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
 }
-.toolbar input {
-  width: 100%;
-  padding: 12px 20px 12px 48px;
-  font-size: 15px;
-  border-radius: 50px;
-  border: 1px solid #a8c1bc;
-  background: #ffffff;
-  color: #1f2937;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+
+.search-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  padding: 10px 14px;
+  background: white;
+}
+
+.search-input {
+  border: none;
   outline: none;
-  transition: all 0.2s ease;
-}
-.toolbar input:focus { border-color: #004750; box-shadow: 0 4px 12px rgba(0,71,80,0.15); }
-
-.btn-add {
-  display: inline-flex; align-items: center; gap: 8px;
-  background: #004750; border: none; color: #fff;
-  padding: 10px 16px; border-radius: 14px; cursor: pointer; font-weight: 700;
-  white-space: nowrap; box-shadow: 0 6px 16px rgba(0,71,80,0.18);
-}
-.btn-add:hover { background: #00363d; }
-
-.err { color: #ff6b6b; font-weight: bold; }
-
-.admin-card {
   width: 100%;
-  background: #ffffff;
-  border-radius: 16px;
-  padding: 24px;
-  box-shadow: 0 8px 30px rgba(0,0,0,0.05);
+  font-weight: 700;
 }
 
-.admin-table { width: 100%; border-collapse: separate; border-spacing: 0 6px; }
-.admin-table thead th {
-  background: #f8fafc;
-  color: #374151;
-  font-size: 13px;
-  padding: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  border-bottom: 2px solid #e5e7eb;
+/* Buttons */
+.btn-primary,
+.btn-secondary,
+.btn-danger,
+.btn-outline,
+.btn-success {
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-weight: 900;
+  cursor: pointer;
+  border: 1px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
-.admin-table tbody tr { background: #fff; border-radius: 12px; transition: background 0.15s ease, box-shadow 0.15s ease; }
-.admin-table tbody td { padding: 12px 10px; vertical-align: middle; }
-.admin-table tbody tr:hover { background: #f5f9f8; box-shadow: 0 2px 6px rgba(0,0,0,0.06); }
 
-.admin-id { color: #888; font-size: 0.85rem; }
-.admin-name { font-weight: 600; color: #1f3d3a; }
+.btn-primary {
+  background: #004750;
+  color: white;
+}
+.btn-secondary {
+  background: white;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+.btn-danger {
+  background: #ef4444;
+  color: white;
+}
+.btn-outline {
+  background: white;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+.btn-success {
+  background: #16a34a;
+  color: white;
+}
 
-.actions { display: flex; gap: 10px; justify-content: flex-start; }
+.btn-primary:disabled,
+.btn-secondary:disabled,
+.btn-outline:disabled,
+.btn-success:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Table */
+.table-wrap {
+  overflow-x: auto;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.admin-table th,
+.admin-table td {
+  padding: 12px 10px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.col-num {
+  width: 70px;
+}
+.col-actions {
+  width: 220px;
+}
+
+.tag-cell {
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
 .btn-action {
-  display: inline-flex; align-items: center; gap: 8px;
-  background: #fff; border: 1px solid #cbd5e1; color: #374151;
-  padding: 8px 12px; border-radius: 12px; cursor: pointer; font-weight: 700; font-size: 0.9rem;
+  border-radius: 12px;
+  padding: 9px 12px;
+  font-weight: 900;
+  background: white;
+  border: 1px solid #cbd5e1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
-.btn-action:hover { background: #f1f5f9; }
-.btn-action.danger { border-color: #f3c6c6; color: #b91c1c; }
-.btn-action.danger:hover { background: #fff1f1; }
+.btn-action.danger {
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #b91c1c;
+}
 
-.inner-warning-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(2px);
-  display: flex; align-items: center; justify-content: center; z-index: 9999;
-}
-.confirm-card {
-  background: #fff; color: #1f2937; width: min(520px, 92vw);
-  border-radius: 20px; padding: 30px;
-  box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+.empty {
   text-align: center;
+  color: #64748b;
+  font-weight: 800;
+  padding: 18px 10px;
 }
-.confirm-title { margin: 0 0 12px; font-size: 22px; font-weight: 700; color: #1f2937; }
-.confirm-subtitle { margin: 0 0 18px; font-size: 15px; color: #4b5563; line-height: 1.5; }
-.confirm-actions { display: flex; justify-content: center; gap: 16px; margin-top: 18px; }
-
-.btn-back {
-  background: #fff; border: 1px solid #cbd5e1; color: #374151;
-  padding: 10px 20px; border-radius: 12px; cursor: pointer; font-weight: 700;
+.empty.big {
+  padding: 20px 10px;
 }
-.btn-back:hover { background: #f1f5f9; }
 
-.btn-confirm {
-  background: #004750; border: none; color: #fff;
-  padding: 10px 24px; border-radius: 12px; cursor: pointer; font-weight: 800;
+/* Dialog */
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  padding: 16px;
 }
-.btn-confirm:hover { background: #00363d; }
-
-.form-field { text-align: left; margin-top: 6px; }
-.field-label { display: block; font-size: 13px; font-weight: 700; color: #374151; margin-bottom: 8px; }
-.field-input {
-  width: 100%; padding: 12px 14px; border: 1px solid #cbd5e1; border-radius: 14px;
-  outline: none; font-size: 15px;
+.dialog {
+  width: 100%;
+  max-width: 440px;
+  background: white;
+  border-radius: 16px;
+  padding: 18px;
+  border: 1px solid #e2e8f0;
 }
-.field-input:focus { border-color: #004750; box-shadow: 0 4px 12px rgba(0,71,80,0.12); }
+.dialog-title {
+  font-weight: 1000;
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+.dialog-text {
+  color: #64748b;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+.dialog-input {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-weight: 800;
+  outline: none;
+  margin-bottom: 12px;
+}
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
 
-/* responsive for header */
-@media (max-width: 640px) {
-  .header-row { flex-direction: column; align-items: flex-start; }
-  .view-reports-top { width: 100%; min-width: 0; }
+/* Alerts & loading */
+.alert {
+  padding: 12px;
+  border-radius: 12px;
+  font-weight: 800;
+  margin-top: 8px;
+}
+.alert.error {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  color: #b91c1c;
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  padding: 18px;
+}
+
+.muted {
+  color: #64748b;
+}
+
+/* Reports section */
+.reports-header {
+  flex-wrap: wrap;
+}
+
+.reports-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sort-label {
+  font-size: 12px;
+  font-weight: 1000;
+  color: #64748b;
+  text-transform: uppercase;
+}
+.sort-select {
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  padding: 9px 10px;
+  font-weight: 900;
+}
+
+.reports-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.report-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #f8fafc;
+}
+
+.report-left {
+  flex: 1;
+  min-width: 0;
+}
+
+.report-top {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.report-kind {
+  font-weight: 1000;
+  color: #0f172a;
+}
+
+.report-author {
+  color: #64748b;
+  font-weight: 800;
+}
+
+.report-title {
+  font-size: 18px;
+  font-weight: 1000;
+  color: #0f172a;
+  margin: 6px 0 10px;
+  word-break: break-word;
+}
+
+.report-bottom {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.reporter {
+  font-weight: 800;
+  color: #0f172a;
+}
+.reason {
+  margin-left: 10px;
+  color: #0f172a;
+}
+
+.meta {
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.report-right {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 110px;
+  justify-content: center;
+}
+
+/* Toast */
+.toast-float {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 100;
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-weight: 900;
+  border: 1px solid #e2e8f0;
+  background: white;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.12);
+}
+.toast-float.success {
+  border-color: rgba(22, 163, 74, 0.35);
+}
+.toast-float.error {
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+/* ======================
+   Mobile responsiveness
+====================== */
+@media (max-width: 768px) {
+  .panel-title {
+    font-size: 22px;
+  }
+
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .reports-controls {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  .sort-select,
+  .reports-controls .btn-secondary {
+    width: 100%;
+  }
+
+  .report-card {
+    flex-direction: column;
+  }
+
+  .report-right {
+    flex-direction: row;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .btn-outline,
+  .btn-success {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
 }
 </style>
