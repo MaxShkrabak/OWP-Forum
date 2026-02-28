@@ -23,8 +23,8 @@ $makePdo = $databaseSetup();
 
 $app->addBodyParsingMiddleware();
 $app->addErrorMiddleware(true, true, true);
-$app->add(require __DIR__ . '/../middleware/CorsMiddleware.php');
 $app->add(require __DIR__ . '/../middleware/SessionMiddleware.php');
+$app->add(require __DIR__ . '/../middleware/CorsMiddleware.php');
 
 require __DIR__ . '/../src/Helpers.php';
 
