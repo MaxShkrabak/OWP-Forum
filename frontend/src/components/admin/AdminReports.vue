@@ -6,24 +6,13 @@ import { useRouter } from "vue-router";
 import client from "@/api/client";
 import { resolveReport } from "@/api/reports";
 
-/* =========================================================
-   SECTION A — Manage Report Tags (top panel)
-   Uses endpoints you already added:
-   GET    /admin/report-tags
-   POST   /admin/report-tags
-   PATCH  /admin/report-tags/:id
-   DELETE /admin/report-tags/:id
-========================================================= */
-
-const tagSearch = ref("");
-const reportTags = ref([]);
-const tagLoading = ref(false);
-const tagError = ref("");
-
-// modal-ish state (simple inline editor)
-const showAdd = ref(false);
-const showEdit = ref(false);
-const showDelete = ref(false);
+/* =========================
+   REPORT TAGS (OLD CODE)
+   ========================= */
+const q = ref("");
+const items = ref([]); // report tags
+const loading = ref(false);
+const error = ref("");
 
 /** Info + confirm modal */
 const modal = ref({ open: false, type: "info", title: "", message: "", onConfirm: null });
