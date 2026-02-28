@@ -1,161 +1,172 @@
 <script setup>
-import { ref, computed, provide } from 'vue';
+import { ref, computed, provide, onMounted } from 'vue';
 import SingleComment from './SingleComment.vue';
 
-// Some random comments
-const comments = ref([
-  {
-    id: 1,
-    author: 'Some OWP Admin',
-    role: 'Admin',
-    time: '2d ago',
-    text: 'Well done Johnny! Keep it up!',
-    replies: [
-      {
-        id: 3,
-        author: 'Johnny Robert',
-        role: 'User',
-        time: '1d ago',
-        text: 'Thanks! I really appreciate the feedback.',
-        replies: [
-          {
-            id: 5,
-            author: 'Some OWP Admin',
-            role: 'Admin',
-            time: '12h ago',
-            text: 'Of course! We love seeing this kind of progress in the community.',
-            replies: []
-          }
-        ]
-      },
-      {
-        id: 4,
-        author: 'Sarah Alice',
-        role: 'User',
-        time: '1d ago',
-        text: 'Agreed! The quality of this post is top-notch.',
-        replies: []
-      }
-    ]
-  },
-  {
-    id: 2,
-    author: 'Gerard Billington',
-    role: 'User',
-    time: '2d ago',
-    text: 'Wow this is so cool!',
-    replies: []
-  },
-  {
-    id: 6,
-    author: 'Dev Mike',
-    role: 'User',
-    time: '5h ago',
-    text: 'Great post thank you!',
-    replies: []
-  },
-  {
-    id: 7,
-    author: 'Dev Mike',
-    role: 'User',
-    time: '5h ago',
-    text: 'Great post thank you!',
-    replies: []
-  }, 
-  {
-    id: 8,
-    author: 'Dev Mike',
-    role: 'User',
-    time: '5h ago',
-    text: 'Great post thank you!',
-    replies: []
-  },
-  {
-    id: 9,
-    author: 'Dev Mike',
-    role: 'User',
-    time: '5h ago',
-    text: 'Great post thank you!',
-    replies: []
-  },
-  {
-    id: 10,
-    author: 'Dev Mike',
-    role: 'User',
-    time: '5h ago',
-    text: 'Great post thank you!',
-    replies: []
-  },
-]);
+import {
+  fetchComments as apiFetchComments,
+  submitComment as apiSubmitComment,
+  formatCommentData
+} from '@/api/comments';
 
+const props = defineProps({
+  postId: {
+    type: [Number, String],
+    required: true
+  }
+});
+
+const flatCommentsList = ref([]);
+const commentsTree = ref([]);
 const isFocused = ref(false);
 const newComment = ref('');
-const displayLimit = ref(5);
 const activeReplyId = ref(null);
+
+const currentBatch = ref(1);
+const commentsPerLoad = 10;
+const hasMore = ref(true);
+const isLoadingMore = ref(false);
+
+const commentTotalCount = ref(0);
 
 provide('activeReplyId', activeReplyId);
 
-// Helper to count all comments and replies
-const countAll = (commentArray) => {
-  let count = 0;
-  for (const comment of commentArray) {
-    count++;
-    if (comment.replies && comment.replies.length > 0) {
-      count += countAll(comment.replies);
+const buildCommentTree = (flatComments) => {
+  const map = new Map();
+  const tree = [];
+
+  flatComments.forEach(comment => {
+    map.set(comment.id, comment);
+  });
+
+  flatComments.forEach(comment => {
+    if (comment.parentCommentId) {
+      const parent = map.get(comment.parentCommentId);
+      if (parent && !parent.replies.some(r => r.id === comment.id)) {
+        parent.replies.push(map.get(comment.id));
+      }
+    } else {
+      tree.push(map.get(comment.id));
     }
+  });
+
+  return tree;
+};
+
+const loadComments = async (isInitial = true) => {
+  if (isInitial) {
+    currentBatch.value = 1;
+    flatCommentsList.value = [];
+    hasMore.value = true;
   }
-  return count;
+
+  isLoadingMore.value = true;
+
+  try {
+    const data = await apiFetchComments(props.postId, currentBatch.value, commentsPerLoad);
+
+    if (data && data.ok) {
+      commentTotalCount.value = data.total || 0;
+
+      if (flatCommentsList.value.length + data.items.length >= commentTotalCount.value) {
+        hasMore.value = false;
+      }
+
+      const formattedItems = data.items.map(formatCommentData);
+
+      flatCommentsList.value = [...flatCommentsList.value, ...formattedItems];
+      commentsTree.value = buildCommentTree(flatCommentsList.value);
+    }
+  } catch (error) {
+    console.error("Load error:", error);
+  } finally {
+    isLoadingMore.value = false;
+  }
 };
 
-const visibleComments = computed(() => {
-  return comments.value.slice(0, displayLimit.value);
-});
-
-const totalCommentsCount = computed(() => {
-  return countAll(comments.value);
-});
-
-const showMoreTopLevel = () => {
-  displayLimit.value += 5;
+const handleLoadMore = async () => {
+  currentBatch.value++;
+  await loadComments(false);
 };
+
+const submitComment = async () => {
+  if (!newComment.value.trim()) return;
+  try {
+    const data = await apiSubmitComment(props.postId, newComment.value);
+    if (data && data.ok) {
+      newComment.value = '';
+      isFocused.value = false;
+      commentTotalCount.value++;
+
+      const formatted = formatCommentData(data.comment);
+      flatCommentsList.value.unshift(formatted);
+      commentsTree.value = buildCommentTree(flatCommentsList.value);
+    }
+  } catch (error) {
+    alert("Failed to post comment.");
+  }
+};
+
+const submitReply = async (replyContent, parentCommentId) => {
+  if (!replyContent.trim()) return false;
+  try {
+    const data = await apiSubmitComment(props.postId, replyContent, parentCommentId);
+    if (data && data.ok) {
+      activeReplyId.value = null;
+      commentTotalCount.value++;
+      return data.comment;
+    }
+    return false;
+  } catch (error) {
+    alert("Failed to post reply.");
+    return false;
+  }
+};
+
+provide('submitReply', submitReply);
+
+const totalCommentsCount = computed(() => commentTotalCount.value);
 
 const cancelComment = () => {
   newComment.value = '';
   isFocused.value = false;
 };
+
+onMounted(() => {
+  loadComments();
+});
 </script>
 
 <template>
   <div class="comment-section p-4 rounded-3 border bg-white text-start">
-    <h3 class="section-title fw-bold mb-4 pb-2 border-bottom d-inline-block">{{ totalCommentsCount }} Comments</h3>
+    <h3 class="section-title fw-bold mb-4 pb-2 border-bottom d-inline-block">
+      {{ totalCommentsCount }} Comments
+    </h3>
 
-    <!-- Comment textbox -->
     <div class="main-input-wrapper mb-4">
-      <div class="reply-box-container border rounded-3 overflow-hidden bg-white" :class="{ 'focused-border': isFocused }">
-        <textarea 
-          v-model="newComment" 
-          @focus="isFocused = true" 
-          placeholder="Add a comment..." 
-          class="comment-textarea w-100 border-0 p-3"
-          rows="2"
-        ></textarea>
+      <div class="reply-box-container border rounded-3 overflow-hidden bg-white"
+        :class="{ 'focused-border': isFocused }">
+        <textarea v-model="newComment" @focus="isFocused = true" placeholder="Add a comment..."
+          class="comment-textarea w-100 border-0 p-3" rows="2"></textarea>
 
-        <!-- Action buttons-->
         <div v-if="isFocused" class="d-flex justify-content-end align-items-center gap-3 px-3 pb-2">
           <button class="btn-cancel border-0 bg-transparent fw-bold" @click="cancelComment">Cancel</button>
-          <button class="btn-submit border-0 rounded-2 fw-bold px-4 py-2" :disabled="!newComment">Comment</button>
+          <button class="btn-submit border-0 rounded-2 fw-bold px-4 py-2" :disabled="!newComment"
+            @click="submitComment">Comment</button>
         </div>
       </div>
     </div>
 
     <div class="comments-container">
-      <SingleComment v-for="comment in visibleComments" :key="comment.id" :comment="comment" />
+      <SingleComment v-for="comment in commentsTree" :key="comment.id" :comment="comment" />
     </div>
 
-    <button v-if="displayLimit < comments.length" @click="showMoreTopLevel" 
-            class="load-more-btn w-100 border py-2 rounded-3 fw-bold bg-transparent">
-      Show more comments
-    </button>
+    <div v-if="hasMore" class="mt-4">
+      <button @click="handleLoadMore" :disabled="isLoadingMore"
+        class="load-more-btn w-100 border py-2 rounded-3 fw-bold bg-transparent d-flex align-items-center justify-content-center gap-2">
+        <i v-if="isLoadingMore" class="pi pi-spin pi-spinner"></i>
+        <span>{{ isLoadingMore ? 'Loading...' : 'Show more comments' }}</span>
+      </button>
+    </div>
   </div>
 </template>
 
@@ -194,7 +205,6 @@ const cancelComment = () => {
 
 .btn-submit:disabled {
   background-color: #03515769 !important;
-  color: #ffffff;
   cursor: not-allowed;
 }
 

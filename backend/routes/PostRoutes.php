@@ -494,6 +494,25 @@ $app->get('/api/tags', function (Request $req, Response $res) use ($makePdo) {
     }
 });
 
+$app->get('/api/tags/filter', function (Request $req, Response $res) use ($makePdo) {
+    try {
+        $pdo = $makePdo();
+
+        $getTagsSql = "
+            SELECT TagID, Name
+            FROM dbo.Tags
+            ORDER BY Name ASC
+        ";
+
+        $stmt = $pdo->query($getTagsSql);
+        $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        return json($res, ['ok' => true, 'items' => $items]);
+    } catch (Throwable $e) {
+        return json($res, ['ok' => false, 'error' => 'Server error: ' . $e->getMessage()], 500);
+    }
+});
+
 $app->post('/api/posts/{id}/vote', function (Request $req, Response $res, array $args) use ($makePdo) {
     try {
         $userId = (int)$req->getAttribute("user_id");

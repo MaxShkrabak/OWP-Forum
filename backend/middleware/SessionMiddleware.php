@@ -9,14 +9,13 @@ return function (Request $request, RequestHandler $handler) use ($makePdo) {
     $path = $request->getUri()->getPath();
     $method = $request->getMethod();
 
-    // TODO: Probably better way to manage public routes (will try to figure out later)
-    // Basic public routes
     $publicRoutes = [
         '/api/login'             => ['POST'],
         '/api/register-new-user' => ['POST'],
         '/api/verify-email'      => ['GET', 'POST'],
+        '/api/me'                => ['GET'],
         '/api/posts'             => ['GET'],
-        '/api/tags'              => ['GET'],
+        '/api/tags/filter'       => ['GET'],
     ];
 
     // Check if route is public
@@ -24,7 +23,9 @@ return function (Request $request, RequestHandler $handler) use ($makePdo) {
         || (isset($publicRoutes[$path]) && in_array($method, $publicRoutes[$path]))
         || ($method === 'GET' && str_starts_with($path, '/api/categories'))
         || ($method === 'GET' && str_starts_with($path, '/api/get-post'))
-        || ($method === 'GET' && str_starts_with($path, '/api/profile'));
+        || ($method === 'GET' && str_starts_with($path, '/api/profile'))
+        || ($method === 'GET' && str_contains($path, '/comments')) 
+        || ($method === 'GET' && str_contains($path, '/replies'));
 
     $token = $request->getCookieParams()['session'] ?? '';
     $session = null;
