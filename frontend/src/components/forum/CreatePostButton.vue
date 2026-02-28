@@ -1,6 +1,7 @@
 <script setup>
 import { ref } from 'vue';
 import CreatePostModal from './CreatePostModal.vue';
+import { isBanned } from '@/stores/userStore';
 
 const isModalOpen = ref(false);
 const emit = defineEmits(['post-refresh']);
@@ -13,7 +14,7 @@ async function handlePublish() {
 
 <template>
   <div class="action-container">
-    <button @click="isModalOpen = true" class="btn-create-post shadow-sm">
+    <button @click="isModalOpen = true" class="btn-create-post shadow-sm" :disabled="isBanned">
       <div class="btn-content">
         <div class="icon-wrap">
            <i class="pi pi-plus-circle"></i>
@@ -34,6 +35,11 @@ async function handlePublish() {
 <style scoped>
 .action-container {
   width: 100%;
+}
+
+.btn-create-post:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .btn-create-post {
