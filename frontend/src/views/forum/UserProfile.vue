@@ -151,11 +151,12 @@ onMounted(() => {
         <div class="row" v-else>
 
           <UserCard
-          is-profile 
+          is-profile
           :is-curr-user="checkIfCurrUser()"
           :avatar="setAvatar"
           :new-full-name="setFullName"
           :new-role="setRole"
+          :user-id="getUrlParams()"
           class="col-md-3"></UserCard>
 
           <!--Filter header-->
