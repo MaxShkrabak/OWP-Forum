@@ -33,7 +33,7 @@ import { RouterLink } from "vue-router";
     min-height: 80px;
     padding: 10px 15px;
 
-    background: linear-gradient(135deg, #007a4c 0%, #006649 100%);
+    background: linear-gradient(135deg, #007a4c 0%, #1a3c34 100%);
     color: white;
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 12px;

@@ -144,9 +144,9 @@ onMounted(async () => {
             <UserCard />
 
             <div class="action-buttons-container mt-3" v-if="isLoggedIn && !isBanned">
+              <AdminPanelButton />
               <CreatePostButton @post-refresh="fetchPosts" />
               <ViewReportsButton />
-              <AdminPanelButton />
             </div>
 
             <div class="card border-0 shadow-sm rounded-3 mt-4 d-none d-lg-block overflow-hidden">
