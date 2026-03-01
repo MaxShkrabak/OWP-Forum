@@ -6,8 +6,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount, flushPromises } from "@vue/test-utils";
 import { ref } from "vue";
 
-import AdminReports from "@/components/admin/AdminReports.vue";
-import ViewReportsButton from "@/components/admin/ViewReportsButton.vue";
+// ✅ IMPORTANT: use RELATIVE imports so this file never depends on "@" alias.
+// tests/components/admin/AdminReports.test.js -> src/components/admin/*.vue
+import AdminReports from "../../../src/components/admin/AdminReports.vue";
+import ViewReportsButton from "../../../src/components/admin/ViewReportsButton.vue";
 
 /* -------------------- mocks -------------------- */
 
@@ -15,16 +17,24 @@ import ViewReportsButton from "@/components/admin/ViewReportsButton.vue";
 const { mockClient } = vi.hoisted(() => ({
   mockClient: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), delete: vi.fn() },
 }));
-vi.mock("@/api/client", () => ({ default: mockClient }));
 
-// Mock reports API used by ViewReportsButton.vue
+// ✅ Virtual mock so "@/api/client" doesn't need to resolve to a real path
+vi.mock("@/api/client", () => ({ default: mockClient }), { virtual: true });
+
+// Mock reports API used by ViewReportsButton.vue + AdminReports.vue (resolveReport)
 const { mockReportsApi } = vi.hoisted(() => ({
   mockReportsApi: { fetchReports: vi.fn(), resolveReport: vi.fn() },
 }));
-vi.mock("@/api/reports", () => ({
-  fetchReports: mockReportsApi.fetchReports,
-  resolveReport: mockReportsApi.resolveReport,
-}));
+
+// ✅ Virtual mock so "@/api/reports" doesn't need alias resolution
+vi.mock(
+  "@/api/reports",
+  () => ({
+    fetchReports: mockReportsApi.fetchReports,
+    resolveReport: mockReportsApi.resolveReport,
+  }),
+  { virtual: true }
+);
 
 // Mock router used by ViewReportsButton.vue
 const { mockRouter } = vi.hoisted(() => ({
@@ -35,9 +45,14 @@ vi.mock("vue-router", () => ({
 }));
 
 // ✅ IMPORTANT: mock userRole as a real Vue ref so template unwrapping works
-vi.mock("@/stores/userStore", () => ({
-  userRole: ref("admin"),
-}));
+// ✅ Virtual mock so "@/stores/userStore" doesn't need alias resolution
+vi.mock(
+  "@/stores/userStore",
+  () => ({
+    userRole: ref("admin"),
+  }),
+  { virtual: true }
+);
 
 /* -------------------- test data -------------------- */
 
@@ -64,8 +79,7 @@ function reportTagExists(tags, name, excludeId = null) {
   if (!n) return false;
   return tags.some((t) => {
     const same = normalizeName(t.TagName).toLowerCase() === n;
-    const notSelf =
-      excludeId == null ? true : Number(t.ReportTagID) !== Number(excludeId);
+    const notSelf = excludeId == null ? true : Number(t.ReportTagID) !== Number(excludeId);
     return same && notSelf;
   });
 }
@@ -96,11 +110,9 @@ function getCreateReportModalTagsEndpoint() {
 }
 
 /**
- * ✅ CRITICAL FIX (why CI was still failing):
- * Vue Test Utils `stubs: { Teleport: true }` does NOT render the slot content.
- * So #viewReports never exists in CI.
- *
- * We stub Teleport with a component that *renders its slot*.
+ * ✅ CRITICAL FIX:
+ * Vue Test Utils `stubs: { Teleport: true }` does NOT render slot content.
+ * We stub Teleport with a component that renders its slot.
  */
 const TeleportStub = {
   name: "Teleport",
@@ -153,7 +165,6 @@ describe("Report Tags (Admin) — API contract", () => {
   });
 
   it("create report modal tags endpoint matches ReportRoutes.php", () => {
-    // You did NOT provide the create report modal component, so only contract test.
     expect(getCreateReportModalTagsEndpoint()).toBe("/report/tags");
   });
 });
@@ -161,7 +172,13 @@ describe("Report Tags (Admin) — API contract", () => {
 describe("AdminReports.vue — DOM + CRUD behaviors", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockClient.get.mockResolvedValue({ data: { items: mockReportTags } });
+    // AdminReports calls GET /admin/report-tags and also GET /admin/reports on mount.
+    // We only care about tags in these tests, so make /admin/reports harmless.
+    mockClient.get.mockImplementation((url) => {
+      if (url === "/admin/report-tags") return Promise.resolve({ data: { items: mockReportTags } });
+      if (url === "/admin/reports") return Promise.resolve({ data: { ok: true, reports: [] } });
+      return Promise.resolve({ data: {} });
+    });
   });
 
   it("1) All existing report tags load correctly", async () => {
@@ -195,7 +212,6 @@ describe("AdminReports.vue — DOM + CRUD behaviors", () => {
     await input.setValue("Harassment Updated");
 
     mockClient.patch.mockResolvedValue({ data: { ok: true } });
-    mockClient.get.mockResolvedValueOnce({ data: { items: mockReportTags } });
 
     // First click opens confirm modal
     await wrapper.find(".btn-confirm").trigger("click");
@@ -221,7 +237,6 @@ describe("AdminReports.vue — DOM + CRUD behaviors", () => {
     expect(wrapper.text()).toContain("Confirm delete report tag?");
 
     mockClient.delete.mockResolvedValue({ data: { ok: true } });
-    mockClient.get.mockResolvedValueOnce({ data: { items: mockReportTags.slice(1) } });
 
     const confirmButtons = wrapper.findAll(".btn-confirm");
     await confirmButtons[confirmButtons.length - 1].trigger("click");
@@ -243,7 +258,7 @@ describe("ViewReportsButton.vue — reports loading + actions", () => {
     mockReportsApi.fetchReports.mockResolvedValue({ ok: true, reports: mockReportsUnresolved });
 
     const wrapper = mount(ViewReportsButton, {
-      global: { stubs: { Teleport: TeleportStub } }, // ✅ renders modal content
+      global: { stubs: { Teleport: TeleportStub } },
     });
     await flushPromises();
 
