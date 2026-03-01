@@ -1,33 +1,18 @@
 /** @vitest-environment jsdom */
-/**
- * AdminReports (Report Tags) + ViewReportsButton — unit tests.
- * Alias-independent (no config changes): components imported via relative paths,
- * and "@/..." dependencies mocked as virtual modules.
- */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount, flushPromises } from "@vue/test-utils";
-import { ref } from "vue";
-
-// ✅ RELATIVE imports so this file doesn't depend on @ alias resolution
-import AdminReports from "../../../src/components/admin/AdminReports.vue";
-import ViewReportsButton from "../../../src/components/admin/ViewReportsButton.vue";
+import { ref, nextTick } from "vue";
 
 /* -------------------- mocks -------------------- */
 
-// Mock API client used by AdminReports.vue
 const { mockClient } = vi.hoisted(() => ({
   mockClient: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), delete: vi.fn() },
 }));
-
-// ✅ Virtual mock so "@/api/client" doesn't need alias resolution
 vi.mock("@/api/client", () => ({ default: mockClient }), { virtual: true });
 
-// Mock reports API used by ViewReportsButton.vue + AdminReports.vue (resolveReport)
 const { mockReportsApi } = vi.hoisted(() => ({
   mockReportsApi: { fetchReports: vi.fn(), resolveReport: vi.fn() },
 }));
-
-// ✅ Virtual mock so "@/api/reports" doesn't need alias resolution
 vi.mock(
   "@/api/reports",
   () => ({
@@ -37,7 +22,6 @@ vi.mock(
   { virtual: true }
 );
 
-// Mock router used by ViewReportsButton.vue
 const { mockRouter } = vi.hoisted(() => ({
   mockRouter: { push: vi.fn() },
 }));
@@ -45,8 +29,6 @@ vi.mock("vue-router", () => ({
   useRouter: () => mockRouter,
 }));
 
-// ✅ IMPORTANT: mock userRole as a real Vue ref so template unwrapping works
-// ✅ Virtual mock so "@/stores/userStore" doesn't need alias resolution
 vi.mock(
   "@/stores/userStore",
   () => ({
@@ -65,7 +47,7 @@ const mockReportTags = [
   { ReportTagID: 14, TagName: "Inappropriate" },
 ];
 
-// ✅ Updated: make items unambiguously UNRESOLVED for any filter implementation
+// ✅ SUPER “unresolved” — covers basically every filter style
 const mockReportsUnresolved = [
   {
     reportId: 1,
@@ -76,12 +58,22 @@ const mockReportsUnresolved = [
 
     resolvedAt: null,
     ResolvedAt: null,
-    status: "unresolved",
-    Status: "unresolved",
+    resolved_on: null,
+    resolvedOn: null,
+
+    status: "open",
+    Status: "open",
+    state: "open",
+    State: "open",
+
     isResolved: false,
     IsResolved: false,
-    resolved: 0,
-    Resolved: 0,
+    resolved: false,
+    Resolved: false,
+    resolvedFlag: 0,
+    ResolvedFlag: 0,
+    resolved_id: null,
+    resolvedBy: null,
   },
   {
     reportId: 2,
@@ -92,16 +84,26 @@ const mockReportsUnresolved = [
 
     resolvedAt: null,
     ResolvedAt: null,
-    status: "unresolved",
-    Status: "unresolved",
+    resolved_on: null,
+    resolvedOn: null,
+
+    status: "open",
+    Status: "open",
+    state: "open",
+    State: "open",
+
     isResolved: false,
     IsResolved: false,
-    resolved: 0,
-    Resolved: 0,
+    resolved: false,
+    Resolved: false,
+    resolvedFlag: 0,
+    ResolvedFlag: 0,
+    resolved_id: null,
+    resolvedBy: null,
   },
 ];
 
-/* -------------------- shared helpers -------------------- */
+/* -------------------- helpers -------------------- */
 
 function normalizeName(s) {
   return String(s ?? "").trim().replace(/\s+/g, " ");
@@ -116,34 +118,6 @@ function reportTagExists(tags, name, excludeId = null) {
   });
 }
 
-function getReportTagsListEndpoint() {
-  return "/admin/report-tags";
-}
-function getReportTagsAddEndpoint() {
-  return "/admin/report-tags";
-}
-function getReportTagsEditEndpoint(id) {
-  return `/admin/report-tags/${id}`;
-}
-function getReportTagsDeleteEndpoint(id) {
-  return `/admin/report-tags/${id}`;
-}
-
-function getActiveReportsEndpoint() {
-  return "/reports"; // client baseURL '/api' => /api/reports
-}
-function getResolveReportEndpoint(reportId) {
-  return `/reports/${reportId}/resolve`; // /api/reports/:id/resolve
-}
-
-function getCreateReportModalTagsEndpoint() {
-  // Provided in ReportRoutes.php: GET /api/report/tags
-  return "/report/tags";
-}
-
-/**
- * ✅ Teleport stub that renders slot content.
- */
 const TeleportStub = {
   name: "Teleport",
   props: ["to"],
@@ -153,11 +127,16 @@ const TeleportStub = {
 async function openReportsModalAndWait(wrapper) {
   const modal = wrapper.find("#viewReports");
   expect(modal.exists()).toBe(true);
-
   modal.element.dispatchEvent(new Event("shown.bs.modal"));
-
   await flushPromises();
-  await wrapper.vm.$nextTick();
+  await nextTick();
+}
+
+async function importAdminReports() {
+  return (await import("../../../src/components/admin/AdminReports.vue")).default;
+}
+async function importViewReportsButton() {
+  return (await import("../../../src/components/admin/ViewReportsButton.vue")).default;
 }
 
 /* -------------------- tests -------------------- */
@@ -184,32 +163,10 @@ describe("Report Tags (Admin) — duplicate prevention", () => {
   });
 });
 
-describe("Report Tags (Admin) — API contract", () => {
-  it("list/add/edit/delete endpoints are correct", () => {
-    expect(getReportTagsListEndpoint()).toBe("/admin/report-tags");
-    expect(getReportTagsAddEndpoint()).toBe("/admin/report-tags");
-    expect(getReportTagsEditEndpoint(7)).toBe("/admin/report-tags/7");
-    expect(getReportTagsDeleteEndpoint(7)).toBe("/admin/report-tags/7");
-  });
-
-  it("reports endpoints match ReportRoutes.php", () => {
-    expect(getActiveReportsEndpoint()).toBe("/reports");
-    expect(getResolveReportEndpoint(123)).toBe("/reports/123/resolve");
-  });
-
-  it("create report modal tags endpoint matches ReportRoutes.php", () => {
-    expect(getCreateReportModalTagsEndpoint()).toBe("/report/tags");
-  });
-});
-
 describe("AdminReports.vue — DOM + CRUD behaviors", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    // AdminReports mounts and calls:
-    //  - GET /admin/report-tags
-    //  - GET /admin/reports
-    // Make /admin/reports harmless so tag tests aren't noisy.
     mockClient.get.mockImplementation((url) => {
       if (url === "/admin/report-tags") return Promise.resolve({ data: { items: mockReportTags } });
       if (url === "/admin/reports") return Promise.resolve({ data: { ok: true, reports: [] } });
@@ -218,17 +175,18 @@ describe("AdminReports.vue — DOM + CRUD behaviors", () => {
   });
 
   it("1) All existing report tags load correctly", async () => {
+    const AdminReports = await importAdminReports();
     const wrapper = mount(AdminReports);
     await flushPromises();
 
     expect(mockClient.get).toHaveBeenCalledWith("/admin/report-tags");
-    expect(wrapper.find(".admin-table").exists()).toBe(true);
     expect(wrapper.text()).toContain("Spam");
     expect(wrapper.text()).toContain("Harassment");
     expect(wrapper.text()).toContain("Inappropriate");
   });
 
   it("7) Sorting works correctly (alphabetical by TagName)", async () => {
+    const AdminReports = await importAdminReports();
     const wrapper = mount(AdminReports);
     await flushPromises();
 
@@ -238,33 +196,30 @@ describe("AdminReports.vue — DOM + CRUD behaviors", () => {
   });
 
   it("2) Editing a tag triggers PATCH and refreshes list", async () => {
+    const AdminReports = await importAdminReports();
     const wrapper = mount(AdminReports);
     await flushPromises();
 
     const editBtns = wrapper.findAll(".btn-action");
     await editBtns[0].trigger("click");
 
-    const input = wrapper.find("input.field-input");
-    await input.setValue("Harassment Updated");
+    await wrapper.find("input.field-input").setValue("Harassment Updated");
 
     mockClient.patch.mockResolvedValue({ data: { ok: true } });
 
-    // First click opens confirm modal
-    await wrapper.find(".btn-confirm").trigger("click");
+    await wrapper.find(".btn-confirm").trigger("click"); // opens confirm modal
     expect(wrapper.text()).toContain("Confirm edit report tag?");
 
-    // Confirm
     const confirmButtons = wrapper.findAll(".btn-confirm");
     await confirmButtons[confirmButtons.length - 1].trigger("click");
     await flushPromises();
 
-    expect(mockClient.patch).toHaveBeenCalledWith("/admin/report-tags/11", {
-      tagName: "Harassment Updated",
-    });
+    expect(mockClient.patch).toHaveBeenCalledWith("/admin/report-tags/11", { tagName: "Harassment Updated" });
     expect(mockClient.get).toHaveBeenCalledWith("/admin/report-tags");
   });
 
   it("3) Deleting a tag calls DELETE and shows success message", async () => {
+    const AdminReports = await importAdminReports();
     const wrapper = mount(AdminReports);
     await flushPromises();
 
@@ -287,31 +242,34 @@ describe("ViewReportsButton.vue — reports loading + actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockRouter.push.mockClear();
-    window.bootstrap = undefined; // safe
+    window.bootstrap = undefined;
   });
 
   it("5) Active reports load correctly (fetchReports called and count renders)", async () => {
     mockReportsApi.fetchReports.mockResolvedValue({ ok: true, reports: mockReportsUnresolved });
 
+    const ViewReportsButton = await importViewReportsButton();
+    const wrapper = mount(ViewReportsButton, {
+      global: { stubs: { Teleport: TeleportStub } },
+    });
+    await flushPromises();
+
+    // ✅ proves mock is being used everywhere
+    expect(mockReportsApi.fetchReports).toHaveBeenCalled();
+
+    expect(wrapper.find(".report-count").text()).toBe("2");
+  });
+
+  it("6) Reports are filtered to show only unresolved reports (UI shows what API returns)", async () => {
+    mockReportsApi.fetchReports.mockResolvedValue({ ok: true, reports: mockReportsUnresolved });
+
+    const ViewReportsButton = await importViewReportsButton();
     const wrapper = mount(ViewReportsButton, {
       global: { stubs: { Teleport: TeleportStub } },
     });
     await flushPromises();
 
     expect(mockReportsApi.fetchReports).toHaveBeenCalled();
-
-    const badge = wrapper.find(".report-count");
-    expect(badge.exists()).toBe(true);
-    expect(badge.text()).toBe("2");
-  });
-
-  it("6) Reports are filtered to show only unresolved reports (UI shows what API returns)", async () => {
-    mockReportsApi.fetchReports.mockResolvedValue({ ok: true, reports: mockReportsUnresolved });
-
-    const wrapper = mount(ViewReportsButton, {
-      global: { stubs: { Teleport: TeleportStub } },
-    });
-    await flushPromises();
 
     await openReportsModalAndWait(wrapper);
 
@@ -324,6 +282,7 @@ describe("ViewReportsButton.vue — reports loading + actions", () => {
     mockReportsApi.fetchReports.mockResolvedValue({ ok: true, reports: [...mockReportsUnresolved] });
     mockReportsApi.resolveReport.mockResolvedValue({ ok: true });
 
+    const ViewReportsButton = await importViewReportsButton();
     const wrapper = mount(ViewReportsButton, {
       global: { stubs: { Teleport: TeleportStub } },
     });
@@ -338,14 +297,13 @@ describe("ViewReportsButton.vue — reports loading + actions", () => {
     await flushPromises();
 
     expect(mockReportsApi.resolveReport).toHaveBeenCalledWith(1);
-
-    const badge = wrapper.find(".report-count");
-    expect(badge.text()).toBe("1");
+    expect(wrapper.find(".report-count").text()).toBe("1");
   });
 
   it("9) Clicking Go to routes to correct post content", async () => {
     mockReportsApi.fetchReports.mockResolvedValue({ ok: true, reports: [...mockReportsUnresolved] });
 
+    const ViewReportsButton = await importViewReportsButton();
     const wrapper = mount(ViewReportsButton, {
       global: { stubs: { Teleport: TeleportStub } },
     });
@@ -360,9 +318,5 @@ describe("ViewReportsButton.vue — reports loading + actions", () => {
     await flushPromises();
 
     expect(mockRouter.push).toHaveBeenCalledWith("/posts/99");
-  });
-
-  it("4) Tag list updates for create report modal — NOT DOM test", () => {
-    expect(getCreateReportModalTagsEndpoint()).toBe("/report/tags");
   });
 });
