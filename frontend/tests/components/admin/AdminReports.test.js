@@ -1,13 +1,14 @@
 /** @vitest-environment jsdom */
 /**
  * AdminReports (Report Tags) + ViewReportsButton — unit tests.
+ * Alias-independent (no config changes): components imported via relative paths,
+ * and "@/..." dependencies mocked as virtual modules.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount, flushPromises } from "@vue/test-utils";
 import { ref } from "vue";
 
-// ✅ IMPORTANT: use RELATIVE imports so this file never depends on "@" alias.
-// tests/components/admin/AdminReports.test.js -> src/components/admin/*.vue
+// ✅ RELATIVE imports so this file doesn't depend on @ alias resolution
 import AdminReports from "../../../src/components/admin/AdminReports.vue";
 import ViewReportsButton from "../../../src/components/admin/ViewReportsButton.vue";
 
@@ -18,7 +19,7 @@ const { mockClient } = vi.hoisted(() => ({
   mockClient: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), delete: vi.fn() },
 }));
 
-// ✅ Virtual mock so "@/api/client" doesn't need to resolve to a real path
+// ✅ Virtual mock so "@/api/client" doesn't need alias resolution
 vi.mock("@/api/client", () => ({ default: mockClient }), { virtual: true });
 
 // Mock reports API used by ViewReportsButton.vue + AdminReports.vue (resolveReport)
@@ -64,9 +65,40 @@ const mockReportTags = [
   { ReportTagID: 14, TagName: "Inappropriate" },
 ];
 
+// ✅ Updated: make items unambiguously UNRESOLVED for any filter implementation
 const mockReportsUnresolved = [
-  { reportId: 1, postId: 99, source: "Post", reason: "Spam", createdAt: "2026-02-26T00:00:00Z" },
-  { reportId: 2, postId: 100, source: "Post", reason: "Other", createdAt: "2026-02-26T01:00:00Z" },
+  {
+    reportId: 1,
+    postId: 99,
+    source: "Post",
+    reason: "Spam",
+    createdAt: "2026-02-26T00:00:00Z",
+
+    resolvedAt: null,
+    ResolvedAt: null,
+    status: "unresolved",
+    Status: "unresolved",
+    isResolved: false,
+    IsResolved: false,
+    resolved: 0,
+    Resolved: 0,
+  },
+  {
+    reportId: 2,
+    postId: 100,
+    source: "Post",
+    reason: "Other",
+    createdAt: "2026-02-26T01:00:00Z",
+
+    resolvedAt: null,
+    ResolvedAt: null,
+    status: "unresolved",
+    Status: "unresolved",
+    isResolved: false,
+    IsResolved: false,
+    resolved: 0,
+    Resolved: 0,
+  },
 ];
 
 /* -------------------- shared helpers -------------------- */
@@ -110,9 +142,7 @@ function getCreateReportModalTagsEndpoint() {
 }
 
 /**
- * ✅ CRITICAL FIX:
- * Vue Test Utils `stubs: { Teleport: true }` does NOT render slot content.
- * We stub Teleport with a component that renders its slot.
+ * ✅ Teleport stub that renders slot content.
  */
 const TeleportStub = {
   name: "Teleport",
@@ -123,8 +153,11 @@ const TeleportStub = {
 async function openReportsModalAndWait(wrapper) {
   const modal = wrapper.find("#viewReports");
   expect(modal.exists()).toBe(true);
+
   modal.element.dispatchEvent(new Event("shown.bs.modal"));
+
   await flushPromises();
+  await wrapper.vm.$nextTick();
 }
 
 /* -------------------- tests -------------------- */
@@ -172,8 +205,11 @@ describe("Report Tags (Admin) — API contract", () => {
 describe("AdminReports.vue — DOM + CRUD behaviors", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // AdminReports calls GET /admin/report-tags and also GET /admin/reports on mount.
-    // We only care about tags in these tests, so make /admin/reports harmless.
+
+    // AdminReports mounts and calls:
+    //  - GET /admin/report-tags
+    //  - GET /admin/reports
+    // Make /admin/reports harmless so tag tests aren't noisy.
     mockClient.get.mockImplementation((url) => {
       if (url === "/admin/report-tags") return Promise.resolve({ data: { items: mockReportTags } });
       if (url === "/admin/reports") return Promise.resolve({ data: { ok: true, reports: [] } });
