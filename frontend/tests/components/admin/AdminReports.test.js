@@ -1,6 +1,5 @@
 /** @vitest-environment jsdom */
 /**
- *
  * AdminReports (Report Tags) + ViewReportsButton — unit tests.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -97,10 +96,18 @@ function getCreateReportModalTagsEndpoint() {
 }
 
 /**
- * IMPORTANT FIX:
- * In tests we stub Teleport: true, so the modal stays inside wrapper DOM
- * (NOT document.body). Therefore we must query it via wrapper.find(...)
+ * ✅ CRITICAL FIX (why CI was still failing):
+ * Vue Test Utils `stubs: { Teleport: true }` does NOT render the slot content.
+ * So #viewReports never exists in CI.
+ *
+ * We stub Teleport with a component that *renders its slot*.
  */
+const TeleportStub = {
+  name: "Teleport",
+  props: ["to"],
+  template: `<div class="teleport-stub"><slot /></div>`,
+};
+
 async function openReportsModalAndWait(wrapper) {
   const modal = wrapper.find("#viewReports");
   expect(modal.exists()).toBe(true);
@@ -236,24 +243,22 @@ describe("ViewReportsButton.vue — reports loading + actions", () => {
     mockReportsApi.fetchReports.mockResolvedValue({ ok: true, reports: mockReportsUnresolved });
 
     const wrapper = mount(ViewReportsButton, {
-      global: { stubs: { Teleport: true } }, // modal stays inside wrapper
+      global: { stubs: { Teleport: TeleportStub } }, // ✅ renders modal content
     });
     await flushPromises();
 
     expect(mockReportsApi.fetchReports).toHaveBeenCalled();
 
-    // count badge should show "2"
     const badge = wrapper.find(".report-count");
     expect(badge.exists()).toBe(true);
     expect(badge.text()).toBe("2");
   });
 
   it("6) Reports are filtered to show only unresolved reports (UI shows what API returns)", async () => {
-    // Backend does filtering; UI should render exactly what it receives.
     mockReportsApi.fetchReports.mockResolvedValue({ ok: true, reports: mockReportsUnresolved });
 
     const wrapper = mount(ViewReportsButton, {
-      global: { stubs: { Teleport: true } },
+      global: { stubs: { Teleport: TeleportStub } },
     });
     await flushPromises();
 
@@ -269,7 +274,7 @@ describe("ViewReportsButton.vue — reports loading + actions", () => {
     mockReportsApi.resolveReport.mockResolvedValue({ ok: true });
 
     const wrapper = mount(ViewReportsButton, {
-      global: { stubs: { Teleport: true } },
+      global: { stubs: { Teleport: TeleportStub } },
     });
     await flushPromises();
 
@@ -283,7 +288,6 @@ describe("ViewReportsButton.vue — reports loading + actions", () => {
 
     expect(mockReportsApi.resolveReport).toHaveBeenCalledWith(1);
 
-    // count badge should drop from 2 -> 1
     const badge = wrapper.find(".report-count");
     expect(badge.text()).toBe("1");
   });
@@ -292,7 +296,7 @@ describe("ViewReportsButton.vue — reports loading + actions", () => {
     mockReportsApi.fetchReports.mockResolvedValue({ ok: true, reports: [...mockReportsUnresolved] });
 
     const wrapper = mount(ViewReportsButton, {
-      global: { stubs: { Teleport: true } },
+      global: { stubs: { Teleport: TeleportStub } },
     });
     await flushPromises();
 
