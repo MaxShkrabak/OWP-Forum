@@ -78,45 +78,65 @@ class CommentController
         $apiKey = $_ENV['EMAIL_API_KEY'] ?? '';
         $fromEmail = $_ENV['EMAIL_FROM_ADDRESS'] ?? '';
         $fromName = $_ENV['EMAIL_FROM_NAME'] ?? 'OWP Forum';
+        $useSandbox = filter_var($_ENV['EMAIL_SANDBOX'] ?? 'true', FILTER_VALIDATE_BOOLEAN);
 
         if ($apiKey === '' || $fromEmail === '') {
             error_log("Email API key or from address not configured. Cannot send notification.");
             return false;
         }
 
+        $safeName = htmlspecialchars($name !== '' ? $name : $email, ENT_QUOTES,'UTF-8');
+        $safeTitle = htmlspecialchars($postTitle, ENT_QUOTES,'UTF-8');
+
         $payload = [
             'sender' => [
                 'email' => $fromEmail,
                 'name' => $fromName
             ],
-            'to' => [
-                [
-                    'email' => $email,
-                    'name' => $name !== '' ? $name : $email
-                ]
-            ],
+            'to' => [[
+                'email' => $email,
+                'name' => $name !== '' ? $name : $email
+            ]],
             'subject' => "New comment on your post: {$postTitle}",
-            'htmlContent' => "<p>Hi {$name},</p><p>Your post titled <strong>{$postTitle}</strong> has received a new comment. Visit the post to see the discussion!</p><p>Best,<br/>OWP Forum Team</p>"
+            'htmlContent' => "<p>Hi {$safeName},</p><p>Your post titled <strong>{$safeTitle}</strong> has received a new comment. Visit the post to see the discussion!</p><p>Best,<br/>OWP Forum Team</p>"
         ];
 
-        $ch = curl_init('https://fakeAPI/smtp/email');
-        curl_setopt_array($ch, [
-            CURLOPT_POST => true,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_HTTPHEADER => [
+        $headers = [
                 'accept: application/json',
                 'api-key: ' . $apiKey,
                 'content-type: application/json'
-            ],
+        ];
+
+        if ($useSandbox) {
+            $headers[] = 'X-Sib-Sandbox: drop';
+        }
+
+        $ch = curl_init('https://api.brevo.com/v3/smtp/email');
+        curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER => $headers,
             CURLOPT_POSTFIELDS => json_encode($payload),
             CURLOPT_TIMEOUT => 10
         ]);
 
-        curl_exec($ch);
+        $response = curl_exec($ch);
+
+        if ($response === false) {
+            error_log("cURL error while sending email: " . curl_error($ch));
+            curl_close($ch);
+            return false;
+        }
+
         $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
 
-        return $status >= 200 && $status < 300;
+        if ($status < 200 || $status >= 300) {
+            error_log("Failed to send email notification. Status: {$status}, Response: {$response}");
+            return false;
+        }
+
+        return true;
     }
 
     public function createComment(Request $req, Response $res, array $args): Response
