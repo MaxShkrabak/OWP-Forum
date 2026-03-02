@@ -31,6 +31,94 @@ class CommentController
         ];
     }
 
+    private function maybeSendCommentNotification(PDO $pdo, int $postId, int $commenterId): void
+    {
+        $postOwnerStmt = $pdo->prepare("
+            SELECT p.PostID, p.Title, p.AuthorID, p.LastCommentNotificationSentAt,
+                   u.Email, u.FirstName, u.LastName,
+                   ISNULL(u.EmailNotificationsEnabled, 1) AS EmailNotificationsEnabled
+            FROM dbo.Posts p
+            JOIN dbo.Users u ON u.User_ID = p.AuthorID
+            WHERE p.PostID = :postId");
+        $postOwnerStmt->execute([':postId' => $postId]);
+        $post = $postOwnerStmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$post) return;
+        if ((int)$post['AuthorID'] === $commenterId) return;
+        if (!(bool)$post['EmailNotificationsEnabled']) return;
+        if (!$this->cooldownPassed($post['LastCommentNotificationSentAt'] ?? null)) return;
+
+        try {
+            $fullName = trim(($post['FirstName'] ?? '') . ' ' . ($post['LastName'] ?? ''));
+            $sent = $this->sendCommentNotification($post['Email'], $fullName, $post['Title']);
+
+            if ($sent) {
+                $updateStmt = $pdo->prepare("UPDATE dbo.Posts SET LastCommentNotificationSentAt = SYSUTCDATETIME() WHERE PostID = :postId");
+                $updateStmt->execute([':postId' => $postId]);
+            }
+        } catch (Throwable $e) {
+            error_log("Failed to send comment notification: " . $e->getMessage());
+            return;
+        }
+    }
+
+    private function cooldownPassed(?string $lastSentAt): bool
+    {
+        if (!$lastSentAt) return true;
+        $cooldownMinutes = (int)($_ENV['COMMENT_EMAIL_COOLDOWN_MINUTES'] ?? 10);
+        $lastTime = strtotime($lastSentAt);
+
+        if ($lastTime === false) return true; // If parsing fails, allow sending
+
+        return $lastTime <= time() - ($cooldownMinutes * 60);
+    }
+
+    private function sendCommentNotification(string $email, string $name, string $postTitle): bool
+    {
+        $apiKey = $_ENV['EMAIL_API_KEY'] ?? '';
+        $fromEmail = $_ENV['EMAIL_FROM_ADDRESS'] ?? '';
+        $fromName = $_ENV['EMAIL_FROM_NAME'] ?? 'OWP Forum';
+
+        if ($apiKey === '' || $fromEmail === '') {
+            error_log("Email API key or from address not configured. Cannot send notification.");
+            return false;
+        }
+
+        $payload = [
+            'sender' => [
+                'email' => $fromEmail,
+                'name' => $fromName
+            ],
+            'to' => [
+                [
+                    'email' => $email,
+                    'name' => $name !== '' ? $name : $email
+                ]
+            ],
+            'subject' => "New comment on your post: {$postTitle}",
+            'htmlContent' => "<p>Hi {$name},</p><p>Your post titled <strong>{$postTitle}</strong> has received a new comment. Visit the post to see the discussion!</p><p>Best,<br/>OWP Forum Team</p>"
+        ];
+
+        $ch = curl_init('https://fakeAPI/smtp/email');
+        curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER => [
+                'accept: application/json',
+                'api-key: ' . $apiKey,
+                'content-type: application/json'
+            ],
+            CURLOPT_POSTFIELDS => json_encode($payload),
+            CURLOPT_TIMEOUT => 10
+        ]);
+
+        curl_exec($ch);
+        $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        return $status >= 200 && $status < 300;
+    }
+
     public function createComment(Request $req, Response $res, array $args): Response
     {
         try {
@@ -66,6 +154,7 @@ class CommentController
                 ':parentCommentId' => $parentCommentId
             ]);
             $inserted = $stmt->fetch(PDO::FETCH_ASSOC);
+            $this->maybeSendCommentNotification($pdo, $postId, (int)$userId);
 
             $commentDetailsSql = $pdo->prepare("
                 SELECT c.CommentId, c.PostId, c.ParentCommentId, c.Content, c.CreatedAt, c.UserId, c.TotalScore,
