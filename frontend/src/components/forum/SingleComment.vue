@@ -81,6 +81,7 @@ const confirmSaveEdit = async () => {
     if (data && data.ok && data.comment) {
       props.comment.text = data.comment.content;
       props.comment.time = originalText.value === data.comment.content ? props.comment.time : 'Edited just now';
+      props.comment.wasEdited = true;
       if (props.comment.user && data.comment.user) {
         props.comment.user = data.comment.user;
       }

@@ -160,7 +160,16 @@ describe("CommentSection.vue", () => {
     const saveButton = wrapper.findAll(".btn-submit").at(-1);
     expect(saveButton.element.disabled).toBe(false);
 
+    // First click opens the confirmation modal
     await saveButton.trigger("click");
+    await flushPromises();
+
+    // Confirm in the modal
+    const confirmButton = document.querySelector(
+      ".comment-modal-card .btn-submit",
+    );
+    expect(confirmButton).not.toBeNull();
+    confirmButton.click();
     await flushPromises();
 
     expect(updateComment).toHaveBeenCalled();
