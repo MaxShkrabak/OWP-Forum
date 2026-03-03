@@ -2,45 +2,28 @@ name: Backend Testing
 
 on:
   push:
-    branches: ["main", "dev"]
+    branches: [ "main", "dev" ]
     paths:
-      - "backend/**"
+      - 'backend/**' # runs if backend files changed
   pull_request:
-    branches: ["main", "dev"]
+    branches: [ "main", "dev" ]
     paths:
-      - "backend/**"
+      - 'backend/**'
 
 jobs:
   backend-test:
     runs-on: ubuntu-latest
-
     defaults:
       run:
         working-directory: ./backend
-
     steps:
       - uses: actions/checkout@v4
-
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: "8.3"
+          php-version: '8.3'
           extensions: mbstring, dom, curl, libxml, mysql
-
       - name: Install Composer Dependencies
         run: composer install
-
-      - name: Start PHP Server
-        run: php -S localhost:8080 -t public > /dev/null 2>&1 &
-
-      - name: Wait for Server
-        run: |
-          for i in {1..15}; do
-            curl -s http://localhost:8080 > /dev/null && echo "Server ready" && exit 0
-            sleep 1
-          done
-          echo "Server failed to start"
-          exit 1
-
       - name: Run PHP Tests
         run: ./vendor/bin/phpunit tests
