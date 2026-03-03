@@ -42,6 +42,8 @@ vi.mock("@/api/comments", () => ({
       comment: {
         commentId: 1,
         content: "Updated comment content",
+        createdAt: 1700000000,
+        updatedAt: 1700001000,
         user: { userId: 1, firstName: "John", lastName: "Rogers" },
       },
     }),
@@ -59,6 +61,11 @@ vi.mock("@/api/comments", () => ({
     },
     replies: [],
     replyCount: data.replyCount || 0,
+    updatedAt: data.updatedAt ?? null,
+    wasEdited:
+      data.updatedAt !== undefined &&
+      data.updatedAt !== null &&
+      data.updatedAt !== data.createdAt,
   })),
 }));
 describe("CommentSection.vue", () => {

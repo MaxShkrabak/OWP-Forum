@@ -80,10 +80,14 @@ const confirmSaveEdit = async () => {
     const data = await apiUpdateComment(props.comment.id, editText.value.trim());
     if (data && data.ok && data.comment) {
       props.comment.text = data.comment.content;
-      props.comment.time = originalText.value === data.comment.content ? props.comment.time : 'Edited just now';
-      props.comment.wasEdited = true;
       if (props.comment.user && data.comment.user) {
         props.comment.user = data.comment.user;
+      }
+      if (typeof data.comment.updatedAt !== 'undefined') {
+        props.comment.updatedAt = data.comment.updatedAt;
+        props.comment.wasEdited = data.comment.updatedAt !== null && data.comment.updatedAt !== data.comment.createdAt;
+      } else {
+        props.comment.wasEdited = true;
       }
       markEditDirty && markEditDirty(false);
       closeEditComment && closeEditComment();

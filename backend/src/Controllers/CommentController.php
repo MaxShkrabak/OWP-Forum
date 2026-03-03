@@ -68,7 +68,7 @@ class CommentController
             $inserted = $stmt->fetch(PDO::FETCH_ASSOC);
 
             $commentDetailsSql = $pdo->prepare("
-                SELECT c.CommentId, c.PostId, c.ParentCommentId, c.Content, c.CreatedAt, c.UserId, c.TotalScore,
+                SELECT c.CommentId, c.PostId, c.ParentCommentId, c.Content, c.CreatedAt, c.UpdatedAt, c.UserId, c.TotalScore,
                        u.FirstName, u.LastName, u.Avatar, r.Name AS RoleName,
                        0 AS MyVote,
                        (SELECT COUNT(*) FROM dbo.Comments r WHERE r.ParentCommentId = c.CommentId AND r.IsDeleted = 0) AS ReplyCount
@@ -90,6 +90,9 @@ class CommentController
                     'user'      => $this->formatUserRow($row),
                     'content'   => $row['Content'],
                     'createdAt' => strtotime($row['CreatedAt']),
+                    'updatedAt' => isset($row['UpdatedAt']) && $row['UpdatedAt'] !== null
+                        ? strtotime($row['UpdatedAt'])
+                        : null,
                     'replyCount' => (int)$row['ReplyCount'],
                     'parentCommentId' => $row['ParentCommentId'] ? (int)$row['ParentCommentId'] : null,
                     'isDeleted' => false
@@ -131,7 +134,7 @@ class CommentController
             $countStmt->execute([':postId' => $postId]);
             $totalComments = (int)$countStmt->fetchColumn();
 
-            $sql = "SELECT c.CommentId, c.PostId, c.ParentCommentId, c.Content, c.CreatedAt, c.UserId, c.TotalScore,
+            $sql = "SELECT c.CommentId, c.PostId, c.ParentCommentId, c.Content, c.CreatedAt, c.UpdatedAt, c.UserId, c.TotalScore,
                            u.FirstName, u.LastName, u.Avatar, r.Name AS RoleName,
                            ISNULL(cv.VoteValue, 0) AS MyVote,
                            (SELECT COUNT(*) FROM dbo.Comments r WHERE r.ParentCommentId = c.CommentId AND IsDeleted = 0) AS ReplyCount
@@ -160,6 +163,9 @@ class CommentController
                     'user'      => $this->formatUserRow($row),
                     'content'   => $row['Content'],
                     'createdAt' => strtotime($row['CreatedAt']),
+                    'updatedAt' => isset($row['UpdatedAt']) && $row['UpdatedAt'] !== null
+                        ? strtotime($row['UpdatedAt'])
+                        : null,
                     'replyCount' => (int)$row['ReplyCount'],
                     'parentCommentId' => $row['ParentCommentId'] ? (int)$row['ParentCommentId'] : null,
                     'isDeleted' => false
@@ -196,7 +202,7 @@ class CommentController
             $userId = $req->getAttribute("user_id") ?? 0;
             $pdo = ($this->makePdo)();
 
-            $sql = "SELECT c.CommentId, c.PostId, c.ParentCommentId, c.Content, c.CreatedAt, c.UserId, c.TotalScore,
+            $sql = "SELECT c.CommentId, c.PostId, c.ParentCommentId, c.Content, c.CreatedAt, c.UpdatedAt, c.UserId, c.TotalScore,
                            u.FirstName, u.LastName, u.Avatar, r.Name AS RoleName,
                            ISNULL(cv.VoteValue, 0) AS MyVote,
                            (SELECT COUNT(*) FROM dbo.Comments r WHERE r.ParentCommentId = c.CommentId AND IsDeleted = 0) AS ReplyCount
@@ -220,6 +226,9 @@ class CommentController
                     'user'      => $this->formatUserRow($row),
                     'content'   => $row['Content'],
                     'createdAt' => strtotime($row['CreatedAt']),
+                    'updatedAt' => isset($row['UpdatedAt']) && $row['UpdatedAt'] !== null
+                        ? strtotime($row['UpdatedAt'])
+                        : null,
                     'replyCount' => (int)$row['ReplyCount'],
                     'parentCommentId' => (int)$row['ParentCommentId']
                 ];
@@ -270,7 +279,8 @@ class CommentController
 
             $update = $pdo->prepare("
                 UPDATE dbo.Comments
-                SET Content = :content
+                SET Content = :content,
+                    UpdatedAt = SYSUTCDATETIME()
                 WHERE CommentId = :id AND IsDeleted = 0
             ");
             $update->execute([
@@ -283,7 +293,7 @@ class CommentController
             }
 
             $detailsStmt = $pdo->prepare("
-                SELECT c.CommentId, c.PostId, c.ParentCommentId, c.Content, c.CreatedAt, c.UserId, c.TotalScore,
+                SELECT c.CommentId, c.PostId, c.ParentCommentId, c.Content, c.CreatedAt, c.UpdatedAt, c.UserId, c.TotalScore,
                        u.FirstName, u.LastName, u.Avatar, r.Name AS RoleName,
                        0 AS MyVote,
                        (SELECT COUNT(*) FROM dbo.Comments r WHERE r.ParentCommentId = c.CommentId AND r.IsDeleted = 0) AS ReplyCount
@@ -309,6 +319,9 @@ class CommentController
                     'user'      => $this->formatUserRow($details),
                     'content'   => $details['Content'],
                     'createdAt' => strtotime($details['CreatedAt']),
+                    'updatedAt' => isset($details['UpdatedAt']) && $details['UpdatedAt'] !== null
+                        ? strtotime($details['UpdatedAt'])
+                        : null,
                     'replyCount' => (int)$details['ReplyCount'],
                     'parentCommentId' => $details['ParentCommentId'] ? (int)$details['ParentCommentId'] : null,
                     'isDeleted' => false

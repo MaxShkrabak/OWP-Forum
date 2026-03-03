@@ -1,16 +1,23 @@
 import client from "./client";
 import { timeAgo } from '@/utils/timeAgo';
 
-export const formatCommentData = (comment) => ({
-  ...comment,
-  id: comment.commentId,
-  author: `${comment.user.firstName} ${comment.user.lastName}`,
-  role: comment.user?.role || 'user',
-  time: timeAgo(comment.createdAt * 1000),
-  text: comment.content,
-  replyCount: comment.replyCount || 0,
-  replies: []
-});
+export const formatCommentData = (comment) => {
+  const createdAt = comment.createdAt;
+  const updatedAt = comment.updatedAt ?? null;
+
+  return {
+    ...comment,
+    id: comment.commentId,
+    author: `${comment.user.firstName} ${comment.user.lastName}`,
+    role: comment.user?.role || 'user',
+    time: timeAgo((updatedAt ?? createdAt) * 1000),
+    text: comment.content,
+    replyCount: comment.replyCount || 0,
+    replies: [],
+    updatedAt,
+    wasEdited: updatedAt !== null && updatedAt !== createdAt
+  };
+};
 
 export const fetchComments = async (postId, page = 1, limit = 10, sort = 'latest') => {
   try {
