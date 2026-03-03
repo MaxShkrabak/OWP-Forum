@@ -8,10 +8,17 @@ const router = useRouter();
 const reports = ref([]);
 const loading = ref(false);
 const error = ref(null);
+const refreshCooldown = ref(false);
+
+const sources = ref([
+    { name: 'Posts', icon: 'bi-file-earmark-post-fill' },
+    { name: 'Comments', icon: 'bi-chat-left-dots-fill' }
+])
 
 const totalReports = ref(0);
 
 async function loadReports() {
+
   loading.value = true;
   error.value = null;
   try {
@@ -33,13 +40,26 @@ async function loadReports() {
   }
 }
 
-function goToPost(postId) {
-  if (!postId) return;
+function refreshReports() {
+  if (refreshCooldown.value) return;
+  refreshCooldown.value = true;
+  loadReports();
+  setTimeout(() => {
+    refreshCooldown.value = false;
+  }, 5000);
+}
+
+function hideModal() {
   const modalEl = document.getElementById("viewReports");
   if (modalEl && window.bootstrap?.Modal) {
     const instance = window.bootstrap.Modal.getInstance(modalEl);
     if (instance) instance.hide();
   }
+}
+
+function goToPost(postId) {
+  if (!postId) return;
+  hideModal();
   router.push(`/posts/${postId}`);
 }
 
@@ -56,7 +76,6 @@ async function handleResolve(reportId) {
 }
 
 function onModalShown() {
-  loadReports();
 }
 
 onMounted(() => {
@@ -112,9 +131,17 @@ onUnmounted(() => {
         <div class="modal-dialog modal-dialog-centered modal-xl">
           <div class="modal-content">
             <div class="modal-header">
-              <h1 class="modal-title fs-5" id="viewReportsModal">
-                Reports submitted by users
-              </h1>
+              <span class="modal-title fs-4" id="viewReportsModal">
+                Submitted Reports
+              </span>
+              <button
+                class="btn-refresh"
+                @click="refreshReports"
+                :disabled="refreshCooldown"
+              >Refresh
+              <i class="spinner-border fs-6 ms-2" style="width: 18px; height: 18px;" v-if="refreshCooldown"></i>
+              <i class="bi-arrow-repeat fs-6 ms-2" style="width: 18px; height: 18px;" v-else></i>
+            </button>
               <button
                 type="button"
                 class="btn-close"
@@ -134,21 +161,40 @@ onUnmounted(() => {
                 <li
                   v-for="r in reports"
                   :key="r.reportId"
-                  class="list-group-item d-flex flex-wrap align-items-center justify-content-between gap-2"
+                  class="list-group-item d-flex flex-wrap align-items-center justify-content-between gap-2 pb-3"
                 >
                   <div class="report-details">
-                    <span class="report-source">{{ r.source }}</span>
-                    <span class="report-reason">{{ r.reason }}</span>
-                    <span class="report-date text-muted small">{{ r.createdAt }}</span>
+                    <span class="report-id text-muted small text-center">
+                      <span class="report-source-by">Ticket </span>#{{ r.reportId }}
+                    </span>
+                      <div class="col-12">
+                        <span class="report-source col-12">
+                          {{ r.source === 'Comment' ? 'Comment' : 'Post' }} 
+                          <span class="report-source-by me-2">by</span> 
+                          <span class="report-source-author">{{ r.source === 'Comment' ? r.commentAuthor : r.postAuthor }}</span>
+                        </span>
+                        <span class="report-title col-12 my-1 text-truncate">"{{ r.source === 'Comment' ? r.commentText : r.postTitle }}"</span>
+                        <div class="col-12 gap-3 d-flex flex-wrap align-items-center">
+                          <span class="report-reporter text-muted small col-auto">
+                            <span class="report-source-by">Reported by: </span>
+                            {{ r.reporter.fullName }}
+                          </span>
+                          <span class="report-reason col-auto">
+                            <span class="report-source-by">Reason: </span>
+                            {{ r.reason }}
+                          </span>
+                          <span class="report-date text-muted small col-12 col-xl-auto">At: {{ r.createdAt }}</span>
+                        </div>
+                    </div>
                   </div>
-                  <div class="d-flex gap-2 flex-shrink-0">
+                  <div class="cta-btns d-flex gap-2 flex-shrink-0">
                     <button
-                      v-if="r.postId"
                       type="button"
                       class="btn btn-sm btn-outline-primary"
                       @click="goToPost(r.postId)"
                     >
-                      Go to Post
+                      Go To
+                      <i class="ms-2" :class="r.source === 'Comment' ? sources[1].icon : sources[0].icon"></i>
                     </button>
                     <button
                       type="button"
@@ -273,8 +319,34 @@ onUnmounted(() => {
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
+.modal-header {
+  position: sticky;
+  top: 0;
+  z-index: 1055;
+  background-color: white;
+}
+.btn-refresh {
+  margin-left: 2rem;
+  padding: 0.5rem 1rem;
+  background: #043927;
+  border-radius: 10px;
+  color: #ffffff;
+  font-size: 1.2rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.5s ease;
+}
+.btn-refresh:disabled {
+    background-color: #04392769 !important;
+    cursor: not-allowed;
+}
+
 .report-list {
   border-radius: 0;
+}
+.list-group-item:hover {
+  background-color: rgba(211, 211, 211, 0.1);
+  border-radius: 6px;
 }
 .report-details {
   display: flex;
@@ -282,11 +354,37 @@ onUnmounted(() => {
   align-items: center;
   gap: 0.5rem 1rem;
 }
+.report-id {
+  min-width: 60px;
+  font-weight: 700;
+  color: #6d6d6d;
+  background-color: rgba(211, 211, 211, 0.603);
+  padding: .7rem 0.5rem;
+  border-top-left-radius: 8px;
+  border-bottom-left-radius: 8px;
+}
 .report-source {
+  font-weight: 700;
+  .report-source-author {
+    text-transform: capitalize;
+  }
+}
+.report-source-by {
+    font-weight: 400;
+    font-size: .8rem;
+    margin: 0 4px 0 0;
+    color: #838383;
+  }
+.report-title {
+  display: block;
+  max-width: 10rem;
+}
+.report-reporter {
   font-weight: 700;
   text-transform: capitalize;
 }
 .report-reason {
+  font-weight: 700;
   padding: 0.2rem 0.5rem;
   background: rgba(154, 51, 36, 0.12);
   border-radius: 6px;
@@ -304,6 +402,30 @@ onUnmounted(() => {
   .btn-content {
     flex-direction: row;
     gap: 10px;
+  }
+  .report-title {
+  max-width: 20rem;
+  }
+}
+@media (min-width: 576px) {
+  .report-title {
+    max-width: 25rem;
+  }
+}
+@media (min-width: 992px) {
+  .report-title {
+    max-width: 32rem;
+  }
+  .cta-btns {
+    flex-direction: column;
+  }
+}
+@media (min-width: 1200px) {
+  .report-title {
+    max-width: 45rem;
+  }
+  .cta-btns {
+    flex-direction: row;
   }
 }
 </style>
