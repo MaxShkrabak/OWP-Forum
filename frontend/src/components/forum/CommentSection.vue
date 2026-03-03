@@ -7,6 +7,7 @@ import {
   submitComment as apiSubmitComment,
   formatCommentData
 } from '@/api/comments';
+import { uid } from '@/stores/userStore';
 
 const props = defineProps({
   postId: {
@@ -20,6 +21,10 @@ const commentsTree = ref([]);
 const isFocused = ref(false);
 const newComment = ref('');
 const activeReplyId = ref(null);
+const activeEditId = ref(null);
+const activeEditDirty = ref(false);
+const pendingEditId = ref(null);
+const showDiscardConfirm = ref(false);
 
 const currentBatch = ref(1);
 const commentsPerLoad = 10;
@@ -36,6 +41,49 @@ const sortOptions = [
 const selectedSort = ref('latest');
 
 provide('activeReplyId', activeReplyId);
+provide('activeEditId', activeEditId);
+
+const openEditComment = (commentId) => {
+  if (activeEditId.value === commentId) return;
+
+  if (activeEditId.value !== null && activeEditDirty.value) {
+    pendingEditId.value = commentId;
+    showDiscardConfirm.value = true;
+    return;
+  }
+
+  activeEditId.value = commentId;
+  activeEditDirty.value = false;
+};
+
+const closeEditComment = () => {
+  activeEditId.value = null;
+  activeEditDirty.value = false;
+};
+
+const markEditDirty = (dirty) => {
+  activeEditDirty.value = !!dirty;
+};
+
+const confirmSwitchEdit = () => {
+  if (pendingEditId.value === null) {
+    showDiscardConfirm.value = false;
+    return;
+  }
+  activeEditId.value = pendingEditId.value;
+  activeEditDirty.value = false;
+  pendingEditId.value = null;
+  showDiscardConfirm.value = false;
+};
+
+const cancelSwitchEdit = () => {
+  pendingEditId.value = null;
+  showDiscardConfirm.value = false;
+};
+
+provide('openEditComment', openEditComment);
+provide('closeEditComment', closeEditComment);
+provide('markEditDirty', markEditDirty);
 
 const buildCommentTree = (flatComments) => {
   const map = new Map();
@@ -199,6 +247,39 @@ onMounted(() => {
         <span>{{ isLoadingMore ? 'Loading...' : 'Show more comments' }}</span>
       </button>
     </div>
+
+    <Teleport to="body">
+      <Transition name="fade">
+        <div
+          v-if="showDiscardConfirm"
+          class="comment-modal-mask d-flex align-items-center justify-content-center"
+          @click.self="cancelSwitchEdit"
+        >
+          <div class="comment-modal-card shadow-lg">
+            <p class="fw-bold mb-1">Discard unsaved changes?</p>
+            <p class="small text-muted mb-3">
+              You have unsaved changes on another comment. If you continue, those changes will be lost.
+            </p>
+            <div class="d-flex justify-content-end gap-2">
+              <button
+                type="button"
+                class="btn-cancel border-0 bg-transparent fw-bold small"
+                @click="cancelSwitchEdit"
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                class="btn-submit border-0 rounded-2 fw-bold px-3 py-1 small"
+                @click="confirmSwitchEdit"
+              >
+                Discard & switch
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -248,6 +329,32 @@ onMounted(() => {
 
 .load-more-btn:hover {
   background: rgba(0, 71, 80, 0.05) !important;
+}
+
+.comment-modal-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 1050;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+}
+
+.comment-modal-card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  max-width: 360px;
+  width: 90%;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 
 .header-row {

@@ -2,7 +2,7 @@
 import { mount, flushPromises } from "@vue/test-utils";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import CommentSection from "@/components/forum/CommentSection.vue";
-import { fetchComments } from "@/api/comments";
+import { fetchComments, updateComment } from "@/api/comments";
 
 vi.mock("@/api/auth", () => ({
   checkAuth: vi.fn(() =>
@@ -14,36 +14,60 @@ vi.mock("@/api/auth", () => ({
   logout: vi.fn(() => Promise.resolve({ ok: true })),
 }));
 
-vi.mock("@/api/comments", () => {
-  const baseResponse = {
-    ok: true,
-    total: 15,
-    items: [
-      {
-        id: 1,
-        content: "This is my first comment!",
-        user: { firstName: "John", lastName: "Rogers" },
-        replies: [],
+vi.mock("@/api/comments", () => ({
+  fetchComments: vi.fn(() =>
+    Promise.resolve({
+      ok: true,
+      total: 15,
+      items: [
+        {
+          commentId: 1,
+          content: "This is my first comment!",
+          user: { userId: 1, firstName: "John", lastName: "Rogers" },
+          replies: [],
+        },
+        {
+          commentId: 2,
+          content: "Wow this post is cool!",
+          user: { userId: 2, firstName: "Jack", lastName: "Timothy" },
+          replies: [],
+        },
+      ],
+    }),
+  ),
+  submitComment: vi.fn(),
+  updateComment: vi.fn(() =>
+    Promise.resolve({
+      ok: true,
+      comment: {
+        commentId: 1,
+        content: "Updated comment content",
+        createdAt: 1700000000,
+        updatedAt: 1700001000,
+        user: { userId: 1, firstName: "John", lastName: "Rogers" },
       },
-      {
-        id: 2,
-        content: "Wow this post is cool!",
-        user: { firstName: "Jack", lastName: "Timothy" },
-        replies: [],
-      },
-    ],
-  };
-
-  return {
-    fetchComments: vi.fn(() => Promise.resolve(baseResponse)),
-    submitComment: vi.fn(),
-    formatCommentData: vi.fn((data) => ({
-      ...data,
-      id: data.id || Math.random(),
-      replies: [],
-    })),
-  };
-});
+    }),
+  ),
+  formatCommentData: vi.fn((data) => ({
+    ...data,
+    id: data.commentId || data.id || Math.random(),
+    author: data.user
+      ? `${data.user.firstName} ${data.user.lastName}`
+      : "Unknown",
+    text: data.content,
+    user: {
+      ...(data.user || {}),
+      role: data.user?.role || "user",
+    },
+    replies: [],
+    replyCount: data.replyCount || 0,
+    updatedAt: data.updatedAt ?? null,
+    wasEdited:
+      data.updatedAt !== undefined &&
+      data.updatedAt !== null &&
+      data.updatedAt !== data.createdAt,
+  })),
+}));
 describe("CommentSection.vue", () => {
   let wrapper;
 
@@ -131,6 +155,39 @@ describe("CommentSection.vue", () => {
     expect(renderedComments.length).toBe(initialCount + limit);
 
     expect(wrapper.find(".load-more-btn").exists()).toBe(true);
+  });
+
+  it("allows the author to edit their own comment and shows edited state", async () => {
+    await flushPromises();
+
+    const editButtons = wrapper.findAll(".btn-options");
+    expect(editButtons.length).toBeGreaterThan(0);
+
+    await editButtons[0].trigger("click");
+
+    const editTextarea = wrapper.find("textarea.reply-textarea");
+    expect(editTextarea.exists()).toBe(true);
+
+    await editTextarea.setValue("Updated comment content");
+
+    const saveButton = wrapper.findAll(".btn-submit").at(-1);
+    expect(saveButton.element.disabled).toBe(false);
+
+    // First click opens the confirmation modal
+    await saveButton.trigger("click");
+    await flushPromises();
+
+    // Confirm in the modal
+    const confirmButton = document.querySelector(
+      ".comment-modal-card .btn-submit",
+    );
+    expect(confirmButton).not.toBeNull();
+    confirmButton.click();
+    await flushPromises();
+
+    expect(updateComment).toHaveBeenCalled();
+    const editedLabel = wrapper.find(".edited-label");
+    expect(editedLabel.exists()).toBe(true);
   });
 
   it("refetches comments when the sort option changes", async () => {
