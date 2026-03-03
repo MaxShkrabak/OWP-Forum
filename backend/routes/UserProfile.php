@@ -31,6 +31,35 @@ $app->get('/api/profile/{uid}', function(Request $req, Response $res, array $arg
     }
 });
 
+$app->get('/api/profile/{uid}/stats', function(Request $req, Response $res, array $args) use ($makePdo) {
+    try {
+        $userId = (int)$args['uid'];
+        $pdo = $makePdo();
+
+        $sql = "
+            SELECT
+                (SELECT COUNT(*) FROM dbo.Posts WHERE AuthorID = :uid1 AND IsDeleted = 0) AS postCount,
+                (SELECT COALESCE(SUM(pv.VoteValue), 0) FROM dbo.PostVotes pv INNER JOIN dbo.Posts p ON pv.PostID = p.PostID WHERE p.AuthorID = :uid2 AND p.IsDeleted = 0) AS voteScore,
+                (SELECT COUNT(*) FROM dbo.Comments WHERE UserID = :uid3 AND IsDeleted = 0) AS commentCount
+        ";
+
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([':uid1' => $userId, ':uid2' => $userId, ':uid3' => $userId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        return json($res, [
+            'ok' => true,
+            'stats' => [
+                'postCount'    => (int)$row['postCount'],
+                'voteScore'    => (int)$row['voteScore'],
+                'commentCount' => (int)$row['commentCount'],
+            ]
+        ]);
+    } catch (Throwable $e) {
+        return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+    }
+});
+
 $app->get('/api/profile/{uid}/posts', function (Request $req, Response $res, array $args) use ($makePdo) {
     try {
 
