@@ -40,7 +40,6 @@ export async function fetchPosts({ categoryId = null, limit, sort = 'latest', pa
   } else if (userId) {
     endpoint = `/profile/${userId}/posts`;
   }
- 
   const params = { limit, sort, page };
 
   if (Array.isArray(tags) && tags.length > 0) {
@@ -52,26 +51,38 @@ export async function fetchPosts({ categoryId = null, limit, sort = 'latest', pa
   }
 
   const { data } = await client.get(endpoint, { params });
- 
+
   if (data.posts) {
-    data.posts = data.posts.map(post => ({
+
+    data.posts = data.posts.map((post) => ({
       ...post,
       postId: post.PostID,
       likeCount: post.TotalScore ?? 0,
       commentCount: post.commentCount ?? 0,
-      tags: post.tags || []
+      tags: post.tags || [],
+    }));
+  }
+
+  if (Array.isArray(data.postsByCategory)) {
+    data.postsByCategory = data.postsByCategory.map((cat) => ({
+      ...cat,
+      posts: (cat.posts || []).map((post) => ({
+        ...post,
+        postId: post.postId ?? post.PostID,
+        likeCount: post.likeCount ?? post.TotalScore ?? 0,
+        commentCount: post.commentCount ?? 0,
+        tags: post.tags || [],
+      })),
     }));
   }
 
   return data;
 }
 
-
 export async function votePost(PostID, action) {
   if (!PostID) {
     return { ok: false, error: "Missing Post ID" };
   }
-  
   const { data } = await client.post(`/posts/${PostID}/vote`, { 
     action: action 
   });
