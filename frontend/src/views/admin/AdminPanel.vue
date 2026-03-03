@@ -5,6 +5,7 @@ import { RouterLink } from 'vue-router';
 import AdminUsers from '@/components/admin/AdminUsers.vue';
 import AdminCategories from '@/components/admin/AdminCategories.vue';
 import AdminTags from '@/components/admin/AdminTags.vue';
+import AdminReports from '@/components/admin/AdminReports.vue';
 const activeTab = ref('Users');
 const tabs = ref([
     { name: 'Users', icon: 'bi-person-fill-gear' },
