@@ -1,24 +1,24 @@
 <script setup>
-import { ref, computed, provide, onMounted } from 'vue';
-import SingleComment from './SingleComment.vue';
+import { ref, computed, provide, onMounted } from "vue";
+import SingleComment from "./SingleComment.vue";
 
 import {
   fetchComments as apiFetchComments,
   submitComment as apiSubmitComment,
-  formatCommentData
-} from '@/api/comments';
+  formatCommentData,
+} from "@/api/comments";
 
 const props = defineProps({
   postId: {
     type: [Number, String],
-    required: true
-  }
+    required: true,
+  },
 });
 
 const flatCommentsList = ref([]);
 const commentsTree = ref([]);
 const isFocused = ref(false);
-const newComment = ref('');
+const newComment = ref("");
 const activeReplyId = ref(null);
 
 const currentBatch = ref(1);
@@ -28,20 +28,20 @@ const isLoadingMore = ref(false);
 
 const commentTotalCount = ref(0);
 
-provide('activeReplyId', activeReplyId);
+provide("activeReplyId", activeReplyId);
 
 const buildCommentTree = (flatComments) => {
   const map = new Map();
   const tree = [];
 
-  flatComments.forEach(comment => {
+  flatComments.forEach((comment) => {
     map.set(comment.id, comment);
   });
 
-  flatComments.forEach(comment => {
+  flatComments.forEach((comment) => {
     if (comment.parentCommentId) {
       const parent = map.get(comment.parentCommentId);
-      if (parent && !parent.replies.some(r => r.id === comment.id)) {
+      if (parent && !parent.replies.some((r) => r.id === comment.id)) {
         parent.replies.push(map.get(comment.id));
       }
     } else {
@@ -62,12 +62,19 @@ const loadComments = async (isInitial = true) => {
   isLoadingMore.value = true;
 
   try {
-    const data = await apiFetchComments(props.postId, currentBatch.value, commentsPerLoad);
+    const data = await apiFetchComments(
+      props.postId,
+      currentBatch.value,
+      commentsPerLoad,
+    );
 
     if (data && data.ok) {
       commentTotalCount.value = data.total || 0;
 
-      if (flatCommentsList.value.length + data.items.length >= commentTotalCount.value) {
+      if (
+        flatCommentsList.value.length + data.items.length >=
+        commentTotalCount.value
+      ) {
         hasMore.value = false;
       }
 
@@ -93,7 +100,7 @@ const submitComment = async () => {
   try {
     const data = await apiSubmitComment(props.postId, newComment.value);
     if (data && data.ok) {
-      newComment.value = '';
+      newComment.value = "";
       isFocused.value = false;
       commentTotalCount.value++;
 
@@ -109,7 +116,11 @@ const submitComment = async () => {
 const submitReply = async (replyContent, parentCommentId) => {
   if (!replyContent.trim()) return false;
   try {
-    const data = await apiSubmitComment(props.postId, replyContent, parentCommentId);
+    const data = await apiSubmitComment(
+      props.postId,
+      replyContent,
+      parentCommentId,
+    );
     if (data && data.ok) {
       activeReplyId.value = null;
       commentTotalCount.value++;
@@ -122,12 +133,12 @@ const submitReply = async (replyContent, parentCommentId) => {
   }
 };
 
-provide('submitReply', submitReply);
+provide("submitReply", submitReply);
 
 const totalCommentsCount = computed(() => commentTotalCount.value);
 
 const cancelComment = () => {
-  newComment.value = '';
+  newComment.value = "";
   isFocused.value = false;
 };
 
@@ -137,43 +148,77 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="comment-section p-4 rounded-3 border bg-white text-start">
-    <h3 class="section-title fw-bold mb-4 pb-2 border-bottom d-inline-block">
-      {{ totalCommentsCount }} Comments
-    </h3>
+  <div class="comment-section bg-white text-start">
+    <div
+      class="comments-header d-flex align-items-center gap-2 p-3 text-uppercase small"
+    >
+      <i class="pi pi-comments"></i>
+      <span>Comments ({{ totalCommentsCount }})</span>
+    </div>
 
-    <div class="main-input-wrapper mb-4">
-      <div class="reply-box-container border rounded-3 overflow-hidden bg-white"
-        :class="{ 'focused-border': isFocused }">
-        <textarea v-model="newComment" @focus="isFocused = true" placeholder="Add a comment..."
-          class="comment-textarea w-100 border-0 p-3" rows="2"></textarea>
+    <div class="p-3 p-md-4">
+      <div class="main-input-wrapper mb-4">
+        <div
+          class="reply-box-container border rounded-3 overflow-hidden bg-white"
+          :class="{ 'focused-border': isFocused }"
+        >
+          <textarea
+            v-model="newComment"
+            @focus="isFocused = true"
+            placeholder="Add a comment..."
+            class="comment-textarea w-100 border-0 p-3"
+            rows="2"
+          ></textarea>
 
-        <div v-if="isFocused" class="d-flex justify-content-end align-items-center gap-3 px-3 pb-2">
-          <button class="btn-cancel border-0 bg-transparent fw-bold" @click="cancelComment">Cancel</button>
-          <button class="btn-submit border-0 rounded-2 fw-bold px-4 py-2" :disabled="!newComment"
-            @click="submitComment">Comment</button>
+          <div
+            v-if="isFocused"
+            class="d-flex justify-content-end align-items-center gap-3 px-3 pb-2"
+          >
+            <button
+              class="btn-cancel border-0 bg-transparent fw-bold"
+              @click="cancelComment"
+            >
+              Cancel
+            </button>
+            <button
+              class="btn-submit border-0 rounded-2 fw-bold px-4 py-2"
+              :disabled="!newComment"
+              @click="submitComment"
+            >
+              Comment
+            </button>
+          </div>
         </div>
       </div>
-    </div>
 
-    <div class="comments-container">
-      <SingleComment v-for="comment in commentsTree" :key="comment.id" :comment="comment" />
-    </div>
+      <div class="comments-container">
+        <SingleComment
+          v-for="comment in commentsTree"
+          :key="comment.id"
+          :comment="comment"
+        />
+      </div>
 
-    <div v-if="hasMore" class="mt-4">
-      <button @click="handleLoadMore" :disabled="isLoadingMore"
-        class="load-more-btn w-100 border py-2 rounded-3 fw-bold bg-transparent d-flex align-items-center justify-content-center gap-2">
-        <i v-if="isLoadingMore" class="pi pi-spin pi-spinner"></i>
-        <span>{{ isLoadingMore ? 'Loading...' : 'Show more comments' }}</span>
-      </button>
+      <div v-if="hasMore" class="mt-4">
+        <button
+          @click="handleLoadMore"
+          :disabled="isLoadingMore"
+          class="load-more-btn w-100 border py-2 rounded-3 fw-bold bg-transparent d-flex align-items-center justify-content-center gap-2"
+        >
+          <i v-if="isLoadingMore" class="pi pi-spin pi-spinner"></i>
+          <span>{{ isLoadingMore ? "Loading..." : "Show more comments" }}</span>
+        </button>
+      </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-.section-title {
-  color: #035157;
-  border-bottom-color: #035157 !important;
+.comments-header {
+  background: #f0f7f3;
+  border-bottom: 1px solid #cce3d6;
+  font-weight: 800;
+  color: #1e4d38;
 }
 
 .reply-box-container {
@@ -219,8 +264,13 @@ onMounted(() => {
 }
 
 @media (max-width: 599px) {
-  .comment-section { padding: 1rem !important; }
-  .comment-textarea { font-size: 0.85rem; padding: 0.75rem !important; }
-  .btn-submit { padding: 0.5rem 1rem !important; font-size: 0.8rem; }
+  .comment-textarea {
+    font-size: 0.85rem;
+    padding: 0.75rem !important;
+  }
+  .btn-submit {
+    padding: 0.5rem 1rem !important;
+    font-size: 0.8rem;
+  }
 }
 </style>

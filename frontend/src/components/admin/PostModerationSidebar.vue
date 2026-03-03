@@ -1,37 +1,76 @@
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
+import { useRouter } from "vue-router";
 import client from "@/api/client";
-import { useRoute } from "vue-router";
-
-const route = useRoute();
+import { votePost } from "@/api/posts";
+import { isLoggedIn, userRole, userRoleId, uid } from "@/stores/userStore";
+import CreatePostModal from "@/components/forum/CreatePostModal.vue";
 
 const props = defineProps({
-  post: Object,
-  user: Object,
-  isAuthor: { type: Boolean, default: false },
+  post: { type: Object, required: true }
 });
 
-const emit = defineEmits(["open-modal"]);
+const router = useRouter();
 
+const isVoting = ref(false);
+const isFollowing = ref(false);
 const showDeleteConfirm = ref(false);
 const isDeleting = ref(false);
+const showEditModal = ref(false);
+const isRestricted = ref(false);
 
-const canModerate = computed(() => Number(props.user?.RoleID) >= 3);
+const isAuthor = computed(() => Number(props.post?.authorId) === Number(uid.value));
+const isAdminOrMod = computed(() => Number(userRoleId.value) >= 3);
 
-//If admin/mod is author: DO NOT show restricted metadata button
-const showMetadataButton = computed(() => canModerate.value && !props.isAuthor);
+const canReport = computed(() => {
+  if (isAuthor.value) return false;
+  if (!isLoggedIn.value) return true;
+  const role = (userRole?.value || "").toLowerCase();
+  return !(role === "admin" || role === "moderator");
+});
 
-//Delete allowed for author OR mod/admin
-const canDelete = computed(() => props.isAuthor || canModerate.value);
+const canDelete = computed(() => isAuthor.value || isAdminOrMod.value);
+const showMetadataButton = computed(() => isAdminOrMod.value && !isAuthor.value);
+
+const toggleFollow = () => (isFollowing.value = !isFollowing.value);
+
+async function handleVote(dir) {
+  if (!isLoggedIn.value) {
+    router.push("/login");
+    return;
+  }
+  if (isVoting.value || !props.post) return;
+
+  const currentVote = Number(props.post.myVote ?? 0);
+  let action = dir;
+  if ((dir === "up" && currentVote === 1) || (dir === "down" && currentVote === -1)) {
+    action = "clear";
+  }
+
+  isVoting.value = true;
+  try {
+    const data = await votePost(props.post.PostID, action);
+    if (data?.ok) {
+      props.post.myVote = data.myVote;
+      props.post.TotalScore = data.score;
+    }
+  } catch (err) {
+    console.error("Vote error:", err);
+  } finally {
+    isVoting.value = false;
+  }
+}
+
+function openRestrictedModal(modalType) {
+  isRestricted.value = modalType === "metadata";
+  showEditModal.value = true;
+}
 
 const confirmDelete = async () => {
-  const targetId = route.params.id;
-  if (!targetId || !canDelete.value) return;
-
+  if (!props.post?.PostID || !canDelete.value) return;
   isDeleting.value = true;
   try {
-    await client.delete(`posts/${targetId}`); 
-    
+    await client.delete(`posts/${props.post.PostID}`);
     window.location.href = "/";
   } catch (err) {
     console.error("Delete failed:", err);
@@ -40,142 +79,286 @@ const confirmDelete = async () => {
     isDeleting.value = false;
   }
 };
+
+watch(isLoggedIn, (loggedIn) => {
+  if (!loggedIn) {
+    props.post.myVote = 0;
+  }
+});
 </script>
 
 <template>
-  <div class="d-flex flex-column gap-2">
-    <button
-      v-if="isAuthor"
-      @click="emit('open-modal', 'edit')"
-      class="btn btn-outline-dark btn-sm text-start"
-    >
-      <i class="bi bi-pencil-square me-2"></i> Edit Post
-    </button>
+  <div class="d-flex flex-wrap align-items-center gap-2 w-100">
+    
+    <!-- Vote Buttons -->
+    <div class="action-group vote-group d-flex align-items-center gap-1">
+      <button class="vote-btn-up pi pi-chevron-up" 
+        :class="{ active: Number(post.myVote) === 1, 'is-voting': isVoting }" 
+        @click="handleVote('up')" 
+        title="Upvote">
+      </button>
+      
+      <span class="vote-count px-2" 
+        :class="{ 
+          'upvoted': Number(post.myVote) === 1, 
+          'downvoted': Number(post.myVote) === -1,
+          'voting-bounce': isVoting 
+        }">
+        {{ post.TotalScore ?? 0 }}
+      </span>
+      
+      <button class="vote-btn-down pi pi-chevron-down" 
+        :class="{ active: Number(post.myVote) === -1, 'is-voting': isVoting }" 
+        @click="handleVote('down')" 
+        title="Downvote">
+      </button>
+    </div>
 
-    <button
-      v-if="canDelete"
-      @click="showDeleteConfirm = true"
-      class="btn btn-outline-danger btn-sm text-start"
-    >
-      <i class="bi bi-trash3-fill me-2"></i> Delete Post
-    </button>
+    <!-- User Actions -->
+    <div class="action-group user-actions d-flex align-items-center flex-wrap gap-2">
+      <button v-if="!isAuthor" class="text-action-btn d-inline-flex align-items-center gap-2 px-2 py-1 rounded-2" 
+        :class="{ following: isFollowing }" 
+        @click="toggleFollow">
+        <i :class="isFollowing ? 'pi pi-heart-fill' : 'pi pi-heart'"></i>
+        <span>{{ isFollowing ? 'Following' : 'Follow' }}</span>
+      </button>
 
-    <button
-      v-if="showMetadataButton"
-      @click="emit('open-modal', 'metadata')"
-      class="btn btn-outline-dark btn-sm text-start"
-    >
-      <i class="bi bi-tags-fill me-2"></i> Update Category & Tags
-    </button>
-  </div>
+      <button v-if="canReport" class="text-action-btn report-btn d-inline-flex align-items-center gap-2 px-2 py-1 rounded-2">
+        <i class="pi pi-flag"></i>
+        <span>Report</span>
+      </button>
 
-  <Teleport to="body">
-    <Transition name="modal" appear>
-      <div
-        v-if="showDeleteConfirm"
-        class="modal-mask"
-        @mousedown.self="showDeleteConfirm = false"
-      >
-        <div class="warning-card shadow-lg">
-          <p class="fs-5 fw-bold">Delete this post?</p>
-          <p>This post will be soft-deleted and removed from public view.</p>
+      <div v-if="!isAuthor && isAdminOrMod" class="action-divider mx-1"></div>
 
-          <div class="modal-actions justify-content-center">
-            <button class="cancel-btn" @click="showDeleteConfirm = false" :disabled="isDeleting">
-              Back
-            </button>
-            <button class="delete-btn px-4" @click="confirmDelete" :disabled="isDeleting">
-              {{ isDeleting ? "Deleting..." : "Confirm Delete" }}
-            </button>
+      <button v-if="isAuthor" class="text-action-btn edit-btn d-inline-flex align-items-center gap-2 px-2 py-1 rounded-2"
+        @click="openRestrictedModal('edit')">
+        <i class="pi pi-pencil"></i>
+        <span>Edit Post</span>
+      </button>
+
+      <button v-if="showMetadataButton" class="text-action-btn edit-btn d-inline-flex align-items-center gap-2 px-2 py-1 rounded-2"
+        @click="openRestrictedModal('metadata')">
+        <i class="pi pi-pencil"></i>
+        <span>Edit</span>
+      </button>
+
+      <button v-if="canDelete" class="text-action-btn delete-btn d-inline-flex align-items-center gap-2 px-2 py-1 rounded-2" 
+        @click="showDeleteConfirm = true">
+        <i class="pi pi-trash"></i>
+        <span>Delete</span>
+      </button>
+    </div>
+
+    <!-- Modals -->
+    <CreatePostModal v-if="showEditModal" :show="showEditModal" :post-data="post" :is-restricted="isRestricted"
+      @close="showEditModal = false" />
+
+    <Teleport to="body">
+      <Transition name="modal" appear>
+        <div v-if="showDeleteConfirm" class="modal-mask d-flex align-items-center justify-content-center" @mousedown.self="showDeleteConfirm = false">
+          <div class="warning-card p-5 text-center rounded-4">
+            <div class="warning-icon fs-1 mb-3"><i class="pi pi-exclamation-triangle"></i></div>
+            <h3 class="warning-title fs-5 mb-2">Delete this post?</h3>
+            <p class="warning-body small m-0">This post will be removed from public view. This cannot be undone.</p>
+            <div class="modal-actions d-flex gap-2 justify-content-center mt-4">
+              <button class="cancel-btn rounded-3 px-4 py-2" @click="showDeleteConfirm = false" :disabled="isDeleting">Cancel</button>
+              <button class="delete-confirm-btn rounded-3 px-4 py-2" @click="confirmDelete" :disabled="isDeleting">
+                <span v-if="isDeleting"><span class="spinner-border spinner-border-sm me-1"></span>Deleting…</span>
+                <span v-else>Confirm Delete</span>
+              </button>
+            </div>
           </div>
         </div>
-      </div>
-    </Transition>
-  </Teleport>
+      </Transition>
+    </Teleport>
+  </div>
 </template>
 
 <style scoped>
-.admin-sidebar {
-    background-color: #f8f9fa;
-    border: 1px solid #dee2e6;
-    border-radius: 5px;
+.action-divider {
+  width: 1px;
+  height: 20px;
+  background: #cbd5e1;
+}
+
+.vote-btn-up,
+.vote-btn-down {
+  background: transparent;
+  border: none;
+  color: #bac7c4;
+  font-size: 1.1rem;
+  padding: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vote-btn-up:hover {
+  color: #1a3c34;
+  transform: translateY(-1px);
+  text-shadow: 0 4px 2px #04392791;
+}
+
+.vote-btn-down:hover {
+  color: #5e2b2c;
+  transform: translateY(1px);
+  text-shadow: 0 -4px 2px #5e2b2c91;
+}
+
+.vote-btn-up.active {
+  color: #043927;
+  transform: scale(1.15);
+}
+
+.vote-btn-down.active {
+  color: #5e2b2c;
+  transform: scale(1.15);
+}
+
+.vote-count {
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: #1a1a1b;
+  min-width: 24px;
+  text-align: center;
+}
+
+.vote-count.upvoted {
+  color: #043927;
+}
+
+.vote-count.downvoted {
+  color: #5e2b2c;
+}
+
+.text-action-btn {
+  background: transparent;
+  border: none;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.text-action-btn i {
+  font-size: 0.95rem;
+}
+
+@keyframes count-bounce {
+  0%  { transform: translateY(0); }
+  25% { transform: translateY(-3px); }
+  50% { transform: translateY(2px); }
+  70% { transform: translateY(-1px); }
+  85%, 100% { transform: translateY(0); }
+}
+
+.voting-bounce {
+  animation: count-bounce 0.8s infinite ease-in-out;
+  display: inline-block;
+  opacity: 0.8;
+}
+
+.text-action-btn.following {
+  color: #b91657;
+}
+
+.text-action-btn.following:hover {
+  background: #fff0f6;
+}
+
+.report-btn:hover,
+.delete-btn:hover {
+  color: #c0392b;
+  background: #fdecea;
+}
+
+.edit-btn:hover {
+  color: #1e4d38;
+  background: #eaf2ec;
 }
 
 .modal-mask {
   position: fixed;
   z-index: 9998;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(2px);
 }
 
 .warning-card {
-  background: white;
-  padding: 2rem;
-  border-radius: 20px;
-  max-width: 400px;
+  background: #fff;
+  max-width: 380px;
   width: 90%;
-  text-align: center;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
 }
 
-.modal-actions {
-  display: flex;
-  gap: 12px;
-  margin-top: 1.5rem;
+.warning-icon {
+  color: #c0392b;
 }
 
-.delete-btn {
-  background-color: #9f3323;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-weight: 700;
-  padding: 10px 20px;
-  transition: 0.15s;
+.warning-title {
+  font-weight: 800;
+  color: #1a1a1b;
 }
 
-.delete-btn:hover:not(:disabled) {
-  background-color: #7d281b;
-}
-
-.delete-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+.warning-body {
+  color: #64748b;
+  line-height: 1.5;
 }
 
 .cancel-btn {
-  background-color: #ffffff;
-  border: 2px solid #cbd5e1;
-  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
   color: #475569;
   font-weight: 700;
-  font-size: 1rem;
-  padding: 10px 24px;
+  font-size: 0.875rem;
   cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  transition: all 0.15s;
 }
 
-.cancel-btn:hover {
-  background-color: #f8fafc;
-  border-color: #94a3b8;
+.cancel-btn:hover:not(:disabled) {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
 }
 
-.warning-card p.fs-5 {
-  color: #64748b;
-  margin-bottom: 8px;
+.delete-confirm-btn {
+  background: #9f3323;
+  color: #fff;
+  border: none;
+  font-weight: 700;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background 0.15s;
 }
 
-.warning-card p:not(.fs-5) {
-  color: #94a3b8;
-  font-size: 0.95rem;
+.delete-confirm-btn:hover:not(:disabled) {
+  background: #7d281b;
+}
+
+.cancel-btn:disabled,
+.delete-confirm-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.modal-enter-active,
+.modal-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.modal-enter-from,
+.modal-leave-to {
+  opacity: 0;
+}
+
+.modal-enter-active .warning-card {
+  transition: transform 0.2s ease;
+}
+
+.modal-enter-from .warning-card {
+  transform: scale(0.95) translateY(8px);
 }
 </style>

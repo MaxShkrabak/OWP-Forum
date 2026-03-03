@@ -591,21 +591,24 @@ $app->get('/api/get-post/{id}', function (Request $req, Response $res, array $ar
     try {
         $pdo = $makePdo();
         $postID = (int)$args['id'];
+        $userId = $req->getAttribute("user_id") ?? 0;
 
         $sql = "
-            SELECT p.PostID, p.Title, p.Content, p.CreatedAt, p.UpdatedAt, p.CategoryID, p.AuthorID,
+            SELECT p.PostID, p.Title, p.Content, p.CreatedAt, p.UpdatedAt, p.CategoryID, p.AuthorID, p.TotalScore,
                    u.FirstName, u.LastName, u.Avatar,
                    r.Name AS RoleName, 
-                   c.Name AS CategoryName
+                   c.Name AS CategoryName,
+                   ISNULL(pv.VoteValue, 0) AS myVote
             FROM dbo.Posts p
             LEFT JOIN dbo.Users u ON p.AuthorID = u.User_ID
             LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
             LEFT JOIN dbo.Categories c ON p.CategoryID = c.CategoryID
+            LEFT JOIN dbo.PostVotes pv ON p.PostID = pv.PostID AND pv.User_ID = :userId
             WHERE p.PostID = :id AND p.IsDeleted = 0
         ";
 
         $stmt = $pdo->prepare($sql);
-        $stmt->execute(['id' => $postID]);
+        $stmt->execute(['id' => $postID, 'userId' => $userId]);
         $post = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$post) {
@@ -644,6 +647,8 @@ $app->get('/api/get-post/{id}', function (Request $req, Response $res, array $ar
             'tags'         => $tags,                        // Array of objects (TagID & Name)
             'tagNames'     => $tagNames,                    // Flat array of strings
             'tagIds'       => $tagIds,                      // Flat array of IDs
+            'TotalScore'   => (int)($post['TotalScore'] ?? 0),
+            'myVote'       => (int)($post['myVote'] ?? 0),
         ];
 
         // Ensure the response uses the wrapper standard from dev
