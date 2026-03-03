@@ -12,9 +12,11 @@ export const formatCommentData = (comment) => ({
   replies: []
 });
 
-export const fetchComments = async (postId, page = 1, limit = 10) => {
+export const fetchComments = async (postId, page = 1, limit = 10, sort = 'latest') => {
   try {
-    const response = await client.get(`/posts/${postId}/comments?page=${page}&limit=${limit}`);
+    const response = await client.get(
+      `/posts/${postId}/comments?page=${page}&limit=${limit}&sort=${encodeURIComponent(sort)}`,
+    );
     return response.data; 
   } catch (error) {
     console.error("Error fetching comments:", error.response?.data?.error || error.message);

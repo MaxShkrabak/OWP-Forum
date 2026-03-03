@@ -14,34 +14,36 @@ vi.mock("@/api/auth", () => ({
   logout: vi.fn(() => Promise.resolve({ ok: true })),
 }));
 
-vi.mock("@/api/comments", () => ({
-  fetchComments: vi.fn(() =>
-    Promise.resolve({
-      ok: true,
-      total: 15,
-      items: [
-        {
-          id: 1,
-          content: "This is my first comment!",
-          user: { firstName: "John", lastName: "Rogers" },
-          replies: [],
-        },
-        {
-          id: 2,
-          content: "Wow this post is cool!",
-          user: { firstName: "Jack", lastName: "Timothy" },
-          replies: [],
-        },
-      ],
-    }),
-  ),
-  submitComment: vi.fn(),
-  formatCommentData: vi.fn((data) => ({
-    ...data,
-    id: data.id || Math.random(),
-    replies: [],
-  })),
-}));
+vi.mock("@/api/comments", () => {
+  const baseResponse = {
+    ok: true,
+    total: 15,
+    items: [
+      {
+        id: 1,
+        content: "This is my first comment!",
+        user: { firstName: "John", lastName: "Rogers" },
+        replies: [],
+      },
+      {
+        id: 2,
+        content: "Wow this post is cool!",
+        user: { firstName: "Jack", lastName: "Timothy" },
+        replies: [],
+      },
+    ],
+  };
+
+  return {
+    fetchComments: vi.fn(() => Promise.resolve(baseResponse)),
+    submitComment: vi.fn(),
+    formatCommentData: vi.fn((data) => ({
+      ...data,
+      id: data.id || Math.random(),
+      replies: [],
+    })),
+  };
+});
 describe("CommentSection.vue", () => {
   let wrapper;
 
@@ -58,6 +60,12 @@ describe("CommentSection.vue", () => {
 
   it("displays the correct total number of comments", () => {
     expect(wrapper.find(".section-title").text()).toContain("15 Comments");
+  });
+
+  it("renders a sort dropdown with the correct options", () => {
+    const select = wrapper.find("#comment-sort");
+    const options = select.findAll("option").map((o) => o.text());
+    expect(options).toEqual(["Newest", "Oldest", "Most Liked"]);
   });
 
   it("disables the submit button if there is no data, and enables it when text is entered", async () => {
@@ -123,5 +131,17 @@ describe("CommentSection.vue", () => {
     expect(renderedComments.length).toBe(initialCount + limit);
 
     expect(wrapper.find(".load-more-btn").exists()).toBe(true);
+  });
+
+  it("refetches comments when the sort option changes", async () => {
+    await flushPromises();
+
+    const select = wrapper.find("#comment-sort");
+    await select.setValue("mostLiked");
+    await flushPromises();
+
+    expect(fetchComments).toHaveBeenCalled();
+    const lastCallArgs = fetchComments.mock.calls.at(-1);
+    expect(lastCallArgs[3]).toBe("mostLiked");
   });
 });
