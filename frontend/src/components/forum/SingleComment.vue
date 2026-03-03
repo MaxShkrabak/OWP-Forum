@@ -65,6 +65,12 @@ const hasEditChanges = computed(() => editText.value.trim() !== originalText.val
 
 const saveEdit = async () => {
   if (!hasEditChanges.value || isSavingEdit.value) return;
+
+  const confirmed = window.confirm(
+    'Save changes to this comment?',
+  );
+  if (!confirmed) return;
+
   isSavingEdit.value = true;
   try {
     const data = await apiUpdateComment(props.comment.id, editText.value.trim());
