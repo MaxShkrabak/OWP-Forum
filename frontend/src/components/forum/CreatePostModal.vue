@@ -22,6 +22,9 @@ const emit = defineEmits(["close", "published"]);
 const router = useRouter();
 const showPublishedConfirmation = ref(false);
 
+// Prevent double submit when user spams Publish
+const isPublishing = ref(false);
+
 // distinguish full edit vs create vs restricted metadata
 const isEditMode = computed(() => !!props.postData && !props.isRestricted);
 const isCreateMode = computed(() => !props.postData && !props.isRestricted);
@@ -231,6 +234,8 @@ watch(
 
 // Publish / Save
 async function doPublish() {
+  if (isPublishing.value) return;
+  isPublishing.value = true;
   try {
     if (props.isRestricted) {
       const targetId = router.currentRoute.value.params.id;
@@ -278,6 +283,8 @@ async function doPublish() {
   } catch (err) {
     alert(props.isRestricted ? "Error updating metadata." : "An error occurred while publishing.");
     showPublishConfirm.value = false;
+  } finally {
+    isPublishing.value = false;
   }
 }
 
@@ -289,7 +296,7 @@ const modalTitle = computed(() => {
 });
 
 const primaryButtonText = computed(() => {
-  if (props.loading) return "Processing...";
+  if (props.loading || isPublishing.value) return "Processing...";
   if (isMetadataMode.value) return "Save Changes";
   if (isEditMode.value) return "Save Changes";
   return "Publish Post";
@@ -406,7 +413,7 @@ const primaryButtonText = computed(() => {
             <div class="footer-actions">
               <button class="cancel-btn" @click="handleCloseRequest">Cancel</button>
               <button class="publish-btn"
-                :disabled="(isRestricted ? (!form.category || !hasMetadataChanges) : !canPublish) || loading"
+                :disabled="(isRestricted ? (!form.category || !hasMetadataChanges) : !canPublish) || loading || isPublishing"
                 @click="showPublishConfirm = true">
                 {{ primaryButtonText }}
               </button>
@@ -449,9 +456,9 @@ const primaryButtonText = computed(() => {
               </p>
 
               <div class="modal-actions justify-content-center">
-                <button class="cancel-btn" @click="showPublishConfirm = false">Back</button>
-                <button class="publish-btn" @click="doPublish">
-                  {{ isMetadataMode ? "Confirm & Save" : isEditMode ? "Confirm & Save" : "Confirm & Publish" }}
+                <button class="cancel-btn" @click="showPublishConfirm = false" :disabled="isPublishing">Back</button>
+                <button class="publish-btn" @click="doPublish" :disabled="isPublishing">
+                  {{ isPublishing ? "Publishing…" : (isMetadataMode ? "Confirm & Save" : isEditMode ? "Confirm & Save" : "Confirm & Publish") }}
                 </button>
               </div>
             </div>

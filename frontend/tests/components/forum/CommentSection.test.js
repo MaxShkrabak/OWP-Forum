@@ -79,6 +79,12 @@ describe("CommentSection.vue", () => {
     expect(wrapper.find(".section-title").text()).toContain("15 Comments");
   });
 
+  it("renders a sort dropdown with the correct options", () => {
+    const select = wrapper.find("#comment-sort");
+    const options = select.findAll("option").map((o) => o.text());
+    expect(options).toEqual(["Newest", "Oldest", "Most Liked"]);
+  });
+
   it("disables the submit button if there is no data, and enables it when text is entered", async () => {
     const textarea = wrapper.find(".comment-textarea");
     await textarea.trigger("focus");
@@ -175,5 +181,17 @@ describe("CommentSection.vue", () => {
     expect(updateComment).toHaveBeenCalled();
     const editedLabel = wrapper.find(".edited-label");
     expect(editedLabel.exists()).toBe(true);
+  });
+
+  it("refetches comments when the sort option changes", async () => {
+    await flushPromises();
+
+    const select = wrapper.find("#comment-sort");
+    await select.setValue("mostLiked");
+    await flushPromises();
+
+    expect(fetchComments).toHaveBeenCalled();
+    const lastCallArgs = fetchComments.mock.calls.at(-1);
+    expect(lastCallArgs[3]).toBe("mostLiked");
   });
 });

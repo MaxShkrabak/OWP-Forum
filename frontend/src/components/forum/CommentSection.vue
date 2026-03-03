@@ -33,6 +33,13 @@ const isLoadingMore = ref(false);
 
 const commentTotalCount = ref(0);
 
+const sortOptions = [
+  { label: 'Newest', value: 'latest' },
+  { label: 'Oldest', value: 'oldest' },
+  { label: 'Most Liked', value: 'mostLiked' }
+];
+const selectedSort = ref('latest');
+
 provide('activeReplyId', activeReplyId);
 provide('activeEditId', activeEditId);
 
@@ -110,7 +117,12 @@ const loadComments = async (isInitial = true) => {
   isLoadingMore.value = true;
 
   try {
-    const data = await apiFetchComments(props.postId, currentBatch.value, commentsPerLoad);
+    const data = await apiFetchComments(
+      props.postId,
+      currentBatch.value,
+      commentsPerLoad,
+      selectedSort.value
+    );
 
     if (data && data.ok) {
       commentTotalCount.value = data.total || 0;
@@ -129,6 +141,10 @@ const loadComments = async (isInitial = true) => {
   } finally {
     isLoadingMore.value = false;
   }
+};
+
+const handleSortChange = async () => {
+  await loadComments(true);
 };
 
 const handleLoadMore = async () => {
@@ -186,9 +202,25 @@ onMounted(() => {
 
 <template>
   <div class="comment-section p-4 rounded-3 border bg-white text-start">
-    <h3 class="section-title fw-bold mb-4 pb-2 border-bottom d-inline-block">
-      {{ totalCommentsCount }} Comments
-    </h3>
+    <div class="d-flex flex-wrap align-items-center justify-content-between mb-3 gap-3 header-row">
+      <h3 class="section-title fw-bold pb-2 border-bottom d-inline-block mb-0 flex-shrink-0">
+        {{ totalCommentsCount }} Comments
+      </h3>
+
+      <div class="sort-dropdown ms-auto d-inline-flex align-items-center">
+        <span class="sort-label me-2">Sort by</span>
+        <select
+          id="comment-sort"
+          v-model="selectedSort"
+          @change="handleSortChange"
+          class="form-select form-select-sm sort-select"
+        >
+          <option v-for="option in sortOptions" :key="option.value" :value="option.value">
+            {{ option.label }}
+          </option>
+        </select>
+      </div>
+    </div>
 
     <div class="main-input-wrapper mb-4">
       <div class="reply-box-container border rounded-3 overflow-hidden bg-white"
@@ -323,6 +355,41 @@ onMounted(() => {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+
+.header-row {
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 0.75rem;
+}
+
+.sort-dropdown {
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid #d1e3e0;
+  background-color: #ffffff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  white-space: nowrap;
+}
+
+.sort-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.sort-select {
+  min-width: 120px;
+  border: none;
+  box-shadow: none;
+  padding-left: 0.25rem;
+  padding-right: 1.5rem;
+  font-size: 0.85rem;
+  color: #374151;
+  background-color: transparent;
+}
+
+.sort-select:focus {
+  box-shadow: none;
 }
 
 @media (max-width: 599px) {

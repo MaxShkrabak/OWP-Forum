@@ -111,6 +111,20 @@ class CommentController
             $page = max((int)($queryParams['page'] ?? 1), 1);
             $offset = ($page - 1) * $limit;
 
+            $sort = isset($queryParams['sort']) ? (string)$queryParams['sort'] : 'latest';
+            switch ($sort) {
+                case 'oldest':
+                    $orderBy = 'c.CreatedAt ASC';
+                    break;
+                case 'mostLiked':
+                    $orderBy = 'c.TotalScore DESC, c.CreatedAt DESC';
+                    break;
+                case 'latest':
+                default:
+                    $orderBy = 'c.CreatedAt DESC';
+                    break;
+            }
+
             $pdo = ($this->makePdo)();
 
             $countStmt = $pdo->prepare("SELECT COUNT(*) FROM dbo.Comments WHERE PostId = :postId AND IsDeleted = 0");
@@ -126,7 +140,7 @@ class CommentController
                     JOIN dbo.Roles r ON u.RoleID = r.RoleID
                     LEFT JOIN dbo.CommentVotes cv ON cv.CommentId = c.CommentId AND cv.UserId = :currentUserId
                     WHERE c.PostId = :postId AND c.IsDeleted = 0
-                    ORDER BY c.CreatedAt ASC
+                    ORDER BY {$orderBy}
                     OFFSET :offset ROWS FETCH NEXT :limit ROWS ONLY";
 
             $stmt = $pdo->prepare($sql);
