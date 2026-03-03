@@ -16,6 +16,10 @@ final class UserTermsAcceptanceTest extends TestCase
     protected function setUp(): void
     {
         $this->baseUrl = "http://localhost:8080";
+        if (empty($_ENV["GLOBAL_OTP"]) && !getenv("GLOBAL_OTP")) {
+            $_ENV["GLOBAL_OTP"] = "123456";
+            putenv("GLOBAL_OTP=123456");
+        }
     }
 
     private function request(
