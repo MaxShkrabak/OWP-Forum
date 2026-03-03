@@ -9,6 +9,17 @@ const reports = ref([]);
 const loading = ref(false);
 const error = ref(null);
 const refreshCooldown = ref(false);
+const refreshCooldownSpinner = ref(false);
+
+const toastEl = ref(null);
+const showToast = () => {
+  if (toastEl.value) {
+    const toast = new bootstrap.Toast(toastEl.value);
+    toast.show();
+  }
+};
+
+const mostRecentTicket = ref(null);
 
 const sources = ref([
     { name: 'Posts', icon: 'bi-file-earmark-post-fill' },
@@ -43,10 +54,14 @@ async function loadReports() {
 function refreshReports() {
   if (refreshCooldown.value) return;
   refreshCooldown.value = true;
+  refreshCooldownSpinner.value = true;
   loadReports();
   setTimeout(() => {
     refreshCooldown.value = false;
   }, 5000);
+  setTimeout(() => {
+    refreshCooldownSpinner.value = false;
+  }, 800);
 }
 
 function hideModal() {
@@ -73,6 +88,8 @@ async function handleResolve(reportId) {
   } catch (e) {
     console.error("Failed to resolve report:", e);
   }
+  mostRecentTicket.value = reportId;
+  showToast();
 }
 
 function onModalShown() {
@@ -121,6 +138,17 @@ onUnmounted(() => {
     </button>
 
     <Teleport to="body">
+      <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div ref="toastEl" id="myToast" class="toast align-items-center text-bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="4000">
+          <div class="d-flex">
+            <div class="toast-body">
+            Resolved Ticket: #{{ mostRecentTicket }}
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+          </div>
+        </div>
+      </div>
+
       <div
         class="modal fade"
         id="viewReports"
@@ -139,9 +167,10 @@ onUnmounted(() => {
                 @click="refreshReports"
                 :disabled="refreshCooldown"
               >Refresh
-              <i class="spinner-border fs-6 ms-2" style="width: 18px; height: 18px;" v-if="refreshCooldown"></i>
-              <i class="bi-arrow-repeat fs-6 ms-2" style="width: 18px; height: 18px;" v-else></i>
+              <i class="spinner-border fs-6 ms-2" style="width: 18px; height: 18px;" v-if="refreshCooldownSpinner"></i>
+              <i class="bi-arrow-clockwise fs-6 ms-2" style="width: 18px; height: 18px;" v-else></i>
             </button>
+
               <button
                 type="button"
                 class="btn-close"
@@ -165,11 +194,13 @@ onUnmounted(() => {
                 >
                   <div class="report-details">
                     <span class="report-id text-muted small text-center">
-                      <span class="report-source-by">Ticket </span>#{{ r.reportId }}
+                      <span class="report-source-by">
+                        <i class="mx-1" :class="r.source === 'Comment' ? sources[1].icon : sources[0].icon"></i>
+                        Ticket: </span>#{{ r.reportId }}
                     </span>
                       <div class="col-12">
                         <span class="report-source col-12">
-                          {{ r.source === 'Comment' ? 'Comment' : 'Post' }} 
+                          <span class="me-2">{{ r.source === 'Comment' ? 'Comment' : 'Post' }}</span>
                           <span class="report-source-by me-2">by</span> 
                           <span class="report-source-author">{{ r.source === 'Comment' ? r.commentAuthor : r.postAuthor }}</span>
                         </span>
@@ -190,7 +221,7 @@ onUnmounted(() => {
                   <div class="cta-btns d-flex gap-2 flex-shrink-0">
                     <button
                       type="button"
-                      class="btn btn-sm btn-outline-primary"
+                      class="report-cta-btn text-white"
                       @click="goToPost(r.postId)"
                     >
                       Go To
@@ -198,10 +229,11 @@ onUnmounted(() => {
                     </button>
                     <button
                       type="button"
-                      class="btn btn-sm btn-success"
+                      class="report-cta-btn text-white"
                       @click="handleResolve(r.reportId)"
                     >
                       Resolve
+                      <i class="bi-check2-square ms-1"></i>
                     </button>
                   </div>
                 </li>
@@ -328,25 +360,39 @@ onUnmounted(() => {
 .btn-refresh {
   margin-left: 2rem;
   padding: 0.5rem 1rem;
-  background: #043927;
+  background: #006649;
   border-radius: 10px;
   color: #ffffff;
   font-size: 1.2rem;
   font-weight: 500;
   cursor: pointer;
-  transition: color 0.5s ease;
+  transition: color 0.15s ease;
+  border: none;
 }
 .btn-refresh:disabled {
     background-color: #04392769 !important;
     cursor: not-allowed;
 }
+.btn-refresh:hover:not(:disabled) {
+  color: #6dbe4b;
+}
+.btn-refresh:active:not(:disabled) {
+  color: #a1fd7ae8;
+  background-color: #017e5a !important;
+}
 
 .report-list {
   border-radius: 0;
 }
+.list-group-item{
+  transition: background-color 0.15s ease;
+}
 .list-group-item:hover {
   background-color: rgba(211, 211, 211, 0.1);
   border-radius: 6px;
+  .report-id {
+    background-color: rgba(211, 211, 211, 0.842);
+  }
 }
 .report-details {
   display: flex;
@@ -362,6 +408,8 @@ onUnmounted(() => {
   padding: .7rem 0.5rem;
   border-top-left-radius: 8px;
   border-bottom-left-radius: 8px;
+  border-right: #007a4c solid 3px;
+  transition: background-color 0.15s ease;
 }
 .report-source {
   font-weight: 700;
@@ -393,6 +441,19 @@ onUnmounted(() => {
 .report-date {
   font-size: 0.8rem;
 }
+.report-cta-btn {
+  padding: 0.45rem 0.7rem;
+  font-size: 0.85rem;
+  border-radius: 6px;
+  background-color: #007a4c;
+  border: none;
+}
+.report-cta-btn:hover {
+  background-color: #007a4cce;
+}
+.report-cta-btn:active{
+  background-color: #007a4c90;
+}
 
 @media (min-width: 432px) {
   .label-group {
@@ -414,7 +475,7 @@ onUnmounted(() => {
 }
 @media (min-width: 992px) {
   .report-title {
-    max-width: 32rem;
+    max-width: 30rem;
   }
   .cta-btns {
     flex-direction: column;
