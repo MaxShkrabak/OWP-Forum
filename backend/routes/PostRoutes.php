@@ -4,6 +4,7 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
 use function Forum\Helpers\json;
+use function Forum\Helpers\resolveReportsForPost;
 
 $app->post("/api/create-post", function (Request $req, Response $res) use ($makePdo) {
     try {
@@ -573,16 +574,31 @@ $app->patch('/api/posts/{id}/soft-delete', function (Request $req, Response $res
             return json($res, ['ok' => false, 'error' => 'Forbidden'], 403);
         }
 
+        $pdo->beginTransaction();
+
         // Soft delete
         $stmt = $pdo->prepare("
             UPDATE dbo.Posts
             SET IsDeleted = 1, DeletedAt = SYSUTCDATETIME()
-            WHERE PostID = :pid
+            WHERE PostID = :pid AND IsDeleted = 0
         ");
         $stmt->execute([':pid' => $postId]);
 
+        if ($stmt->rowCount() === 0) {
+            $pdo->rollBack();
+            return json($res, ['ok' => false, 'error' => 'Post not found or already deleted'], 404);
+        }
+
+        // Resolve reports for this post + comments/replies under it
+        resolveReportsForPost($pdo, $postId, (int)$userId);
+
+        $pdo->commit();
+
         return json($res, ['ok' => true]);
     } catch (Throwable $e) {
+        if (isset($pdo) && $pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
         return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
     }
 });
@@ -836,12 +852,20 @@ $app->delete('/api/posts/{id}', function (Request $req, Response $res, array $ar
             return json($res, ['ok' => false, 'error' => 'Permission denied.'], 403);
         }
 
+        $pdo->beginTransaction();
+
         $delStmt = $pdo->prepare("UPDATE dbo.Posts SET IsDeleted = 1, UpdatedAt = SYSUTCDATETIME(), DeletedAt = SYSUTCDATETIME() WHERE PostID = :id AND IsDeleted = 0");
         $delStmt->execute(['id' => $postId]);
 
         if ($delStmt->rowCount() === 0) {
+            $pdo->rollBack();
             return json($res, ['ok' => false, 'error' => 'Failed to delete post.'], 500);
         }
+
+        // Resolve reports for this post + comments/replies under it
+        resolveReportsForPost($pdo, $postId, (int)$userId);
+
+        $pdo->commit();
 
         $outStmt = $pdo->prepare("SELECT IsDeleted, DeletedAt, UpdatedAt FROM dbo.Posts WHERE PostID = :id");
         $outStmt->execute(['id' => $postId]);
@@ -855,6 +879,9 @@ $app->delete('/api/posts/{id}', function (Request $req, Response $res, array $ar
             'updatedAt' => $result['UpdatedAt'] ?? null,
         ]);
     } catch (Throwable $e) {
+        if (isset($pdo) && $pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
         return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
     }
 });

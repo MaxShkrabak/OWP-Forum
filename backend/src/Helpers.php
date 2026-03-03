@@ -12,6 +12,31 @@ if (!function_exists('Forum\Helpers\json')) {
     }
 }
 
+if (!function_exists('Forum\Helpers\resolveReportsForPost')) {
+    function resolveReportsForPost(\PDO $pdo, int $postId, int $resolvedByUserId): void
+    {
+        // Resolve reports directly on the post
+        $pdo->prepare("
+            UPDATE dbo.Reports
+            SET Resolved = 1,
+                ResolvedBy = :uid,
+                ResolvedAt = SYSUTCDATETIME()
+            WHERE Resolved = 0
+              AND PostID = :pid
+        ")->execute([':uid' => $resolvedByUserId, ':pid' => $postId]);
+
+        // Resolve reports for any comments/replies under that post
+        $pdo->prepare("
+            UPDATE dbo.Reports
+            SET Resolved = 1,
+                ResolvedBy = :uid,
+                ResolvedAt = SYSUTCDATETIME()
+            WHERE Resolved = 0
+              AND CommentID IN (SELECT CommentID FROM dbo.Comments WHERE PostID = :pid)
+        ")->execute([':uid' => $resolvedByUserId, ':pid' => $postId]);
+    }
+}
+
 if (!function_exists('Forum\Helpers\setSessionCookie')) {
     function setSessionCookie(string $rawToken): void {
         setcookie('session', $rawToken, [
