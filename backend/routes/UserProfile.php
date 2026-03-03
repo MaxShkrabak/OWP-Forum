@@ -39,7 +39,7 @@ $app->get('/api/profile/{uid}/stats', function(Request $req, Response $res, arra
         $sql = "
             SELECT
                 (SELECT COUNT(*) FROM dbo.Posts WHERE AuthorID = :uid1 AND IsDeleted = 0) AS postCount,
-                (SELECT COUNT(*) FROM dbo.PostVotes pv INNER JOIN dbo.Posts p ON pv.PostID = p.PostID WHERE p.AuthorID = :uid2 AND p.IsDeleted = 0) AS voteScore,
+                (SELECT COALESCE(SUM(pv.VoteValue), 0) FROM dbo.PostVotes pv INNER JOIN dbo.Posts p ON pv.PostID = p.PostID WHERE p.AuthorID = :uid2 AND p.IsDeleted = 0) AS voteScore,
                 (SELECT COUNT(*) FROM dbo.Comments WHERE UserID = :uid3 AND IsDeleted = 0) AS commentCount
         ";
 

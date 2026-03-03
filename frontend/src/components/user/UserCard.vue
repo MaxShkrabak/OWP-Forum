@@ -74,10 +74,10 @@ function getAvatarSrc(file) {
             <span class="stat-value">{{ postCount }}</span>
             <span class="stat-label text-uppercase">Posts</span>
           </div>
-          <!-- Votes score -->
+          <!-- Reputation score -->
           <div class="stat-item">
             <span class="stat-value">{{ voteScore }}</span>
-            <span class="stat-label text-uppercase">Votes</span>
+            <span class="stat-label text-uppercase">Reputation</span>
           </div>
           <!-- Comment count -->
           <div class="stat-item">
@@ -113,10 +113,10 @@ function getAvatarSrc(file) {
             <span class="stat-value">{{ postCount }}</span>
             <span class="stat-label text-uppercase">Posts</span>
           </div>
-          <!-- Votes score -->
+          <!-- Reputation score -->
           <div class="stat-item">
             <span class="stat-value">{{ voteScore }}</span>
-            <span class="stat-label text-uppercase">Votes</span>
+            <span class="stat-label text-uppercase">Reputation</span>
           </div>
           <!-- Comment count -->
           <div class="stat-item">

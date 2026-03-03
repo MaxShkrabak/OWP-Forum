@@ -99,7 +99,7 @@ describe("UserCard.vue — user stats", () => {
     expect(statValues[2].text()).toBe("15");
   });
 
-  it("shows the Votes label instead of Likes", async () => {
+  it("shows the Reputation label instead of Votes or Likes", async () => {
     mockFetchUserStats.mockResolvedValueOnce({
       ok: true,
       stats: { postCount: 0, voteScore: 0, commentCount: 0 },
@@ -114,7 +114,8 @@ describe("UserCard.vue — user stats", () => {
 
     const labels = wrapper.findAll(".stat-label");
     const labelTexts = labels.map((l) => l.text());
-    expect(labelTexts).toContain("Votes");
+    expect(labelTexts).toContain("Reputation");
+    expect(labelTexts).not.toContain("Votes");
     expect(labelTexts).not.toContain("Likes");
   });
 
