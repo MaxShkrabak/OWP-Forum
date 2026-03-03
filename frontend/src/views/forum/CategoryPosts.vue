@@ -7,7 +7,7 @@ import UserCard from '@/components/user/UserCard.vue';
 import CreatePostButton from '@/components/forum/CreatePostButton.vue';
 import ViewReportsButton from '@/components/admin/ViewReportsButton.vue';
 import { isLoggedIn, isBanned } from '@/stores/userStore';
-import { fetchPosts as apiGetPosts, getTags as apiGetTags } from '@/api/posts';
+import { fetchPosts as apiGetPosts, getFilterTags as apiGetTags } from '@/api/posts';
 import { getPaginationRange } from '@/utils/pagination';
 
 const route = useRoute();

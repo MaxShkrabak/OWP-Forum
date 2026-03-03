@@ -55,7 +55,9 @@ export const syncProfileOnLoad = async () => {
       resetStore();
     }
   } catch (error) {
-    console.error('Profile sync failed:', error);
+    if (error.response?.status !== 401) {
+      console.error('Profile sync failed:', error);
+    }
     resetStore();
   }
 };
