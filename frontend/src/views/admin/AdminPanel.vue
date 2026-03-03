@@ -45,7 +45,7 @@ const tabs = ref([
                 </div>
             </div>
 
-            <div class="panel-content w-75 pt-4 px-4 overflow-auto">
+            <div class="panel-content w-75 pt-4 px-2 overflow-auto">
                 <div class="tab-content h-100" v-for="tab in tabs" :key="'content-'+tab.name" v-show="activeTab === tab.name">
                     
                     <template v-if="tab.name === 'Users'">

@@ -256,6 +256,7 @@ onMounted(async () => {
 
       <table v-if="!loading && users.length" class="admin-table mt-3">
         <thead>
+
           <tr>
             <th>ID</th>
             <th>Name</th>
@@ -287,7 +288,9 @@ onMounted(async () => {
             </td>
             <td>
               <span v-if="u.IsBanned" class="badge badge-banned">{{ banStatusLabel(u) }}</span>
-              <span v-else class="badge badge-active">Active</span>
+              <span v-else class="badge badge-active">
+                <span class="desktop-only">Active</span>
+              </span>
             </td>
             <td>
               <button
@@ -296,7 +299,10 @@ onMounted(async () => {
                 class="btn-ban"
                 @click="openBanModal(u)"
               >
+              <span class="desktop-only">
                 Ban
+              </span>
+              <i class="bi bi-x-lg mobile-only"></i>
               </button>
               <button
                 v-else-if="u.IsBanned"
@@ -304,7 +310,10 @@ onMounted(async () => {
                 class="btn-unban"
                 @click="unban(u)"
               >
+                <span class="desktop-only">
                 Unban
+              </span>
+              <i class="bi bi-check-lg mobile-only"></i>
               </button>
             </td>
           </tr>
@@ -392,6 +401,8 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.mobile-only { display: inline; }
+.desktop-only { display: none; }
 .page-title {
   font-size: 24px;
   font-weight: 700;
@@ -451,7 +462,7 @@ onMounted(async () => {
   width: 100%;
   background: #ffffff;
   border-radius: 16px;
-  padding: 24px;
+  padding: 10px;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.05);
 }
 
@@ -464,8 +475,8 @@ onMounted(async () => {
 .admin-table thead th {
   background: #f8fafc;
   color: #374151;
-  font-size: 13px;
-  padding: 10px;
+  font-size: 10px;
+  padding: 8px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   border-bottom: 2px solid #e5e7eb;
@@ -482,7 +493,7 @@ onMounted(async () => {
 }
 
 .admin-table tbody td {
-  padding: 12px 10px;
+  padding: 12px 8px;
   vertical-align: middle;
 }
 
@@ -501,8 +512,9 @@ onMounted(async () => {
 }
 
 .admin-name {
-  font-weight: 600;
+  font-weight: 500;
   color: #1f3d3a;
+  font-size: 0.8rem;
 }
 
 .admin-email {
@@ -512,12 +524,13 @@ onMounted(async () => {
 
 /* Role Select */
 .role-select {
-  padding: 6px 10px;
+  padding: 4px 2px;
   border-radius: 10px;
-  font-weight: 600;
+  font-weight: 500;
   border: 1px solid #ccc;
   outline: none;
   cursor: pointer;
+  font-size: 12px;
 }
 
 .role-select:disabled {
@@ -532,7 +545,7 @@ onMounted(async () => {
 
 .badge {
   display: inline-block;
-  padding: 4px 10px;
+  padding: 6px 6px;
   border-radius: 20px;
   font-size: 12px;
   font-weight: 600;
@@ -546,6 +559,7 @@ onMounted(async () => {
 .badge-active {
   background: #d1fae5;
   color: #065f46;
+  border: green 1px solid;
 }
 
 .btn-ban {
@@ -750,4 +764,15 @@ onMounted(async () => {
   font-weight: 700;
 }
 .btn-confirm:hover { background: #00363d; }
+
+@media (min-width: 768px) {
+  .admin-table thead th {
+    font-size: 14px;
+  }
+  .badge {
+  padding: 4px 10px;
+  }
+  .mobile-only { display: none; }
+  .desktop-only { display: inline; }
+}
 </style>
