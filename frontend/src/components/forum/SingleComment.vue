@@ -36,6 +36,7 @@ const isEditing = computed(() => activeEditId?.value === props.comment.id);
 const originalText = computed(() => props.comment.text || '');
 const editText = ref(originalText.value);
 const isSavingEdit = ref(false);
+const showSaveConfirm = ref(false);
 
 const isAuthor = computed(() => {
   const currentUid = Number(uid?.value ?? 0);
@@ -63,13 +64,16 @@ const cancelEdit = () => {
 
 const hasEditChanges = computed(() => editText.value.trim() !== originalText.value.trim());
 
-const saveEdit = async () => {
+const saveEdit = () => {
   if (!hasEditChanges.value || isSavingEdit.value) return;
+  showSaveConfirm.value = true;
+};
 
-  const confirmed = window.confirm(
-    'Save changes to this comment?',
-  );
-  if (!confirmed) return;
+const confirmSaveEdit = async () => {
+  if (!hasEditChanges.value || isSavingEdit.value) {
+    showSaveConfirm.value = false;
+    return;
+  }
 
   isSavingEdit.value = true;
   try {
@@ -87,6 +91,7 @@ const saveEdit = async () => {
     alert('Failed to update comment.');
   } finally {
     isSavingEdit.value = false;
+    showSaveConfirm.value = false;
   }
 };
 
@@ -298,6 +303,41 @@ watch(isEditing, (active) => {
         </button>
       </div>
     </div>
+
+    <Teleport to="body">
+      <Transition name="fade">
+        <div
+          v-if="showSaveConfirm"
+          class="comment-modal-mask d-flex align-items-center justify-content-center"
+          @click.self="showSaveConfirm = false"
+        >
+          <div class="comment-modal-card shadow-lg">
+            <p class="fw-bold mb-1">Save changes?</p>
+            <p class="small text-muted mb-3">
+              This will update your comment for everyone viewing the discussion.
+            </p>
+            <div class="d-flex justify-content-end gap-2">
+              <button
+                type="button"
+                class="btn-cancel border-0 bg-transparent fw-bold small"
+                @click="showSaveConfirm = false"
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                class="btn-submit border-0 rounded-2 fw-bold px-3 py-1 small"
+                :disabled="isSavingEdit"
+                @click="confirmSaveEdit"
+              >
+                <span v-if="isSavingEdit" class="pi pi-spin pi-spinner me-1"></span>
+                Save changes
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -522,5 +562,31 @@ watch(isEditing, (active) => {
 .voting-bounce {
   animation: count-bounce 0.6s infinite ease-in-out;
   display: inline-block;
+}
+
+.comment-modal-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 1050;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+}
+
+.comment-modal-card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  max-width: 360px;
+  width: 90%;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>
