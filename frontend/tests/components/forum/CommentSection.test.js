@@ -57,7 +57,7 @@ describe("CommentSection.vue", () => {
   });
 
   it("displays the correct total number of comments", () => {
-    expect(wrapper.find(".section-title").text()).toContain("15 Comments");
+    expect(wrapper.find(".comments-header").text()).toContain("Comments (15)");
   });
 
   it("disables the submit button if there is no data, and enables it when text is entered", async () => {
