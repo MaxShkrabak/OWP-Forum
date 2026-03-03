@@ -2,14 +2,15 @@
 import { ref } from 'vue';
 import OWPLogoSmall from '@/assets/img/svg/owp-symbol-wht.svg'
 import { RouterLink } from 'vue-router';
-import AdminRoles from '@/components/admin/AdminRoles.vue';
 import AdminUsers from '@/components/admin/AdminUsers.vue';
 import AdminCategories from '@/components/admin/AdminCategories.vue';
 import AdminTags from '@/components/admin/AdminTags.vue';
-const activeTab = ref('Roles');
+import AdminReports from '@/components/admin/AdminReports.vue';
+  
+const activeTab = ref('Users');
+  
 const tabs = ref([
     { name: 'Users', icon: 'bi-person-fill-gear' },
-    { name: 'Roles', icon: 'bi-diagram-3-fill' },
     { name: 'Categories', icon: 'bi-file-text' },
     { name: 'Tags', icon: 'bi-tags-fill' },
     { name: 'Reports', icon: 'bi-flag-fill' }
@@ -50,10 +51,7 @@ const tabs = ref([
                     <template v-if="tab.name === 'Users'">
                         <AdminUsers />
                     </template>
-                    <template v-else-if="tab.name === 'Roles'">
-                        <AdminRoles />
-                    </template>
-                    <template v-if="tab.name === 'Tags'">
+                    <template v-else-if="tab.name === 'Tags'">
                         <AdminTags />
                     </template>
 
@@ -61,9 +59,8 @@ const tabs = ref([
                         <AdminCategories />
                     </template>
 
-                    <template v-else>
-                        <h2 class="page-title text-start mb-4">{{ tab.name }} Overview</h2>
-                        <p class="text-muted text-start">The {{ tab.name }} component will render here.</p>
+                    <template v-else-if="tab.name === 'Reports'">
+                        <AdminReports />
                     </template>
 
                 </div>
