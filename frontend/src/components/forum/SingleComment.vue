@@ -1,8 +1,8 @@
 <script setup>
 import { ref, inject, computed, watch } from 'vue';
 import UserRole from "@/components/user/UserRole.vue";
-import { voteComment as apiVoteComment, fetchCommentReplies } from '@/api/comments';
-import { isLoggedIn } from '@/stores/userStore';
+import { voteComment as apiVoteComment, fetchCommentReplies, updateComment as apiUpdateComment } from '@/api/comments';
+import { isLoggedIn, uid } from '@/stores/userStore';
 import { timeAgo } from '@/utils/timeAgo';
 
 const props = defineProps({
@@ -25,10 +25,63 @@ const isHoveringToggle = ref(false);
 const activeReplyId = inject('activeReplyId');
 const submitReply = inject('submitReply');
 
+const activeEditId = inject('activeEditId');
+const openEditComment = inject('openEditComment');
+const closeEditComment = inject('closeEditComment');
+const markEditDirty = inject('markEditDirty');
+
 const isReplying = computed(() => activeReplyId.value === props.comment.id);
+const isEditing = computed(() => activeEditId?.value === props.comment.id);
+
+const originalText = computed(() => props.comment.text || '');
+const editText = ref(originalText.value);
+const isSavingEdit = ref(false);
+
+const isAuthor = computed(() => {
+  const currentUid = Number(uid?.value ?? 0);
+  const commentUserId = Number(props.comment.user?.userId ?? props.comment.userId ?? 0);
+  return currentUid > 0 && commentUserId === currentUid;
+});
 
 const toggleReply = () => {
   activeReplyId.value = isReplying.value ? null : props.comment.id;
+};
+
+const startEdit = () => {
+  if (!isAuthor.value) return;
+  if (!isEditing.value) {
+    editText.value = originalText.value;
+    openEditComment && openEditComment(props.comment.id);
+  }
+};
+
+const cancelEdit = () => {
+  editText.value = originalText.value;
+  markEditDirty && markEditDirty(false);
+  closeEditComment && closeEditComment();
+};
+
+const hasEditChanges = computed(() => editText.value.trim() !== originalText.value.trim());
+
+const saveEdit = async () => {
+  if (!hasEditChanges.value || isSavingEdit.value) return;
+  isSavingEdit.value = true;
+  try {
+    const data = await apiUpdateComment(props.comment.id, editText.value.trim());
+    if (data && data.ok && data.comment) {
+      props.comment.text = data.comment.content;
+      props.comment.time = originalText.value === data.comment.content ? props.comment.time : 'Edited just now';
+      if (props.comment.user && data.comment.user) {
+        props.comment.user = data.comment.user;
+      }
+      markEditDirty && markEditDirty(false);
+      closeEditComment && closeEditComment();
+    }
+  } catch (error) {
+    alert('Failed to update comment.');
+  } finally {
+    isSavingEdit.value = false;
+  }
 };
 
 function getAvatarSrc(file) {
@@ -110,6 +163,17 @@ const handleVote = async (direction) => {
 watch(isLoggedIn, (loggedIn) => {
   if (!loggedIn) myVote.value = 0;
 });
+
+watch(editText, (newVal) => {
+  if (!isEditing.value) return;
+  markEditDirty && markEditDirty(newVal.trim() !== originalText.value.trim());
+});
+
+watch(isEditing, (active) => {
+  if (!active) {
+    editText.value = originalText.value;
+  }
+});
 </script>
 
 <template>
@@ -126,15 +190,50 @@ watch(isLoggedIn, (loggedIn) => {
       </div>
 
       <div class="flex-grow-1 overflow-visible">
-        <div class="d-flex align-items-center mb-1">
+        <div class="d-flex align-items-center mb-1 justify-content-between">
           <div class="d-flex align-items-center gap-2 flex-wrap">
             <span class="author-name text-truncate small fw-bold">{{ comment.author }}</span>
             <UserRole :role="comment.user?.role" />
-            <span class="timestamp text-muted">{{ comment.time }}</span>
+            <span class="timestamp text-muted">
+              {{ comment.time }}
+              <span v-if="comment.wasEdited" class="edited-label ms-1">(edited)</span>
+            </span>
           </div>
+          <button
+            v-if="isAuthor"
+            class="btn-options border-0 bg-transparent p-1 ms-2"
+            type="button"
+            @click="startEdit"
+          >
+            <i class="pi pi-ellipsis-h"></i>
+          </button>
         </div>
 
-        <div class="comment-body mb-2 small">{{ comment.text }}</div>
+        <div v-if="isEditing" class="comment-body mb-2 small">
+          <textarea
+            v-model="editText"
+            class="reply-textarea w-100 border rounded-3 p-2"
+            rows="3"
+          ></textarea>
+          <div class="d-flex justify-content-end align-items-center gap-3 mt-2">
+            <button
+              class="btn-cancel border-0 bg-transparent fw-bold small"
+              type="button"
+              @click="cancelEdit"
+            >
+              Cancel
+            </button>
+            <button
+              class="btn-submit border-0 rounded-2 fw-bold px-3 py-1 small"
+              type="button"
+              :disabled="!hasEditChanges || isSavingEdit"
+              @click="saveEdit"
+            >
+              Save
+            </button>
+          </div>
+        </div>
+        <div v-else class="comment-body mb-2 small">{{ comment.text }}</div>
 
         <div class="d-flex align-items-center gap-3 gap-sm-2 flex-wrap">
           <div class="vote-container d-flex align-items-center rounded-4 px-2 py-1">

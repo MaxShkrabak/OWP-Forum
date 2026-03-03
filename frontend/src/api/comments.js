@@ -46,6 +46,19 @@ export const submitComment = async (
   }
 };
 
+export const updateComment = async (commentId, content) => {
+  try {
+    const response = await client.put(`/comments/${commentId}`, { content });
+    return response.data;
+  } catch (error) {
+    console.error(
+      "Error updating comment:",
+      error.response?.data?.error || error.message,
+    );
+    throw error;
+  }
+};
+
 export const voteComment = async (commentId, dir) => {
   try {
     const response = await client.post(`/comments/${commentId}/vote`, { dir });

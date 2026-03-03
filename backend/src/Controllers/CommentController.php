@@ -180,7 +180,6 @@ class CommentController
         try {
             $parentId = (int)$args['parentId'];
             $userId = $req->getAttribute("user_id") ?? 0;
-
             $pdo = ($this->makePdo)();
 
             $sql = "SELECT c.CommentId, c.PostId, c.ParentCommentId, c.Content, c.CreatedAt, c.UserId, c.TotalScore,
@@ -213,6 +212,94 @@ class CommentController
             }, $rows);
 
             return json($res, ['ok' => true, 'items' => $items]);
+        } catch (Throwable $e) {
+            return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function updateComment(Request $req, Response $res, array $args): Response
+    {
+        try {
+            $userId = $req->getAttribute("user_id");
+            if (!$userId) {
+                return json($res, ['ok' => false, 'error' => 'Not Authenticated'], 401);
+            }
+
+            $commentId = (int)($args['id'] ?? 0);
+            if ($commentId <= 0) {
+                return json($res, ['ok' => false, 'error' => 'Invalid comment id'], 400);
+            }
+
+            $data = $req->getParsedBody() ?? [];
+            $content = trim((string)($data['content'] ?? ''));
+            if ($content === '') {
+                return json($res, ['ok' => false, 'error' => 'Content cannot be empty'], 400);
+            }
+
+            /** @var PDO $pdo */
+            $pdo = ($this->makePdo)();
+
+            $banResponse = checkUserBan($pdo, (int)$userId, $res);
+            if ($banResponse) return $banResponse;
+
+            $stmt = $pdo->prepare("SELECT CommentId, UserId, IsDeleted FROM dbo.Comments WHERE CommentId = :id");
+            $stmt->execute([':id' => $commentId]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$row || (int)$row['IsDeleted'] === 1) {
+                return json($res, ['ok' => false, 'error' => 'Comment not found'], 404);
+            }
+
+            if ((int)$row['UserId'] !== (int)$userId) {
+                return json($res, ['ok' => false, 'error' => 'You cannot edit this comment'], 403);
+            }
+
+            $update = $pdo->prepare("
+                UPDATE dbo.Comments
+                SET Content = :content
+                WHERE CommentId = :id AND IsDeleted = 0
+            ");
+            $update->execute([
+                ':content' => $content,
+                ':id' => $commentId
+            ]);
+
+            if ($update->rowCount() === 0) {
+                return json($res, ['ok' => false, 'error' => 'Failed to update comment'], 500);
+            }
+
+            $detailsStmt = $pdo->prepare("
+                SELECT c.CommentId, c.PostId, c.ParentCommentId, c.Content, c.CreatedAt, c.UserId, c.TotalScore,
+                       u.FirstName, u.LastName, u.Avatar, r.Name AS RoleName,
+                       0 AS MyVote,
+                       (SELECT COUNT(*) FROM dbo.Comments r WHERE r.ParentCommentId = c.CommentId AND r.IsDeleted = 0) AS ReplyCount
+                FROM dbo.Comments c
+                JOIN dbo.Users u ON u.User_ID = c.UserId
+                JOIN dbo.Roles r ON u.RoleID = r.RoleID
+                WHERE c.CommentId = :commentId
+            ");
+            $detailsStmt->execute([':commentId' => $commentId]);
+            $details = $detailsStmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$details) {
+                return json($res, ['ok' => false, 'error' => 'Failed to load updated comment'], 500);
+            }
+
+            return json($res, [
+                'ok' => true,
+                'comment' => [
+                    'commentId' => (int)$details['CommentId'],
+                    'postId'    => (int)$details['PostId'],
+                    'score'     => (int)$details['TotalScore'],
+                    'myVote'    => 0,
+                    'user'      => $this->formatUserRow($details),
+                    'content'   => $details['Content'],
+                    'createdAt' => strtotime($details['CreatedAt']),
+                    'replyCount' => (int)$details['ReplyCount'],
+                    'parentCommentId' => $details['ParentCommentId'] ? (int)$details['ParentCommentId'] : null,
+                    'isDeleted' => false
+                ]
+            ]);
         } catch (Throwable $e) {
             return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
         }

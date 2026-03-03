@@ -7,6 +7,7 @@ import {
   submitComment as apiSubmitComment,
   formatCommentData
 } from '@/api/comments';
+import { uid } from '@/stores/userStore';
 
 const props = defineProps({
   postId: {
@@ -20,6 +21,8 @@ const commentsTree = ref([]);
 const isFocused = ref(false);
 const newComment = ref('');
 const activeReplyId = ref(null);
+const activeEditId = ref(null);
+const activeEditDirty = ref(false);
 
 const currentBatch = ref(1);
 const commentsPerLoad = 10;
@@ -29,6 +32,34 @@ const isLoadingMore = ref(false);
 const commentTotalCount = ref(0);
 
 provide('activeReplyId', activeReplyId);
+provide('activeEditId', activeEditId);
+
+const openEditComment = (commentId) => {
+  if (activeEditId.value === commentId) return;
+
+  if (activeEditId.value !== null && activeEditDirty.value) {
+    const confirmDiscard = window.confirm(
+      'You have unsaved changes on another comment. Discard them and edit this comment instead?',
+    );
+    if (!confirmDiscard) return;
+  }
+
+  activeEditId.value = commentId;
+  activeEditDirty.value = false;
+};
+
+const closeEditComment = () => {
+  activeEditId.value = null;
+  activeEditDirty.value = false;
+};
+
+const markEditDirty = (dirty) => {
+  activeEditDirty.value = !!dirty;
+};
+
+provide('openEditComment', openEditComment);
+provide('closeEditComment', closeEditComment);
+provide('markEditDirty', markEditDirty);
 
 const buildCommentTree = (flatComments) => {
   const map = new Map();

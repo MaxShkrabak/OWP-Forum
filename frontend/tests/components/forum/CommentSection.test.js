@@ -2,7 +2,7 @@
 import { mount, flushPromises } from "@vue/test-utils";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import CommentSection from "@/components/forum/CommentSection.vue";
-import { fetchComments } from "@/api/comments";
+import { fetchComments, updateComment } from "@/api/comments";
 
 vi.mock("@/api/auth", () => ({
   checkAuth: vi.fn(() =>
@@ -21,25 +21,44 @@ vi.mock("@/api/comments", () => ({
       total: 15,
       items: [
         {
-          id: 1,
+          commentId: 1,
           content: "This is my first comment!",
-          user: { firstName: "John", lastName: "Rogers" },
+          user: { userId: 1, firstName: "John", lastName: "Rogers" },
           replies: [],
         },
         {
-          id: 2,
+          commentId: 2,
           content: "Wow this post is cool!",
-          user: { firstName: "Jack", lastName: "Timothy" },
+          user: { userId: 2, firstName: "Jack", lastName: "Timothy" },
           replies: [],
         },
       ],
     }),
   ),
   submitComment: vi.fn(),
+  updateComment: vi.fn(() =>
+    Promise.resolve({
+      ok: true,
+      comment: {
+        commentId: 1,
+        content: "Updated comment content",
+        user: { userId: 1, firstName: "John", lastName: "Rogers" },
+      },
+    }),
+  ),
   formatCommentData: vi.fn((data) => ({
     ...data,
-    id: data.id || Math.random(),
+    id: data.commentId || data.id || Math.random(),
+    author: data.user
+      ? `${data.user.firstName} ${data.user.lastName}`
+      : "Unknown",
+    text: data.content,
+    user: {
+      ...(data.user || {}),
+      role: data.user?.role || "user",
+    },
     replies: [],
+    replyCount: data.replyCount || 0,
   })),
 }));
 describe("CommentSection.vue", () => {
@@ -123,5 +142,29 @@ describe("CommentSection.vue", () => {
     expect(renderedComments.length).toBe(initialCount + limit);
 
     expect(wrapper.find(".load-more-btn").exists()).toBe(true);
+  });
+
+  it("allows the author to edit their own comment and shows edited state", async () => {
+    await flushPromises();
+
+    const editButtons = wrapper.findAll(".btn-options");
+    expect(editButtons.length).toBeGreaterThan(0);
+
+    await editButtons[0].trigger("click");
+
+    const editTextarea = wrapper.find("textarea.reply-textarea");
+    expect(editTextarea.exists()).toBe(true);
+
+    await editTextarea.setValue("Updated comment content");
+
+    const saveButton = wrapper.findAll(".btn-submit").at(-1);
+    expect(saveButton.element.disabled).toBe(false);
+
+    await saveButton.trigger("click");
+    await flushPromises();
+
+    expect(updateComment).toHaveBeenCalled();
+    const editedLabel = wrapper.find(".edited-label");
+    expect(editedLabel.exists()).toBe(true);
   });
 });
