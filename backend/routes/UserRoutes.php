@@ -15,12 +15,13 @@ $app->get('/api/me', function(Request $req, Response $res) use ($makePdo) {
 
         $pdo = $makePdo();
 
-        // Single query when ban columns exist (migrations 008, 009); fallback for older DBs
+        // Single query when ban + terms columns exist; fallback for older DBs
         $user = null;
         try {
             $sql = "
                 SELECT u.User_ID, u.Email, u.FirstName, u.LastName, u.Avatar, r.Name as RoleName, r.RoleID,
-                       ISNULL(u.IsBanned, 0) as IsBanned, u.BanType, u.BannedUntil
+                       ISNULL(u.IsBanned, 0) as IsBanned, u.BanType, u.BannedUntil,
+                       ISNULL(u.termsAccepted, 0) as termsAccepted, u.termsAcceptedAt
                 FROM dbo.Users u
                 LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
                 WHERE u.User_ID = :uid
@@ -29,7 +30,22 @@ $app->get('/api/me', function(Request $req, Response $res) use ($makePdo) {
             $stmt->execute([':uid' => $userId]);
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
         } catch (Throwable $e) {
-            // Ban columns may not exist
+        }
+        if (!$user) {
+            try {
+                $sql = "
+                    SELECT u.User_ID, u.Email, u.FirstName, u.LastName, u.Avatar, r.Name as RoleName, r.RoleID,
+                           ISNULL(u.IsBanned, 0) as IsBanned, u.BanType, u.BannedUntil
+                    FROM dbo.Users u
+                    LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
+                    WHERE u.User_ID = :uid
+                ";
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute([':uid' => $userId]);
+                $user = $stmt->fetch(PDO::FETCH_ASSOC);
+            } catch (Throwable $e) {
+                // Ban columns may not exist
+            }
         }
 
         if (!$user) {
@@ -46,7 +62,13 @@ $app->get('/api/me', function(Request $req, Response $res) use ($makePdo) {
                 $user['IsBanned'] = 0;
                 $user['BanType'] = null;
                 $user['BannedUntil'] = null;
+                $user['termsAccepted'] = 0;
+                $user['termsAcceptedAt'] = null;
             }
+        }
+        if ($user && !array_key_exists('termsAccepted', $user)) {
+            $user['termsAccepted'] = 0;
+            $user['termsAcceptedAt'] = null;
         }
 
         if (!$user) {
@@ -56,6 +78,8 @@ $app->get('/api/me', function(Request $req, Response $res) use ($makePdo) {
         $user['IsBanned'] = (int)($user['IsBanned'] ?? 0);
         $user['BanType'] = isset($user['BanType']) && $user['BanType'] ? trim((string)$user['BanType']) : null;
         $user['BannedUntil'] = isset($user['BannedUntil']) && $user['BannedUntil'] ? $user['BannedUntil'] : null;
+        $user['termsAccepted'] = (int)($user['termsAccepted'] ?? 0);
+        $user['termsAcceptedAt'] = isset($user['termsAcceptedAt']) && $user['termsAcceptedAt'] ? $user['termsAcceptedAt'] : null;
 
         // Effective ban: treat expired temporary ban as not banned (no DB write)
         if ($user['IsBanned'] && $user['BanType'] === 'temporary' && $user['BannedUntil']) {
@@ -191,6 +215,30 @@ $app->post('/api/verify-email', function (Request $req, Response $res) use ($mak
 
         return json($res, ['ok' => true, 'emailExists' => $emailExists]);
 
+    } catch (Throwable $e) {
+        return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+    }
+});
+
+$app->post('/api/accept-terms', function(Request $req, Response $res) use ($makePdo) {
+    try {
+        $userId = $req->getAttribute('user_id');
+
+        if ($userId === null) {
+            return json($res, ['ok' => false, 'error' => 'Unauthorized'], 401);
+        }
+
+        $pdo = $makePdo();
+
+        $stmt = $pdo->prepare("
+            UPDATE dbo.Users
+            SET termsAccepted = 1,
+                termsAcceptedAt = GETDATE()
+            WHERE User_ID = :uid
+        ");
+        $stmt->execute([':uid' => $userId]);
+
+        return json($res, ['ok' => true], 200);
     } catch (Throwable $e) {
         return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
     }

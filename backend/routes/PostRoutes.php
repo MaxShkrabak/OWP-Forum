@@ -4,6 +4,7 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
 use function Forum\Helpers\json;
+use function Forum\Helpers\requireTermsAccepted;
 
 $app->post("/api/create-post", function (Request $req, Response $res) use ($makePdo) {
     try {
@@ -14,6 +15,11 @@ $app->post("/api/create-post", function (Request $req, Response $res) use ($make
         }
 
         $pdo = $makePdo();
+
+        if ($termsRes = \Forum\Helpers\requireTermsAccepted($req, $res, $pdo)) {
+            return $termsRes;
+        }
+
         try {
             $banStmt = $pdo->prepare("
                 SELECT ISNULL(IsBanned, 0), BanType, BannedUntil
@@ -519,6 +525,11 @@ $app->post('/api/posts/{id}/vote', function (Request $req, Response $res, array 
         if (!$userId) return json($res, ['ok' => false, 'error' => 'Not Authenticated'], 401);
 
         $pdo = $makePdo();
+
+        if ($termsRes = \Forum\Helpers\requireTermsAccepted($req, $res, $pdo)) {
+            return $termsRes;
+        }
+
         $postId = (int)$args['id'];
 
         $body = $req->getParsedBody();
@@ -558,6 +569,11 @@ $app->patch('/api/posts/{id}/soft-delete', function (Request $req, Response $res
         }
 
         $pdo = $makePdo();
+
+        if ($termsRes = \Forum\Helpers\requireTermsAccepted($req, $res, $pdo)) {
+            return $termsRes;
+        }
+
         $postId = (int)$args['id'];
 
         // Verify ownership
@@ -679,6 +695,10 @@ $app->put('/api/posts/{id}', function (Request $req, Response $res, array $args)
 
         $pdo = $makePdo();
 
+        if ($termsRes = \Forum\Helpers\requireTermsAccepted($req, $res, $pdo)) {
+            return $termsRes;
+        }
+
         $postStmt = $pdo->prepare("SELECT PostID, AuthorID, IsDeleted FROM dbo.Posts WHERE PostID = :id");
         $postStmt->execute(['id' => $postId]);
         $post = $postStmt->fetch(PDO::FETCH_ASSOC);
@@ -791,7 +811,7 @@ $app->put('/api/posts/{id}', function (Request $req, Response $res, array $args)
                 'categoryName' => $updatedPost['CategoryName'] ?? null,
                 'updatedAt'    => $updatedPost['UpdatedAt'],
                 'tags'         => array_map(fn($t) => $t['Name'], $updatedTags),
-                'tagIds'      => array_map(fn($t) => (int)$t['TagID'], $updatedTags),
+                'tagIds'       => array_map(fn($t) => (int)$t['TagID'], $updatedTags),
             ]
         ]);
     } catch (Throwable $e) {
@@ -813,6 +833,10 @@ $app->delete('/api/posts/{id}', function (Request $req, Response $res, array $ar
         }
 
         $pdo = $makePdo();
+
+        if ($termsRes = \Forum\Helpers\requireTermsAccepted($req, $res, $pdo)) {
+            return $termsRes;
+        }
 
         $postStmt = $pdo->prepare("SELECT PostID, AuthorID, IsDeleted FROM dbo.Posts WHERE PostID = :id");
         $postStmt->execute(['id' => $postId]);
