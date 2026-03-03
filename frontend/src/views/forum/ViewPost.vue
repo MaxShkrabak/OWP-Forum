@@ -22,8 +22,16 @@ const getLocalDate = (input) => {
   return new Date(dateStr);
 };
 
+const dateSource = computed(() => {
+  return post.value?.updatedAt || post.value?.createdAt;
+});
+
+const dateLabel = computed(() => {
+  return post.value?.updatedAt ? "Edited" : "Posted";
+});
+
 const dateText = computed(() => {
-  const d = getLocalDate(post.value?.createdAt);
+  const d = getLocalDate(dateSource.value);
   return d
     ? d.toLocaleDateString("en-US", {
         month: "short",
@@ -34,7 +42,7 @@ const dateText = computed(() => {
 });
 
 const timeText = computed(() => {
-  const d = getLocalDate(post.value?.createdAt);
+  const d = getLocalDate(dateSource.value);
   return d
     ? d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
     : "";
@@ -133,7 +141,7 @@ onMounted(async () => {
                   <UserRole :role="post.authorRole" />
                 </div>
                 <div class="post-timestamp">
-                  <span>Posted {{ dateText }} at {{ timeText }}</span>
+                  <span>{{ dateLabel }} {{ dateText }} at {{ timeText }}</span>
                 </div>
               </div>
             </div>
