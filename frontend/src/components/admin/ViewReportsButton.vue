@@ -139,12 +139,12 @@ onUnmounted(() => {
 
     <Teleport to="body">
       <div class="toast-container position-fixed bottom-0 end-0 p-3">
-        <div ref="toastEl" id="myToast" class="toast align-items-center text-bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="4000">
+        <div ref="toastEl" id="myToast" class="toast align-items-center border-0" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="4000">
           <div class="d-flex">
             <div class="toast-body">
             Resolved Ticket: #{{ mostRecentTicket }}
             </div>
-            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            <button type="button" class="btn-close btn-close-black me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
           </div>
         </div>
       </div>
@@ -242,7 +242,7 @@ onUnmounted(() => {
             <div class="modal-footer">
               <button
                 type="button"
-                class="btn btn-secondary"
+                class="report-cta-btn text-white px-5 fs-5"
                 data-bs-dismiss="modal"
               >
                 Close
@@ -258,6 +258,10 @@ onUnmounted(() => {
 <style scoped>
 .action-container {
   width: 100%;
+}
+.toast{
+  background-color: #6dbe4b;
+  font-weight: 600;
 }
 
 .btn-reports {
@@ -413,6 +417,7 @@ onUnmounted(() => {
 }
 .report-source {
   font-weight: 700;
+  font-size: .9rem;
   .report-source-author {
     text-transform: capitalize;
   }
