@@ -256,15 +256,14 @@ onMounted(async () => {
 
       <table v-if="!loading && users.length" class="admin-table mt-3">
         <thead>
-
-          <tr>
-            <th>ID</th>
-            <th>Name</th>
-            <th>Email</th>
-            <th>Role</th>
-            <th>Status</th>
-            <th>Action</th>
-          </tr>
+            <tr>
+              <th>ID</th>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
         </thead>
         <tbody>
           <tr v-for="u in users" :key="u.User_ID" :class="{ 'row-banned': u.IsBanned }">
@@ -401,7 +400,7 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.mobile-only { display: inline; }
+.mobile-only { display: table; }
 .desktop-only { display: none; }
 .page-title {
   font-size: 24px;
@@ -563,7 +562,7 @@ onMounted(async () => {
 }
 
 .btn-ban {
-  padding: 6px 14px;
+  padding: 1px 5px;
   border-radius: 10px;
   font-weight: 600;
   font-size: 13px;
@@ -770,9 +769,12 @@ onMounted(async () => {
     font-size: 14px;
   }
   .badge {
-  padding: 4px 10px;
+  padding: 2px 10px;
+  }
+  .btn-ban {
+  padding: 2px 14px;
   }
   .mobile-only { display: none; }
-  .desktop-only { display: inline; }
+  .desktop-only { display: table; }
 }
 </style>
