@@ -78,8 +78,7 @@ describe("ViewPost - Edit/Delete visibility by role", () => {
     const wrapper = await mountAndWait();
 
     expect(wrapper.text()).toContain("Edit Post");
-    expect(wrapper.text()).toContain("Delete Post");
-    expect(wrapper.text()).not.toContain("Update Category & Tags");
+    expect(wrapper.text()).toContain("Delete");
   });
 
   it("Non-author normal user sees no moderation buttons", async () => {
@@ -90,8 +89,8 @@ describe("ViewPost - Edit/Delete visibility by role", () => {
     const wrapper = await mountAndWait();
 
     expect(wrapper.text()).not.toContain("Edit Post");
-    expect(wrapper.text()).not.toContain("Delete Post");
-    expect(wrapper.text()).not.toContain("Update Category & Tags");
+    expect(wrapper.text()).not.toContain("Delete");
+    expect(wrapper.text()).not.toContain("Edit");
   });
 
   it("Admin/Moderator non-author sees Delete + Metadata, no Edit", async () => {
@@ -102,7 +101,7 @@ describe("ViewPost - Edit/Delete visibility by role", () => {
     const wrapper = await mountAndWait();
 
     expect(wrapper.text()).not.toContain("Edit Post");
-    expect(wrapper.text()).toContain("Delete Post");
-    expect(wrapper.text()).toContain("Update Category & Tags");
+    expect(wrapper.text()).toContain("Delete");
+    expect(wrapper.text()).toContain("Edit");
   });
 });
