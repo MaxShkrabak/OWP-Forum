@@ -14,10 +14,12 @@ use function Forum\Helpers\checkUserBan;
 class CommentController
 {
     private Closure $makePdo;
+    private Closure $sendCommentEmail;
 
-    public function __construct(Closure $makePdo)
+    public function __construct(Closure $makePdo, ?Closure $sendCommentEmail = null)
     {
         $this->makePdo = $makePdo;
+        $this->sendCommentEmail = $sendCommentEmail ?? fn(array $message) => $this->dispatchCommentNotification($message);
     }
 
     private function formatUserRow(array $row): array
@@ -50,7 +52,8 @@ class CommentController
 
         try {
             $fullName = trim(($post['FirstName'] ?? '') . ' ' . ($post['LastName'] ?? ''));
-            $sent = $this->sendCommentNotification($post['Email'], $fullName, $post['Title']);
+            $message = $this->buildCommentNotificationMessage($post['Email'], $fullName, $post['Title']);
+            $sent = ($this->sendCommentEmail)($message);
 
             if ($sent) {
                 $updateStmt = $pdo->prepare("UPDATE dbo.Posts SET LastCommentNotificationSentAt = SYSUTCDATETIME() WHERE PostID = :postId");
@@ -73,22 +76,15 @@ class CommentController
         return $lastTime <= time() - ($cooldownMinutes * 60);
     }
 
-    private function sendCommentNotification(string $email, string $name, string $postTitle): bool
+    private function buildCommentNotificationMessage(string $email, string $name, string $postTitle): array
     {
-        $apiKey = $_ENV['EMAIL_API_KEY'] ?? '';
         $fromEmail = $_ENV['EMAIL_FROM_ADDRESS'] ?? '';
         $fromName = $_ENV['EMAIL_FROM_NAME'] ?? 'OWP Forum';
-        $useSandbox = filter_var($_ENV['EMAIL_SANDBOX'] ?? 'true', FILTER_VALIDATE_BOOLEAN);
-
-        if ($apiKey === '' || $fromEmail === '') {
-            error_log("Email API key or from address not configured. Cannot send notification.");
-            return false;
-        }
 
         $safeName = htmlspecialchars($name !== '' ? $name : $email, ENT_QUOTES,'UTF-8');
         $safeTitle = htmlspecialchars($postTitle, ENT_QUOTES,'UTF-8');
 
-        $payload = [
+        return [
             'sender' => [
                 'email' => $fromEmail,
                 'name' => $fromName
@@ -100,6 +96,18 @@ class CommentController
             'subject' => "New comment on your post: {$postTitle}",
             'htmlContent' => "<p>Hi {$safeName},</p><p>Your post titled <strong>{$safeTitle}</strong> has received a new comment. Visit the post to see the discussion!</p><p>Best,<br/>OWP Forum Team</p>"
         ];
+    }
+
+    private function dispatchCommentNotification(array $payload): bool
+    {
+        $apiKey = $_ENV['EMAIL_API_KEY'] ?? '';
+        $fromEmail = $_ENV['EMAIL_FROM_ADDRESS'] ?? '';
+        $useSandbox = filter_var($_ENV['EMAIL_SANDBOX'] ?? 'true', FILTER_VALIDATE_BOOLEAN);
+
+        if ($apiKey === '' || $fromEmail === '') {
+            error_log("Email API key or from address not configured. Cannot send notification.");
+            return false;
+        }
 
         $headers = [
                 'accept: application/json',
