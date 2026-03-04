@@ -49,6 +49,39 @@ $app->post("/api/create-post", function (Request $req, Response $res) use ($make
         $tagsIn = array_values(array_unique(array_map('intval', $tagsIn)));
         $tagsIn = array_slice(array_filter($tagsIn, fn($v) => $v > 0), 0, 5);
 
+        // Simple spam protection: cooldown + duplicate check
+        $postCooldownSeconds = 60;
+
+        $lastPostStmt = $pdo->prepare("
+            SELECT TOP 1 Title, CreatedAt, CAST(Content AS NVARCHAR(MAX)) as Content
+            FROM dbo.Posts 
+            WHERE AuthorID = :uid AND IsDeleted = 0
+            ORDER BY CreatedAt DESC
+        ");
+        $lastPostStmt->execute([':uid' => $userId]);
+        $lastPost = $lastPostStmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($lastPost) {
+            $lastTime = new \DateTimeImmutable($lastPost['CreatedAt'], new \DateTimeZone('UTC'));
+            $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
+            $secondsSinceLastPost = $now->getTimestamp() - $lastTime->getTimestamp();
+
+            if ($secondsSinceLastPost < $postCooldownSeconds) {
+                $secondsLeft = $postCooldownSeconds - $secondsSinceLastPost;
+                return json($res, [
+                    'ok' => false,
+                    'error' => "Please wait {$secondsLeft}s before posting again."
+                ], 429);
+            }
+
+            if ($lastPost['Title'] === $title && $lastPost['Content'] === $content) {
+                return json($res, [
+                    'ok' => false,
+                    'error' => 'You already created an identical post!'
+                ], 409);
+            }
+        }
+
         $pdo->beginTransaction();
 
         // Category section
