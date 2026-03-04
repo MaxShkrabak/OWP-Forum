@@ -294,11 +294,11 @@ onMounted(async () => {
 }
 
 .avatar-box {
-  width: 46px;
-  height: 46px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   overflow: hidden;
-  border: 2px solid #b0c9bc;
+  border: 2px solid #7e9291;
   background: #f0f4f2;
 }
 
@@ -314,12 +314,12 @@ onMounted(async () => {
 
 .author-name {
   font-weight: 700;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   color: #1a2e22;
 }
 
 .post-timestamp {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 600;
   color: #7a9a8a;
 }
@@ -330,8 +330,8 @@ onMounted(async () => {
 
 :deep(.role-pill) {
   border-radius: 4px !important;
-  padding: 3px 6px 2px !important;
-  font-size: 0.55rem !important;
+  padding: 2px 3px 1px !important;
+  font-size: 0.45rem !important;
   vertical-align: middle !important;
 }
 

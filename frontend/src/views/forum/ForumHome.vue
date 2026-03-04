@@ -125,7 +125,7 @@ function getCategoryIcon(categoryName) {
   if (name.includes("announcement")) return "pi pi-megaphone";
   if (name.includes("research")) return "pi pi-chart-line";
   if (name.includes("help")) return "pi pi-question-circle";
-  return "pi pi-file";
+  return "pi pi-folder-open";
 }
 
 onMounted(async () => {
