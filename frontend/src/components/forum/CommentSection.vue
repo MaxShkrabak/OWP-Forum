@@ -5,8 +5,9 @@ import SingleComment from "./SingleComment.vue";
 import {
   fetchComments as apiFetchComments,
   submitComment as apiSubmitComment,
-  formatCommentData,
-} from "@/api/comments";
+  formatCommentData
+} from '@/api/comments';
+import { uid } from '@/stores/userStore';
 
 const props = defineProps({
   postId: {
@@ -20,6 +21,10 @@ const commentsTree = ref([]);
 const isFocused = ref(false);
 const newComment = ref("");
 const activeReplyId = ref(null);
+const activeEditId = ref(null);
+const activeEditDirty = ref(false);
+const pendingEditId = ref(null);
+const showDiscardConfirm = ref(false);
 
 const currentBatch = ref(1);
 const commentsPerLoad = 10;
@@ -28,7 +33,57 @@ const isLoadingMore = ref(false);
 
 const commentTotalCount = ref(0);
 
-provide("activeReplyId", activeReplyId);
+const sortOptions = [
+  { label: 'Newest', value: 'latest' },
+  { label: 'Oldest', value: 'oldest' },
+  { label: 'Most Liked', value: 'mostLiked' }
+];
+const selectedSort = ref('latest');
+
+provide('activeReplyId', activeReplyId);
+provide('activeEditId', activeEditId);
+
+const openEditComment = (commentId) => {
+  if (activeEditId.value === commentId) return;
+
+  if (activeEditId.value !== null && activeEditDirty.value) {
+    pendingEditId.value = commentId;
+    showDiscardConfirm.value = true;
+    return;
+  }
+
+  activeEditId.value = commentId;
+  activeEditDirty.value = false;
+};
+
+const closeEditComment = () => {
+  activeEditId.value = null;
+  activeEditDirty.value = false;
+};
+
+const markEditDirty = (dirty) => {
+  activeEditDirty.value = !!dirty;
+};
+
+const confirmSwitchEdit = () => {
+  if (pendingEditId.value === null) {
+    showDiscardConfirm.value = false;
+    return;
+  }
+  activeEditId.value = pendingEditId.value;
+  activeEditDirty.value = false;
+  pendingEditId.value = null;
+  showDiscardConfirm.value = false;
+};
+
+const cancelSwitchEdit = () => {
+  pendingEditId.value = null;
+  showDiscardConfirm.value = false;
+};
+
+provide('openEditComment', openEditComment);
+provide('closeEditComment', closeEditComment);
+provide('markEditDirty', markEditDirty);
 
 const buildCommentTree = (flatComments) => {
   const map = new Map();
@@ -66,6 +121,7 @@ const loadComments = async (isInitial = true) => {
       props.postId,
       currentBatch.value,
       commentsPerLoad,
+      selectedSort.value
     );
 
     if (data && data.ok) {
@@ -88,6 +144,10 @@ const loadComments = async (isInitial = true) => {
   } finally {
     isLoadingMore.value = false;
   }
+};
+
+const handleSortChange = async () => {
+  await loadComments(true);
 };
 
 const handleLoadMore = async () => {
@@ -150,10 +210,27 @@ onMounted(() => {
 <template>
   <div class="comment-section bg-white text-start">
     <div
-      class="comments-header d-flex align-items-center gap-2 p-3 text-uppercase small"
+      class="comments-header d-flex flex-wrap align-items-center justify-content-between gap-2 p-3 text-uppercase small"
     >
-      <i class="pi pi-comments"></i>
-      <span>Comments ({{ totalCommentsCount }})</span>
+      <div class="d-flex align-items-center gap-2">
+        <i class="pi pi-comments"></i>
+        <span>Comments ({{ totalCommentsCount }})</span>
+      </div>
+
+      <div class="sort-dropdown d-inline-flex align-items-center">
+        <i class="pi pi-sort-alt d-sm-none me-1"></i>
+        <span class="sort-label d-none d-sm-inline-block me-2">Sort:</span>
+        <select
+          id="comment-sort"
+          v-model="selectedSort"
+          @change="handleSortChange"
+          class="sort-select"
+        >
+          <option v-for="option in sortOptions" :key="option.value" :value="option.value">
+            {{ option.label }}
+          </option>
+        </select>
+      </div>
     </div>
 
     <div class="p-3 p-md-4">
@@ -210,6 +287,39 @@ onMounted(() => {
         </button>
       </div>
     </div>
+
+    <Teleport to="body">
+      <Transition name="fade">
+        <div
+          v-if="showDiscardConfirm"
+          class="comment-modal-mask d-flex align-items-center justify-content-center"
+          @click.self="cancelSwitchEdit"
+        >
+          <div class="comment-modal-card shadow-lg">
+            <p class="fw-bold mb-1">Discard unsaved changes?</p>
+            <p class="small text-muted mb-3">
+              You have unsaved changes on another comment. If you continue, those changes will be lost.
+            </p>
+            <div class="d-flex justify-content-end gap-2">
+              <button
+                type="button"
+                class="btn-cancel border-0 bg-transparent fw-bold small"
+                @click="cancelSwitchEdit"
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                class="btn-submit border-0 rounded-2 fw-bold px-3 py-1 small"
+                @click="confirmSwitchEdit"
+              >
+                Discard & switch
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -261,6 +371,81 @@ onMounted(() => {
 
 .load-more-btn:hover {
   background: rgba(0, 71, 80, 0.05) !important;
+}
+
+.comment-modal-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 1050;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+}
+
+.comment-modal-card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  max-width: 360px;
+  width: 90%;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+.header-row {
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 0.75rem;
+}
+
+.sort-dropdown {
+  background-color: rgba(30, 77, 56, 0.06); /* Subtle green tint */
+  border: 1px solid #cce3d6;
+  border-radius: 6px;
+  padding: 0.35rem 0.5rem 0.35rem 0.75rem;
+  color: #1e4d38;
+  transition: all 0.2s ease;
+}
+
+.sort-dropdown:hover {
+  background-color: rgba(30, 77, 56, 0.1);
+  border-color: #8aab97;
+}
+
+.sort-label {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #1e4d38;
+}
+
+.sort-dropdown i {
+  font-size: 0.8rem;
+  color: #1e4d38;
+}
+
+.sort-select {
+  background-color: transparent;
+  border: none;
+  outline: none;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #1e4d38;
+  cursor: pointer;
+  text-transform: uppercase;
+  padding-right: 0.25rem;
+}
+
+/* Keeps the actual dropdown options legible */
+.sort-select option {
+  color: #1f2937;
+  text-transform: none;
+  font-weight: normal;
 }
 
 @media (max-width: 599px) {
