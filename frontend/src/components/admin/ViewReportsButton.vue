@@ -3,6 +3,7 @@ import { ref, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { userRole } from "@/stores/userStore";
 import { fetchReports, resolveReport } from "@/api/reports";
+import { timeAgo } from "@/utils/timeAgo";
 
 const router = useRouter();
 const reports = ref([]);
@@ -159,8 +160,8 @@ onUnmounted(() => {
         <div class="modal-dialog modal-dialog-centered modal-xl">
           <div class="modal-content">
             <div class="modal-header">
-              <span class="modal-title fs-4" id="viewReportsModal">
-                Submitted Reports
+              <span class="modal-title text-center fs-3 text-white" id="viewReportsModal">
+                <span class="modal-title-report-count fs-2">{{ totalReports }}</span> Submitted Report{{ totalReports > 1 ? 's' : '' }}
               </span>
               <button
                 class="btn-refresh"
@@ -173,7 +174,7 @@ onUnmounted(() => {
 
               <button
                 type="button"
-                class="btn-close"
+                class="btn-close btn-close-white"
                 data-bs-dismiss="modal"
                 aria-label="Close"
               ></button>
@@ -195,26 +196,26 @@ onUnmounted(() => {
                   <div class="report-details">
                     <span class="report-id text-muted small text-center">
                       <span class="report-source-by">
-                        <i class="mx-1" :class="r.source === 'Comment' ? sources[1].icon : sources[0].icon"></i>
+                        <i class="mx-1 report-source-icon" :class="r.source === 'Comment' ? sources[1].icon : sources[0].icon"></i>
                         Ticket: </span>#{{ r.reportId }}
                     </span>
                       <div class="col-12">
+                        <span class="report-title col-12 my-2 mb-3 text-truncate">"{{ r.source === 'Comment' ? r.commentText : r.postTitle }}"</span>
                         <span class="report-source col-12">
                           <span class="me-2">{{ r.source === 'Comment' ? 'Comment' : 'Post' }}</span>
                           <span class="report-source-by me-2">by</span> 
                           <span class="report-source-author">{{ r.source === 'Comment' ? r.commentAuthor : r.postAuthor }}</span>
                         </span>
-                        <span class="report-title col-12 my-1 text-truncate">"{{ r.source === 'Comment' ? r.commentText : r.postTitle }}"</span>
                         <div class="col-12 gap-3 d-flex flex-wrap align-items-center">
                           <span class="report-reporter text-muted small col-auto">
                             <span class="report-source-by">Reported by: </span>
                             {{ r.reporter.fullName }}
                           </span>
-                          <span class="report-reason col-auto">
+                          <span class="report-date text-muted small col-auto">{{ timeAgo(r.createdAt) }}</span>
+                          <span class="report-reason col-auto col-xl-auto">
                             <span class="report-source-by">Reason: </span>
                             {{ r.reason }}
                           </span>
-                          <span class="report-date text-muted small col-12 col-xl-auto">At: {{ r.createdAt }}</span>
                         </div>
                     </div>
                   </div>
@@ -242,7 +243,7 @@ onUnmounted(() => {
             <div class="modal-footer">
               <button
                 type="button"
-                class="report-cta-btn text-white px-5 fs-5"
+                class="report-cta-btn text-white px-3 fs-6"
                 data-bs-dismiss="modal"
               >
                 Close
@@ -359,7 +360,13 @@ onUnmounted(() => {
   position: sticky;
   top: 0;
   z-index: 1055;
-  background-color: white;
+  background: linear-gradient(135deg, #004b33 0%, #003d4c 100%);
+}
+.modal-title {
+  font-weight: 700;
+}
+.modal-title-report-count {
+  color: #6dbe4b;
 }
 .btn-refresh {
   margin-left: 2rem;
@@ -367,15 +374,18 @@ onUnmounted(() => {
   background: #006649;
   border-radius: 10px;
   color: #ffffff;
-  font-size: 1.2rem;
+  font-size: 1.0rem;
   font-weight: 500;
   cursor: pointer;
   transition: color 0.15s ease;
-  border: none;
+  border: white solid 1px;
+  text-wrap: nowrap;
 }
 .btn-refresh:disabled {
-    background-color: #04392769 !important;
+    background-color: rgba(64, 175, 138, 0.89)important;
+    color: gray;
     cursor: not-allowed;
+    border: gray solid 1px;
 }
 .btn-refresh:hover:not(:disabled) {
   color: #6dbe4b;
@@ -408,11 +418,11 @@ onUnmounted(() => {
   min-width: 60px;
   font-weight: 700;
   color: #6d6d6d;
-  background-color: rgba(211, 211, 211, 0.603);
+  background: linear-gradient(270deg, #007a4b33 0%, rgba(211, 211, 211, 0.603) 65%);
   padding: .7rem 0.5rem;
   border-top-left-radius: 8px;
   border-bottom-left-radius: 8px;
-  border-right: #007a4c solid 3px;
+  border-right: #007a4c solid 5px;
   transition: background-color 0.15s ease;
 }
 .report-source {
@@ -428,20 +438,30 @@ onUnmounted(() => {
     margin: 0 4px 0 0;
     color: #838383;
   }
+.report-source-icon {
+  font-size: 0.9rem;
+  color: #007a4c;
+}
 .report-title {
   display: block;
   max-width: 10rem;
+  border-radius: 2px;
+  border-left: gray solid 4px;
+  background: linear-gradient(90deg, #003d4c1a 0%, rgba(255, 255, 255, 0) 20%);
+  padding-left: 4px;
+  font-size: 1.15rem;
 }
 .report-reporter {
   font-weight: 700;
   text-transform: capitalize;
 }
 .report-reason {
-  font-weight: 700;
+  font-weight: 800;
   padding: 0.2rem 0.5rem;
-  background: rgba(154, 51, 36, 0.12);
+  background: rgba(131, 19, 2, 0.11);
   border-radius: 6px;
   font-size: 0.9rem;
+  color: rgba(255, 0, 0, 0.61);
 }
 .report-date {
   font-size: 0.8rem;
@@ -450,14 +470,17 @@ onUnmounted(() => {
   padding: 0.45rem 0.7rem;
   font-size: 0.85rem;
   border-radius: 6px;
-  background-color: #007a4c;
+  background: linear-gradient(170deg, #01a365 0%, #007a4c 100%);
+  transition: background 0.45s ease;
   border: none;
 }
 .report-cta-btn:hover {
-  background-color: #007a4cce;
+  background: linear-gradient(170deg, #01b470 0%, #007a4c 100%);
+  transition: background 0.45s ease;
 }
 .report-cta-btn:active{
-  background-color: #007a4c90;
+  background: linear-gradient(170deg, #00cc7e 0%, #018552 100%);
+  transition: background 0.45s ease;
 }
 
 @media (min-width: 432px) {
