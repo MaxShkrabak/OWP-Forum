@@ -286,37 +286,41 @@ describe("AdminReports.vue — DOM + CRUD behaviors", () => {
     expect(wrapper.text()).not.toContain("No active reports (unresolved).");
   });
 
-  it("8) Clicking Resolve calls resolveReport and removes report from UI list", async () => {
-    mockReportsApi.resolveReport.mockResolvedValue({ ok: true });
+ it("8) Clicking Resolve calls resolveReport and removes report from UI list", async () => {
+  mockReportsApi.resolveReport.mockResolvedValue({ ok: true });
 
-    const wrapper = mount(AdminReports);
-    await flushPromises();
+  const wrapper = mount(AdminReports);
+  await flushPromises();
 
-    expect(wrapper.findAll(".reports-list .report-row").length).toBe(2);
+  // Find the row that corresponds to Post #99 (order can be newest-first)
+  const rows = wrapper.findAll(".reports-list .report-row");
+  const targetRow = rows.find((row) => row.text().includes("Post #99"));
+  expect(targetRow, "Expected a report row for Post #99").toBeTruthy();
 
-    // click Resolve on first report row
-    const firstRow = wrapper.findAll(".reports-list .report-row")[0];
-    const resolveBtn = firstRow.find("button.btn-solid");
-    await resolveBtn.trigger("click");
-    await flushPromises();
+  await targetRow.find("button.btn-solid").trigger("click"); // Resolve
+  await flushPromises();
 
-    expect(mockReportsApi.resolveReport).toHaveBeenCalledWith(1);
+  expect(mockReportsApi.resolveReport).toHaveBeenCalledWith(1);
 
-    // should remove from UI
-    expect(wrapper.findAll(".reports-list .report-row").length).toBe(1);
-    expect(wrapper.text()).not.toContain("Post 99 Title");
-    expect(wrapper.text()).toContain("Post 100 Title");
-  });
+  // Should remove that report from UI
+  const remainingRows = wrapper.findAll(".reports-list .report-row");
+  expect(remainingRows.length).toBe(1);
+  expect(wrapper.text()).not.toContain("Post #99");
+  expect(wrapper.text()).toContain("Post #100");
+});
 
-  it('9) Clicking "Go to" routes to correct report content', async () => {
-    const wrapper = mount(AdminReports);
-    await flushPromises();
+it('9) Clicking "Go to" routes to correct report content', async () => {
+  const wrapper = mount(AdminReports);
+  await flushPromises();
 
-    const firstRow = wrapper.findAll(".reports-list .report-row")[0];
-    const goBtn = firstRow.find("button.btn-outline");
-    await goBtn.trigger("click");
-    await flushPromises();
+  // Find the row that corresponds to Post #99
+  const rows = wrapper.findAll(".reports-list .report-row");
+  const targetRow = rows.find((row) => row.text().includes("Post #99"));
+  expect(targetRow, "Expected a report row for Post #99").toBeTruthy();
 
-    expect(mockRouter.push).toHaveBeenCalledWith("/posts/99");
-  });
+  await targetRow.find("button.btn-outline").trigger("click"); // Go to
+  await flushPromises();
+
+  expect(mockRouter.push).toHaveBeenCalledWith("/posts/99");
+});
 });
