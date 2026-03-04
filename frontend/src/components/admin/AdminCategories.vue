@@ -147,16 +147,18 @@ onMounted(loadCategories);
 
     <div class="admin-card">
       <div class="toolbar mb-4 d-flex justify-content-between align-items-center">
-        <span class="text-muted">Categories from the database. Edit, add, or delete. Deleted category posts move to General.</span>
+        <span class="text-muted">* Deleted category posts move to General.</span>
         <button type="button" class="btn-add" @click="openAdd">
-          <i class="bi bi-plus-lg"></i> Add category
+          <i class="bi bi-plus-lg"></i> Add 
+          <span class="d-none d-sm-inline">category</span>
         </button>
       </div>
 
       <div v-if="loading" class="state mt-3 text-center">Loading…</div>
       <div v-if="error" class="err mt-3">{{ error }}</div>
 
-      <table v-if="!loading && categories.length" class="admin-table mt-3">
+      <div class="table-wrapper">
+        <table v-if="!loading && categories.length" class="admin-table mt-3">
         <thead>
           <tr>
             <th>ID</th>
@@ -169,24 +171,30 @@ onMounted(loadCategories);
           <tr v-for="cat in categories" :key="cat.categoryId">
             <td class="admin-id">{{ cat.categoryId }}</td>
             <td class="admin-name">{{ cat.name }}</td>
-            <td>{{ roleLabel(cat.usableByRoleID) }}</td>
             <td>
-              <button type="button" class="btn-action btn-edit" @click="openEdit(cat)" title="Edit">
-                <i class="bi bi-pencil"></i>
-              </button>
-              <button
-                type="button"
-                class="btn-action btn-delete"
-                :disabled="cat.name === 'General'"
-                :title="cat.name === 'General' ? 'Cannot delete General' : 'Delete'"
-                @click="openDeleteConfirm(cat)"
-              >
-                <i class="bi bi-trash"></i>
-              </button>
+              <span class="role-full">{{ roleLabel(cat.usableByRoleID) }}</span>
+              <span class="role-short">{{ roleLabel(cat.usableByRoleID).charAt(0) }}</span>
+            </td>
+            <td>
+              <div class="actions">
+                <button type="button" class="btn-action btn-edit" @click="openEdit(cat)" title="Edit">
+                  <i class="bi bi-pencil"></i>
+                </button>
+                <button
+                  type="button"
+                  class="btn-action btn-delete"
+                  :disabled="cat.name === 'General'"
+                  :title="cat.name === 'General' ? 'Cannot delete General' : 'Delete'"
+                  @click="openDeleteConfirm(cat)"
+                >
+                  <i class="bi bi-trash"></i>
+                </button>
+              </div>
             </td>
           </tr>
         </tbody>
-      </table>
+        </table>
+      </div>
 
       <div v-if="!loading && categories.length === 0" class="state mt-4 text-center">
         No categories yet. Add one above.
@@ -264,12 +272,13 @@ onMounted(loadCategories);
   width: 100%;
   background: #ffffff;
   border-radius: 16px;
-  padding: 24px;
+  padding: 10px 5px;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.05);
 }
 
 .toolbar .text-muted {
   font-size: 0.9rem;
+  font-style: italic;
 }
 
 .btn-add {
@@ -315,10 +324,8 @@ onMounted(loadCategories);
   vertical-align: middle;
 }
 
-.admin-table tbody tr:hover {
-  background: #f5f9f8;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
-}
+.role-short { display: none; }
+
 
 .admin-id {
   color: #888;
@@ -340,6 +347,12 @@ onMounted(loadCategories);
 .btn-action:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.actions {
+  display: flex;
+  flex-direction: row;
+  gap: 4px;
 }
 .btn-edit:hover:not(:disabled) {
   background: #e0f2f1;
@@ -493,5 +506,29 @@ onMounted(loadCategories);
 }
 .btn-danger:hover {
   background: #b71c1c;
+}
+
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+@media (max-width: 480px) {
+  .actions { flex-direction: column; align-items: center; }
+}
+
+@media (max-width: 768px) {
+  .admin-table thead th:nth-child(1) {
+    display: none;
+  }
+  .admin-table tbody td:nth-child(1) {
+    display: none;
+  }
+  .admin-table tbody td {
+    padding: 8px 6px;
+  }
+
+  .role-full { display: none !important; }
+  .role-short { display: inline !important; }
 }
 </style>

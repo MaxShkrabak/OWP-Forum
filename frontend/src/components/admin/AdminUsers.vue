@@ -254,7 +254,8 @@ onMounted(async () => {
       <div v-if="loading" class="state mt-3 text-center">Loading…</div>
       <div v-if="error" class="err mt-3">{{ error }}</div>
 
-      <table v-if="!loading && users.length" class="admin-table mt-3">
+      <div class="table-wrapper">
+        <table v-if="!loading && users.length" class="admin-table mt-3">
         <thead>
             <tr>
               <th>ID</th>
@@ -286,7 +287,9 @@ onMounted(async () => {
               </select>
             </td>
             <td>
-              <span v-if="u.IsBanned" class="badge badge-banned">{{ banStatusLabel(u) }}</span>
+              <span v-if="u.IsBanned" class="badge badge-banned">
+                <span class="desktop-only">{{ banStatusLabel(u) }}</span>
+              </span>
               <span v-else class="badge badge-active">
                 <span class="desktop-only">Active</span>
               </span>
@@ -317,7 +320,8 @@ onMounted(async () => {
             </td>
           </tr>
         </tbody>
-      </table>
+        </table>
+      </div>
 
       <div v-if="!loading && users.length === 0" class="state mt-4 text-center">
         No users found.
@@ -553,6 +557,7 @@ onMounted(async () => {
 .badge-banned {
   background: #fecaca;
   color: #b91c1c;
+  border : #ff6d6d 1px solid;
 }
 
 .badge-active {
@@ -562,7 +567,7 @@ onMounted(async () => {
 }
 
 .btn-ban {
-  padding: 1px 5px;
+  padding: 1px 8px;
   border-radius: 10px;
   font-weight: 600;
   font-size: 13px;
@@ -579,7 +584,7 @@ onMounted(async () => {
 }
 
 .btn-unban {
-  padding: 6px 14px;
+  padding: 1px 8px;
   border-radius: 10px;
   font-weight: 600;
   font-size: 13px;
@@ -727,6 +732,12 @@ onMounted(async () => {
   background: #b45309;
 }
 
+/* Table wrapper for horizontal scrolling on small screens */
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
 /* Role confirmation modal */
 .confirm-card {
   background: #fff;
@@ -774,7 +785,25 @@ onMounted(async () => {
   .btn-ban {
   padding: 2px 14px;
   }
+  .btn-unban {
+  padding: 2px 14px;
+  }
   .mobile-only { display: none; }
   .desktop-only { display: table; }
+  
+}
+
+@media (max-width: 768px) {
+  .admin-table thead th:nth-child(1),
+  .admin-table thead th:nth-child(3) {
+    display: none;
+  }
+  .admin-table tbody td:nth-child(1),
+  .admin-table tbody td:nth-child(3) {
+    display: none;
+  }
+  .admin-table tbody td {
+    padding: 8px 6px;
+  }
 }
 </style>

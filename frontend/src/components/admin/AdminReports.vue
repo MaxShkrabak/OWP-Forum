@@ -310,14 +310,19 @@ onMounted(() => {
 
         <button class="btn-add" @click="openAdd">
           <i class="bi bi-plus-lg"></i>
-          Add Report Tag
+          <span>
+            Add
+            <span class="desktop-only">Report Tag</span>
+          </span>
         </button>
       </div>
 
       <div v-if="loading" class="state mt-3 text-center">Loading…</div>
       <div v-if="error" class="err mt-3">{{ error }}</div>
 
-      <table v-if="!loading && filtered.length" class="admin-table mt-3">
+      <div class="table-wrapper">
+        <div class="table-wrapper">
+        <table v-if="!loading && filtered.length" class="admin-table mt-3">
         <thead>
           <tr>
             <th style="width: 90px">#</th>
@@ -333,16 +338,18 @@ onMounted(() => {
             <td>
               <div class="actions">
                 <button class="btn-action" @click="openEdit(t)">
-                  <i class="bi bi-pencil-square"></i> Edit
+                  <i class="bi bi-pencil-square"></i> <span class="desktop-only">Edit</span>
                 </button>
                 <button class="btn-action danger" @click="requestDelete(t)">
-                  <i class="bi bi-trash"></i> Delete
+                  <i class="bi bi-trash"></i> <span class="desktop-only">Delete</span>
                 </button>
               </div>
             </td>
           </tr>
         </tbody>
-      </table>
+          </table>
+      </div>
+      </div>
 
       <div v-if="!loading && filtered.length === 0" class="state mt-4 text-center">
         No report tags found.
@@ -544,7 +551,7 @@ onMounted(() => {
   position: relative;
   width: 100%;
   flex: 1;
-  min-width: 240px;
+  min-width: 100px;
 }
 .search-icon {
   position: absolute;
@@ -599,7 +606,7 @@ onMounted(() => {
   width: 100%;
   background: #ffffff;
   border-radius: 16px;
-  padding: 24px;
+  padding: 12px;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.05);
 }
 
@@ -631,6 +638,12 @@ onMounted(() => {
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
 }
 
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 .admin-id {
   color: #888;
   font-size: 0.85rem;
@@ -645,6 +658,7 @@ onMounted(() => {
   gap: 10px;
   justify-content: flex-start;
 }
+
 .btn-action {
   display: inline-flex;
   align-items: center;
@@ -939,9 +953,18 @@ onMounted(() => {
   border-color: #16a34a;
   color: white;
 }
+.desktop-only {
+  display: inline;
+}
+@media (max-width: 480px) {
+  .actions { flex-direction: column; align-items: center; }
+}
 
 /* Mobile */
 @media (max-width: 768px) {
+  .desktop-only {
+    display: none;
+  }
   .header-row,
   .reports-header {
     flex-direction: column;

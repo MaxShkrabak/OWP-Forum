@@ -160,14 +160,15 @@ onMounted(loadTags)
 
         <button class="btn-add" @click="openAdd">
           <i class="bi bi-plus-lg"></i>
-          Add Tag
+          <span class="btn-text">Add Tag</span>
         </button>
       </div>
 
       <div v-if="loading" class="state mt-3 text-center">Loading…</div>
       <div v-if="error" class="err mt-3">{{ error }}</div>
 
-      <table v-if="!loading && filteredTags.length" class="admin-table mt-3">
+      <div class="table-wrapper">
+        <table v-if="!loading && filteredTags.length" class="admin-table mt-3">
         <thead>
           <tr>
             <th style="width: 90px;">ID</th>
@@ -184,16 +185,17 @@ onMounted(loadTags)
             <td>
               <div class="actions">
                 <button class="btn-action" @click="openEdit(t)">
-                  <i class="bi bi-pencil-square"></i> Edit
+                  <i class="bi bi-pencil-square"></i> <span class="btn-text">Edit</span>
                 </button>
                 <button class="btn-action danger" @click="requestDelete(t)">
-                  <i class="bi bi-trash"></i> Delete
+                  <i class="bi bi-trash"></i> <span class="btn-text">Delete</span>
                 </button>
               </div>
             </td>
           </tr>
         </tbody>
-      </table>
+        </table>
+      </div>
 
       <div v-if="!loading && filteredTags.length === 0" class="state mt-4 text-center">
         No tags found.
@@ -262,7 +264,7 @@ onMounted(loadTags)
 .err { color: #ff6b6b; font-weight: bold; }
 
 .admin-card {
-  width: 100%; background: #fff; border-radius: 16px; padding: 24px;
+  width: 100%; background: #fff; border-radius: 16px; padding: 10px;
   box-shadow: 0 8px 30px rgba(0,0,0,0.05);
 }
 
@@ -328,4 +330,25 @@ onMounted(loadTags)
   outline: none; font-size: 15px;
 }
 .field-input:focus { border-color: #004750; box-shadow: 0 4px 12px rgba(0,71,80,0.12); }
+
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 480px) {
+  .actions { flex-direction: column; align-items: center; }
+}
+@media (max-width: 768px) {
+  .admin-table thead th:nth-child(1),
+  .admin-table tbody td:nth-child(1) {
+    display: none;
+  }
+  .admin-table tbody td {
+    padding: 8px 6px;
+  }
+  .btn-text { display: none; }
+  .admin-name { font-size: 0.85rem; }
+}
 </style>
