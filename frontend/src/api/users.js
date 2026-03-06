@@ -12,6 +12,9 @@ export async function getNotificationSettings() {
 
 export async function saveNotificationSettings(payload) {
     const { data } = await client.post('/user/notification-settings', payload);
+    return data;
+}
+
 export async function fetchUserStats(id) {
     const { data } = await client.get(`/profile/${id}/stats`);
     return data;
