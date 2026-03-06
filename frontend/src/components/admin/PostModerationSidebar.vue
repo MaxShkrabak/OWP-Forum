@@ -5,6 +5,7 @@ import client from "@/api/client";
 import { votePost } from "@/api/posts";
 import { isLoggedIn, userRole, userRoleId, uid } from "@/stores/userStore";
 import CreatePostModal from "@/components/forum/CreatePostModal.vue";
+import ReportingModal from "@/components/user/ReportingModal.vue"
 
 const props = defineProps({
   post: { type: Object, required: true },
@@ -17,6 +18,7 @@ const isFollowing = ref(false);
 const showDeleteConfirm = ref(false);
 const isDeleting = ref(false);
 const showEditModal = ref(false);
+const showReportModal = ref(false);
 const isRestricted = ref(false);
 
 const isAuthor = computed(
@@ -36,7 +38,21 @@ const showMetadataButton = computed(
   () => isAdminOrMod.value && !isAuthor.value,
 );
 
-const toggleFollow = () => (isFollowing.value = !isFollowing.value);
+const toggleFollow = () => {
+  if (!isLoggedIn.value) {
+    router.push("/login");
+    return;
+  }
+  isFollowing.value = !isFollowing.value;
+};
+
+const handleReport = () => {
+  if (!isLoggedIn.value) {
+    router.push("/login");
+    return;
+  }
+  showReportModal.value = true;
+};
 
 async function handleVote(dir) {
   if (!isLoggedIn.value) {
@@ -141,6 +157,7 @@ watch(isLoggedIn, (loggedIn) => {
       <button
         v-if="canReport"
         class="text-action-btn report-btn d-inline-flex align-items-center gap-2 px-2 py-1 rounded-2"
+        @click="handleReport"
       >
         <i class="pi pi-flag"></i>
         <span>Report</span>
@@ -183,6 +200,14 @@ watch(isLoggedIn, (loggedIn) => {
       :post-data="post"
       :is-restricted="isRestricted"
       @close="showEditModal = false"
+    />
+
+    <ReportingModal
+      :isOpen="showReportModal"
+      :targetId="post.PostID"
+      :targetTitle="post.title"
+      type="post"
+      @close="showReportModal = false"
     />
 
     <Teleport to="body">

@@ -218,7 +218,7 @@ $app->get('/api/posts', function (Request $req, Response $res) use ($makePdo) {
             FROM dbo.PostTags pt
             JOIN dbo.Tags t ON t.TagID = pt.TagID
             WHERE pt.PostID IN ($placeholders)
-            ORDER BY t.Name ASC
+            ORDER BY CASE WHEN t.Name = 'Official' THEN 0 ELSE 1 END, t.Name ASC
         ";
 
         $tagStmt = $pdo->prepare($getTagsSql);
@@ -436,7 +436,8 @@ $app->get('/api/categories/{id}/posts', function (Request $req, Response $res, a
             $tagsByPostId = [];
             $tagSql = "SELECT pt.PostID, t.Name FROM dbo.PostTags pt
                        JOIN dbo.Tags t ON t.TagID = pt.TagID
-                       WHERE pt.PostID IN ($placeholders)";
+                       WHERE pt.PostID IN ($placeholders)
+                       ORDER BY CASE WHEN t.Name = 'Official' THEN 0 ELSE 1 END, t.Name ASC";
             $tagStmt = $pdo->prepare($tagSql);
             $tagStmt->execute($postIds);
             while ($t = $tagStmt->fetch(PDO::FETCH_ASSOC)) {
@@ -653,7 +654,7 @@ $app->get('/api/get-post/{id}', function (Request $req, Response $res, array $ar
             FROM dbo.PostTags pt 
             JOIN dbo.Tags t ON t.TagID = pt.TagID 
             WHERE pt.PostID = :id
-            ORDER BY t.Name ASC
+            ORDER BY CASE WHEN t.Name = 'Official' THEN 0 ELSE 1 END, t.Name ASC
         ");
 
         $tagStmt->execute(['id' => $postID]);

@@ -89,9 +89,7 @@ onMounted(async () => {
 
       <div v-else-if="post" class="post-layout d-flex flex-column gap-1">
         <article class="post-card rounded-4 overflow-hidden">
-          <div
-            class="post-topbar d-flex align-items-center p-3 px-md-4 gap-3"
-          >
+          <div class="post-topbar d-flex align-items-center p-3 px-md-4 gap-3">
             <div class="flex-shrink-0 d-flex">
               <button
                 class="back-btn d-inline-flex align-items-center justify-content-center p-2 rounded-3"
@@ -120,6 +118,7 @@ onMounted(async () => {
                   v-for="t in post.tags"
                   :key="t"
                   class="post-tag rounded-4 text-uppercase px-2 py-1"
+                  :class="{ 'post-tag-official': t.Name === 'Official' }"
                   >{{ t.Name }}</span
                 >
               </div>
@@ -277,6 +276,13 @@ onMounted(async () => {
   font-weight: 700;
   letter-spacing: 0.05em;
   border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.post-tag-official {
+  background: rgba(210, 120, 30, 0.25);
+  color: #ffd49a;
+  border-color: rgba(210, 140, 50, 0.5);
+  box-shadow: 0 0 6px rgba(210, 120, 30, 0.2);
 }
 
 .author-info {

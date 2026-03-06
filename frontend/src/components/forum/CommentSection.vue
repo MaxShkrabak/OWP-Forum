@@ -7,7 +7,7 @@ import {
   submitComment as apiSubmitComment,
   formatCommentData
 } from '@/api/comments';
-import { uid } from '@/stores/userStore';
+import { uid, isLoggedIn } from '@/stores/userStore';
 
 const props = defineProps({
   postId: {
@@ -242,7 +242,8 @@ onMounted(() => {
           <textarea
             v-model="newComment"
             @focus="isFocused = true"
-            placeholder="Add a comment..."
+            :placeholder="isLoggedIn ? 'Add a comment...' : 'Sign in to comment'"
+            :disabled="!isLoggedIn"
             class="comment-textarea w-100 border-0 p-3"
             rows="2"
           ></textarea>
