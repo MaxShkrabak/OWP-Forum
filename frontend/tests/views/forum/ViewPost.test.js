@@ -1,13 +1,16 @@
-/** @vitest-environment jsdom */
 import { mount, flushPromises } from "@vue/test-utils";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import ViewPost from "@/views/forum/ViewPost.vue";
 import { getPost } from "@/api/posts";
 
-vi.mock("vue-router", () => ({
-  useRoute: () => ({ params: { id: "123" } }),
-  useRouter: () => ({ push: vi.fn(), back: vi.fn() }),
-}));
+vi.mock("vue-router", async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    useRoute: () => ({ params: { id: "123" } }),
+    useRouter: () => ({ push: vi.fn(), back: vi.fn() }),
+  };
+});
 
 vi.mock("@/api/posts", () => ({
   getPost: vi.fn(),
@@ -24,7 +27,7 @@ const stubs = [
   "UserRole",
   "ViewPostContent",
   "PostModerationSidebar",
-  "CommentSection"
+  "CommentSection",
 ];
 
 describe("ViewPost.vue", () => {
@@ -73,7 +76,9 @@ describe("ViewPost.vue", () => {
     getPost.mockRejectedValue(new Error("Failed"));
     const wrapper = mount(ViewPost, { global: { stubs } });
     await flushPromises();
-    expect(wrapper.find(".empty-state").text()).toContain("This post has been deleted or does not exist");
+    expect(wrapper.find(".empty-state").text()).toContain(
+      "This post has been deleted or does not exist",
+    );
     spy.mockRestore();
   });
 });

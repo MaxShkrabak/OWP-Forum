@@ -1,20 +1,10 @@
-/** @vitest-environment jsdom */
-import { mount, flushPromises } from "@vue/test-utils";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { mount } from "@vue/test-utils";
+import { describe, it, expect, vi } from "vitest";
 
-// 1) Mock vue-router used by ViewPost.vue
-vi.mock("vue-router", () => ({
-  useRoute: () => ({ params: { id: "123" } }),
-  useRouter: () => ({ push: vi.fn(), back: vi.fn() }),
-}));
+vi.mock("vue-router", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock("@/api/posts", () => ({ votePost: vi.fn() }));
+vi.mock("@/api/client", () => ({ default: { delete: vi.fn() } }));
 
-// 2) Mock API call used onMounted
-vi.mock("@/api/posts", () => ({
-  getPost: vi.fn(),
-  votePost: vi.fn(),
-}));
-
-// 3) Mock user store refs used by ViewPost.vue
 vi.mock("@/stores/userStore", async () => {
   const { ref } = await import("vue");
   return {
@@ -25,83 +15,49 @@ vi.mock("@/stores/userStore", async () => {
   };
 });
 
-// IMPORTANT: import component AFTER mocks
-import { getPost } from "@/api/posts";
-import { isLoggedIn, userRole, userRoleId, uid } from "@/stores/userStore";
-import ViewPost from "@/views/forum/ViewPost.vue";
+import { userRoleId, uid } from "@/stores/userStore";
+import PostModerationSidebar from "@/components/admin/PostModerationSidebar.vue";
 
-// 4) Stub child components (we only care about buttons)
-const stubs = {
-  ViewPostHeader: { template: "<div />" },
-  ViewPostContent: { template: "<div />" },
-  CommentSection: { template: "<div />" },
-  CreatePostModal: { template: "<div />" },
-};
+const STUBS = ["CreatePostModal", "ReportingModal"];
 
-// Helper to create post data
-function makePost(authorId) {
-  return {
-    PostID: 123,
-    authorId,
-    myVote: 0,
-    TotalScore: 0,
-    content: "<p>hi</p>",
-  };
+function mountSidebar(authorId) {
+  return mount(PostModerationSidebar, {
+    props: { post: { PostID: 123, authorId, myVote: 0, TotalScore: 0 } },
+    global: { stubs: STUBS },
+  });
 }
 
-async function mountAndWait() {
-  const wrapper = mount(ViewPost, {
-    global: { stubs },
-  });
-  await flushPromises();
-  return wrapper;
-}
-
-describe("ViewPost - Edit/Delete visibility by role", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-
-    // default: logged-in normal user
-    isLoggedIn.value = true;
-    userRole.value = "user";
-    userRoleId.value = 1; // < 3 => not admin/mod
-    uid.value = 10;
-
-    // default post: someone else is author
-    getPost.mockResolvedValue(makePost(999));
-  });
-
-  it("Author sees Edit + Delete (full), no metadata button", async () => {
+describe("PostModerationSidebar.vue", () => {
+  it("shows Edit Post and Delete to the author", () => {
     uid.value = 42;
-    getPost.mockResolvedValue(makePost(42));
-
-    const wrapper = await mountAndWait();
-
-    expect(wrapper.text()).toContain("Edit Post");
-    expect(wrapper.text()).toContain("Delete");
+    userRoleId.value = 1;
+    const buttons = mountSidebar(42)
+      .findAll("button")
+      .map((b) => b.text());
+    expect(buttons).toContain("Edit Post");
+    expect(buttons).toContain("Delete");
+    expect(buttons).not.toContain("Edit");
   });
 
-  it("Non-author normal user sees no moderation buttons", async () => {
+  it("shows no edit/delete buttons to a non-author", () => {
     uid.value = 10;
     userRoleId.value = 1;
-    getPost.mockResolvedValue(makePost(999));
-
-    const wrapper = await mountAndWait();
-
-    expect(wrapper.text()).not.toContain("Edit Post");
-    expect(wrapper.text()).not.toContain("Delete");
-    expect(wrapper.text()).not.toContain("Edit");
+    const buttons = mountSidebar(999)
+      .findAll("button")
+      .map((b) => b.text());
+    expect(buttons).not.toContain("Edit Post");
+    expect(buttons).not.toContain("Edit");
+    expect(buttons).not.toContain("Delete");
   });
 
-  it("Admin/Moderator non-author sees Delete + Metadata, no Edit", async () => {
+  it("shows Edit and Delete to an admin/mod who is not the author", () => {
     uid.value = 10;
-    userRoleId.value = 3; // >=3 => admin/mod in your code
-    getPost.mockResolvedValue(makePost(999));
-
-    const wrapper = await mountAndWait();
-
-    expect(wrapper.text()).not.toContain("Edit Post");
-    expect(wrapper.text()).toContain("Delete");
-    expect(wrapper.text()).toContain("Edit");
+    userRoleId.value = 3;
+    const buttons = mountSidebar(999)
+      .findAll("button")
+      .map((b) => b.text());
+    expect(buttons).not.toContain("Edit Post");
+    expect(buttons).toContain("Edit");
+    expect(buttons).toContain("Delete");
   });
 });

@@ -1,4 +1,3 @@
-/** @vitest-environment jsdom */
 /**
  * Manage Tags (Admin) — unit tests.
  * Duplicate prevention + API contract (no DOM) + AdminTags.vue DOM tests.
