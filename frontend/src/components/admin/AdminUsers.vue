@@ -296,10 +296,9 @@ onMounted(async () => {
             </td>
             <td>
               <button
-                v-if="!u.IsBanned"
+                v-if="!u.IsBanned && !isAdminUser(u)"
                 type="button"
                 class="btn-ban"
-                :disabled="isAdminUser(u)"
                 @click="openBanModal(u)"
               >
               <span class="desktop-only">
@@ -578,12 +577,8 @@ onMounted(async () => {
   cursor: pointer;
   transition: all 0.2s ease;
 }
-.btn-ban:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
 
-.btn-ban:hover:not(:disabled) {
+.btn-ban:hover {
   background: #dc2626;
   color: #fff;
 }

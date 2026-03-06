@@ -182,7 +182,7 @@ onMounted(loadCategories);
                 </button>
                 <button
                   type="button"
-                  class="btn-action danger"
+                  class="btn-action danger btn-delete"
                   :disabled="cat.name === 'General'"
                   :title="cat.name === 'General' ? 'Cannot delete General' : 'Delete'"
                   @click="openDeleteConfirm(cat)"
