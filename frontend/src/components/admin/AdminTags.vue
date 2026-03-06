@@ -7,6 +7,13 @@ const tags = ref([])
 const loading = ref(false)
 const error = ref('')
 
+const roles = [
+  { id: 1, label: 'User' },
+  { id: 2, label: 'Student' },
+  { id: 3, label: 'Moderator' },
+  { id: 4, label: 'Admin' },
+];
+
 const form = ref({
   open: false,
   mode: 'add', // add | edit
@@ -145,6 +152,10 @@ function requestDelete(t) {
 }
 
 onMounted(loadTags)
+
+function roleLabel(roleId) {
+  return roles.find((r) => r.id === Number(roleId))?.label || 'User';
+}
 </script>
 
 <template>
@@ -181,7 +192,9 @@ onMounted(loadTags)
           <tr v-for="t in filteredTags" :key="t.TagID">
             <td class="admin-id">{{ t.TagID }}</td>
             <td class="admin-name">{{ t.Name }}</td>
-            <td class="admin-email">{{ t.UsableByRoleID }}</td>
+            <td class="admin-minrole">
+              <span class="role-full">{{ roleLabel(t.UsableByRoleID) }}</span>
+              <span class="role-short">{{ roleLabel(t.UsableByRoleID).charAt(0) }}</span></td>
             <td>
               <div class="actions">
                 <button class="btn-action" @click="openEdit(t)">
@@ -216,10 +229,10 @@ onMounted(loadTags)
         <div class="form-field" style="margin-top: 14px;">
           <label class="field-label">Usable By Role ID</label>
           <select class="field-input" v-model="form.usableByRoleId">
-            <option :value="1">1 - User</option>
-            <option :value="2">2 - Student</option>
-            <option :value="3">3 - Moderator</option>
-            <option :value="4">4 - Admin</option>
+            <option :value="1">User</option>
+            <option :value="2">Student</option>
+            <option :value="3">Moderator</option>
+            <option :value="4">Admin</option>
           </select>
         </div>
 
@@ -279,7 +292,7 @@ onMounted(loadTags)
 
 .admin-id { color: #888; font-size: 0.85rem; }
 .admin-name { font-weight: 600; color: #1f3d3a; }
-.admin-email { font-size: 0.85rem; color: #5a6f6c; }
+.admin-minrole { font-size: 1rem; color: #5a6f6c; }
 
 .btn-add {
   display: inline-flex; align-items: center; gap: 8px;
@@ -337,10 +350,9 @@ onMounted(loadTags)
   -webkit-overflow-scrolling: touch;
 }
 
-@media (max-width: 480px) {
-  .actions { flex-direction: column; align-items: center; }
-}
-@media (max-width: 768px) {
+.role-short { display: none; }
+
+@media (max-width: 576px) {
   .admin-table thead th:nth-child(1),
   .admin-table tbody td:nth-child(1) {
     display: none;
@@ -350,5 +362,7 @@ onMounted(loadTags)
   }
   .btn-text { display: none; }
   .admin-name { font-size: 0.85rem; }
+  .role-full { display: none !important; }
+  .role-short { display: inline !important; }
 }
 </style>

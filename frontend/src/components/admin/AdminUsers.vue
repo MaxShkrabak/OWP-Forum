@@ -296,9 +296,10 @@ onMounted(async () => {
             </td>
             <td>
               <button
-                v-if="!u.IsBanned && !isAdminUser(u)"
+                v-if="!u.IsBanned"
                 type="button"
                 class="btn-ban"
+                :disabled="isAdminUser(u)"
                 @click="openBanModal(u)"
               >
               <span class="desktop-only">
@@ -577,8 +578,12 @@ onMounted(async () => {
   cursor: pointer;
   transition: all 0.2s ease;
 }
+.btn-ban:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
 
-.btn-ban:hover {
+.btn-ban:hover:not(:disabled) {
   background: #dc2626;
   color: #fff;
 }
@@ -793,7 +798,7 @@ onMounted(async () => {
   
 }
 
-@media (max-width: 768px) {
+@media (max-width: 576px) {
   .admin-table thead th:nth-child(1),
   .admin-table thead th:nth-child(3) {
     display: none;

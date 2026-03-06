@@ -650,6 +650,7 @@ onMounted(() => {
 }
 .admin-name {
   font-weight: 600;
+  font-size: 1.1;
   color: #1f3d3a;
 }
 
@@ -956,12 +957,9 @@ onMounted(() => {
 .desktop-only {
   display: inline;
 }
-@media (max-width: 480px) {
-  .actions { flex-direction: column; align-items: center; }
-}
 
 /* Mobile */
-@media (max-width: 768px) {
+@media (max-width: 576px) {
   .desktop-only {
     display: none;
   }
@@ -970,10 +968,13 @@ onMounted(() => {
     flex-direction: column;
     align-items: flex-start;
   }
+  .admin-name {
+    font-size: 0.9rem;
+  }
 
   .reports-controls {
     width: 100%;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
   }
 
   .sort-select,

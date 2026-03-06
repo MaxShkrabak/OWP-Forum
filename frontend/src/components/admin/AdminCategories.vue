@@ -177,17 +177,18 @@ onMounted(loadCategories);
             </td>
             <td>
               <div class="actions">
-                <button type="button" class="btn-action btn-edit" @click="openEdit(cat)" title="Edit">
-                  <i class="bi bi-pencil"></i>
+                <button type="button" class="btn-action" @click="openEdit(cat)" title="Edit">
+                  <i class="bi bi-pencil-square"></i> <span class="btn-text">Edit</span>
                 </button>
                 <button
                   type="button"
-                  class="btn-action btn-delete"
+                  class="btn-action danger"
                   :disabled="cat.name === 'General'"
                   :title="cat.name === 'General' ? 'Cannot delete General' : 'Delete'"
                   @click="openDeleteConfirm(cat)"
                 >
                   <i class="bi bi-trash"></i>
+                  <span class="btn-text">Delete</span>
                 </button>
               </div>
             </td>
@@ -333,17 +334,19 @@ onMounted(loadCategories);
 }
 .admin-name {
   font-weight: 600;
+  font-size: 1.1rem;
   color: #1f3d3a;
 }
 
 .btn-action {
-  border: none;
-  background: transparent;
-  padding: 6px 10px;
-  border-radius: 8px;
-  cursor: pointer;
-  margin-right: 4px;
+  display: inline-flex; align-items: center; gap: 8px;
+  background: #fff; border: 1px solid #cbd5e1; color: #374151;
+  padding: 8px 12px; border-radius: 12px; cursor: pointer; font-weight: 700; font-size: 0.9rem;
 }
+.btn-action:hover { background: #f1f5f9; }
+.btn-action.danger { border-color: #f3c6c6; color: #b91c1c; }
+.btn-action.danger:hover:not(:disabled) { background: #fff1f1; }
+
 .btn-action:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -513,11 +516,8 @@ onMounted(loadCategories);
   overflow-x: auto;
 }
 
-@media (max-width: 480px) {
-  .actions { flex-direction: column; align-items: center; }
-}
 
-@media (max-width: 768px) {
+@media (max-width: 576px) {
   .admin-table thead th:nth-child(1) {
     display: none;
   }
@@ -527,8 +527,12 @@ onMounted(loadCategories);
   .admin-table tbody td {
     padding: 8px 6px;
   }
+  .admin-name {
+    font-size: 0.80rem;
+  }
 
   .role-full { display: none !important; }
-  .role-short { display: inline !important; }
+  .role-short { display: inline !important;}
+  .btn-text { display: none; }
 }
 </style>
