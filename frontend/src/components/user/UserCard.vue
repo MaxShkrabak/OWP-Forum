@@ -1,6 +1,8 @@
 <script setup>
+import { onMounted, ref, watch } from "vue";
 import UserIcon from "@/assets/img/user-pfps-premade/pfp-0.png";
-import { isLoggedIn, fullName, userAvatar, userRole} from "@/stores/userStore";
+import { isLoggedIn, fullName, userAvatar, userRole, uid } from "@/stores/userStore";
+import { fetchUserStats } from "@/api/users";
 import UserRole from "@/components/user/UserRole.vue";
 
 const props = defineProps({
@@ -8,7 +10,35 @@ const props = defineProps({
   isCurrUser: Boolean,
   avatar: String,
   newFullName: String,
-  newRole: String
+  newRole: String,
+  userId: [String, Number]
+});
+
+const postCount = ref(0);
+const voteScore = ref(0);
+const commentCount = ref(0);
+
+async function loadStats(id) {
+  if (!id) return;
+  try {
+    const data = await fetchUserStats(id);
+    if (data.ok) {
+      postCount.value = data.stats.postCount;
+      voteScore.value = data.stats.voteScore;
+      commentCount.value = data.stats.commentCount;
+    }
+  } catch (e) {
+    console.error("Failed to load user stats:", e);
+  }
+}
+
+onMounted(() => {
+  const id = props.userId || uid.value;
+  if (id) loadStats(id);
+});
+
+watch(() => props.userId, (newId) => {
+  if (newId) loadStats(newId);
 });
 
 function getAvatarSrc(file) {
@@ -41,17 +71,17 @@ function getAvatarSrc(file) {
         <div class="stats-container d-flex justify-content-around text-center">
           <!-- Posts count-->
           <div class="stat-item">
-            <span class="stat-value">0</span>
+            <span class="stat-value">{{ postCount }}</span>
             <span class="stat-label text-uppercase">Posts</span>
           </div>
-          <!-- Likes count -->
+          <!-- Reputation score -->
           <div class="stat-item">
-            <span class="stat-value">0</span>
-            <span class="stat-label text-uppercase">Likes</span>
+            <span class="stat-value">{{ voteScore }}</span>
+            <span class="stat-label text-uppercase">Reputation</span>
           </div>
           <!-- Comment count -->
           <div class="stat-item">
-            <span class="stat-value">0</span>
+            <span class="stat-value">{{ commentCount }}</span>
             <span class="stat-label text-uppercase">Comments</span>
           </div>
         </div>
@@ -80,17 +110,17 @@ function getAvatarSrc(file) {
         <div class="stats-container d-flex justify-content-around text-center">
           <!-- Posts count-->
           <div class="stat-item">
-            <span class="stat-value">0</span>
+            <span class="stat-value">{{ postCount }}</span>
             <span class="stat-label text-uppercase">Posts</span>
           </div>
-          <!-- Likes count -->
+          <!-- Reputation score -->
           <div class="stat-item">
-            <span class="stat-value">0</span>
-            <span class="stat-label text-uppercase">Likes</span>
+            <span class="stat-value">{{ voteScore }}</span>
+            <span class="stat-label text-uppercase">Reputation</span>
           </div>
           <!-- Comment count -->
           <div class="stat-item">
-            <span class="stat-value">0</span>
+            <span class="stat-value">{{ commentCount }}</span>
             <span class="stat-label text-uppercase">Comments</span>
           </div>
         </div>

@@ -21,6 +21,20 @@ const mockUsers = [
   { User_ID: 2, FirstName: "John", LastName: "Smith", Email: "john@example.com", RoleName: "Admin", RoleID: 4, IsBanned: 0, BanType: null, BannedUntil: null },
 ];
 
+// Current admin user ID used in /admin/me mock
+const CURRENT_ADMIN_ID = 2;
+
+function setupMocks(users = mockUsers) {
+  mockClient.get.mockImplementation((url) => {
+    if (url === '/admin/me') {
+      return Promise.resolve({ data: { user: { User_ID: CURRENT_ADMIN_ID } } });
+    }
+    // /admin/users
+    return Promise.resolve({ data: { users: users.map(u => ({ ...u })) } });
+  });
+  mockClient.patch.mockResolvedValue({});
+}
+
 describe("Ban User (Admin) — ban date formatting", () => {
   it("formatBannedUntilDateTime returns empty string for null/empty", () => {
     expect(formatBannedUntilDateTime(null)).toBe("");
@@ -59,8 +73,7 @@ describe("Ban User (Admin) — AdminUsers.vue DOM", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.spyOn(window, "alert").mockImplementation(() => {});
-    mockClient.get.mockResolvedValue({ data: { users: [...mockUsers] } });
-    mockClient.patch.mockResolvedValue({});
+    setupMocks();
   });
 
   it("loads users and shows Ban button only for non-admin active users", async () => {
@@ -74,7 +87,8 @@ describe("Ban User (Admin) — AdminUsers.vue DOM", () => {
     const wrapper = mount(AdminUsers);
     await flushPromises();
     const rows = wrapper.findAll(".admin-table tbody tr");
-    const adminRow = rows.find(r => r.text().includes("Admin"));
+    // Find John Smith's row (the admin user) by name
+    const adminRow = rows.find(r => r.text().includes("John"));
     expect(adminRow).toBeDefined();
     expect(adminRow.find(".btn-ban").exists()).toBe(false);
   });
@@ -96,23 +110,56 @@ describe("Ban User (Admin) — AdminUsers.vue DOM", () => {
 describe("Assign Role (Admin)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.spyOn(window, "alert").mockImplementation(() => {});
   });
 
   it("displays 'No users found' when searching for a non-existent user", async () => {
-    // Mock the API returning an empty array for the search
-    mockClient.get.mockResolvedValue({ data: { users: [] } });
-    
+    mockClient.get.mockImplementation((url) => {
+      if (url === '/admin/me') {
+        return Promise.resolve({ data: { user: { User_ID: CURRENT_ADMIN_ID } } });
+      }
+      return Promise.resolve({ data: { users: [] } });
+    });
+
     const wrapper = mount(AdminUsers);
     await flushPromises();
-    
-    // Find the search input and type a fake name
-    const searchInput = wrapper.find('input[type="text"]'); // Update selector if needed
-    if (searchInput.exists()) {
-      await searchInput.setValue("ThisUserDoesNotExist");
-      await flushPromises();
-    }
-    
+
     // Assert the empty state message appears
     expect(wrapper.text()).toContain("No users found");
+  });
+
+  it("renders role select dropdowns for each user", async () => {
+    setupMocks();
+    const wrapper = mount(AdminUsers);
+    await flushPromises();
+
+    const selects = wrapper.findAll(".role-select");
+    expect(selects.length).toBe(mockUsers.length);
+  });
+
+  it("disables role select for the current admin user's own row", async () => {
+    setupMocks();
+    const wrapper = mount(AdminUsers);
+    await flushPromises();
+
+    const rows = wrapper.findAll(".admin-table tbody tr");
+    // John (User_ID=2) is the current admin
+    const adminRow = rows[1];
+    const select = adminRow.find(".role-select");
+    expect(select.exists()).toBe(true);
+    expect(select.element.disabled).toBe(true);
+  });
+
+  it("does not disable role select for other users", async () => {
+    setupMocks();
+    const wrapper = mount(AdminUsers);
+    await flushPromises();
+
+    const rows = wrapper.findAll(".admin-table tbody tr");
+    // Jane (User_ID=1) is not the current admin
+    const janeRow = rows[0];
+    const select = janeRow.find(".role-select");
+    expect(select.exists()).toBe(true);
+    expect(select.element.disabled).toBe(false);
   });
 });

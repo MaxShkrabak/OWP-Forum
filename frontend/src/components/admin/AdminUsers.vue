@@ -7,6 +7,7 @@ const q = ref('')
 const users = ref([])
 const loading = ref(false)
 const error = ref('')
+const currentUserId = ref(null)
 
 const showBanModal = ref(false)
 const banTarget = ref(null)
@@ -15,6 +16,19 @@ const banUntilDate = ref('')
 
 const showWarning = ref(false)
 const warningMessage = ref('')
+
+// Role management state
+const roleDraft = ref({})
+const showRoleConfirm = ref(false)
+const pendingRole = ref({ user: null, newRoleId: null, oldRoleId: null })
+const roleInfoModal = ref({ open: false, title: '', message: '' })
+
+const roles = [
+  { id: 1, label: 'User' },
+  { id: 2, label: 'Student' },
+  { id: 3, label: 'Moderator' },
+  { id: 4, label: 'Admin' },
+]
 
 // Tomorrow in local time (YYYY-MM-DD) so date picker min is correct in user's timezone
 const minBanDate = computed(() => {
@@ -44,6 +58,11 @@ async function loadUsers() {
       BanType: u.BanType && (u.BanType === 'permanent' || u.BanType === 'temporary') ? u.BanType : null,
       BannedUntil: u.BannedUntil ? String(u.BannedUntil) : null
     }))
+
+    // Populate roleDraft map
+    const map = {}
+    for (const u of users.value) map[u.User_ID] = Number(u.RoleID)
+    roleDraft.value = map
   } catch (e) {
     error.value = e?.response?.data?.error || e.message || 'Failed to load users'
     users.value = []
@@ -144,7 +163,76 @@ function isAdminUser(u) {
   return (u.RoleName || '').toLowerCase() === 'admin'
 }
 
-onMounted(() => loadUsers())
+// Role management functions
+function roleLabel(id) {
+  return id === 1 ? 'User' : id === 2 ? 'Student' : id === 3 ? 'Moderator' : 'Admin'
+}
+
+function showRoleInfo(title, message) {
+  roleInfoModal.value = { open: true, title, message }
+}
+
+function closeRoleInfo() {
+  roleInfoModal.value.open = false
+}
+
+function onRoleSelected(user) {
+  const newRole = Number(roleDraft.value[user.User_ID])
+  const oldRole = Number(user.RoleID)
+
+  if (newRole === oldRole) return
+
+  if (Number(user.User_ID) === Number(currentUserId.value)) {
+    roleDraft.value[user.User_ID] = oldRole
+    showRoleInfo("Action not allowed", "You cannot change your own role.")
+    return
+  }
+
+  const involvesElevated = (oldRole >= 3 || newRole >= 3)
+  if (involvesElevated) {
+    pendingRole.value = { user, oldRoleId: oldRole, newRoleId: newRole }
+    showRoleConfirm.value = true
+    return
+  }
+  applyRoleChange(user, newRole)
+}
+
+async function applyRoleChange(user, newRole) {
+  try {
+    await client.patch(`/admin/users/${user.User_ID}/role`, { roleId: newRole })
+    user.RoleID = String(newRole)
+    user.RoleName = newRole === 1 ? 'user' : newRole === 2 ? 'student' : newRole === 3 ? 'moderator' : 'admin'
+    roleDraft.value[user.User_ID] = newRole
+  } catch (e) {
+    roleDraft.value[user.User_ID] = Number(user.RoleID)
+    alert(e?.response?.data?.error || 'Failed to update role')
+  }
+}
+
+function cancelRoleConfirm() {
+  const u = pendingRole.value.user
+  if (u) roleDraft.value[u.User_ID] = Number(u.RoleID)
+  pendingRole.value = { user: null, newRoleId: null, oldRoleId: null }
+  showRoleConfirm.value = false
+}
+
+async function confirmRoleChange() {
+  const u = pendingRole.value.user
+  const newRole = pendingRole.value.newRoleId
+  showRoleConfirm.value = false
+  if (u && newRole != null) await applyRoleChange(u, newRole)
+  pendingRole.value = { user: null, newRoleId: null, oldRoleId: null }
+}
+
+onMounted(async () => {
+  try {
+    const me = await client.get('/admin/me')
+    currentUserId.value = Number(me.data.user.User_ID)
+  } catch (e) {
+    console.error("Failed to load current admin user", e)
+  }
+  await loadUsers()
+})
 </script>
 
 <template>
@@ -186,7 +274,17 @@ onMounted(() => loadUsers())
               </div>
             </td>
             <td class="admin-email">{{ u.Email || '—' }}</td>
-            <td class="admin-role">{{ u.RoleName || '—' }}</td>
+            <td>
+              <select
+                class="role-select"
+                :class="roleLabel(roleDraft[u.User_ID]).toLowerCase()"
+                v-model="roleDraft[u.User_ID]"
+                :disabled="u.User_ID === currentUserId"
+                @change="onRoleSelected(u)"
+              >
+                <option v-for="r in roles" :key="r.id" :value="r.id">{{ r.label }}</option>
+              </select>
+            </td>
             <td>
               <span v-if="u.IsBanned" class="badge badge-banned">{{ banStatusLabel(u) }}</span>
               <span v-else class="badge badge-active">Active</span>
@@ -260,6 +358,33 @@ onMounted(() => loadUsers())
         <p class="warning-message">{{ warningMessage }}</p>
         <div class="modal-actions">
           <button type="button" class="btn-modal-confirm" @click="closeWarningPopup">OK</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Role change confirmation modal -->
+    <div v-if="showRoleConfirm" class="modal-overlay" @mousedown.self="cancelRoleConfirm">
+      <div class="confirm-card">
+        <h3 class="confirm-title">Confirm role change?</h3>
+        <p class="confirm-subtitle">
+          Change <strong>{{ formatUserDisplay(pendingRole.user) }}</strong>
+          from <strong>{{ roleLabel(pendingRole.oldRoleId) }}</strong>
+          to <strong>{{ roleLabel(pendingRole.newRoleId) }}</strong>?
+        </p>
+        <div class="confirm-actions">
+          <button class="btn-back" @click="cancelRoleConfirm">Back</button>
+          <button class="btn-confirm" @click="confirmRoleChange">Confirm</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Role info modal (e.g. cannot change own role) -->
+    <div v-if="roleInfoModal.open" class="modal-overlay" @mousedown.self="closeRoleInfo">
+      <div class="confirm-card">
+        <h3 class="confirm-title">{{ roleInfoModal.title }}</h3>
+        <p class="confirm-subtitle">{{ roleInfoModal.message }}</p>
+        <div class="confirm-actions">
+          <button class="btn-confirm" @click="closeRoleInfo">OK</button>
         </div>
       </div>
     </div>
@@ -385,10 +510,25 @@ onMounted(() => loadUsers())
   color: #5a6f6c;
 }
 
-.admin-role {
-  font-size: 0.9rem;
-  text-transform: capitalize;
+/* Role Select */
+.role-select {
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-weight: 600;
+  border: 1px solid #ccc;
+  outline: none;
+  cursor: pointer;
 }
+
+.role-select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.role-select.admin { background: #f2cece; color: #ff0000; border-color: #f2cece; }
+.role-select.moderator { background: #fdf4d9; color: #d29e00; border-color: #fdf4d9; }
+.role-select.user { background: #d5f5d7; color: #0a3800; border-color: #d5f5d7; }
+.role-select.student { background: #b9d0e8; color: #0015ff; border-color: #b9d0e8; }
 
 .badge {
   display: inline-block;
@@ -573,4 +713,41 @@ onMounted(() => loadUsers())
 .modal-warning .btn-modal-confirm:hover {
   background: #b45309;
 }
+
+/* Role confirmation modal */
+.confirm-card {
+  background: #fff;
+  color: #1f2937;
+  width: min(500px, 90vw);
+  border-radius: 20px;
+  padding: 30px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+  text-align: center;
+}
+
+.confirm-title { margin: 0 0 12px; font-size: 22px; font-weight: 700; color: #1f2937; }
+.confirm-subtitle { margin: 0 0 24px; font-size: 15px; color: #4b5563; line-height: 1.5; }
+.confirm-actions { display: flex; justify-content: center; gap: 16px; }
+
+.btn-back {
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  color: #374151;
+  padding: 10px 20px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.btn-back:hover { background: #f1f5f9; }
+
+.btn-confirm {
+  background: #004750;
+  border: none;
+  color: #fff;
+  padding: 10px 24px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: 700;
+}
+.btn-confirm:hover { background: #00363d; }
 </style>
