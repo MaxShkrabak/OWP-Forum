@@ -23,7 +23,8 @@ $app->get('/api/me', function(Request $req, Response $res) use ($makePdo) {
             $sql = "
                 SELECT u.User_ID, u.Email, u.FirstName, u.LastName, u.Avatar, r.Name as RoleName, r.RoleID,
                        ISNULL(u.IsBanned, 0) as IsBanned, u.BanType, u.BannedUntil,
-                       ISNULL(u.EmailNotificationsEnabled, 1) as EmailNotificationsEnabled
+                       ISNULL(u.EmailNotificationsEnabled, 1) as EmailNotificationsEnabled,
+                       ISNULL(u.TermsAccepted, 0) as termsAccepted, u.TermsAcceptedAt as termsAcceptedAt
                 FROM dbo.Users u
                 LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
                 WHERE u.User_ID = :uid
