@@ -86,3 +86,24 @@ export async function getPost(id) {
     return data.post;
   }
 }
+
+export async function fetchLikedPosts({ userId, limit, sort = "latest", page = 1 } = {}) {
+  if (!userId) throw new Error("Missing userId");
+
+  const { data } = await client.get(`/profile/${userId}/liked-posts`, {
+    params: { limit, sort, page },
+  });
+
+  // Normalize like fetchPosts()
+  if (data?.posts) {
+    data.posts = data.posts.map((post) => ({
+      ...post,
+      postId: post.PostID,
+      likeCount: post.TotalScore ?? 0,
+      commentCount: post.commentCount ?? 0,
+      tags: post.tags || [],
+    }));
+  }
+
+  return data;
+}
