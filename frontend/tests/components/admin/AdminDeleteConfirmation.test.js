@@ -1,4 +1,3 @@
-/** @vitest-environment jsdom */
 /**
  * Delete Confirmation Tags/Categories (BB-153) — unit tests.
  * API contract + message content + DOM test for category delete confirmation.

@@ -224,7 +224,7 @@ $app->get('/api/posts', function (Request $req, Response $res) use ($makePdo) {
             FROM dbo.PostTags pt
             JOIN dbo.Tags t ON t.TagID = pt.TagID
             WHERE pt.PostID IN ($placeholders)
-            ORDER BY t.Name ASC
+            ORDER BY CASE WHEN t.Name = 'Official' THEN 0 ELSE 1 END, t.Name ASC
         ";
 
         $tagStmt = $pdo->prepare($getTagsSql);
@@ -442,7 +442,8 @@ $app->get('/api/categories/{id}/posts', function (Request $req, Response $res, a
             $tagsByPostId = [];
             $tagSql = "SELECT pt.PostID, t.Name FROM dbo.PostTags pt
                        JOIN dbo.Tags t ON t.TagID = pt.TagID
-                       WHERE pt.PostID IN ($placeholders)";
+                       WHERE pt.PostID IN ($placeholders)
+                       ORDER BY CASE WHEN t.Name = 'Official' THEN 0 ELSE 1 END, t.Name ASC";
             $tagStmt = $pdo->prepare($tagSql);
             $tagStmt->execute($postIds);
             while ($t = $tagStmt->fetch(PDO::FETCH_ASSOC)) {
@@ -640,21 +641,24 @@ $app->get('/api/get-post/{id}', function (Request $req, Response $res, array $ar
     try {
         $pdo = $makePdo();
         $postID = (int)$args['id'];
+        $userId = $req->getAttribute("user_id") ?? 0;
 
         $sql = "
-            SELECT p.PostID, p.Title, p.Content, p.CreatedAt, p.UpdatedAt, p.CategoryID, p.AuthorID,
+            SELECT p.PostID, p.Title, p.Content, p.CreatedAt, p.UpdatedAt, p.CategoryID, p.AuthorID, p.TotalScore,
                    u.FirstName, u.LastName, u.Avatar,
                    r.Name AS RoleName, 
-                   c.Name AS CategoryName
+                   c.Name AS CategoryName,
+                   ISNULL(pv.VoteValue, 0) AS myVote
             FROM dbo.Posts p
             LEFT JOIN dbo.Users u ON p.AuthorID = u.User_ID
             LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
             LEFT JOIN dbo.Categories c ON p.CategoryID = c.CategoryID
+            LEFT JOIN dbo.PostVotes pv ON p.PostID = pv.PostID AND pv.User_ID = :userId
             WHERE p.PostID = :id AND p.IsDeleted = 0
         ";
 
         $stmt = $pdo->prepare($sql);
-        $stmt->execute(['id' => $postID]);
+        $stmt->execute(['id' => $postID, 'userId' => $userId]);
         $post = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$post) {
@@ -666,7 +670,7 @@ $app->get('/api/get-post/{id}', function (Request $req, Response $res, array $ar
             FROM dbo.PostTags pt 
             JOIN dbo.Tags t ON t.TagID = pt.TagID 
             WHERE pt.PostID = :id
-            ORDER BY t.Name ASC
+            ORDER BY CASE WHEN t.Name = 'Official' THEN 0 ELSE 1 END, t.Name ASC
         ");
 
         $tagStmt->execute(['id' => $postID]);
@@ -693,6 +697,8 @@ $app->get('/api/get-post/{id}', function (Request $req, Response $res, array $ar
             'tags'         => $tags,                        // Array of objects (TagID & Name)
             'tagNames'     => $tagNames,                    // Flat array of strings
             'tagIds'       => $tagIds,                      // Flat array of IDs
+            'TotalScore'   => (int)($post['TotalScore'] ?? 0),
+            'myVote'       => (int)($post['myVote'] ?? 0),
         ];
 
         // Ensure the response uses the wrapper standard from dev

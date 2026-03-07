@@ -1,5 +1,6 @@
 <script setup>
 import { ref, inject, computed, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import UserRole from "@/components/user/UserRole.vue";
 import { voteComment as apiVoteComment, fetchCommentReplies, updateComment as apiUpdateComment } from '@/api/comments';
 import { isLoggedIn, uid } from '@/stores/userStore';
@@ -9,6 +10,8 @@ const props = defineProps({
   comment: Object,
   isLastChild: Boolean
 });
+
+const router = useRouter();
 
 const localReplies = ref([]);
 const isLoadingReplies = ref(false);
@@ -45,6 +48,10 @@ const isAuthor = computed(() => {
 });
 
 const toggleReply = () => {
+  if (!isLoggedIn.value) {
+    router.push('/login');
+    return;
+  }
   activeReplyId.value = isReplying.value ? null : props.comment.id;
 };
 
@@ -153,7 +160,7 @@ const handleReply = async () => {
 };
 
 const handleVote = async (direction) => {
-  if (!isLoggedIn.value) { alert("Must be logged in to vote!"); return; }
+  if (!isLoggedIn.value) { router.push('/login'); return; }
   if (isVoting.value) return;
 
   let action = direction;
@@ -165,7 +172,7 @@ const handleVote = async (direction) => {
   isVoting.value = true;
   try {
     const data = await apiVoteComment(props.comment.id, action);
-    if (data.ok) {
+    if (data?.ok) {
       totalScore.value = data.score;
       myVote.value = Number(data.myVote ?? 0);
     }

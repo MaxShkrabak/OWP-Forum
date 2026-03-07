@@ -1,4 +1,3 @@
-/** @vitest-environment jsdom */
 import { mount, flushPromises } from "@vue/test-utils";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import CommentSection from "@/components/forum/CommentSection.vue";
@@ -83,7 +82,7 @@ describe("CommentSection.vue", () => {
   });
 
   it("displays the correct total number of comments", () => {
-    expect(wrapper.find(".section-title").text()).toContain("15 Comments");
+    expect(wrapper.find(".comments-header").text()).toContain("Comments (15)");
   });
 
   it("renders a sort dropdown with the correct options", () => {

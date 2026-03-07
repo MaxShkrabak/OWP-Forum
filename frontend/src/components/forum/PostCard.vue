@@ -368,8 +368,8 @@ function isOfficialTag(name){
   white-space: nowrap;
 }
 .post-tag-mod-admin {
-  background: linear-gradient(170deg, #fa9805c0 0%, #f17500b0 100%);
-  color: black;
+  background: linear-gradient(135deg, #c2680a 0%, #9a4e08 100%);
+  color: #ffecd1;
 }
 .post-tag {
   background: #2e6c44;
