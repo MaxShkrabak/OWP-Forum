@@ -672,8 +672,9 @@ $app->get('/api/get-post/{id}', function (Request $req, Response $res, array $ar
             LEFT JOIN dbo.PostVotes pv ON p.PostID = pv.PostID AND pv.User_ID = :userId
             WHERE p.PostID = :id AND p.IsDeleted = 0
         ";
-$stmt = $pdo->prepare($sql);
-        $stmt->execute(['id' => $postID]);
+
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute(['id' => $postID, 'userId' => $userId]);
         $post = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$post) {
