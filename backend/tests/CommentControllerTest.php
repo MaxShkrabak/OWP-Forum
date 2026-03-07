@@ -37,6 +37,15 @@ final class CommentControllerTest extends TestCase
     {
         $postId = 101;
         $userId = 1;
+        $sentNotifications = [];
+
+        $this->controller = new CommentController(
+            fn() => $this->pdo,
+            function (array $message) use (&$sentNotifications) {
+                $sentNotifications[] = $message;
+                return true; // Simulate successful email sending
+            }
+        );
 
         $request = (new ServerRequestFactory())->createServerRequest('POST', "/api/posts/{$postId}/comments")
             ->withAttribute('user_id', $userId)
@@ -52,6 +61,21 @@ final class CommentControllerTest extends TestCase
             'CreatedAt' => '2026-02-26 12:00:00'
         ]);
 
+        $postOwnerStmt = $this->createMock(\PDOStatement::class);
+        $postOwnerStmt->expects($this->once())->method('execute')->with([':postId' => $postId]);
+        $postOwnerStmt->method('fetch')->willReturn([
+            'PostID' => $postId,
+            'Title' => 'Exciting Post Title',
+            'AuthorID' => 99,
+            'LastCommentNotificationSentAt' => null,
+            'Email' => 'author@example.com',
+            'FirstName' => 'Author',
+            'LastName' => 'McAuthorface',
+            'EmailNotificationsEnabled' => 1
+        ]);
+
+        $updateStmt = $this->createMock(\PDOStatement::class);
+        $updateStmt->expects($this->once())->method('execute')->with([':postId' => $postId]);
         $selectStmt = $this->createMock(\PDOStatement::class);
         $selectStmt->expects($this->once())->method('execute')->with([':commentId' => 55]);
         $selectStmt->method('fetch')->willReturn([
@@ -70,12 +94,18 @@ final class CommentControllerTest extends TestCase
             'ReplyCount' => 0
         ]);
 
-        $this->pdo->method('prepare')->willReturnCallback(function (string $sql) use ($banStmt, $insertStmt, $selectStmt) {
+        $this->pdo->method('prepare')->willReturnCallback(function (string $sql) use ($banStmt, $insertStmt, $selectStmt, $postOwnerStmt, $updateStmt) {
             if (str_contains($sql, 'INSERT INTO dbo.Comments')) {
                 return $insertStmt;
             }
+            if (str_contains($sql, 'SELECT p.PostID, p.Title, p.AuthorID')) {
+                return $postOwnerStmt;
+            }
             if (str_contains($sql, 'SELECT c.CommentId, c.PostId')) {
                 return $selectStmt;
+            }
+            if (str_contains($sql, 'UPDATE dbo.Posts SET LastCommentNotificationSentAt')) {
+                return $updateStmt;
             }
             if (str_contains($sql, 'dbo.Users')) {
                 return $banStmt;
@@ -94,6 +124,8 @@ final class CommentControllerTest extends TestCase
         $this->assertEquals('This is a brand new comment!', $json['comment']['content']);
         $this->assertEquals('Joe', $json['comment']['user']['firstName']);
         $this->assertEquals(0, $json['comment']['score']);
+        $this->assertCount(1, $sentNotifications);
+        $this->assertSame('New comment on your post: Exciting Post Title', $sentNotifications[0]['subject']);
     }
 
     #[AllowMockObjectsWithoutExpectations]
@@ -257,5 +289,266 @@ final class CommentControllerTest extends TestCase
 
         $this->assertEquals(403, $response->getStatusCode());
         $this->assertFalse($this->decode($response)['ok']);
+    }
+
+    #[AllowMockObjectsWithoutExpectations]
+    public function testDoesNotSendEmailWhenNotificationsAreDisabled(): void
+    {
+        $postId = 101;
+        $userId = 1;
+        $sentNotifications = [];
+
+        $this->controller = new CommentController(
+            fn() => $this->pdo,
+            function (array $message) use (&$sentNotifications) {
+                $sentNotifications[] = $message;
+                return true;
+            }
+        );
+
+        $request = (new ServerRequestFactory())->createServerRequest('POST', "/api/posts/{$postId}/comments")
+            ->withAttribute('user_id', $userId)
+            ->withParsedBody(['content' => 'This should not send an email.']);
+
+        $banStmt = $this->createMock(PDOStatement::class);
+        $banStmt->method('fetch')->willReturn(['IsBanned' => 0]);
+
+        $insertStmt = $this->createMock(PDOStatement::class);
+        $insertStmt->expects($this->once())->method('execute');
+        $insertStmt->method('fetch')->willReturn([
+            'CommentId' => 56,
+            'CreatedAt' => '2026-03-04 12:00:00'
+        ]);
+
+        $postOwnerStmt = $this->createMock(PDOStatement::class);
+        $postOwnerStmt->expects($this->once())->method('execute')->with([':postId' => $postId]);
+        $postOwnerStmt->method('fetch')->willReturn([
+            'PostID' => $postId,
+            'Title' => 'Disabled Notifications Post',
+            'AuthorID' => 99,
+            'LastCommentNotificationSentAt' => null,
+            'Email' => 'author@example.com',
+            'FirstName' => 'Author',
+            'LastName' => 'Disabled',
+            'EmailNotificationsEnabled' => 0
+        ]);
+
+        $selectStmt = $this->createMock(PDOStatement::class);
+        $selectStmt->expects($this->once())->method('execute')->with([':commentId' => 56]);
+        $selectStmt->method('fetch')->willReturn([
+            'CommentId' => 56,
+            'PostId' => $postId,
+            'ParentCommentId' => null,
+            'Content' => 'This should not send an email.',
+            'CreatedAt' => '2026-03-04 12:00:00',
+            'UserId' => $userId,
+            'TotalScore' => 0,
+            'FirstName' => 'Joe',
+            'LastName' => 'Rogers',
+            'Avatar' => 'pfp-0.png',
+            'RoleName' => 'student',
+            'MyVote' => 0,
+            'ReplyCount' => 0
+        ]);
+
+        $this->pdo->method('prepare')->willReturnCallback(
+            function (string $sql) use ($banStmt, $insertStmt, $postOwnerStmt, $selectStmt) {
+                if (str_contains($sql, 'INSERT INTO dbo.Comments')) {
+                    return $insertStmt;
+                }
+                if (str_contains($sql, 'SELECT p.PostID, p.Title, p.AuthorID')) {
+                    return $postOwnerStmt;
+                }
+                if (str_contains($sql, 'SELECT c.CommentId, c.PostId')) {
+                    return $selectStmt;
+                }
+                if (str_contains($sql, 'dbo.Users')) {
+                    return $banStmt;
+                }
+
+                throw new Exception("Unexpected SQL: $sql");
+            }
+        );
+
+        $response = $this->controller->createComment($request, new Response(), ['postId' => $postId]);
+        $json = $this->decode($response);
+
+        $this->assertEquals(201, $response->getStatusCode());
+        $this->assertTrue($json['ok']);
+        $this->assertCount(0, $sentNotifications);
+    }
+
+    #[AllowMockObjectsWithoutExpectations]
+    public function testDoesNotSendEmailWithinCooldown(): void
+    {
+        $postId = 101;
+        $userId = 1;
+        $sentNotifications = [];
+
+        $this->controller = new CommentController(
+            fn() => $this->pdo,
+            function (array $message) use (&$sentNotifications) {
+                $sentNotifications[] = $message;
+                return true;
+            }
+        );
+
+        $request = (new ServerRequestFactory())->createServerRequest('POST', "/api/posts/{$postId}/comments")
+            ->withAttribute('user_id', $userId)
+            ->withParsedBody(['content' => 'This should be blocked by cooldown.']);
+
+        $banStmt = $this->createMock(PDOStatement::class);
+        $banStmt->method('fetch')->willReturn(['IsBanned' => 0]);
+
+        $insertStmt = $this->createMock(PDOStatement::class);
+        $insertStmt->expects($this->once())->method('execute');
+        $insertStmt->method('fetch')->willReturn([
+            'CommentId' => 57,
+            'CreatedAt' => '2026-03-04 12:00:00'
+        ]);
+
+        $postOwnerStmt = $this->createMock(PDOStatement::class);
+        $postOwnerStmt->expects($this->once())->method('execute')->with([':postId' => $postId]);
+        $postOwnerStmt->method('fetch')->willReturn([
+            'PostID' => $postId,
+            'Title' => 'Cooldown Post',
+            'AuthorID' => 99,
+            'LastCommentNotificationSentAt' => date('Y-m-d H:i:s'),
+            'Email' => 'author@example.com',
+            'FirstName' => 'Author',
+            'LastName' => 'Cooldown',
+            'EmailNotificationsEnabled' => 1
+        ]);
+
+        $selectStmt = $this->createMock(PDOStatement::class);
+        $selectStmt->expects($this->once())->method('execute')->with([':commentId' => 57]);
+        $selectStmt->method('fetch')->willReturn([
+            'CommentId' => 57,
+            'PostId' => $postId,
+            'ParentCommentId' => null,
+            'Content' => 'This should be blocked by cooldown.',
+            'CreatedAt' => '2026-03-04 12:00:00',
+            'UserId' => $userId,
+            'TotalScore' => 0,
+            'FirstName' => 'Joe',
+            'LastName' => 'Rogers',
+            'Avatar' => 'pfp-0.png',
+            'RoleName' => 'student',
+            'MyVote' => 0,
+            'ReplyCount' => 0
+        ]);
+
+        $this->pdo->method('prepare')->willReturnCallback(
+            function (string $sql) use ($banStmt, $insertStmt, $postOwnerStmt, $selectStmt) {
+                if (str_contains($sql, 'INSERT INTO dbo.Comments')) {
+                    return $insertStmt;
+                }
+                if (str_contains($sql, 'SELECT p.PostID, p.Title, p.AuthorID')) {
+                    return $postOwnerStmt;
+                }
+                if (str_contains($sql, 'SELECT c.CommentId, c.PostId')) {
+                    return $selectStmt;
+                }
+                if (str_contains($sql, 'dbo.Users')) {
+                    return $banStmt;
+                }
+
+                throw new Exception("Unexpected SQL: $sql");
+            }
+        );
+
+        $response = $this->controller->createComment($request, new Response(), ['postId' => $postId]);
+        $json = $this->decode($response);
+
+        $this->assertEquals(201, $response->getStatusCode());
+        $this->assertTrue($json['ok']);
+        $this->assertCount(0, $sentNotifications);
+    }
+
+    #[AllowMockObjectsWithoutExpectations]
+    public function testAuthorCommentDoesNotSendEmail(): void
+    {
+        $postId = 101;
+        $userId = 1;
+        $sentNotifications = [];
+
+        $this->controller = new CommentController(
+            fn() => $this->pdo,
+            function (array $message) use (&$sentNotifications) {
+                $sentNotifications[] = $message;
+                return true;
+            }
+        );
+
+        $request = (new ServerRequestFactory())->createServerRequest('POST', "/api/posts/{$postId}/comments")
+            ->withAttribute('user_id', $userId)
+            ->withParsedBody(['content' => 'Author is commenting on their own post.']);
+
+        $banStmt = $this->createMock(PDOStatement::class);
+        $banStmt->method('fetch')->willReturn(['IsBanned' => 0]);
+
+        $insertStmt = $this->createMock(PDOStatement::class);
+        $insertStmt->expects($this->once())->method('execute');
+        $insertStmt->method('fetch')->willReturn([
+            'CommentId' => 58,
+            'CreatedAt' => '2026-03-04 12:00:00'
+        ]);
+
+        $postOwnerStmt = $this->createMock(PDOStatement::class);
+        $postOwnerStmt->expects($this->once())->method('execute')->with([':postId' => $postId]);
+        $postOwnerStmt->method('fetch')->willReturn([
+            'PostID' => $postId,
+            'Title' => 'Author Owns This Post',
+            'AuthorID' => $userId,
+            'LastCommentNotificationSentAt' => null,
+            'Email' => 'author@example.com',
+            'FirstName' => 'Author',
+            'LastName' => 'Owner',
+            'EmailNotificationsEnabled' => 1
+        ]);
+
+        $selectStmt = $this->createMock(PDOStatement::class);
+        $selectStmt->expects($this->once())->method('execute')->with([':commentId' => 58]);
+        $selectStmt->method('fetch')->willReturn([
+            'CommentId' => 58,
+            'PostId' => $postId,
+            'ParentCommentId' => null,
+            'Content' => 'Author is commenting on their own post.',
+            'CreatedAt' => '2026-03-04 12:00:00',
+            'UserId' => $userId,
+            'TotalScore' => 0,
+            'FirstName' => 'Joe',
+            'LastName' => 'Rogers',
+            'Avatar' => 'pfp-0.png',
+            'RoleName' => 'student',
+            'MyVote' => 0,
+            'ReplyCount' => 0
+        ]);
+
+        $this->pdo->method('prepare')->willReturnCallback(
+            function (string $sql) use ($banStmt, $insertStmt, $postOwnerStmt, $selectStmt) {
+                if (str_contains($sql, 'INSERT INTO dbo.Comments')) {
+                    return $insertStmt;
+                }
+                if (str_contains($sql, 'SELECT p.PostID, p.Title, p.AuthorID')) {
+                    return $postOwnerStmt;
+                }
+                if (str_contains($sql, 'SELECT c.CommentId, c.PostId')) {
+                    return $selectStmt;
+                }
+                if (str_contains($sql, 'dbo.Users')) {
+                    return $banStmt;
+                }
+
+                throw new Exception("Unexpected SQL: $sql");
+            }
+        );
+
+        $response = $this->controller->createComment($request, new Response(), ['postId' => $postId]);
+        $json = $this->decode($response);
+
+        $this->assertEquals(201, $response->getStatusCode());
+        $this->assertTrue($json['ok']);
+        $this->assertCount(0, $sentNotifications);
     }
 }

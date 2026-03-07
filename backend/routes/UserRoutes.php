@@ -23,7 +23,7 @@ $app->get('/api/me', function(Request $req, Response $res) use ($makePdo) {
             $sql = "
                 SELECT u.User_ID, u.Email, u.FirstName, u.LastName, u.Avatar, r.Name as RoleName, r.RoleID,
                        ISNULL(u.IsBanned, 0) as IsBanned, u.BanType, u.BannedUntil,
-                       ISNULL(u.termsAccepted, 0) as termsAccepted, u.termsAcceptedAt
+                       ISNULL(u.EmailNotificationsEnabled, 1) as EmailNotificationsEnabled
                 FROM dbo.Users u
                 LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
                 WHERE u.User_ID = :uid
@@ -52,7 +52,8 @@ $app->get('/api/me', function(Request $req, Response $res) use ($makePdo) {
 
         if (!$user) {
             $sql = "
-                SELECT u.User_ID, u.Email, u.FirstName, u.LastName, u.Avatar, r.Name as RoleName, r.RoleID
+                SELECT u.User_ID, u.Email, u.FirstName, u.LastName, u.Avatar, r.Name as RoleName, r.RoleID,
+                    ISNULL(u.EmailNotificationsEnabled, 1) as EmailNotificationsEnabled
                 FROM dbo.Users u
                 LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
                 WHERE u.User_ID = :uid
@@ -283,6 +284,85 @@ $app->post('/api/user/avatar', function (Request $req, Response $res) use ($make
 
     } catch (Throwable $e) {
         // Failed to save icon
+        return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+    }
+});
+
+$app->get('/api/user/notification-settings', function (Request $req, Response $res) use ($makePdo) {
+    try {
+        $userId = $req->getAttribute('user_id');
+
+        if (!$userId) {
+            return json($res, ['ok' => false, 'error' => 'Unauthorized'], 401);
+        }
+
+        $pdo = $makePdo();
+
+        $sql = "
+            SELECT ISNULL(EmailNotificationsEnabled, 1) as EmailNotificationsEnabled
+            FROM dbo.Users
+            WHERE User_ID = :uid
+        ";
+
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([':uid' => $userId]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$result) {
+            return json($res, ['ok' => false, 'error' => 'User not found'], 404);
+        }
+
+        return json($res, [
+            'ok' => true,
+            'settings' => [
+                'emailNotifications' => (bool)$result['EmailNotificationsEnabled']
+            ]
+        ]);
+    } catch (Throwable $e) {
+        return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+    }
+});
+
+$app->post('/api/user/notification-settings', function (Request $req, Response $res) use ($makePdo) {
+    try {
+        $userId = $req->getAttribute('user_id');
+
+        if (!$userId) {
+            return json($res, ['ok' => false, 'error' => 'Unauthorized'], 401);
+        }
+
+        $data = $req->getParsedBody() ?? [];
+        
+        if (!array_key_exists('emailNotifications', $data)) {
+            return json($res, ['ok' => false, 'error' => 'Invalid emailNotifications value'], 400);
+        }
+
+        $emailNotifications = filter_var($data['emailNotifications'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+
+        if ($emailNotifications === null) {
+            return json($res, ['ok' => false, 'error' => 'Invalid emailNotifications value'], 400);
+        }
+
+        $pdo = $makePdo();
+
+        $updateSql = "
+            UPDATE dbo.Users
+            SET EmailNotificationsEnabled = :enabled
+            WHERE User_ID = :uid
+        ";
+
+        $pdo->prepare($updateSql)->execute([
+            ':enabled' => $emailNotifications ? 1 : 0,
+            ':uid' => $userId
+        ]);
+
+        return json($res, [
+            'ok' => true, 
+            'settings' => [
+                'emailNotifications' => $emailNotifications
+            ]
+        ]);
+    } catch (Throwable $e) {
         return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
     }
 });

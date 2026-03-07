@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
 import { updateUserAvatar } from '@/api/auth';
+import { getNotificationSettings, saveNotificationSettings } from '@/api/users';
 import { userAvatar } from '@/stores/userStore';
 
 // Import all images from the 'src/assets/images' folder
@@ -12,7 +13,7 @@ const images = computed(() => {
 });
 
 // Load saved settings from localStorage
-const loadSettings = () => {
+const loadSettings = async () => {
   const savedAvatar = localStorage.getItem('userAvatar') || images.value[0] || ''; // Default to pfp-0.png (index 0)
   const savedNotifications = localStorage.getItem('notificationPreferences');
   
@@ -26,6 +27,15 @@ const loadSettings = () => {
       console.error('Failed to parse notification preferences', e);
     }
   }
+
+  try {
+    const result = await getNotificationSettings();
+    if (result.ok && result.settings) {
+      notificationPrefs.value.emailNotifications = !!result.settings.emailNotifications;
+    }
+  } catch (e) {
+    console.error('Failed to load notification settings from server', e);
+  }
 };
 
 // Save settings to localStorage and database
@@ -33,10 +43,19 @@ const saveSettings = async () => {
   try {
     const fullPath = selectedAvatar.value;
     const filename = fullPath.split('/').pop();
-    const result = await updateUserAvatar(filename);
+    const avatarResult = await updateUserAvatar(filename);
 
-    if (!result.ok) {
+    if (!avatarResult.ok) {
       alert('Could not save your icon, please try again later.');
+      return;
+    }
+
+    const notificationResult = await saveNotificationSettings({
+      emailNotifications: notificationPrefs.value.emailNotifications
+    });
+
+    if (!notificationResult.ok) {
+      alert('Could not save your notification preferences, please try again later.');
       return;
     }
 
