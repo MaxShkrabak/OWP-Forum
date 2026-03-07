@@ -15,29 +15,39 @@ const tabs = ref([
     { name: 'Tags', icon: 'bi-tags-fill' },
     { name: 'Reports', icon: 'bi-flag-fill' }
 ])
+
+const isNavOpen = ref(false);
+
+const toggleNav = () => {
+  isNavOpen.value = !isNavOpen.value;
+};
 </script>
 
 <template>
     <div class="page">
         <div class="page-container d-flex">
-            <div class="panel-nav w-25">
-                <div class="nav-header text-center py-1">
+            <div class="panel-nav" :class="{ 'panel-nav-open': isNavOpen }">
+                <div class="nav-header py-1">
+                    <button class="nav-toggle ms-2 pt-1" style="position: absolute;" @click="toggleNav">
+                            <span class="text-white">☰</span>
+                        </button>
                     <div class="nav-logo-container p-2">
+                        
                         <RouterLink to="/">
                             <img :src="OWPLogoSmall" alt="owp logo small" class="nav-logo">
                         </RouterLink>
-                        <span class="forum-title d-none d-md-inline">Forum</span>
+                        <span class="forum-title d-none d-sm-inline">Forum</span>
                     </div>
                 </div>
 
                 <div class="nav-divider mb-3 mt-2 mt-md-1"></div>
-                <span class="forum-title fs-6 ps-2 d-md-none">Forum:</span>
+                <span class="forum-title fs-6 ps-2 d-sm-none">Forum:</span>
 
                 <div class="nav-opts" v-for="tab in tabs" :key="tab.name">
                     <div class="btn-container mb-1" :class="{ 'nav-btn-active-container': activeTab === tab.name }">
-                        <button class="nav-btns ms-1 ms-sm-3 py-2 px-0 px-md-1 text-start row"
-                            :class="{ 'nav-btn-active': activeTab === tab.name }" @click="activeTab = tab.name">
-                            <i class="bi col-auto d-none d-sm-block" :class="tab.icon"></i>
+                        <button class="nav-btns ms-3 py-2 px-0 px-md-1 text-start row"
+                            :class="{ 'nav-btn-active': activeTab === tab.name }" @click="activeTab = tab.name , toggleNav()">
+                            <i class="bi col-auto" :class="tab.icon"></i>
                             <span class="nav-name col-auto">{{ tab.name }}</span>
                             <i class="bi bi-arrow-right-short col-auto d-none d-lg-block"></i>
                         </button>
@@ -45,7 +55,10 @@ const tabs = ref([
                 </div>
             </div>
 
-            <div class="panel-content w-75 pt-4 px-4 overflow-auto">
+            <div class="panel-content pt-2 px-2 overflow-auto">
+                <button class="nav-toggle" @click="toggleNav">
+                    <span class="text-black">☰</span>
+                </button>
                 <div class="tab-content h-100" v-for="tab in tabs" :key="'content-'+tab.name" v-show="activeTab === tab.name">
                     
                     <template v-if="tab.name === 'Users'">
@@ -75,12 +88,32 @@ const tabs = ref([
     height: 100vh;
 }
 
-.panel-content {
-    background-color: #cbdad5;
-}
-
 .panel-nav {
     background: linear-gradient(210deg, #005f6b 0%, #004750 100%);
+    opacity: 97%;
+    width: 70%;
+    height: 100%;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    position : absolute;
+    z-index: 1000;
+}
+.panel-nav-open {
+    transform: translateX(0);
+}
+
+.panel-content {
+    background-color: #cbdad5;
+    width: 100%;
+    transition: all 0.25s ease;
+}
+
+.nav-toggle {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    display: inline-block;
+    margin-right: 0.5rem;
 }
 
 .nav-logo-container {
@@ -101,7 +134,7 @@ const tabs = ref([
 }
 
 .nav-logo {
-    width: 3.5rem;
+    width: 3.8rem;
 }
 
 .nav-divider {
@@ -148,8 +181,7 @@ const tabs = ref([
 .nav-name {
     display: inline-block;
     width: unset;
-    font-weight: 400;
-    font-size: small;
+    font-size: large; font-weight: 600; 
 }
 
 .page-title {
@@ -158,9 +190,24 @@ const tabs = ref([
     color: #004750;
 }
 
+@media (min-width: 576px) {
+    .panel-nav { 
+        width: 40%;
+    }
+    .nav-logo { width: 3rem; }
+}
+
 @media (min-width: 768px) {
     .nav-logo { width: 3rem; }
     .nav-name { font-size: large; width: 14vw; font-weight: 600; }
+    .panel-nav { 
+        width: 25%;
+        opacity: 100%;
+        transform: translateX(0);
+        position: inherit;
+        }
+    .panel-content { width: 75%; }
+    .nav-toggle { display: none; }
 }
 
 @media (min-width: 992px) {
