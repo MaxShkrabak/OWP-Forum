@@ -1,4 +1,3 @@
-/** @vitest-environment jsdom */
 /**
  * Ban User (Admin) — unit tests.
  * Ban date formatting (no DOM) + AdminUsers component DOM tests.

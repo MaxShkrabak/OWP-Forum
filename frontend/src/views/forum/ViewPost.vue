@@ -1,13 +1,12 @@
 <script setup>
 import { ref, onMounted, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { getPost, votePost } from "@/api/posts";
-import ViewPostContent from "@/components/forum/ViewPostContent.vue";
-import ViewPostHeader from "@/components/forum/ViewPostHeader.vue";
-import { isLoggedIn, userRole, userRoleId, uid } from "@/stores/userStore";
-import CreatePostModal from "@/components/forum/CreatePostModal.vue";
-import PostModerationSidebar from "@/components/admin/PostModerationSidebar.vue";
+import { getPost } from "@/api/posts";
+
+import UserRole from "@/components/user/UserRole.vue";
 import CommentSection from "@/components/forum/CommentSection.vue";
+import ViewPostContent from "@/components/forum/ViewPostContent.vue";
+import PostModerationSidebar from "@/components/admin/PostModerationSidebar.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -17,65 +16,47 @@ const post = ref(null);
 const loading = ref(true);
 const error = ref(null);
 
-const showEditModal = ref(false);
-const isRestricted = ref(false);
+const getLocalDate = (input) => {
+  if (!input) return null;
+  const dateStr = input.trim().replace(" ", "T") + "Z";
+  return new Date(dateStr);
+};
 
-// Follow & Vote toggle states
-const isFollowing = ref(false);
-const isVoting = ref(false);
+const dateSource = computed(() => {
+  return post.value?.updatedAt || post.value?.createdAt;
+});
 
-async function handleVote(dir) {
-  if (isVoting.value || !post.value) return;
+const dateLabel = computed(() => {
+  return post.value?.updatedAt ? "Edited" : "Posted";
+});
 
-  const currentVote = Number(post.value.myVote ?? 0);
-  let action = dir;
-  if (
-    (dir === "up" && currentVote === 1) ||
-    (dir === "down" && currentVote === -1)
-  ) {
-    action = "clear";
-  }
+const dateText = computed(() => {
+  const d = getLocalDate(dateSource.value);
+  return d
+    ? d.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      })
+    : "";
+});
 
-  isVoting.value = true;
-  try {
-    const data = await votePost(post.value.PostID, action);
-    if (data?.ok) {
-      post.value.myVote = data.myVote;
-      post.value.TotalScore = data.score;
-    }
-  } catch (err) {
-    console.error("Vote error:", err);
-  } finally {
-    isVoting.value = false;
-  }
+const timeText = computed(() => {
+  const d = getLocalDate(dateSource.value);
+  return d
+    ? d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
+    : "";
+});
+
+function getAvatarSrc(file) {
+  if (!file) return "";
+  return new URL(`../../assets/img/user-pfps-premade/${file}`, import.meta.url)
+    .href;
 }
-
-const toggleFollow = () => (isFollowing.value = !isFollowing.value);
-
-const canReport = computed(() => {
-  if (!isLoggedIn.value) return true;
-  const role = (userRole?.value || "").toLowerCase();
-  return !(role === "admin" || role === "moderator");
-});
-
-// Admin and Mod only
-const isAdminOrMod = computed(() => Number(userRoleId.value) >= 3);
-
-// Relies on backend sending post.authorId
-const isAuthor = computed(() => {
-  if (!post.value) return false;
-  return Number(post.value.authorId) === Number(uid.value);
-});
 
 function goBack() {
   if (window.history.length > 1) router.back();
   else router.push("/");
-}
-
-// modalType: 'edit' (author/full) OR 'metadata' (restricted)
-function openRestrictedModal(modalType) {
-  isRestricted.value = modalType === "metadata";
-  showEditModal.value = true;
 }
 
 onMounted(async () => {
@@ -91,377 +72,285 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="page">
-    <div class="container position-relative">
-      <div class="go-back-floating" role="button" tabindex="0" @click="goBack" @keydown.enter="goBack">
-        <span class="back-arrow">←</span>
+  <div class="page py-4 px-3 pb-5">
+    <div class="page-inner mx-auto d-flex flex-column gap-3">
+      <div
+        v-if="loading"
+        class="loader d-flex flex-column align-items-center gap-3 py-5 my-5"
+      >
+        <div class="spinner-border" role="status"></div>
+        <span>Loading post…</span>
       </div>
 
-      <div v-if="loading" class="loader pt-5">
-        <div class="spinner-border"></div>
+      <div v-else-if="error" class="empty-state p-5 text-center rounded-4">
+        <i class="pi pi-exclamation-circle empty-icon fs-1 mb-3"></i>
+        <p>This post has been deleted or does not exist.</p>
       </div>
 
-      <div v-else-if="error" class="error empty-state text-center">
-        <p class="fw-medium text-secondary">
-          The post has been deleted or does not exist.
-        </p>
-      </div>
-
-      <div v-else-if="post" class="page-container">
-        <div class="center-container col text-center">
-          <div class="row gx-0">
-            <div class="col-12 header-align mb-2">
-              <ViewPostHeader :post="post" />
+      <div v-else-if="post" class="post-layout d-flex flex-column gap-1">
+        <article class="post-card rounded-4 overflow-hidden">
+          <div class="post-topbar d-flex align-items-center p-3 px-md-4 gap-3">
+            <div class="flex-shrink-0 d-flex">
+              <button
+                class="back-btn d-inline-flex align-items-center justify-content-center p-2 rounded-3"
+                @click="goBack"
+                title="Back to forum"
+              >
+                <i class="pi pi-arrow-left"></i>
+              </button>
             </div>
-          </div>
 
-          <div class="row gx-0">
-            <div class="post-sidebar col-md-3 col-lg-2 text-white mb-3 mb-md-0">
-              <div class="sidebar-actions">
-                <div class="voteFol">
-                  <div class="vote-container vote-container--sidebar">
-                    <button class="vote-btn-up pi pi-chevron-up mb-1" :class="{ active: Number(post.myVote) === 1 }"
-                      :disabled="isVoting" @click="handleVote('up')"></button>
+            <div class="topbar-divider flex-shrink-0"></div>
 
-                    <span class="vote-count" :class="{
-                      upvoted: Number(post.myVote) === 1,
-                      downvoted: Number(post.myVote) === -1,
-                    }">
-                      {{ post.TotalScore ?? 0 }}
-                    </span>
+            <div class="topbar-meta d-flex flex-column gap-1">
+              <div
+                class="category-label d-flex align-items-center gap-2 text-uppercase"
+              >
+                <i class="pi pi-folder-open category-icon"></i>
+                <span>{{ post.categoryName ?? "General" }}</span>
+              </div>
 
-                    <button class="vote-btn-down pi pi-chevron-down mt-1"
-                      :class="{ active: Number(post.myVote) === -1 }" :disabled="isVoting"
-                      @click="handleVote('down')"></button>
-                  </div>
-
-                  <button class="follow-btn" :class="{ following: isFollowing }" type="button" @click="toggleFollow">
-                    {{ isFollowing ? "❤︎" : "Follow ❤︎" }}
-                  </button>
-                </div>
-
-                <button v-if="canReport" class="report-btn" type="button">
-                  <i class="pi pi-flag report-icon"></i>
-                  <span>Report</span>
-                </button>
-
-                <PostModerationSidebar v-if="isAuthor || isAdminOrMod" :post="post"
-                  :user="{ RoleID: Number(userRoleId) }" :is-author="isAuthor" @open-modal="openRestrictedModal" />
-
-                <CreatePostModal v-if="showEditModal" :show="showEditModal" :post-data="post"
-                  :is-restricted="isRestricted" @close="showEditModal = false" />
+              <div
+                class="tags d-flex flex-wrap gap-1"
+                v-if="post.tags && post.tags.length"
+              >
+                <span
+                  v-for="t in post.tags"
+                  :key="t"
+                  class="post-tag rounded-4 text-uppercase px-2 py-1"
+                  :class="{ 'post-tag-official': t.Name === 'Official' }"
+                  >{{ t.Name }}</span
+                >
               </div>
             </div>
-
-            <div class="post-content col-md-9 col-lg-10">
-              <ViewPostContent :content="post.content" />
-            </div>
           </div>
 
-          <div class="row gx-0">
-            <div class="post-comments mt-2 mb-4">
-              <CommentSection :post-id="postId" />
+          <div class="post-header d-flex flex-column gap-3 gap-md-4 p-3 p-md-4">
+            <div class="author-info d-flex align-items-center">
+              <div class="avatar-box flex-shrink-0">
+                <img
+                  :src="getAvatarSrc(post.authorAvatar)"
+                  class="avatar-img"
+                  alt="user avatar"
+                />
+              </div>
+              <div class="author-details d-flex flex-column">
+                <div class="d-flex align-items-center gap-2">
+                  <span class="author-name">{{ post.authorName }}</span>
+                  <UserRole :role="post.authorRole" />
+                </div>
+                <div class="post-timestamp">
+                  <span>{{ dateLabel }} {{ dateText }} at {{ timeText }}</span>
+                </div>
+              </div>
             </div>
+            <h1 class="post-title fs-2 m-0 text-break">{{ post.title }}</h1>
           </div>
-        </div>
+
+          <ViewPostContent
+            :content="post.content"
+            class="px-3 px-md-4 pt-3 pt-md-4"
+          />
+
+          <section class="post-footer">
+            <PostModerationSidebar :post="post" class="px-4 py-4" />
+          </section>
+        </article>
+
+        <section
+          class="post-card comments-section mt-3 rounded-4 overflow-hidden"
+        >
+          <CommentSection :post-id="postId" />
+        </section>
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-/* Page background */
 .page {
-  background-color: #cbdad5;
+  background-color: #c8d8d0;
   min-height: 90vh;
-  padding-top: 5vh;
-  padding-left: 1vh;
-  padding-right: 1vh;
 }
 
-/* Loader */
-.loader {
-  display: flex;
-  justify-content: center;
-  padding-top: 25%;
-  padding-bottom: 25%;
+.page-inner {
+  max-width: 900px;
 }
 
-/* Error */
-.empty-state {
-  background: rgba(255, 255, 255, 0.6);
-  border-radius: 20px;
-  border: 2px dashed #7e9291;
-  padding: 3rem;
-}
-
-/* Header */
-.go-back {
-  border: 2px black solid;
-  border-radius: 3px;
-}
-
-.content-head {
-  border: 2px black solid;
-  border-radius: 3px;
-}
-
-/* Content */
-.post-content {
-  background-color: none;
-}
-
-/* Sidebar*/
-.post-sidebar {
-  background-color: #ffffff;
-  border-radius: 12px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 20px;
-}
-
-.sidebar-actions {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-}
-
-.voteFol {
-  height: 100%;
-}
-
-/* Voting base */
-.vote-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  flex-shrink: 0;
-}
-
-.vote-container--sidebar {
-  min-width: 60px;
-}
-
-.vote-btn-up,
-.vote-btn-down {
-  background: none;
-  border: none;
-  color: #bac7c4;
-  cursor: pointer;
-  transition: all 0.2s ease-in-out;
-  font-size: 1.8rem;
-  padding: 0;
-}
-
-.vote-btn-up:hover {
-  color: #1a3c34;
-  transform: translateY(-1px);
-  text-shadow: 0 4px 2px #04392791;
-}
-
-.vote-btn-down:hover {
-  color: #5e2b2c;
-  transform: translateY(1px);
-  text-shadow: 0 -4px 2px #5e2b2c91;
-}
-
-.vote-btn-up.active,
-.vote-btn-down.active {
-  scale: 115%;
-}
-
-.vote-btn-up.active {
-  color: #043927;
-}
-
-.vote-btn-down.active {
-  color: #5e2b2c;
-}
-
-.vote-btn-up:disabled,
-.vote-btn-down:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.vote-count {
-  font-weight: 900;
-  font-size: 1.35rem;
-  margin: -6px 0;
-  color: #1a1a1b;
-}
-
-.vote-count.upvoted {
-  color: #043927;
-}
-
-.vote-count.downvoted {
-  color: #5e2b2c;
-}
-
-@keyframes count-bounce {
-  0% {
-    transform: translateY(0);
-  }
-  25% {
-    transform: translateY(-5px);
-  }
-  50% {
-    transform: translateY(3px);
-  }
-  70% {
-    transform: translateY(-1px);
-  }
-  85%,
-  100% {
-    transform: translateY(0);
-  }
-}
-
-.voting-bounce {
-  animation: count-bounce 0.8s infinite ease-in-out;
-  display: inline-block;
-  opacity: 0.8;
-}
-
-/* Follow */
-.follow-btn {
-  width: 130px;
-  height: 40px;
-  border-radius: 8px;
-  border-style: none;
-  color: #ffffff;
-  background-color: #004750;
-  font-weight: 800;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: 0.3s;
-}
-
-.follow-btn:hover {
-  background-color: #007c8a;
-}
-
-.follow-btn.following {
-  background-color: #b91657;
-  color: #ffffff;
-  width: 45px;
-  font-size: 1.5rem;
-}
-
-.follow-btn.following:hover {
-  background-color: #737373;
-}
-
-/* Report */
-.report-btn {
-  background: none;
-  border: none;
-  color: #adb5bd;
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.9rem;
-  font-weight: 700;
-}
-
-.report-icon {
-  font-size: 1.6rem;
-}
-
-.report-btn:hover {
-  color: #dc3545;
-}
-
-.post-comments {
-  border: 2px black solid;
-  border-radius: 3px;
-}
-
-/* box of votes and follow */
-.voteFol {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-}
-
-/* HEADER alignment */
-.header-align {
-  padding-left: 0;
-  padding-right: 0;
-  text-align: left;
-}
-
-/* FLOATING BACK ARROW */
-.go-back-floating {
-  position: absolute;
-  left: -88px;
-  top: 4px;
-
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  border: 3px solid #000;
+.go-back-btn {
   background: #fff;
+  border: 1px solid #b0c9bc;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #1e4d38;
+  cursor: pointer;
+  align-self: flex-start;
+  box-shadow: 0 1px 4px rgba(30, 77, 56, 0.08);
+  transition:
+    background 0.15s,
+    box-shadow 0.15s;
+}
 
+.go-back-btn:hover {
+  background: #eaf2ec;
+  box-shadow: 0 2px 8px rgba(30, 77, 56, 0.14);
+}
+
+.loader {
+  color: #4a7a62;
+  font-weight: 600;
+}
+
+.empty-state {
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px dashed #8aab97;
+  color: #4a7a62;
+}
+
+.empty-icon {
+  color: #8aab97;
+  display: block;
+}
+
+.post-card {
+  background: #fff;
+  border: 1px solid #b0c9bc;
+  box-shadow: 0 2px 10px rgba(30, 77, 56, 0.1);
+}
+
+.post-topbar {
+  background: linear-gradient(135deg, #004b33 0%, #003d4c 100%);
+  color: #fff;
+  min-height: 60px;
+}
+
+.category-wrapper {
   display: flex;
   align-items: center;
-  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  width: 100%;
+}
 
+.category-label {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: #a8d5be;
+}
+
+.category-icon {
+  font-size: 0.8rem;
+  color: #7abfa0;
+}
+
+.back-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
   cursor: pointer;
-  z-index: 10;
+  transition: all 0.3s ease;
 }
 
-.go-back-floating:hover {
-  background: #f1f5f9;
+.back-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+  transform: translateX(-4px);
 }
 
-.back-arrow {
-  font-size: 26px;
-  font-weight: 900;
-  line-height: 1;
+.topbar-divider {
+  width: 1px;
+  height: 14px;
+  background: #4a7a62;
 }
 
-/* Sidebar */
-.post-sidebar {
-  border: 2px solid #000;
-  border-radius: 3px;
+.topbar-divider {
+  width: 1px;
+  height: 36px;
+  background: rgba(255, 255, 255, 0.25);
 }
 
-/* Replace Bootstrap gutter between sidebar/content */
-.post-content {
-  padding-left: 16px;
+.post-tag {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-/* Comments */
-.post-comments {
-  border: 2px solid #000;
-  border-radius: 3px;
+.post-tag-official {
+  background: rgba(210, 120, 30, 0.25);
+  color: #ffd49a;
+  border-color: rgba(210, 140, 50, 0.5);
+  box-shadow: 0 0 6px rgba(210, 120, 30, 0.2);
 }
 
-/* Mobile safety */
-@media (max-width: 576px) {
-  .go-back-floating {
-    left: 0;
-    top: -64px;
-    width: 52px;
-    height: 52px;
-  }
+.author-info {
+  gap: 14px;
+}
 
-  .back-arrow {
-    font-size: 24px;
-  }
+.post-header {
+  border-bottom: 1px solid #b8d8ca;
+}
 
-  .post-content {
-    padding-left: 0;
+.post-title {
+  color: #0d2b1a;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+}
+
+.avatar-box {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid #7e9291;
+  background: #f0f4f2;
+}
+
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.author-details {
+  gap: 2px;
+}
+
+.author-name {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #1a2e22;
+}
+
+.post-timestamp {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #7a9a8a;
+}
+
+.topbar-meta {
+  min-width: 0;
+}
+
+:deep(.role-pill) {
+  border-radius: 4px !important;
+  padding: 2px 3px 1px !important;
+  font-size: 0.45rem !important;
+  vertical-align: middle !important;
+}
+
+.post-footer {
+  border-top: 1px solid #b8d8ca;
+  background-color: #f0f4f2;
+}
+
+@media (max-width: 640px) {
+  .topbar-divider {
+    height: auto;
+    align-self: stretch;
+    margin: 10px 0;
   }
 }
 </style>

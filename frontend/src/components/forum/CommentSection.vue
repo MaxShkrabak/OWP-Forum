@@ -1,25 +1,25 @@
 <script setup>
-import { ref, computed, provide, onMounted } from 'vue';
-import SingleComment from './SingleComment.vue';
+import { ref, computed, provide, onMounted } from "vue";
+import SingleComment from "./SingleComment.vue";
 
 import {
   fetchComments as apiFetchComments,
   submitComment as apiSubmitComment,
   formatCommentData
 } from '@/api/comments';
-import { uid } from '@/stores/userStore';
+import { uid, isLoggedIn } from '@/stores/userStore';
 
 const props = defineProps({
   postId: {
     type: [Number, String],
-    required: true
-  }
+    required: true,
+  },
 });
 
 const flatCommentsList = ref([]);
 const commentsTree = ref([]);
 const isFocused = ref(false);
-const newComment = ref('');
+const newComment = ref("");
 const activeReplyId = ref(null);
 const activeEditId = ref(null);
 const activeEditDirty = ref(false);
@@ -89,14 +89,14 @@ const buildCommentTree = (flatComments) => {
   const map = new Map();
   const tree = [];
 
-  flatComments.forEach(comment => {
+  flatComments.forEach((comment) => {
     map.set(comment.id, comment);
   });
 
-  flatComments.forEach(comment => {
+  flatComments.forEach((comment) => {
     if (comment.parentCommentId) {
       const parent = map.get(comment.parentCommentId);
-      if (parent && !parent.replies.some(r => r.id === comment.id)) {
+      if (parent && !parent.replies.some((r) => r.id === comment.id)) {
         parent.replies.push(map.get(comment.id));
       }
     } else {
@@ -127,7 +127,10 @@ const loadComments = async (isInitial = true) => {
     if (data && data.ok) {
       commentTotalCount.value = data.total || 0;
 
-      if (flatCommentsList.value.length + data.items.length >= commentTotalCount.value) {
+      if (
+        flatCommentsList.value.length + data.items.length >=
+        commentTotalCount.value
+      ) {
         hasMore.value = false;
       }
 
@@ -157,7 +160,7 @@ const submitComment = async () => {
   try {
     const data = await apiSubmitComment(props.postId, newComment.value);
     if (data && data.ok) {
-      newComment.value = '';
+      newComment.value = "";
       isFocused.value = false;
       commentTotalCount.value++;
 
@@ -173,7 +176,11 @@ const submitComment = async () => {
 const submitReply = async (replyContent, parentCommentId) => {
   if (!replyContent.trim()) return false;
   try {
-    const data = await apiSubmitComment(props.postId, replyContent, parentCommentId);
+    const data = await apiSubmitComment(
+      props.postId,
+      replyContent,
+      parentCommentId,
+    );
     if (data && data.ok) {
       activeReplyId.value = null;
       commentTotalCount.value++;
@@ -186,12 +193,12 @@ const submitReply = async (replyContent, parentCommentId) => {
   }
 };
 
-provide('submitReply', submitReply);
+provide("submitReply", submitReply);
 
 const totalCommentsCount = computed(() => commentTotalCount.value);
 
 const cancelComment = () => {
-  newComment.value = '';
+  newComment.value = "";
   isFocused.value = false;
 };
 
@@ -201,19 +208,23 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="comment-section p-4 rounded-3 border bg-white text-start">
-    <div class="d-flex flex-wrap align-items-center justify-content-between mb-3 gap-3 header-row">
-      <h3 class="section-title fw-bold pb-2 border-bottom d-inline-block mb-0 flex-shrink-0">
-        {{ totalCommentsCount }} Comments
-      </h3>
+  <div class="comment-section bg-white text-start">
+    <div
+      class="comments-header d-flex flex-wrap align-items-center justify-content-between gap-2 p-3 text-uppercase small"
+    >
+      <div class="d-flex align-items-center gap-2">
+        <i class="pi pi-comments"></i>
+        <span>Comments ({{ totalCommentsCount }})</span>
+      </div>
 
-      <div class="sort-dropdown ms-auto d-inline-flex align-items-center">
-        <span class="sort-label me-2">Sort by</span>
+      <div class="sort-dropdown d-inline-flex align-items-center">
+        <i class="pi pi-sort-alt d-sm-none me-1"></i>
+        <span class="sort-label d-none d-sm-inline-block me-2">Sort:</span>
         <select
           id="comment-sort"
           v-model="selectedSort"
           @change="handleSortChange"
-          class="form-select form-select-sm sort-select"
+          class="sort-select"
         >
           <option v-for="option in sortOptions" :key="option.value" :value="option.value">
             {{ option.label }}
@@ -222,30 +233,60 @@ onMounted(() => {
       </div>
     </div>
 
-    <div class="main-input-wrapper mb-4">
-      <div class="reply-box-container border rounded-3 overflow-hidden bg-white"
-        :class="{ 'focused-border': isFocused }">
-        <textarea v-model="newComment" @focus="isFocused = true" placeholder="Add a comment..."
-          class="comment-textarea w-100 border-0 p-3" rows="2"></textarea>
+    <div class="p-3 p-md-4">
+      <div class="main-input-wrapper mb-4">
+        <div
+          class="reply-box-container border rounded-3 overflow-hidden bg-white"
+          :class="{ 'focused-border': isFocused }"
+        >
+          <textarea
+            v-model="newComment"
+            @focus="isFocused = true"
+            :placeholder="isLoggedIn ? 'Add a comment...' : 'Sign in to comment'"
+            :disabled="!isLoggedIn"
+            class="comment-textarea w-100 border-0 p-3"
+            rows="2"
+          ></textarea>
 
-        <div v-if="isFocused" class="d-flex justify-content-end align-items-center gap-3 px-3 pb-2">
-          <button class="btn-cancel border-0 bg-transparent fw-bold" @click="cancelComment">Cancel</button>
-          <button class="btn-submit border-0 rounded-2 fw-bold px-4 py-2" :disabled="!newComment"
-            @click="submitComment">Comment</button>
+          <div
+            v-if="isFocused"
+            class="d-flex justify-content-end align-items-center gap-3 px-3 pb-2"
+          >
+            <button
+              class="btn-cancel border-0 bg-transparent fw-bold"
+              @click="cancelComment"
+            >
+              Cancel
+            </button>
+            <button
+              class="btn-submit border-0 rounded-2 fw-bold px-4 py-2"
+              :disabled="!newComment"
+              @click="submitComment"
+            >
+              Comment
+            </button>
+          </div>
         </div>
       </div>
-    </div>
 
-    <div class="comments-container">
-      <SingleComment v-for="comment in commentsTree" :key="comment.id" :comment="comment" />
-    </div>
+      <div class="comments-container">
+        <SingleComment
+          v-for="comment in commentsTree"
+          :key="comment.id"
+          :comment="comment"
+        />
+      </div>
 
-    <div v-if="hasMore" class="mt-4">
-      <button @click="handleLoadMore" :disabled="isLoadingMore"
-        class="load-more-btn w-100 border py-2 rounded-3 fw-bold bg-transparent d-flex align-items-center justify-content-center gap-2">
-        <i v-if="isLoadingMore" class="pi pi-spin pi-spinner"></i>
-        <span>{{ isLoadingMore ? 'Loading...' : 'Show more comments' }}</span>
-      </button>
+      <div v-if="hasMore" class="mt-4">
+        <button
+          @click="handleLoadMore"
+          :disabled="isLoadingMore"
+          class="load-more-btn w-100 border py-2 rounded-3 fw-bold bg-transparent d-flex align-items-center justify-content-center gap-2"
+        >
+          <i v-if="isLoadingMore" class="pi pi-spin pi-spinner"></i>
+          <span>{{ isLoadingMore ? "Loading..." : "Show more comments" }}</span>
+        </button>
+      </div>
     </div>
 
     <Teleport to="body">
@@ -284,9 +325,11 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.section-title {
-  color: #035157;
-  border-bottom-color: #035157 !important;
+.comments-header {
+  background: #f0f7f3;
+  border-bottom: 1px solid #cce3d6;
+  font-weight: 800;
+  color: #1e4d38;
 }
 
 .reply-box-container {
@@ -363,38 +406,57 @@ onMounted(() => {
 }
 
 .sort-dropdown {
-  padding: 0.25rem 0.75rem;
-  border-radius: 999px;
-  border: 1px solid #d1e3e0;
-  background-color: #ffffff;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-  white-space: nowrap;
+  background-color: rgba(30, 77, 56, 0.06); /* Subtle green tint */
+  border: 1px solid #cce3d6;
+  border-radius: 6px;
+  padding: 0.35rem 0.5rem 0.35rem 0.75rem;
+  color: #1e4d38;
+  transition: all 0.2s ease;
+}
+
+.sort-dropdown:hover {
+  background-color: rgba(30, 77, 56, 0.1);
+  border-color: #8aab97;
 }
 
 .sort-label {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #1e4d38;
+}
+
+.sort-dropdown i {
   font-size: 0.8rem;
-  font-weight: 600;
-  color: #111827;
+  color: #1e4d38;
 }
 
 .sort-select {
-  min-width: 120px;
-  border: none;
-  box-shadow: none;
-  padding-left: 0.25rem;
-  padding-right: 1.5rem;
-  font-size: 0.85rem;
-  color: #374151;
   background-color: transparent;
+  border: none;
+  outline: none;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #1e4d38;
+  cursor: pointer;
+  text-transform: uppercase;
+  padding-right: 0.25rem;
 }
 
-.sort-select:focus {
-  box-shadow: none;
+/* Keeps the actual dropdown options legible */
+.sort-select option {
+  color: #1f2937;
+  text-transform: none;
+  font-weight: normal;
 }
 
 @media (max-width: 599px) {
-  .comment-section { padding: 1rem !important; }
-  .comment-textarea { font-size: 0.85rem; padding: 0.75rem !important; }
-  .btn-submit { padding: 0.5rem 1rem !important; font-size: 0.8rem; }
+  .comment-textarea {
+    font-size: 0.85rem;
+    padding: 0.75rem !important;
+  }
+  .btn-submit {
+    padding: 0.5rem 1rem !important;
+    font-size: 0.8rem;
+  }
 }
 </style>
