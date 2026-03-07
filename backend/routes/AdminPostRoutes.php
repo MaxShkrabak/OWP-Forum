@@ -2,6 +2,8 @@
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use function Forum\Helpers\json;
+use function Forum\Helpers\resolveReportsForPost;
+use function Forum\Helpers\softDeleteCommentsForPost;
 
 // Soft Delete (Role 3+)
 $app->patch('/api/admin/posts/{id}/soft-delete', function(Request $req, Response $res, array $args) use ($makePdo) {
@@ -18,16 +20,36 @@ $app->patch('/api/admin/posts/{id}/soft-delete', function(Request $req, Response
     }
 
     $postId = (int)$args['id'];
-    
-    // Update IsDeleted and DeletedAt
-    $stmt = $pdo->prepare("
-        UPDATE dbo.Posts 
-        SET IsDeleted = 1, DeletedAt = SYSUTCDATETIME() 
-        WHERE PostID = :pid
-    ");
-    $stmt->execute([':pid' => $postId]);
 
-    return json($res, ['ok' => true]);
+    $pdo->beginTransaction();
+    try {
+        // Update IsDeleted and DeletedAt
+        $stmt = $pdo->prepare("
+            UPDATE dbo.Posts 
+            SET IsDeleted = 1, DeletedAt = SYSUTCDATETIME() 
+            WHERE PostID = :pid AND IsDeleted = 0
+        ");
+        $stmt->execute([':pid' => $postId]);
+
+        if ($stmt->rowCount() === 0) {
+            $pdo->rollBack();
+            return json($res, ['ok' => false, 'error' => 'Post not found or already deleted'], 404);
+        }
+        
+        // Soft delete comments under this post
+        softDeleteCommentsForPost($pdo, $postId);
+
+        // Resolve reports for this post + comments/replies under it
+        resolveReportsForPost($pdo, $postId, (int)$userId);
+
+        $pdo->commit();
+        return json($res, ['ok' => true]);
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+    }
 });
 
 // Update Metadata (Category/Tags)

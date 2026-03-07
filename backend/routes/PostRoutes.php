@@ -4,7 +4,8 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
 use function Forum\Helpers\json;
-use function Forum\Helpers\requireTermsAccepted;
+use function Forum\Helpers\resolveReportsForPost;
+use function Forum\Helpers\softDeleteCommentsForPost;
 
 $app->post("/api/create-post", function (Request $req, Response $res) use ($makePdo) {
     try {
@@ -239,8 +240,7 @@ $app->get('/api/posts', function (Request $req, Response $res) use ($makePdo) {
         foreach ($rows as $row) {
             $pid = (int)$row['PostID'];
             $catId = (int)$row['CategoryID'];
-
-            $post = [
+$post = [
                 'PostID'       => $pid,
                 'categoryId'   => $catId,
                 'title'        => $row['Title'],
@@ -346,8 +346,7 @@ $app->get('/api/categories/{id}/posts', function (Request $req, Response $res, a
             'comments' => 'commentCount DESC, p.CreatedAt DESC',
             default    => 'p.CreatedAt DESC',
         };
-
-        $searchWhere = '';
+$searchWhere = '';
         if ($hasSearch) {
             if ($mode === 'title') {
                 $searchWhere = " AND p.Title LIKE :q ";
@@ -438,8 +437,7 @@ $app->get('/api/categories/{id}/posts', function (Request $req, Response $res, a
         if (!empty($rows)) {
             $postIds = array_map(fn($r) => (int)$r['PostID'], $rows);
             $placeholders = implode(',', array_fill(0, count($postIds), '?'));
-
-            $tagsByPostId = [];
+$tagsByPostId = [];
             $tagSql = "SELECT pt.PostID, t.Name FROM dbo.PostTags pt
                        JOIN dbo.Tags t ON t.TagID = pt.TagID
                        WHERE pt.PostID IN ($placeholders)
@@ -623,16 +621,34 @@ $app->patch('/api/posts/{id}/soft-delete', function (Request $req, Response $res
             return json($res, ['ok' => false, 'error' => 'Forbidden'], 403);
         }
 
+        $pdo->beginTransaction();
+
         // Soft delete
         $stmt = $pdo->prepare("
             UPDATE dbo.Posts
             SET IsDeleted = 1, DeletedAt = SYSUTCDATETIME()
-            WHERE PostID = :pid
+            WHERE PostID = :pid AND IsDeleted = 0
         ");
         $stmt->execute([':pid' => $postId]);
 
+        if ($stmt->rowCount() === 0) {
+            $pdo->rollBack();
+            return json($res, ['ok' => false, 'error' => 'Post not found or already deleted'], 404);
+        }
+
+        // Soft delete comments under this post
+        softDeleteCommentsForPost($pdo, $postId);
+
+        // Resolve reports for this post + comments/replies under it
+        resolveReportsForPost($pdo, $postId, (int)$userId);
+
+        $pdo->commit();
+
         return json($res, ['ok' => true]);
     } catch (Throwable $e) {
+        if (isset($pdo) && $pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
         return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
     }
 });
@@ -656,9 +672,8 @@ $app->get('/api/get-post/{id}', function (Request $req, Response $res, array $ar
             LEFT JOIN dbo.PostVotes pv ON p.PostID = pv.PostID AND pv.User_ID = :userId
             WHERE p.PostID = :id AND p.IsDeleted = 0
         ";
-
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute(['id' => $postID, 'userId' => $userId]);
+$stmt = $pdo->prepare($sql);
+        $stmt->execute(['id' => $postID]);
         $post = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$post) {
@@ -755,8 +770,7 @@ $app->put('/api/posts/{id}', function (Request $req, Response $res, array $args)
         if ($userId !== $authorId && $userRoleId < 3) {
             return json($res, ['ok' => false, 'error' => 'Permission denied.'], 403);
         }
-
-        $catStmt = $pdo->prepare("SELECT CategoryID, UsableByRoleID FROM dbo.Categories WHERE CategoryID = :catId");
+$catStmt = $pdo->prepare("SELECT CategoryID, UsableByRoleID FROM dbo.Categories WHERE CategoryID = :catId");
         $catStmt->execute(['catId' => $categoryIdIn]);
         $categoryData = $catStmt->fetch(PDO::FETCH_ASSOC);
 
@@ -899,12 +913,23 @@ $app->delete('/api/posts/{id}', function (Request $req, Response $res, array $ar
             return json($res, ['ok' => false, 'error' => 'Permission denied.'], 403);
         }
 
+        $pdo->beginTransaction();
+
         $delStmt = $pdo->prepare("UPDATE dbo.Posts SET IsDeleted = 1, UpdatedAt = SYSUTCDATETIME(), DeletedAt = SYSUTCDATETIME() WHERE PostID = :id AND IsDeleted = 0");
         $delStmt->execute(['id' => $postId]);
 
         if ($delStmt->rowCount() === 0) {
+            $pdo->rollBack();
             return json($res, ['ok' => false, 'error' => 'Failed to delete post.'], 500);
         }
+        
+        // Soft delete comments under this post
+        softDeleteCommentsForPost($pdo, $postId);
+
+        // Resolve reports for this post + comments/replies under it
+        resolveReportsForPost($pdo, $postId, (int)$userId);
+
+        $pdo->commit();
 
         $outStmt = $pdo->prepare("SELECT IsDeleted, DeletedAt, UpdatedAt FROM dbo.Posts WHERE PostID = :id");
         $outStmt->execute(['id' => $postId]);
@@ -918,6 +943,9 @@ $app->delete('/api/posts/{id}', function (Request $req, Response $res, array $ar
             'updatedAt' => $result['UpdatedAt'] ?? null,
         ]);
     } catch (Throwable $e) {
+        if (isset($pdo) && $pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
         return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
     }
 });
