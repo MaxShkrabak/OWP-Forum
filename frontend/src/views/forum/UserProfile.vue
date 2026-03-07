@@ -6,7 +6,7 @@ import { useRouter, useRoute } from 'vue-router';
 import { getPaginationRange } from '@/utils/pagination';
 import { onMounted, ref, watch, computed } from 'vue';
 import { uid } from '@/stores/userStore';
-import { fetchPosts as apiGetPosts } from "@/api/posts";
+import { fetchPosts as apiGetPosts, fetchLikedPosts as apiGetLikedPosts } from "@/api/posts.js";
 import { fetchUser } from "@/api/users";
 import PostCard from '@/components/forum/PostCard.vue';
 import UserCard from '@/components/user/UserCard.vue';
@@ -64,8 +64,23 @@ async function getPosts() {
 
   try {
     totalPages.value = 1;
-    if (activeTab.value == 'yourPosts'){
+
+    if (activeTab.value === 'yourPosts') {
       const data = await apiGetPosts({ 
+        limit: limit.value,
+        sort: sort.value,
+        page: currentPage.value,
+        userId: getUrlParams()
+      });
+
+      posts.value = data.posts || [];
+
+      if (data.meta) {
+        totalPages.value = data.meta.totalPages || 1;
+      }
+
+    } else if (activeTab.value === 'likedPosts') {
+      const data = await apiGetLikedPosts({ 
         limit: limit.value,
         sort: sort.value,
         page: currentPage.value,
@@ -109,6 +124,11 @@ watch([limit, sort], () => {
 
   localStorage.setItem('category_limit', limit.value);
   localStorage.setItem('category_sort', sort.value);
+});
+
+// Reset pagination when switching tabs
+watch(activeTab, () => {
+  currentPage.value = 1;
 });
 
 const displayedPages = computed(() => {
@@ -242,14 +262,9 @@ onMounted(() => {
                 <p v-show="activeTab === 'followedPosts'">You don't follow any Posts yet!</p>
                 <p v-show="activeTab === 'likedPosts'">You haven't liked any Posts yet!</p>
               </div>
-            
             </div>
             <PostCard v-for="post in posts" :key="post.postId" :post="post" class="mb-3" />
             
-            <!-- Page navigation
-             -- TODO: would be nice to add "Go to page" input box
-             -- for larger number of pages and just make it look cleaner in general
-             -->
             <nav v-if="totalPages > 1" class="page-nav-wraper mt-5">
               <button class="page-nav-btn" :disabled="currentPage === 1" @click="currentPage--">
                 <i class="pi pi-chevron-left"></i>

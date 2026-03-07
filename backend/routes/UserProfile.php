@@ -183,3 +183,147 @@ $app->get('/api/profile/{uid}/posts', function (Request $req, Response $res, arr
         return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
     }
 });
+
+/**
+ * NEW: Liked Posts (Upvoted Posts) endpoint
+ * Returns ONLY posts where this profile user has VoteValue = 1 in dbo.PostVotes.
+ * - excludes downvotes (VoteValue = -1)
+ * - excludes no-vote (no row)
+ * - paginates using limit/page (no preloading)
+ */
+$app->get('/api/profile/{uid}/liked-posts', function (Request $req, Response $res, array $args) use ($makePdo) {
+    try {
+        $profileUserId = (int)$args['uid'];
+        $viewerUserId  = (int)($req->getAttribute("user_id") ?? 0);
+
+        $pdo = $makePdo();
+
+        $params = $req->getQueryParams();
+        $limit = min(max((int)($params['limit'] ?? 5), 1), 50);
+        $page  = max((int)($params['page'] ?? 1), 1);
+
+        $sort = strtolower($params['sort'] ?? 'latest');
+        $orderBy = match($sort) {
+            'oldest'   => 'p.CreatedAt ASC',
+            'upvotes'  => 'p.TotalScore DESC, p.CreatedAt DESC',
+            'comments' => 'commentCount DESC, p.CreatedAt DESC',
+            default    => 'p.CreatedAt DESC',
+        };
+
+        // Count only upvoted posts by this profile user, excluding deleted posts
+        $countSql = "
+            SELECT COUNT(*)
+            FROM dbo.PostVotes pov
+            JOIN dbo.Posts p ON p.PostID = pov.PostID
+            WHERE pov.User_ID = :uid
+              AND pov.VoteValue = 1
+              AND p.IsDeleted = 0
+        ";
+        $countStmt = $pdo->prepare($countSql);
+        $countStmt->execute([':uid' => $profileUserId]);
+        $totalPosts = (int)$countStmt->fetchColumn();
+
+        $totalPages = (int)ceil($totalPosts / $limit);
+        $page = ($page > $totalPages && $totalPages > 0) ? $totalPages : $page;
+        $offset = ($page - 1) * $limit;
+
+        // Fetch only current page
+        // myVote returned for viewer
+        $sql = "
+            SELECT p.PostID, p.Title, p.CreatedAt, p.CategoryID, p.TotalScore,
+                   (SELECT COUNT(*) FROM dbo.Comments cm WHERE cm.PostID = p.PostID) AS commentCount,
+                   u.FirstName, u.LastName, u.Avatar, u.User_ID,
+                   r.Name AS RoleName, c.Name AS CategoryName,
+                   ISNULL(pv.VoteValue, 0) AS myVote
+            FROM dbo.PostVotes pov
+            JOIN dbo.Posts p ON p.PostID = pov.PostID
+            LEFT JOIN dbo.Users u ON p.AuthorID = u.User_ID
+            LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
+            LEFT JOIN dbo.Categories c ON p.CategoryID = c.CategoryID
+            LEFT JOIN dbo.PostVotes pv ON p.PostID = pv.PostID AND pv.User_ID = :viewerId
+            WHERE pov.User_ID = :profileId
+              AND pov.VoteValue = 1
+              AND p.IsDeleted = 0
+            ORDER BY $orderBy
+            OFFSET :offset ROWS FETCH NEXT :limit ROWS ONLY
+        ";
+
+        $stmt = $pdo->prepare($sql);
+        $stmt->bindValue(':viewerId', $viewerUserId, PDO::PARAM_INT);
+        $stmt->bindValue(':profileId', $profileUserId, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->execute();
+
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        if (empty($rows)) {
+            return json($res, [
+                'ok' => true,
+                'posts' => [],
+                'meta' => [
+                    'limit'      => $limit,
+                    'sort'       => $sort,
+                    'page'       => $page,
+                    'totalPosts' => $totalPosts,
+                    'totalPages' => $totalPages,
+                ],
+            ]);
+        }
+
+        $postIds = array_map(fn($r) => (int)$r['PostID'], $rows);
+        $placeholders = implode(',', array_fill(0, count($postIds), '?'));
+
+        // Tags
+        $tagsByPostId = [];
+        $tagsSql = "
+            SELECT pt.PostID, t.Name
+            FROM dbo.PostTags pt
+            JOIN dbo.Tags t ON t.TagID = pt.TagID
+            WHERE pt.PostID IN ($placeholders)
+            ORDER BY t.Name ASC
+        ";
+        $tagStmt = $pdo->prepare($tagsSql);
+        $tagStmt->execute($postIds);
+        while ($t = $tagStmt->fetch(PDO::FETCH_ASSOC)) {
+            $tagsByPostId[(int)$t['PostID']][] = $t['Name'];
+        }
+
+        // profile/posts route uses PostLikes (not votes) for likeCount,
+        $likeCounts = fetchCounts($pdo, 'dbo.PostLikes', $placeholders, $postIds, 'LikeCount');
+
+        $posts = [];
+        foreach ($rows as $row) {
+            $pid = (int)$row['PostID'];
+            $posts[] = [
+                'PostID'       => $pid,
+                'categoryId'   => (int)($row['CategoryID'] ?? 0),
+                'title'        => $row['Title'],
+                'createdAt'    => $row['CreatedAt'],
+                'authorId'     => (int)($row['User_ID'] ?? 0),
+                'authorName'   => trim(($row['FirstName'] ?? '') . ' ' . ($row['LastName'] ?? '')),
+                'authorRole'   => $row['RoleName'] ?? 'User',
+                'authorAvatar' => $row['Avatar'] ?? null,
+                'tags'         => $tagsByPostId[$pid] ?? [],
+                'commentCount' => (int)($row['commentCount'] ?? 0),
+                'likeCount'    => $likeCounts[$pid] ?? 0,
+                'TotalScore'   => (int)($row['TotalScore'] ?? 0),
+                'myVote'       => (int)($row['myVote'] ?? 0),
+            ];
+        }
+
+        return json($res, [
+            'ok' => true,
+            'posts' => $posts,
+            'meta' => [
+                'limit'      => $limit,
+                'sort'       => $sort,
+                'page'       => $page,
+                'totalPosts' => $totalPosts,
+                'totalPages' => $totalPages,
+            ],
+        ]);
+    } catch (Throwable $e) {
+        return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+    }
+});

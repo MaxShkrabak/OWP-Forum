@@ -1,20 +1,31 @@
 import client from "./client";
 import { timeAgo } from '@/utils/timeAgo';
+import { isLoggedIn } from '@/stores/userStore';
+import router from '@/router';
 
-export const formatCommentData = (comment) => ({
-  ...comment,
-  id: comment.commentId,
-  author: `${comment.user.firstName} ${comment.user.lastName}`,
-  role: comment.user?.role || 'user',
-  time: timeAgo(comment.createdAt * 1000),
-  text: comment.content,
-  replyCount: comment.replyCount || 0,
-  replies: []
-});
+export const formatCommentData = (comment) => {
+  const createdAt = comment.createdAt;
+  const updatedAt = comment.updatedAt ?? null;
 
-export const fetchComments = async (postId, page = 1, limit = 10) => {
+  return {
+    ...comment,
+    id: comment.commentId,
+    author: `${comment.user.firstName} ${comment.user.lastName}`,
+    role: comment.user?.role || 'user',
+    time: timeAgo((updatedAt ?? createdAt) * 1000),
+    text: comment.content,
+    replyCount: comment.replyCount || 0,
+    replies: [],
+    updatedAt,
+    wasEdited: updatedAt !== null && updatedAt !== createdAt
+  };
+};
+
+export const fetchComments = async (postId, page = 1, limit = 10, sort = 'latest') => {
   try {
-    const response = await client.get(`/posts/${postId}/comments?page=${page}&limit=${limit}`);
+    const response = await client.get(
+      `/posts/${postId}/comments?page=${page}&limit=${limit}&sort=${encodeURIComponent(sort)}`,
+    );
     return response.data; 
   } catch (error) {
     console.error("Error fetching comments:", error.response?.data?.error || error.message);
@@ -27,6 +38,11 @@ export const submitComment = async (
   content,
   parentCommentId = null,
 ) => {
+  if (!isLoggedIn.value) {
+    router.push('/login');
+    return;
+  }
+
   try {
     const payload = { content };
 
@@ -46,7 +62,25 @@ export const submitComment = async (
   }
 };
 
+export const updateComment = async (commentId, content) => {
+  try {
+    const response = await client.put(`/comments/${commentId}`, { content });
+    return response.data;
+  } catch (error) {
+    console.error(
+      "Error updating comment:",
+      error.response?.data?.error || error.message,
+    );
+    throw error;
+  }
+};
+
 export const voteComment = async (commentId, dir) => {
+  if (!isLoggedIn.value) {
+    router.push('/login');
+    return;
+  }
+
   try {
     const response = await client.post(`/comments/${commentId}/vote`, { dir });
     return response.data;

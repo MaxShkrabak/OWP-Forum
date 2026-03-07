@@ -2,34 +2,29 @@
 const props = defineProps({
   content: {
     type: String,
-    required: true
+    required: true,
   },
 });
 </script>
 
 <template>
-    <div class="post-box text-wrap">
-        <div class="content-itself text-start text-wrap p-3" v-html="content">
-        </div>
-    </div>
+  <div class="content-body" v-html="content"></div>
 </template>
 
 <style scoped>
-/* Box */
-.post-box {
-    background-color: white;
-    border: 3px solid black;
-    border-radius: 5px;
-    min-width: 250px;
-    min-height: 300px;
+.content-body {
+  min-height: 150px;
+  color: #1a2e22;
+  font-size: 1rem;
+  line-height: 1.8;
 }
-
-/* Text box */
-.content-itself :deep(*) {
+.content-body :deep(> *:first-child) {
+  margin-top: 0;
+}
+.content-body :deep(*) {
   white-space: pre-wrap !important;
   word-break: break-word !important;
   overflow-wrap: anywhere !important;
   max-width: 100%;
 }
-
 </style>

@@ -38,6 +38,12 @@ AFTER UPDATE
 AS
 BEGIN
     SET NOCOUNT ON;
+    IF UPDATE (TotalScore) AND NOT (
+        UPDATE(Title) OR
+        UPDATE(CategoryID) OR
+        UPDATE(Content)
+    )
+        RETURN;
     UPDATE p
     SET    UpdatedAt = SYSUTCDATETIME()
     FROM   dbo.Posts p
