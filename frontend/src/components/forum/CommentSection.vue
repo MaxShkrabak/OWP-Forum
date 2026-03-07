@@ -7,7 +7,7 @@ import {
   submitComment as apiSubmitComment,
   formatCommentData
 } from '@/api/comments';
-import { uid } from '@/stores/userStore';
+import { uid, isLoggedIn } from '@/stores/userStore';
 
 const props = defineProps({
   postId: {
@@ -208,19 +208,23 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="comment-section p-4 rounded-3 border bg-white text-start">
-    <div class="d-flex flex-wrap align-items-center justify-content-between mb-3 gap-3 header-row">
-      <h3 class="section-title fw-bold pb-2 border-bottom d-inline-block mb-0 flex-shrink-0">
-        {{ totalCommentsCount }} Comments
-      </h3>
+  <div class="comment-section bg-white text-start">
+    <div
+      class="comments-header d-flex flex-wrap align-items-center justify-content-between gap-2 p-3 text-uppercase small"
+    >
+      <div class="d-flex align-items-center gap-2">
+        <i class="pi pi-comments"></i>
+        <span>Comments ({{ totalCommentsCount }})</span>
+      </div>
 
-      <div class="sort-dropdown ms-auto d-inline-flex align-items-center">
-        <span class="sort-label me-2">Sort by</span>
+      <div class="sort-dropdown d-inline-flex align-items-center">
+        <i class="pi pi-sort-alt d-sm-none me-1"></i>
+        <span class="sort-label d-none d-sm-inline-block me-2">Sort:</span>
         <select
           id="comment-sort"
           v-model="selectedSort"
           @change="handleSortChange"
-          class="form-select form-select-sm sort-select"
+          class="sort-select"
         >
           <option v-for="option in sortOptions" :key="option.value" :value="option.value">
             {{ option.label }}
@@ -238,7 +242,8 @@ onMounted(() => {
           <textarea
             v-model="newComment"
             @focus="isFocused = true"
-            placeholder="Add a comment..."
+            :placeholder="isLoggedIn ? 'Add a comment...' : 'Sign in to comment'"
+            :disabled="!isLoggedIn"
             class="comment-textarea w-100 border-0 p-3"
             rows="2"
           ></textarea>
@@ -401,33 +406,47 @@ onMounted(() => {
 }
 
 .sort-dropdown {
-  padding: 0.25rem 0.75rem;
-  border-radius: 999px;
-  border: 1px solid #d1e3e0;
-  background-color: #ffffff;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-  white-space: nowrap;
+  background-color: rgba(30, 77, 56, 0.06); /* Subtle green tint */
+  border: 1px solid #cce3d6;
+  border-radius: 6px;
+  padding: 0.35rem 0.5rem 0.35rem 0.75rem;
+  color: #1e4d38;
+  transition: all 0.2s ease;
+}
+
+.sort-dropdown:hover {
+  background-color: rgba(30, 77, 56, 0.1);
+  border-color: #8aab97;
 }
 
 .sort-label {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #1e4d38;
+}
+
+.sort-dropdown i {
   font-size: 0.8rem;
-  font-weight: 600;
-  color: #111827;
+  color: #1e4d38;
 }
 
 .sort-select {
-  min-width: 120px;
-  border: none;
-  box-shadow: none;
-  padding-left: 0.25rem;
-  padding-right: 1.5rem;
-  font-size: 0.85rem;
-  color: #374151;
   background-color: transparent;
+  border: none;
+  outline: none;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #1e4d38;
+  cursor: pointer;
+  text-transform: uppercase;
+  padding-right: 0.25rem;
 }
 
-.sort-select:focus {
-  box-shadow: none;
+/* Keeps the actual dropdown options legible */
+.sort-select option {
+  color: #1f2937;
+  text-transform: none;
+  font-weight: normal;
 }
 
 @media (max-width: 599px) {

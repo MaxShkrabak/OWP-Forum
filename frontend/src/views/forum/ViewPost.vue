@@ -89,9 +89,7 @@ onMounted(async () => {
 
       <div v-else-if="post" class="post-layout d-flex flex-column gap-1">
         <article class="post-card rounded-4 overflow-hidden">
-          <div
-            class="post-topbar d-flex align-items-center p-3 px-md-4 gap-3"
-          >
+          <div class="post-topbar d-flex align-items-center p-3 px-md-4 gap-3">
             <div class="flex-shrink-0 d-flex">
               <button
                 class="back-btn d-inline-flex align-items-center justify-content-center p-2 rounded-3"
@@ -120,6 +118,7 @@ onMounted(async () => {
                   v-for="t in post.tags"
                   :key="t"
                   class="post-tag rounded-4 text-uppercase px-2 py-1"
+                  :class="{ 'post-tag-official': t.Name === 'Official' }"
                   >{{ t.Name }}</span
                 >
               </div>
@@ -279,6 +278,13 @@ onMounted(async () => {
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
+.post-tag-official {
+  background: rgba(210, 120, 30, 0.25);
+  color: #ffd49a;
+  border-color: rgba(210, 140, 50, 0.5);
+  box-shadow: 0 0 6px rgba(210, 120, 30, 0.2);
+}
+
 .author-info {
   gap: 14px;
 }
@@ -294,11 +300,11 @@ onMounted(async () => {
 }
 
 .avatar-box {
-  width: 46px;
-  height: 46px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   overflow: hidden;
-  border: 2px solid #b0c9bc;
+  border: 2px solid #7e9291;
   background: #f0f4f2;
 }
 
@@ -314,12 +320,12 @@ onMounted(async () => {
 
 .author-name {
   font-weight: 700;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   color: #1a2e22;
 }
 
 .post-timestamp {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 600;
   color: #7a9a8a;
 }
@@ -330,8 +336,8 @@ onMounted(async () => {
 
 :deep(.role-pill) {
   border-radius: 4px !important;
-  padding: 3px 6px 2px !important;
-  font-size: 0.55rem !important;
+  padding: 2px 3px 1px !important;
+  font-size: 0.45rem !important;
   vertical-align: middle !important;
 }
 

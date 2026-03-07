@@ -1,5 +1,7 @@
 import client from "./client";
 import { timeAgo } from '@/utils/timeAgo';
+import { isLoggedIn } from '@/stores/userStore';
+import router from '@/router';
 
 export const formatCommentData = (comment) => {
   const createdAt = comment.createdAt;
@@ -36,6 +38,11 @@ export const submitComment = async (
   content,
   parentCommentId = null,
 ) => {
+  if (!isLoggedIn.value) {
+    router.push('/login');
+    return;
+  }
+
   try {
     const payload = { content };
 
@@ -69,6 +76,11 @@ export const updateComment = async (commentId, content) => {
 };
 
 export const voteComment = async (commentId, dir) => {
+  if (!isLoggedIn.value) {
+    router.push('/login');
+    return;
+  }
+
   try {
     const response = await client.post(`/comments/${commentId}/vote`, { dir });
     return response.data;

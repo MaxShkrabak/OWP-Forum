@@ -4,6 +4,7 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
 use function Forum\Helpers\json;
+use function Forum\Helpers\requireTermsAccepted;
 
 $app->post("/api/create-post", function (Request $req, Response $res) use ($makePdo) {
     try {
@@ -14,6 +15,11 @@ $app->post("/api/create-post", function (Request $req, Response $res) use ($make
         }
 
         $pdo = $makePdo();
+
+        if ($termsRes = \Forum\Helpers\requireTermsAccepted($req, $res, $pdo)) {
+            return $termsRes;
+        }
+
         try {
             $banStmt = $pdo->prepare("
                 SELECT ISNULL(IsBanned, 0), BanType, BannedUntil
@@ -218,7 +224,7 @@ $app->get('/api/posts', function (Request $req, Response $res) use ($makePdo) {
             FROM dbo.PostTags pt
             JOIN dbo.Tags t ON t.TagID = pt.TagID
             WHERE pt.PostID IN ($placeholders)
-            ORDER BY t.Name ASC
+            ORDER BY CASE WHEN t.Name = 'Official' THEN 0 ELSE 1 END, t.Name ASC
         ";
 
         $tagStmt = $pdo->prepare($getTagsSql);
@@ -436,7 +442,8 @@ $app->get('/api/categories/{id}/posts', function (Request $req, Response $res, a
             $tagsByPostId = [];
             $tagSql = "SELECT pt.PostID, t.Name FROM dbo.PostTags pt
                        JOIN dbo.Tags t ON t.TagID = pt.TagID
-                       WHERE pt.PostID IN ($placeholders)";
+                       WHERE pt.PostID IN ($placeholders)
+                       ORDER BY CASE WHEN t.Name = 'Official' THEN 0 ELSE 1 END, t.Name ASC";
             $tagStmt = $pdo->prepare($tagSql);
             $tagStmt->execute($postIds);
             while ($t = $tagStmt->fetch(PDO::FETCH_ASSOC)) {
@@ -552,6 +559,11 @@ $app->post('/api/posts/{id}/vote', function (Request $req, Response $res, array 
         if (!$userId) return json($res, ['ok' => false, 'error' => 'Not Authenticated'], 401);
 
         $pdo = $makePdo();
+
+        if ($termsRes = \Forum\Helpers\requireTermsAccepted($req, $res, $pdo)) {
+            return $termsRes;
+        }
+
         $postId = (int)$args['id'];
 
         $body = $req->getParsedBody();
@@ -591,6 +603,11 @@ $app->patch('/api/posts/{id}/soft-delete', function (Request $req, Response $res
         }
 
         $pdo = $makePdo();
+
+        if ($termsRes = \Forum\Helpers\requireTermsAccepted($req, $res, $pdo)) {
+            return $termsRes;
+        }
+
         $postId = (int)$args['id'];
 
         // Verify ownership
@@ -653,7 +670,7 @@ $app->get('/api/get-post/{id}', function (Request $req, Response $res, array $ar
             FROM dbo.PostTags pt 
             JOIN dbo.Tags t ON t.TagID = pt.TagID 
             WHERE pt.PostID = :id
-            ORDER BY t.Name ASC
+            ORDER BY CASE WHEN t.Name = 'Official' THEN 0 ELSE 1 END, t.Name ASC
         ");
 
         $tagStmt->execute(['id' => $postID]);
@@ -716,6 +733,10 @@ $app->put('/api/posts/{id}', function (Request $req, Response $res, array $args)
         $tagsIn = array_slice(array_filter($tagsIn, fn($v) => $v > 0), 0, 5);
 
         $pdo = $makePdo();
+
+        if ($termsRes = \Forum\Helpers\requireTermsAccepted($req, $res, $pdo)) {
+            return $termsRes;
+        }
 
         $postStmt = $pdo->prepare("SELECT PostID, AuthorID, IsDeleted FROM dbo.Posts WHERE PostID = :id");
         $postStmt->execute(['id' => $postId]);
@@ -829,7 +850,7 @@ $app->put('/api/posts/{id}', function (Request $req, Response $res, array $args)
                 'categoryName' => $updatedPost['CategoryName'] ?? null,
                 'updatedAt'    => $updatedPost['UpdatedAt'],
                 'tags'         => array_map(fn($t) => $t['Name'], $updatedTags),
-                'tagIds'      => array_map(fn($t) => (int)$t['TagID'], $updatedTags),
+                'tagIds'       => array_map(fn($t) => (int)$t['TagID'], $updatedTags),
             ]
         ]);
     } catch (Throwable $e) {
@@ -851,6 +872,10 @@ $app->delete('/api/posts/{id}', function (Request $req, Response $res, array $ar
         }
 
         $pdo = $makePdo();
+
+        if ($termsRes = \Forum\Helpers\requireTermsAccepted($req, $res, $pdo)) {
+            return $termsRes;
+        }
 
         $postStmt = $pdo->prepare("SELECT PostID, AuthorID, IsDeleted FROM dbo.Posts WHERE PostID = :id");
         $postStmt->execute(['id' => $postId]);

@@ -254,16 +254,17 @@ onMounted(async () => {
       <div v-if="loading" class="state mt-3 text-center">Loading…</div>
       <div v-if="error" class="err mt-3">{{ error }}</div>
 
-      <table v-if="!loading && users.length" class="admin-table mt-3">
+      <div class="table-wrapper">
+        <table v-if="!loading && users.length" class="admin-table mt-3">
         <thead>
-          <tr>
-            <th>ID</th>
-            <th>Name</th>
-            <th>Email</th>
-            <th>Role</th>
-            <th>Status</th>
-            <th>Action</th>
-          </tr>
+            <tr>
+              <th>ID</th>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
         </thead>
         <tbody>
           <tr v-for="u in users" :key="u.User_ID" :class="{ 'row-banned': u.IsBanned }">
@@ -286,8 +287,12 @@ onMounted(async () => {
               </select>
             </td>
             <td>
-              <span v-if="u.IsBanned" class="badge badge-banned">{{ banStatusLabel(u) }}</span>
-              <span v-else class="badge badge-active">Active</span>
+              <span v-if="u.IsBanned" class="badge badge-banned">
+                <span class="desktop-only">{{ banStatusLabel(u) }}</span>
+              </span>
+              <span v-else class="badge badge-active">
+                <span class="desktop-only">Active</span>
+              </span>
             </td>
             <td>
               <button
@@ -296,7 +301,10 @@ onMounted(async () => {
                 class="btn-ban"
                 @click="openBanModal(u)"
               >
+              <span class="desktop-only">
                 Ban
+              </span>
+              <i class="bi bi-x-lg mobile-only"></i>
               </button>
               <button
                 v-else-if="u.IsBanned"
@@ -304,12 +312,16 @@ onMounted(async () => {
                 class="btn-unban"
                 @click="unban(u)"
               >
+                <span class="desktop-only">
                 Unban
+              </span>
+              <i class="bi bi-check-lg mobile-only"></i>
               </button>
             </td>
           </tr>
         </tbody>
-      </table>
+        </table>
+      </div>
 
       <div v-if="!loading && users.length === 0" class="state mt-4 text-center">
         No users found.
@@ -392,6 +404,8 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.mobile-only { display: table; }
+.desktop-only { display: none; }
 .page-title {
   font-size: 24px;
   font-weight: 700;
@@ -451,7 +465,7 @@ onMounted(async () => {
   width: 100%;
   background: #ffffff;
   border-radius: 16px;
-  padding: 24px;
+  padding: 10px;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.05);
 }
 
@@ -464,8 +478,8 @@ onMounted(async () => {
 .admin-table thead th {
   background: #f8fafc;
   color: #374151;
-  font-size: 13px;
-  padding: 10px;
+  font-size: 10px;
+  padding: 8px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   border-bottom: 2px solid #e5e7eb;
@@ -482,7 +496,7 @@ onMounted(async () => {
 }
 
 .admin-table tbody td {
-  padding: 12px 10px;
+  padding: 12px 8px;
   vertical-align: middle;
 }
 
@@ -501,8 +515,9 @@ onMounted(async () => {
 }
 
 .admin-name {
-  font-weight: 600;
+  font-weight: 500;
   color: #1f3d3a;
+  font-size: 0.8rem;
 }
 
 .admin-email {
@@ -512,12 +527,13 @@ onMounted(async () => {
 
 /* Role Select */
 .role-select {
-  padding: 6px 10px;
+  padding: 4px 2px;
   border-radius: 10px;
-  font-weight: 600;
+  font-weight: 500;
   border: 1px solid #ccc;
   outline: none;
   cursor: pointer;
+  font-size: 12px;
 }
 
 .role-select:disabled {
@@ -532,7 +548,7 @@ onMounted(async () => {
 
 .badge {
   display: inline-block;
-  padding: 4px 10px;
+  padding: 6px 6px;
   border-radius: 20px;
   font-size: 12px;
   font-weight: 600;
@@ -541,15 +557,17 @@ onMounted(async () => {
 .badge-banned {
   background: #fecaca;
   color: #b91c1c;
+  border : #ff6d6d 1px solid;
 }
 
 .badge-active {
   background: #d1fae5;
   color: #065f46;
+  border: green 1px solid;
 }
 
 .btn-ban {
-  padding: 6px 14px;
+  padding: 1px 8px;
   border-radius: 10px;
   font-weight: 600;
   font-size: 13px;
@@ -566,7 +584,7 @@ onMounted(async () => {
 }
 
 .btn-unban {
-  padding: 6px 14px;
+  padding: 1px 8px;
   border-radius: 10px;
   font-weight: 600;
   font-size: 13px;
@@ -714,6 +732,12 @@ onMounted(async () => {
   background: #b45309;
 }
 
+/* Table wrapper for horizontal scrolling on small screens */
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
 /* Role confirmation modal */
 .confirm-card {
   background: #fff;
@@ -750,4 +774,36 @@ onMounted(async () => {
   font-weight: 700;
 }
 .btn-confirm:hover { background: #00363d; }
+
+@media (min-width: 768px) {
+  .admin-table thead th {
+    font-size: 14px;
+  }
+  .badge {
+  padding: 2px 10px;
+  }
+  .btn-ban {
+  padding: 2px 14px;
+  }
+  .btn-unban {
+  padding: 2px 14px;
+  }
+  .mobile-only { display: none; }
+  .desktop-only { display: table; }
+  
+}
+
+@media (max-width: 576px) {
+  .admin-table thead th:nth-child(1),
+  .admin-table thead th:nth-child(3) {
+    display: none;
+  }
+  .admin-table tbody td:nth-child(1),
+  .admin-table tbody td:nth-child(3) {
+    display: none;
+  }
+  .admin-table tbody td {
+    padding: 8px 6px;
+  }
+}
 </style>

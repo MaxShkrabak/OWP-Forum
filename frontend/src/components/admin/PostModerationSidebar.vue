@@ -5,9 +5,10 @@ import client from "@/api/client";
 import { votePost } from "@/api/posts";
 import { isLoggedIn, userRole, userRoleId, uid } from "@/stores/userStore";
 import CreatePostModal from "@/components/forum/CreatePostModal.vue";
+import ReportingModal from "@/components/user/ReportingModal.vue"
 
 const props = defineProps({
-  post: { type: Object, required: true }
+  post: { type: Object, required: true },
 });
 
 const router = useRouter();
@@ -17,9 +18,12 @@ const isFollowing = ref(false);
 const showDeleteConfirm = ref(false);
 const isDeleting = ref(false);
 const showEditModal = ref(false);
+const showReportModal = ref(false);
 const isRestricted = ref(false);
 
-const isAuthor = computed(() => Number(props.post?.authorId) === Number(uid.value));
+const isAuthor = computed(
+  () => Number(props.post?.authorId) === Number(uid.value),
+);
 const isAdminOrMod = computed(() => Number(userRoleId.value) >= 3);
 
 const canReport = computed(() => {
@@ -30,9 +34,25 @@ const canReport = computed(() => {
 });
 
 const canDelete = computed(() => isAuthor.value || isAdminOrMod.value);
-const showMetadataButton = computed(() => isAdminOrMod.value && !isAuthor.value);
+const showMetadataButton = computed(
+  () => isAdminOrMod.value && !isAuthor.value,
+);
 
-const toggleFollow = () => (isFollowing.value = !isFollowing.value);
+const toggleFollow = () => {
+  if (!isLoggedIn.value) {
+    router.push("/login");
+    return;
+  }
+  isFollowing.value = !isFollowing.value;
+};
+
+const handleReport = () => {
+  if (!isLoggedIn.value) {
+    router.push("/login");
+    return;
+  }
+  showReportModal.value = true;
+};
 
 async function handleVote(dir) {
   if (!isLoggedIn.value) {
@@ -43,7 +63,10 @@ async function handleVote(dir) {
 
   const currentVote = Number(props.post.myVote ?? 0);
   let action = dir;
-  if ((dir === "up" && currentVote === 1) || (dir === "down" && currentVote === -1)) {
+  if (
+    (dir === "up" && currentVote === 1) ||
+    (dir === "down" && currentVote === -1)
+  ) {
     action = "clear";
   }
 
@@ -89,81 +112,136 @@ watch(isLoggedIn, (loggedIn) => {
 
 <template>
   <div class="d-flex flex-wrap align-items-center gap-2 w-100">
-    
     <!-- Vote Buttons -->
     <div class="action-group vote-group d-flex align-items-center gap-1">
-      <button class="vote-btn-up pi pi-chevron-up" 
-        :class="{ active: Number(post.myVote) === 1, 'is-voting': isVoting }" 
-        @click="handleVote('up')" 
-        title="Upvote">
-      </button>
-      
-      <span class="vote-count px-2" 
-        :class="{ 
-          'upvoted': Number(post.myVote) === 1, 
-          'downvoted': Number(post.myVote) === -1,
-          'voting-bounce': isVoting 
-        }">
+      <button
+        class="vote-btn-up pi pi-chevron-up"
+        :class="{ active: Number(post.myVote) === 1, 'is-voting': isVoting }"
+        @click="handleVote('up')"
+        title="Upvote"
+      ></button>
+
+      <span
+        class="vote-count px-2"
+        :class="{
+          upvoted: Number(post.myVote) === 1,
+          downvoted: Number(post.myVote) === -1,
+          'voting-bounce': isVoting,
+        }"
+      >
         {{ post.TotalScore ?? 0 }}
       </span>
-      
-      <button class="vote-btn-down pi pi-chevron-down" 
-        :class="{ active: Number(post.myVote) === -1, 'is-voting': isVoting }" 
-        @click="handleVote('down')" 
-        title="Downvote">
-      </button>
+
+      <button
+        class="vote-btn-down pi pi-chevron-down"
+        :class="{ active: Number(post.myVote) === -1, 'is-voting': isVoting }"
+        @click="handleVote('down')"
+        title="Downvote"
+      ></button>
     </div>
 
     <!-- User Actions -->
-    <div class="action-group user-actions d-flex align-items-center flex-wrap gap-2">
-      <button v-if="!isAuthor" class="text-action-btn d-inline-flex align-items-center gap-2 px-2 py-1 rounded-2" 
-        :class="{ following: isFollowing }" 
-        @click="toggleFollow">
+    <div
+      class="action-group user-actions d-flex align-items-center flex-wrap gap-2"
+    >
+      <button
+        v-if="!isAuthor"
+        class="text-action-btn d-inline-flex align-items-center gap-2 px-2 py-1 rounded-2"
+        :class="{ following: isFollowing }"
+        @click="toggleFollow"
+      >
         <i :class="isFollowing ? 'pi pi-heart-fill' : 'pi pi-heart'"></i>
-        <span>{{ isFollowing ? 'Following' : 'Follow' }}</span>
+        <span>{{ isFollowing ? "Following" : "Follow" }}</span>
       </button>
 
-      <button v-if="canReport" class="text-action-btn report-btn d-inline-flex align-items-center gap-2 px-2 py-1 rounded-2">
+      <button
+        v-if="canReport"
+        class="text-action-btn report-btn d-inline-flex align-items-center gap-2 px-2 py-1 rounded-2"
+        @click="handleReport"
+      >
         <i class="pi pi-flag"></i>
         <span>Report</span>
       </button>
 
       <div v-if="!isAuthor && isAdminOrMod" class="action-divider mx-1"></div>
 
-      <button v-if="isAuthor" class="text-action-btn edit-btn d-inline-flex align-items-center gap-2 px-2 py-1 rounded-2"
-        @click="openRestrictedModal('edit')">
+      <button
+        v-if="isAuthor"
+        class="text-action-btn edit-btn d-inline-flex align-items-center gap-2 px-2 py-1 rounded-2"
+        @click="openRestrictedModal('edit')"
+      >
         <i class="pi pi-pencil"></i>
         <span>Edit Post</span>
       </button>
 
-      <button v-if="showMetadataButton" class="text-action-btn edit-btn d-inline-flex align-items-center gap-2 px-2 py-1 rounded-2"
-        @click="openRestrictedModal('metadata')">
+      <button
+        v-if="showMetadataButton"
+        class="text-action-btn edit-btn d-inline-flex align-items-center gap-2 px-2 py-1 rounded-2"
+        @click="openRestrictedModal('metadata')"
+      >
         <i class="pi pi-pencil"></i>
         <span>Edit</span>
       </button>
 
-      <button v-if="canDelete" class="text-action-btn delete-btn d-inline-flex align-items-center gap-2 px-2 py-1 rounded-2" 
-        @click="showDeleteConfirm = true">
+      <button
+        v-if="canDelete"
+        class="text-action-btn delete-btn d-inline-flex align-items-center gap-2 px-2 py-1 rounded-2"
+        @click="showDeleteConfirm = true"
+      >
         <i class="pi pi-trash"></i>
         <span>Delete</span>
       </button>
     </div>
 
     <!-- Modals -->
-    <CreatePostModal v-if="showEditModal" :show="showEditModal" :post-data="post" :is-restricted="isRestricted"
-      @close="showEditModal = false" />
+    <CreatePostModal
+      v-if="showEditModal"
+      :show="showEditModal"
+      :post-data="post"
+      :is-restricted="isRestricted"
+      @close="showEditModal = false"
+    />
+
+    <ReportingModal
+      :isOpen="showReportModal"
+      :targetId="post.PostID"
+      :targetTitle="post.title"
+      type="post"
+      @close="showReportModal = false"
+    />
 
     <Teleport to="body">
       <Transition name="modal" appear>
-        <div v-if="showDeleteConfirm" class="modal-mask d-flex align-items-center justify-content-center" @mousedown.self="showDeleteConfirm = false">
+        <div
+          v-if="showDeleteConfirm"
+          class="modal-mask d-flex align-items-center justify-content-center"
+          @mousedown.self="showDeleteConfirm = false"
+        >
           <div class="warning-card p-5 text-center rounded-4">
-            <div class="warning-icon fs-1 mb-3"><i class="pi pi-exclamation-triangle"></i></div>
+            <div class="warning-icon fs-1 mb-3">
+              <i class="pi pi-exclamation-triangle"></i>
+            </div>
             <h3 class="warning-title fs-5 mb-2">Delete this post?</h3>
-            <p class="warning-body small m-0">This post will be removed from public view. This cannot be undone.</p>
+            <p class="warning-body small m-0">
+              This post will be removed from public view. This cannot be undone.
+            </p>
             <div class="modal-actions d-flex gap-2 justify-content-center mt-4">
-              <button class="cancel-btn rounded-3 px-4 py-2" @click="showDeleteConfirm = false" :disabled="isDeleting">Cancel</button>
-              <button class="delete-confirm-btn rounded-3 px-4 py-2" @click="confirmDelete" :disabled="isDeleting">
-                <span v-if="isDeleting"><span class="spinner-border spinner-border-sm me-1"></span>Deleting…</span>
+              <button
+                class="cancel-btn rounded-3 px-4 py-2"
+                @click="showDeleteConfirm = false"
+                :disabled="isDeleting"
+              >
+                Cancel
+              </button>
+              <button
+                class="delete-confirm-btn rounded-3 px-4 py-2"
+                @click="confirmDelete"
+                :disabled="isDeleting"
+              >
+                <span v-if="isDeleting"
+                  ><span class="spinner-border spinner-border-sm me-1"></span
+                  >Deleting…</span
+                >
                 <span v-else>Confirm Delete</span>
               </button>
             </div>
@@ -211,7 +289,6 @@ watch(isLoggedIn, (loggedIn) => {
   color: #043927;
   transform: scale(1.15);
 }
-
 .vote-btn-down.active {
   color: #5e2b2c;
   transform: scale(1.15);
@@ -228,31 +305,27 @@ watch(isLoggedIn, (loggedIn) => {
 .vote-count.upvoted {
   color: #043927;
 }
-
 .vote-count.downvoted {
   color: #5e2b2c;
 }
 
-.text-action-btn {
-  background: transparent;
-  border: none;
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: #64748b;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.text-action-btn i {
-  font-size: 0.95rem;
-}
-
 @keyframes count-bounce {
-  0%  { transform: translateY(0); }
-  25% { transform: translateY(-3px); }
-  50% { transform: translateY(2px); }
-  70% { transform: translateY(-1px); }
-  85%, 100% { transform: translateY(0); }
+  0% {
+    transform: translateY(0);
+  }
+  25% {
+    transform: translateY(-3px);
+  }
+  50% {
+    transform: translateY(2px);
+  }
+  70% {
+    transform: translateY(-1px);
+  }
+  85%,
+  100% {
+    transform: translateY(0);
+  }
 }
 
 .voting-bounce {
@@ -261,23 +334,99 @@ watch(isLoggedIn, (loggedIn) => {
   opacity: 0.8;
 }
 
+.text-action-btn {
+  position: relative;
+  background: transparent;
+  border: none;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 4px 6px;
+  transition: color 0.2s ease;
+  text-decoration: none;
+}
+
+.text-action-btn::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 6px;
+  right: 6px;
+  height: 2px;
+  border-radius: 20px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.text-action-btn:hover::after {
+  transform: scaleX(1);
+}
+
+.text-action-btn i {
+  font-size: 0.88rem;
+  transition: transform 0.2s ease;
+}
+
+/* Follow */
+.text-action-btn:not(.report-btn):not(.edit-btn):not(.delete-btn):hover {
+  color: #b91657;
+}
+.text-action-btn:not(.report-btn):not(.edit-btn):not(.delete-btn):hover i {
+  transform: scale(1.2);
+}
 .text-action-btn.following {
   color: #b91657;
 }
-
-.text-action-btn.following:hover {
-  background: #fff0f6;
+.text-action-btn.following::after {
+  transform: scaleX(1);
+  opacity: 0.5;
 }
 
-.report-btn:hover,
-.delete-btn:hover {
+/* Report */
+.report-btn:hover {
   color: #c0392b;
-  background: #fdecea;
+}
+.report-btn:hover i {
+  transform: rotate(-8deg) scale(1.1);
 }
 
+/* Edit */
 .edit-btn:hover {
   color: #1e4d38;
-  background: #eaf2ec;
+}
+.edit-btn:hover i {
+  transform: translateY(-1px) rotate(-6deg);
+}
+
+/* Delete */
+.delete-btn:hover {
+  color: #c0392b;
+}
+
+@keyframes trash-shake {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  20% {
+    transform: rotate(-10deg);
+  }
+  40% {
+    transform: rotate(10deg);
+  }
+  60% {
+    transform: rotate(-6deg);
+  }
+  80% {
+    transform: rotate(6deg);
+  }
+}
+.delete-btn:hover i {
+  animation: trash-shake 0.4s ease-in-out;
 }
 
 .modal-mask {
@@ -298,12 +447,10 @@ watch(isLoggedIn, (loggedIn) => {
 .warning-icon {
   color: #c0392b;
 }
-
 .warning-title {
   font-weight: 800;
   color: #1a1a1b;
 }
-
 .warning-body {
   color: #64748b;
   line-height: 1.5;
@@ -318,7 +465,6 @@ watch(isLoggedIn, (loggedIn) => {
   cursor: pointer;
   transition: all 0.15s;
 }
-
 .cancel-btn:hover:not(:disabled) {
   background: #f1f5f9;
   border-color: #cbd5e1;
@@ -333,7 +479,6 @@ watch(isLoggedIn, (loggedIn) => {
   cursor: pointer;
   transition: background 0.15s;
 }
-
 .delete-confirm-btn:hover:not(:disabled) {
   background: #7d281b;
 }
@@ -348,16 +493,13 @@ watch(isLoggedIn, (loggedIn) => {
 .modal-leave-active {
   transition: opacity 0.2s ease;
 }
-
 .modal-enter-from,
 .modal-leave-to {
   opacity: 0;
 }
-
 .modal-enter-active .warning-card {
   transition: transform 0.2s ease;
 }
-
 .modal-enter-from .warning-card {
   transform: scale(0.95) translateY(8px);
 }

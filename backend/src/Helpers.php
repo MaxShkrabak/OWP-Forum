@@ -2,6 +2,7 @@
 namespace Forum\Helpers;
 
 use Psr\Http\Message\ResponseInterface as Response;
+use Psr\Http\Message\ServerRequestInterface as Request;
 
 if (!function_exists('Forum\Helpers\json')) {
     function json(Response $res, array $data, int $status = 200): Response {
@@ -65,6 +66,32 @@ if (!function_exists('Forum\Helpers\checkUserBan')) {
                 return json($res, ['ok' => false, 'error' => $msg], 403);
             }
         }
+        return null;
+    }
+}
+
+if (!function_exists('Forum\Helpers\requireTermsAccepted')) {
+    function requireTermsAccepted(Request $req, Response $res, \PDO $pdo): ?Response {
+        $userId = $req->getAttribute('user_id');
+
+        if ($userId === null) {
+            return json($res, ['ok' => false, 'error' => 'Unauthorized'], 401);
+        }
+
+        $stmt = $pdo->prepare("
+            SELECT ISNULL(termsAccepted, 0) AS termsAccepted
+            FROM dbo.Users
+            WHERE User_ID = :uid
+        ");
+        $stmt->execute([':uid' => $userId]);
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+        $accepted = (int)($row['termsAccepted'] ?? 0);
+
+        if ($accepted === 0) {
+            return json($res, ['ok' => false, 'error' => 'Terms not accepted'], 403);
+        }
+
         return null;
     }
 }
