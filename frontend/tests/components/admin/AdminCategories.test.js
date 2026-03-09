@@ -1,4 +1,3 @@
-/** @vitest-environment jsdom */
 /**
  * Manage Categories (Admin) — unit tests.
  * Duplicate prevention + slugify (no DOM) + AdminCategories.vue DOM tests.

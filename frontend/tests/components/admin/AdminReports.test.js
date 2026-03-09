@@ -1,8 +1,3 @@
-/** @vitest-environment jsdom */
-/**
- * AdminReports — unit tests.
- * Includes: Report Tags + Manage Reports section (tests 1–3, 5–9).
- */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount, flushPromises } from "@vue/test-utils";
 import { ref } from "vue";

@@ -1,4 +1,3 @@
-/** @vitest-environment jsdom */
 import { mount, flushPromises } from "@vue/test-utils";
 import { describe, it, expect, beforeEach } from "vitest";
 import TextEditor from "@/components/forum/TextEditor.vue";

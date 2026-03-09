@@ -4,6 +4,8 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
 use function Forum\Helpers\json;
+use function Forum\Helpers\resolveReportsForPost;
+use function Forum\Helpers\softDeleteCommentsForPost;
 
 $app->post("/api/create-post", function (Request $req, Response $res) use ($makePdo) {
     try {
@@ -14,6 +16,11 @@ $app->post("/api/create-post", function (Request $req, Response $res) use ($make
         }
 
         $pdo = $makePdo();
+
+        if ($termsRes = \Forum\Helpers\requireTermsAccepted($req, $res, $pdo)) {
+            return $termsRes;
+        }
+
         try {
             $banStmt = $pdo->prepare("
                 SELECT ISNULL(IsBanned, 0), BanType, BannedUntil
@@ -48,6 +55,39 @@ $app->post("/api/create-post", function (Request $req, Response $res) use ($make
         $tagsIn = (array)($data['tags'] ?? []);
         $tagsIn = array_values(array_unique(array_map('intval', $tagsIn)));
         $tagsIn = array_slice(array_filter($tagsIn, fn($v) => $v > 0), 0, 5);
+
+        // Simple spam protection: cooldown + duplicate check
+        $postCooldownSeconds = 60;
+
+        $lastPostStmt = $pdo->prepare("
+            SELECT TOP 1 Title, CreatedAt, CAST(Content AS NVARCHAR(MAX)) as Content
+            FROM dbo.Posts 
+            WHERE AuthorID = :uid AND IsDeleted = 0
+            ORDER BY CreatedAt DESC
+        ");
+        $lastPostStmt->execute([':uid' => $userId]);
+        $lastPost = $lastPostStmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($lastPost) {
+            $lastTime = new \DateTimeImmutable($lastPost['CreatedAt'], new \DateTimeZone('UTC'));
+            $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
+            $secondsSinceLastPost = $now->getTimestamp() - $lastTime->getTimestamp();
+
+            if ($secondsSinceLastPost < $postCooldownSeconds) {
+                $secondsLeft = $postCooldownSeconds - $secondsSinceLastPost;
+                return json($res, [
+                    'ok' => false,
+                    'error' => "Please wait {$secondsLeft}s before posting again."
+                ], 429);
+            }
+
+            if ($lastPost['Title'] === $title && $lastPost['Content'] === $content) {
+                return json($res, [
+                    'ok' => false,
+                    'error' => 'You already created an identical post!'
+                ], 409);
+            }
+        }
 
         $pdo->beginTransaction();
 
@@ -185,7 +225,7 @@ $app->get('/api/posts', function (Request $req, Response $res) use ($makePdo) {
             FROM dbo.PostTags pt
             JOIN dbo.Tags t ON t.TagID = pt.TagID
             WHERE pt.PostID IN ($placeholders)
-            ORDER BY t.Name ASC
+            ORDER BY CASE WHEN t.Name = 'Official' THEN 0 ELSE 1 END, t.Name ASC
         ";
 
         $tagStmt = $pdo->prepare($getTagsSql);
@@ -200,8 +240,7 @@ $app->get('/api/posts', function (Request $req, Response $res) use ($makePdo) {
         foreach ($rows as $row) {
             $pid = (int)$row['PostID'];
             $catId = (int)$row['CategoryID'];
-
-            $post = [
+$post = [
                 'PostID'       => $pid,
                 'categoryId'   => $catId,
                 'title'        => $row['Title'],
@@ -307,8 +346,7 @@ $app->get('/api/categories/{id}/posts', function (Request $req, Response $res, a
             'comments' => 'commentCount DESC, p.CreatedAt DESC',
             default    => 'p.CreatedAt DESC',
         };
-
-        $searchWhere = '';
+$searchWhere = '';
         if ($hasSearch) {
             if ($mode === 'title') {
                 $searchWhere = " AND p.Title LIKE :q ";
@@ -399,11 +437,11 @@ $app->get('/api/categories/{id}/posts', function (Request $req, Response $res, a
         if (!empty($rows)) {
             $postIds = array_map(fn($r) => (int)$r['PostID'], $rows);
             $placeholders = implode(',', array_fill(0, count($postIds), '?'));
-
-            $tagsByPostId = [];
+$tagsByPostId = [];
             $tagSql = "SELECT pt.PostID, t.Name FROM dbo.PostTags pt
                        JOIN dbo.Tags t ON t.TagID = pt.TagID
-                       WHERE pt.PostID IN ($placeholders)";
+                       WHERE pt.PostID IN ($placeholders)
+                       ORDER BY CASE WHEN t.Name = 'Official' THEN 0 ELSE 1 END, t.Name ASC";
             $tagStmt = $pdo->prepare($tagSql);
             $tagStmt->execute($postIds);
             while ($t = $tagStmt->fetch(PDO::FETCH_ASSOC)) {
@@ -519,6 +557,11 @@ $app->post('/api/posts/{id}/vote', function (Request $req, Response $res, array 
         if (!$userId) return json($res, ['ok' => false, 'error' => 'Not Authenticated'], 401);
 
         $pdo = $makePdo();
+
+        if ($termsRes = \Forum\Helpers\requireTermsAccepted($req, $res, $pdo)) {
+            return $termsRes;
+        }
+
         $postId = (int)$args['id'];
 
         $body = $req->getParsedBody();
@@ -558,6 +601,11 @@ $app->patch('/api/posts/{id}/soft-delete', function (Request $req, Response $res
         }
 
         $pdo = $makePdo();
+
+        if ($termsRes = \Forum\Helpers\requireTermsAccepted($req, $res, $pdo)) {
+            return $termsRes;
+        }
+
         $postId = (int)$args['id'];
 
         // Verify ownership
@@ -573,16 +621,34 @@ $app->patch('/api/posts/{id}/soft-delete', function (Request $req, Response $res
             return json($res, ['ok' => false, 'error' => 'Forbidden'], 403);
         }
 
+        $pdo->beginTransaction();
+
         // Soft delete
         $stmt = $pdo->prepare("
             UPDATE dbo.Posts
             SET IsDeleted = 1, DeletedAt = SYSUTCDATETIME()
-            WHERE PostID = :pid
+            WHERE PostID = :pid AND IsDeleted = 0
         ");
         $stmt->execute([':pid' => $postId]);
 
+        if ($stmt->rowCount() === 0) {
+            $pdo->rollBack();
+            return json($res, ['ok' => false, 'error' => 'Post not found or already deleted'], 404);
+        }
+
+        // Soft delete comments under this post
+        softDeleteCommentsForPost($pdo, $postId);
+
+        // Resolve reports for this post + comments/replies under it
+        resolveReportsForPost($pdo, $postId, (int)$userId);
+
+        $pdo->commit();
+
         return json($res, ['ok' => true]);
     } catch (Throwable $e) {
+        if (isset($pdo) && $pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
         return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
     }
 });
@@ -591,21 +657,24 @@ $app->get('/api/get-post/{id}', function (Request $req, Response $res, array $ar
     try {
         $pdo = $makePdo();
         $postID = (int)$args['id'];
+        $userId = $req->getAttribute("user_id") ?? 0;
 
         $sql = "
-            SELECT p.PostID, p.Title, p.Content, p.CreatedAt, p.UpdatedAt, p.CategoryID, p.AuthorID,
+            SELECT p.PostID, p.Title, p.Content, p.CreatedAt, p.UpdatedAt, p.CategoryID, p.AuthorID, p.TotalScore,
                    u.FirstName, u.LastName, u.Avatar,
                    r.Name AS RoleName, 
-                   c.Name AS CategoryName
+                   c.Name AS CategoryName,
+                   ISNULL(pv.VoteValue, 0) AS myVote
             FROM dbo.Posts p
             LEFT JOIN dbo.Users u ON p.AuthorID = u.User_ID
             LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
             LEFT JOIN dbo.Categories c ON p.CategoryID = c.CategoryID
+            LEFT JOIN dbo.PostVotes pv ON p.PostID = pv.PostID AND pv.User_ID = :userId
             WHERE p.PostID = :id AND p.IsDeleted = 0
         ";
 
         $stmt = $pdo->prepare($sql);
-        $stmt->execute(['id' => $postID]);
+        $stmt->execute(['id' => $postID, 'userId' => $userId]);
         $post = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$post) {
@@ -617,7 +686,7 @@ $app->get('/api/get-post/{id}', function (Request $req, Response $res, array $ar
             FROM dbo.PostTags pt 
             JOIN dbo.Tags t ON t.TagID = pt.TagID 
             WHERE pt.PostID = :id
-            ORDER BY t.Name ASC
+            ORDER BY CASE WHEN t.Name = 'Official' THEN 0 ELSE 1 END, t.Name ASC
         ");
 
         $tagStmt->execute(['id' => $postID]);
@@ -644,6 +713,8 @@ $app->get('/api/get-post/{id}', function (Request $req, Response $res, array $ar
             'tags'         => $tags,                        // Array of objects (TagID & Name)
             'tagNames'     => $tagNames,                    // Flat array of strings
             'tagIds'       => $tagIds,                      // Flat array of IDs
+            'TotalScore'   => (int)($post['TotalScore'] ?? 0),
+            'myVote'       => (int)($post['myVote'] ?? 0),
         ];
 
         // Ensure the response uses the wrapper standard from dev
@@ -679,6 +750,10 @@ $app->put('/api/posts/{id}', function (Request $req, Response $res, array $args)
 
         $pdo = $makePdo();
 
+        if ($termsRes = \Forum\Helpers\requireTermsAccepted($req, $res, $pdo)) {
+            return $termsRes;
+        }
+
         $postStmt = $pdo->prepare("SELECT PostID, AuthorID, IsDeleted FROM dbo.Posts WHERE PostID = :id");
         $postStmt->execute(['id' => $postId]);
         $post = $postStmt->fetch(PDO::FETCH_ASSOC);
@@ -696,8 +771,7 @@ $app->put('/api/posts/{id}', function (Request $req, Response $res, array $args)
         if ($userId !== $authorId && $userRoleId < 3) {
             return json($res, ['ok' => false, 'error' => 'Permission denied.'], 403);
         }
-
-        $catStmt = $pdo->prepare("SELECT CategoryID, UsableByRoleID FROM dbo.Categories WHERE CategoryID = :catId");
+$catStmt = $pdo->prepare("SELECT CategoryID, UsableByRoleID FROM dbo.Categories WHERE CategoryID = :catId");
         $catStmt->execute(['catId' => $categoryIdIn]);
         $categoryData = $catStmt->fetch(PDO::FETCH_ASSOC);
 
@@ -791,7 +865,7 @@ $app->put('/api/posts/{id}', function (Request $req, Response $res, array $args)
                 'categoryName' => $updatedPost['CategoryName'] ?? null,
                 'updatedAt'    => $updatedPost['UpdatedAt'],
                 'tags'         => array_map(fn($t) => $t['Name'], $updatedTags),
-                'tagIds'      => array_map(fn($t) => (int)$t['TagID'], $updatedTags),
+                'tagIds'       => array_map(fn($t) => (int)$t['TagID'], $updatedTags),
             ]
         ]);
     } catch (Throwable $e) {
@@ -813,6 +887,10 @@ $app->delete('/api/posts/{id}', function (Request $req, Response $res, array $ar
         }
 
         $pdo = $makePdo();
+
+        if ($termsRes = \Forum\Helpers\requireTermsAccepted($req, $res, $pdo)) {
+            return $termsRes;
+        }
 
         $postStmt = $pdo->prepare("SELECT PostID, AuthorID, IsDeleted FROM dbo.Posts WHERE PostID = :id");
         $postStmt->execute(['id' => $postId]);
@@ -836,12 +914,23 @@ $app->delete('/api/posts/{id}', function (Request $req, Response $res, array $ar
             return json($res, ['ok' => false, 'error' => 'Permission denied.'], 403);
         }
 
+        $pdo->beginTransaction();
+
         $delStmt = $pdo->prepare("UPDATE dbo.Posts SET IsDeleted = 1, UpdatedAt = SYSUTCDATETIME(), DeletedAt = SYSUTCDATETIME() WHERE PostID = :id AND IsDeleted = 0");
         $delStmt->execute(['id' => $postId]);
 
         if ($delStmt->rowCount() === 0) {
+            $pdo->rollBack();
             return json($res, ['ok' => false, 'error' => 'Failed to delete post.'], 500);
         }
+        
+        // Soft delete comments under this post
+        softDeleteCommentsForPost($pdo, $postId);
+
+        // Resolve reports for this post + comments/replies under it
+        resolveReportsForPost($pdo, $postId, (int)$userId);
+
+        $pdo->commit();
 
         $outStmt = $pdo->prepare("SELECT IsDeleted, DeletedAt, UpdatedAt FROM dbo.Posts WHERE PostID = :id");
         $outStmt->execute(['id' => $postId]);
@@ -855,6 +944,9 @@ $app->delete('/api/posts/{id}', function (Request $req, Response $res, array $ar
             'updatedAt' => $result['UpdatedAt'] ?? null,
         ]);
     } catch (Throwable $e) {
+        if (isset($pdo) && $pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
         return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
     }
 });

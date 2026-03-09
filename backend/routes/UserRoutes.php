@@ -2,6 +2,8 @@
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
+use Forum\Controllers\TermsController;
+
 use function Forum\Helpers\{json, setSessionCookie, clearSessionCookie};
 
 $app->get('/api/me', function(Request $req, Response $res) use ($makePdo) {
@@ -15,12 +17,14 @@ $app->get('/api/me', function(Request $req, Response $res) use ($makePdo) {
 
         $pdo = $makePdo();
 
-        // Single query when ban columns exist (migrations 008, 009); fallback for older DBs
+        // Single query when ban + terms columns exist; fallback for older DBs
         $user = null;
         try {
             $sql = "
                 SELECT u.User_ID, u.Email, u.FirstName, u.LastName, u.Avatar, r.Name as RoleName, r.RoleID,
-                       ISNULL(u.IsBanned, 0) as IsBanned, u.BanType, u.BannedUntil
+                       ISNULL(u.IsBanned, 0) as IsBanned, u.BanType, u.BannedUntil,
+                       ISNULL(u.EmailNotificationsEnabled, 1) as EmailNotificationsEnabled,
+                       ISNULL(u.TermsAccepted, 0) as termsAccepted, u.TermsAcceptedAt as termsAcceptedAt
                 FROM dbo.Users u
                 LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
                 WHERE u.User_ID = :uid
@@ -29,12 +33,28 @@ $app->get('/api/me', function(Request $req, Response $res) use ($makePdo) {
             $stmt->execute([':uid' => $userId]);
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
         } catch (Throwable $e) {
-            // Ban columns may not exist
+        }
+        if (!$user) {
+            try {
+                $sql = "
+                    SELECT u.User_ID, u.Email, u.FirstName, u.LastName, u.Avatar, r.Name as RoleName, r.RoleID,
+                           ISNULL(u.IsBanned, 0) as IsBanned, u.BanType, u.BannedUntil
+                    FROM dbo.Users u
+                    LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
+                    WHERE u.User_ID = :uid
+                ";
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute([':uid' => $userId]);
+                $user = $stmt->fetch(PDO::FETCH_ASSOC);
+            } catch (Throwable $e) {
+                // Ban columns may not exist
+            }
         }
 
         if (!$user) {
             $sql = "
-                SELECT u.User_ID, u.Email, u.FirstName, u.LastName, u.Avatar, r.Name as RoleName, r.RoleID
+                SELECT u.User_ID, u.Email, u.FirstName, u.LastName, u.Avatar, r.Name as RoleName, r.RoleID,
+                    ISNULL(u.EmailNotificationsEnabled, 1) as EmailNotificationsEnabled
                 FROM dbo.Users u
                 LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
                 WHERE u.User_ID = :uid
@@ -46,7 +66,13 @@ $app->get('/api/me', function(Request $req, Response $res) use ($makePdo) {
                 $user['IsBanned'] = 0;
                 $user['BanType'] = null;
                 $user['BannedUntil'] = null;
+                $user['termsAccepted'] = 0;
+                $user['termsAcceptedAt'] = null;
             }
+        }
+        if ($user && !array_key_exists('termsAccepted', $user)) {
+            $user['termsAccepted'] = 0;
+            $user['termsAcceptedAt'] = null;
         }
 
         if (!$user) {
@@ -56,6 +82,8 @@ $app->get('/api/me', function(Request $req, Response $res) use ($makePdo) {
         $user['IsBanned'] = (int)($user['IsBanned'] ?? 0);
         $user['BanType'] = isset($user['BanType']) && $user['BanType'] ? trim((string)$user['BanType']) : null;
         $user['BannedUntil'] = isset($user['BannedUntil']) && $user['BannedUntil'] ? $user['BannedUntil'] : null;
+        $user['termsAccepted'] = (int)($user['termsAccepted'] ?? 0);
+        $user['termsAcceptedAt'] = isset($user['termsAcceptedAt']) && $user['termsAcceptedAt'] ? $user['termsAcceptedAt'] : null;
 
         // Effective ban: treat expired temporary ban as not banned (no DB write)
         if ($user['IsBanned'] && $user['BanType'] === 'temporary' && $user['BannedUntil']) {
@@ -155,7 +183,7 @@ $app->post('/api/register-new-user', function (Request $req, Response $res) use 
             VALUES (:email, :first, :last, 1, GETDATE())
         ";
 
-        $stmt = $pdo->prepare($insertUser) ->execute([                
+        $pdo->prepare($insertUser) ->execute([                
             ":email" => $email,
             ":first" => $first,
             ":last" => $last,
@@ -194,6 +222,12 @@ $app->post('/api/verify-email', function (Request $req, Response $res) use ($mak
     } catch (Throwable $e) {
         return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
     }
+});
+
+$app->post('/api/accept-terms', function(Request $req, Response $res) use ($makePdo) {
+    $pdo = $makePdo();
+    $controller = new TermsController();
+    return $controller->accept($req, $res, $pdo);
 });
 
 $app->post('/api/logout', function (Request $req, Response $res) use ($makePdo) {
@@ -251,6 +285,85 @@ $app->post('/api/user/avatar', function (Request $req, Response $res) use ($make
 
     } catch (Throwable $e) {
         // Failed to save icon
+        return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+    }
+});
+
+$app->get('/api/user/notification-settings', function (Request $req, Response $res) use ($makePdo) {
+    try {
+        $userId = $req->getAttribute('user_id');
+
+        if (!$userId) {
+            return json($res, ['ok' => false, 'error' => 'Unauthorized'], 401);
+        }
+
+        $pdo = $makePdo();
+
+        $sql = "
+            SELECT ISNULL(EmailNotificationsEnabled, 1) as EmailNotificationsEnabled
+            FROM dbo.Users
+            WHERE User_ID = :uid
+        ";
+
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([':uid' => $userId]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$result) {
+            return json($res, ['ok' => false, 'error' => 'User not found'], 404);
+        }
+
+        return json($res, [
+            'ok' => true,
+            'settings' => [
+                'emailNotifications' => (bool)$result['EmailNotificationsEnabled']
+            ]
+        ]);
+    } catch (Throwable $e) {
+        return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+    }
+});
+
+$app->post('/api/user/notification-settings', function (Request $req, Response $res) use ($makePdo) {
+    try {
+        $userId = $req->getAttribute('user_id');
+
+        if (!$userId) {
+            return json($res, ['ok' => false, 'error' => 'Unauthorized'], 401);
+        }
+
+        $data = $req->getParsedBody() ?? [];
+        
+        if (!array_key_exists('emailNotifications', $data)) {
+            return json($res, ['ok' => false, 'error' => 'Invalid emailNotifications value'], 400);
+        }
+
+        $emailNotifications = filter_var($data['emailNotifications'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+
+        if ($emailNotifications === null) {
+            return json($res, ['ok' => false, 'error' => 'Invalid emailNotifications value'], 400);
+        }
+
+        $pdo = $makePdo();
+
+        $updateSql = "
+            UPDATE dbo.Users
+            SET EmailNotificationsEnabled = :enabled
+            WHERE User_ID = :uid
+        ";
+
+        $pdo->prepare($updateSql)->execute([
+            ':enabled' => $emailNotifications ? 1 : 0,
+            ':uid' => $userId
+        ]);
+
+        return json($res, [
+            'ok' => true, 
+            'settings' => [
+                'emailNotifications' => $emailNotifications
+            ]
+        ]);
+    } catch (Throwable $e) {
         return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
     }
 });
