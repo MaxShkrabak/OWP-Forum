@@ -1,10 +1,50 @@
 <script setup>
-import CSUSHeader from './components/layout/CSUSHeader.vue'
-import OWPHeader from './components/layout/OWPHeader.vue';
-import Footer from './components/layout/Footer.vue';
-import { isLoggedIn, isBanned, banType, bannedUntil } from '@/stores/userStore';
-import { formatBannedUntilDateTime } from '@/utils/banDate';
-// import Category from './components/Category.vue';
+import { ref, onMounted, watch } from "vue";
+import { useRoute } from "vue-router";
+import { isLoggedIn, isBanned, banType, bannedUntil } from "@/stores/userStore";
+import { formatBannedUntilDateTime } from "@/utils/banDate";
+import client from "@/api/client";
+import CSUSHeader from "./components/layout/CSUSHeader.vue";
+import OWPHeader from "./components/layout/OWPHeader.vue";
+import Footer from "./components/layout/Footer.vue";
+import TermsModal from "@/components/legal/TermsModal.vue";
+
+const route = useRoute();
+
+const showTermsModal = ref(false);
+
+async function checkTermsAcceptance() {
+  if (route.meta?.hideTermsModal) {
+    showTermsModal.value = false;
+    return;
+  }
+
+  try {
+    const res = await client.get("/me");
+    if (res.data?.ok && res.data.user && Number(res.data.user.termsAccepted) === 0) {
+      showTermsModal.value = true;
+    } else {
+      showTermsModal.value = false;
+    }
+  } catch (e) {
+    showTermsModal.value = false;
+  }
+}
+
+function handleAcceptedTerms() {
+  showTermsModal.value = false;
+}
+
+onMounted(() => {
+  checkTermsAcceptance();
+});
+
+watch(
+  () => route.fullPath,
+  () => {
+    checkTermsAcceptance();
+  }
+);
 </script>
 
 <template>
@@ -22,8 +62,12 @@ import { formatBannedUntilDateTime } from '@/utils/banDate';
     </template>
   </div>
   <router-view />
+  <TermsModal
+    v-if="showTermsModal && !route.meta?.hideTermsModal"
+    @accepted="handleAcceptedTerms"
+  />
   <Footer />
-  <!-- <Category/> -->
+    <!-- <Category/> -->
 </template>
 
 <style scoped>

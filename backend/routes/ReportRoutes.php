@@ -22,9 +22,25 @@ $app->get('/api/reports', function (Request $req, Response $res) use ($makePdo) 
         }
 
         $sql = "
-            SELECT r.ReportID, r.PostID, r.CommentID, r.CreatedAt, rt.TagName AS Reason
+            SELECT
+                r.ReportID,
+                r.PostID,
+                p.Title AS PostTitle,
+                CONCAT(up.FirstName, ' ', up.LastName) AS PostAuthor,
+                r.CommentID,
+                c.Content AS CommentText,
+                NULLIF(CONCAT(uc.FirstName, ' ', uc.LastName),'') AS CommentAuthor,
+                r.CreatedAt,
+                rt.TagName AS Reason,
+                r.ReportUserID AS ReporterId,
+                CONCAT(ur.FirstName, ' ', ur.LastName) AS ReporterName
             FROM dbo.Reports r
             INNER JOIN dbo.ReportTags rt ON r.ReportTagID = rt.ReportTagID
+            LEFT JOIN dbo.Posts p ON r.PostID = p.PostID
+            LEFT JOIN dbo.Comments c ON r.CommentID = c.CommentId
+            LEFT JOIN dbo.Users up ON up.User_ID = p.AuthorID
+            LEFT JOIN dbo.Users uc ON uc.User_ID = c.UserId
+            LEFT JOIN dbo.Users ur ON ur.User_ID = r.ReportUserID
             WHERE r.Resolved = 0
             ORDER BY r.CreatedAt DESC
         ";
@@ -46,10 +62,18 @@ $app->get('/api/reports', function (Request $req, Response $res) use ($makePdo) 
             $reports[] = [
                 'reportId'  => (int)$row['ReportID'],
                 'postId'    => $postId ?: null,
+                'postTitle' => $row['PostTitle'] ?? null,
+                'postAuthor' => $row['PostAuthor'] ?? null,
                 'commentId' => (int)($row['CommentID'] ?? 0) ?: null,
+                'commentText' => $row['CommentText'] ?? null,
+                'commentAuthor' => $row['CommentAuthor'] ?? null,
                 'source'    => $source,
                 'reason'    => $row['Reason'] ?? 'Other',
                 'createdAt' => $row['CreatedAt'],
+                'reporter' => [
+                    'id' => (int)$row['ReporterId'],
+                    'fullName' => $row['ReporterName'] ?? null,
+                ],
             ];
         }
 

@@ -7,11 +7,28 @@ const q = ref('')
 const users = ref([])
 const loading = ref(false)
 const error = ref('')
+const currentUserId = ref(null)
 
 const showBanModal = ref(false)
 const banTarget = ref(null)
 const banKind = ref('permanent') // 'permanent' | 'temporary'
 const banUntilDate = ref('')
+
+const showWarning = ref(false)
+const warningMessage = ref('')
+
+// Role management state
+const roleDraft = ref({})
+const showRoleConfirm = ref(false)
+const pendingRole = ref({ user: null, newRoleId: null, oldRoleId: null })
+const roleInfoModal = ref({ open: false, title: '', message: '' })
+
+const roles = [
+  { id: 1, label: 'User' },
+  { id: 2, label: 'Student' },
+  { id: 3, label: 'Moderator' },
+  { id: 4, label: 'Admin' },
+]
 
 // Tomorrow in local time (YYYY-MM-DD) so date picker min is correct in user's timezone
 const minBanDate = computed(() => {
@@ -41,6 +58,11 @@ async function loadUsers() {
       BanType: u.BanType && (u.BanType === 'permanent' || u.BanType === 'temporary') ? u.BanType : null,
       BannedUntil: u.BannedUntil ? String(u.BannedUntil) : null
     }))
+
+    // Populate roleDraft map
+    const map = {}
+    for (const u of users.value) map[u.User_ID] = Number(u.RoleID)
+    roleDraft.value = map
   } catch (e) {
     error.value = e?.response?.data?.error || e.message || 'Failed to load users'
     users.value = []
@@ -68,12 +90,22 @@ function closeBanModal() {
   banTarget.value = null
 }
 
+function showWarningPopup(message) {
+  warningMessage.value = message
+  showWarning.value = true
+}
+
+function closeWarningPopup() {
+  showWarning.value = false
+  warningMessage.value = ''
+}
+
 async function confirmBan() {
   if (!banTarget.value) return
   const payload = { banned: true }
   if (banKind.value === 'temporary') {
     if (!banUntilDate.value) {
-      alert('Please choose an end date for the temporary ban.')
+      showWarningPopup('Please choose an end date for the temporary ban.')
       return
     }
     payload.banType = 'temporary'
@@ -88,7 +120,7 @@ async function confirmBan() {
     banTarget.value.BannedUntil = payload.bannedUntil || null
     closeBanModal()
   } catch (e) {
-    alert(e?.response?.data?.error || 'Failed to update ban status')
+    showWarningPopup(e?.response?.data?.error || 'Failed to update ban status')
   }
 }
 
@@ -99,7 +131,7 @@ async function unban(user) {
     user.BanType = null
     user.BannedUntil = null
   } catch (e) {
-    alert(e?.response?.data?.error || 'Failed to update ban status')
+    showWarningPopup(e?.response?.data?.error || 'Failed to update ban status')
   }
 }
 
@@ -125,7 +157,82 @@ function formatUserDisplay(u) {
   return email ? email : `ID: ${u.User_ID}`
 }
 
-onMounted(() => loadUsers())
+function isAdminUser(u) {
+  if (!u) return false
+  if (Number(u.RoleID) === 4) return true
+  return (u.RoleName || '').toLowerCase() === 'admin'
+}
+
+// Role management functions
+function roleLabel(id) {
+  return id === 1 ? 'User' : id === 2 ? 'Student' : id === 3 ? 'Moderator' : 'Admin'
+}
+
+function showRoleInfo(title, message) {
+  roleInfoModal.value = { open: true, title, message }
+}
+
+function closeRoleInfo() {
+  roleInfoModal.value.open = false
+}
+
+function onRoleSelected(user) {
+  const newRole = Number(roleDraft.value[user.User_ID])
+  const oldRole = Number(user.RoleID)
+
+  if (newRole === oldRole) return
+
+  if (Number(user.User_ID) === Number(currentUserId.value)) {
+    roleDraft.value[user.User_ID] = oldRole
+    showRoleInfo("Action not allowed", "You cannot change your own role.")
+    return
+  }
+
+  const involvesElevated = (oldRole >= 3 || newRole >= 3)
+  if (involvesElevated) {
+    pendingRole.value = { user, oldRoleId: oldRole, newRoleId: newRole }
+    showRoleConfirm.value = true
+    return
+  }
+  applyRoleChange(user, newRole)
+}
+
+async function applyRoleChange(user, newRole) {
+  try {
+    await client.patch(`/admin/users/${user.User_ID}/role`, { roleId: newRole })
+    user.RoleID = String(newRole)
+    user.RoleName = newRole === 1 ? 'user' : newRole === 2 ? 'student' : newRole === 3 ? 'moderator' : 'admin'
+    roleDraft.value[user.User_ID] = newRole
+  } catch (e) {
+    roleDraft.value[user.User_ID] = Number(user.RoleID)
+    alert(e?.response?.data?.error || 'Failed to update role')
+  }
+}
+
+function cancelRoleConfirm() {
+  const u = pendingRole.value.user
+  if (u) roleDraft.value[u.User_ID] = Number(u.RoleID)
+  pendingRole.value = { user: null, newRoleId: null, oldRoleId: null }
+  showRoleConfirm.value = false
+}
+
+async function confirmRoleChange() {
+  const u = pendingRole.value.user
+  const newRole = pendingRole.value.newRoleId
+  showRoleConfirm.value = false
+  if (u && newRole != null) await applyRoleChange(u, newRole)
+  pendingRole.value = { user: null, newRoleId: null, oldRoleId: null }
+}
+
+onMounted(async () => {
+  try {
+    const me = await client.get('/admin/me')
+    currentUserId.value = Number(me.data.user.User_ID)
+  } catch (e) {
+    console.error("Failed to load current admin user", e)
+  }
+  await loadUsers()
+})
 </script>
 
 <template>
@@ -147,16 +254,17 @@ onMounted(() => loadUsers())
       <div v-if="loading" class="state mt-3 text-center">Loading…</div>
       <div v-if="error" class="err mt-3">{{ error }}</div>
 
-      <table v-if="!loading && users.length" class="admin-table mt-3">
+      <div class="table-wrapper">
+        <table v-if="!loading && users.length" class="admin-table mt-3">
         <thead>
-          <tr>
-            <th>ID</th>
-            <th>Name</th>
-            <th>Email</th>
-            <th>Role</th>
-            <th>Status</th>
-            <th>Action</th>
-          </tr>
+            <tr>
+              <th>ID</th>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
         </thead>
         <tbody>
           <tr v-for="u in users" :key="u.User_ID" :class="{ 'row-banned': u.IsBanned }">
@@ -167,32 +275,53 @@ onMounted(() => loadUsers())
               </div>
             </td>
             <td class="admin-email">{{ u.Email || '—' }}</td>
-            <td class="admin-role">{{ u.RoleName || '—' }}</td>
             <td>
-              <span v-if="u.IsBanned" class="badge badge-banned">{{ banStatusLabel(u) }}</span>
-              <span v-else class="badge badge-active">Active</span>
+              <select
+                class="role-select"
+                :class="roleLabel(roleDraft[u.User_ID]).toLowerCase()"
+                v-model="roleDraft[u.User_ID]"
+                :disabled="u.User_ID === currentUserId"
+                @change="onRoleSelected(u)"
+              >
+                <option v-for="r in roles" :key="r.id" :value="r.id">{{ r.label }}</option>
+              </select>
+            </td>
+            <td>
+              <span v-if="u.IsBanned" class="badge badge-banned">
+                <span class="desktop-only">{{ banStatusLabel(u) }}</span>
+              </span>
+              <span v-else class="badge badge-active">
+                <span class="desktop-only">Active</span>
+              </span>
             </td>
             <td>
               <button
-                v-if="!u.IsBanned"
+                v-if="!u.IsBanned && !isAdminUser(u)"
                 type="button"
                 class="btn-ban"
                 @click="openBanModal(u)"
               >
+              <span class="desktop-only">
                 Ban
+              </span>
+              <i class="bi bi-x-lg mobile-only"></i>
               </button>
               <button
-                v-else
+                v-else-if="u.IsBanned"
                 type="button"
                 class="btn-unban"
                 @click="unban(u)"
               >
+                <span class="desktop-only">
                 Unban
+              </span>
+              <i class="bi bi-check-lg mobile-only"></i>
               </button>
             </td>
           </tr>
         </tbody>
-      </table>
+        </table>
+      </div>
 
       <div v-if="!loading && users.length === 0" class="state mt-4 text-center">
         No users found.
@@ -230,10 +359,53 @@ onMounted(() => loadUsers())
         </div>
       </div>
     </div>
+
+    <!-- Warning popup -->
+    <div v-if="showWarning" class="modal-overlay" @mousedown.self="closeWarningPopup">
+      <div class="modal-card modal-warning">
+        <div class="warning-icon">
+          <i class="bi bi-exclamation-triangle-fill"></i>
+        </div>
+        <h3 class="modal-title">Warning</h3>
+        <p class="warning-message">{{ warningMessage }}</p>
+        <div class="modal-actions">
+          <button type="button" class="btn-modal-confirm" @click="closeWarningPopup">OK</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Role change confirmation modal -->
+    <div v-if="showRoleConfirm" class="modal-overlay" @mousedown.self="cancelRoleConfirm">
+      <div class="confirm-card">
+        <h3 class="confirm-title">Confirm role change?</h3>
+        <p class="confirm-subtitle">
+          Change <strong>{{ formatUserDisplay(pendingRole.user) }}</strong>
+          from <strong>{{ roleLabel(pendingRole.oldRoleId) }}</strong>
+          to <strong>{{ roleLabel(pendingRole.newRoleId) }}</strong>?
+        </p>
+        <div class="confirm-actions">
+          <button class="btn-back" @click="cancelRoleConfirm">Back</button>
+          <button class="btn-confirm" @click="confirmRoleChange">Confirm</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Role info modal (e.g. cannot change own role) -->
+    <div v-if="roleInfoModal.open" class="modal-overlay" @mousedown.self="closeRoleInfo">
+      <div class="confirm-card">
+        <h3 class="confirm-title">{{ roleInfoModal.title }}</h3>
+        <p class="confirm-subtitle">{{ roleInfoModal.message }}</p>
+        <div class="confirm-actions">
+          <button class="btn-confirm" @click="closeRoleInfo">OK</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <style scoped>
+.mobile-only { display: table; }
+.desktop-only { display: none; }
 .page-title {
   font-size: 24px;
   font-weight: 700;
@@ -293,7 +465,7 @@ onMounted(() => loadUsers())
   width: 100%;
   background: #ffffff;
   border-radius: 16px;
-  padding: 24px;
+  padding: 10px;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.05);
 }
 
@@ -306,8 +478,8 @@ onMounted(() => loadUsers())
 .admin-table thead th {
   background: #f8fafc;
   color: #374151;
-  font-size: 13px;
-  padding: 10px;
+  font-size: 10px;
+  padding: 8px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   border-bottom: 2px solid #e5e7eb;
@@ -324,7 +496,7 @@ onMounted(() => loadUsers())
 }
 
 .admin-table tbody td {
-  padding: 12px 10px;
+  padding: 12px 8px;
   vertical-align: middle;
 }
 
@@ -343,8 +515,9 @@ onMounted(() => loadUsers())
 }
 
 .admin-name {
-  font-weight: 600;
+  font-weight: 500;
   color: #1f3d3a;
+  font-size: 0.8rem;
 }
 
 .admin-email {
@@ -352,14 +525,30 @@ onMounted(() => loadUsers())
   color: #5a6f6c;
 }
 
-.admin-role {
-  font-size: 0.9rem;
-  text-transform: capitalize;
+/* Role Select */
+.role-select {
+  padding: 4px 2px;
+  border-radius: 10px;
+  font-weight: 500;
+  border: 1px solid #ccc;
+  outline: none;
+  cursor: pointer;
+  font-size: 12px;
 }
+
+.role-select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.role-select.admin { background: #f2cece; color: #ff0000; border-color: #f2cece; }
+.role-select.moderator { background: #fdf4d9; color: #d29e00; border-color: #fdf4d9; }
+.role-select.user { background: #d5f5d7; color: #0a3800; border-color: #d5f5d7; }
+.role-select.student { background: #b9d0e8; color: #0015ff; border-color: #b9d0e8; }
 
 .badge {
   display: inline-block;
-  padding: 4px 10px;
+  padding: 6px 6px;
   border-radius: 20px;
   font-size: 12px;
   font-weight: 600;
@@ -368,15 +557,17 @@ onMounted(() => loadUsers())
 .badge-banned {
   background: #fecaca;
   color: #b91c1c;
+  border : #ff6d6d 1px solid;
 }
 
 .badge-active {
   background: #d1fae5;
   color: #065f46;
+  border: green 1px solid;
 }
 
 .btn-ban {
-  padding: 6px 14px;
+  padding: 1px 8px;
   border-radius: 10px;
   font-weight: 600;
   font-size: 13px;
@@ -393,7 +584,7 @@ onMounted(() => loadUsers())
 }
 
 .btn-unban {
-  padding: 6px 14px;
+  padding: 1px 8px;
   border-radius: 10px;
   font-weight: 600;
   font-size: 13px;
@@ -514,5 +705,105 @@ onMounted(() => loadUsers())
 
 .btn-modal-confirm:hover {
   background: #b91c1c;
+}
+
+.modal-warning .modal-title {
+  color: #b45309;
+}
+
+.warning-icon {
+  margin-bottom: 12px;
+  font-size: 2.5rem;
+  color: #d97706;
+}
+
+.warning-message {
+  margin: 0 0 20px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: #374151;
+}
+
+.modal-warning .btn-modal-confirm {
+  background: #d97706;
+}
+
+.modal-warning .btn-modal-confirm:hover {
+  background: #b45309;
+}
+
+/* Table wrapper for horizontal scrolling on small screens */
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+/* Role confirmation modal */
+.confirm-card {
+  background: #fff;
+  color: #1f2937;
+  width: min(500px, 90vw);
+  border-radius: 20px;
+  padding: 30px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+  text-align: center;
+}
+
+.confirm-title { margin: 0 0 12px; font-size: 22px; font-weight: 700; color: #1f2937; }
+.confirm-subtitle { margin: 0 0 24px; font-size: 15px; color: #4b5563; line-height: 1.5; }
+.confirm-actions { display: flex; justify-content: center; gap: 16px; }
+
+.btn-back {
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  color: #374151;
+  padding: 10px 20px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.btn-back:hover { background: #f1f5f9; }
+
+.btn-confirm {
+  background: #004750;
+  border: none;
+  color: #fff;
+  padding: 10px 24px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: 700;
+}
+.btn-confirm:hover { background: #00363d; }
+
+@media (min-width: 768px) {
+  .admin-table thead th {
+    font-size: 14px;
+  }
+  .badge {
+  padding: 2px 10px;
+  }
+  .btn-ban {
+  padding: 2px 14px;
+  }
+  .btn-unban {
+  padding: 2px 14px;
+  }
+  .mobile-only { display: none; }
+  .desktop-only { display: table; }
+  
+}
+
+@media (max-width: 576px) {
+  .admin-table thead th:nth-child(1),
+  .admin-table thead th:nth-child(3) {
+    display: none;
+  }
+  .admin-table tbody td:nth-child(1),
+  .admin-table tbody td:nth-child(3) {
+    display: none;
+  }
+  .admin-table tbody td {
+    padding: 8px 6px;
+  }
 }
 </style>

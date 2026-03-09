@@ -77,8 +77,7 @@ function isOfficialTag(name){
           <button
             class="vote-btn-up pi pi-chevron-up mb-1"
             :class="{ active: Number(post.myVote) === 1, 'is-voting': isVoting }"
-            :disabled="!isLoggedIn"
-            @click="handleVote('up')">
+            @click="isLoggedIn ? handleVote('up') : router.push('/login')">
           </button>
 
           <!-- Vote count -->
@@ -92,9 +91,8 @@ function isOfficialTag(name){
           <!-- Downvote -->
           <button
             class="vote-btn-down pi pi-chevron-down mt-1"
-            :disabled="!isLoggedIn"
             :class="{ active: Number(post.myVote) === -1, 'is-voting': isVoting }"
-            @click="handleVote('down')">
+            @click="isLoggedIn ? handleVote('down') : router.push('/login')">
           </button>
         </div>
 
@@ -370,8 +368,8 @@ function isOfficialTag(name){
   white-space: nowrap;
 }
 .post-tag-mod-admin {
-  background: linear-gradient(170deg, #fa9805c0 0%, #f17500b0 100%);
-  color: black;
+  background: linear-gradient(135deg, #c2680a 0%, #9a4e08 100%);
+  color: #ffecd1;
 }
 .post-tag {
   background: #2e6c44;

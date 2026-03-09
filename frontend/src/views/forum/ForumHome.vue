@@ -4,10 +4,11 @@ import { ref, onMounted, computed } from "vue";
 import { RouterLink } from "vue-router";
 import ForumHeader from "@/components/layout/ForumHeader.vue";
 import { fetchPosts as apiGetPosts } from "@/api/posts";
-import { isLoggedIn, isBanned } from "@/stores/userStore";
+import { isLoggedIn } from "@/stores/userStore";
 import UserCard from "@/components/user/UserCard.vue";
 import ViewReportsButton from "@/components/admin/ViewReportsButton.vue";
 import PostCard from "@/components/forum/PostCard.vue";
+import AdminPanelButton from "@/components/admin/AdminPanelButton.vue";
 
 const postsByCategory = ref([]);
 const totalPosts = ref(0);
@@ -16,7 +17,6 @@ const error = ref(null);
 
 // Homepage search & Category search
 const searchQuery = ref("");
-const searchMode = ref("title"); // 'title' | 'tag' | 'author'
 const categorySearch = ref("");
 
 // Category checkbox filter (left sidebar)
@@ -25,7 +25,6 @@ const sort = ref("latest");
 
 const INITIAL_LIMIT = 5; // post limit per category on homepage
 
-// Fetch posts and initialize category state
 async function fetchPosts() {
   loading.value = true;
   error.value = null;
@@ -47,28 +46,29 @@ function normalize(str) {
   return (str ?? "").toString().trim().toLowerCase();
 }
 
-function postMatchesSearch(post, q, mode) {
+function postMatchesGeneralSearch(post, categoryName, q) {
   if (!q) return true;
   const nq = normalize(q);
 
-  if (mode === "title") {
-    return normalize(post.title || post.Title).includes(nq);
-  }
+  const title = normalize(post?.title);
+  const author = normalize(post?.authorName);
+  const cat = normalize(categoryName);
+  const tags = Array.isArray(post?.tags) ? post.tags : [];
+  const authorRole = normalize(post?.authorRole);
 
-  if (mode === "author") {
-    return normalize(post.authorName || post.AuthorName).includes(nq);
-  }
-
-  // mode === 'tag'
-  const tags = Array.isArray(post.tags) ? post.tags : post.Tags || [];
-  return tags.some((t) => normalize(t).includes(nq));
+  return (
+    title.includes(nq) ||
+    author.includes(nq) ||
+    cat.includes(nq) ||
+    authorRole.includes(nq) ||
+    tags.some((t) => normalize(t).includes(nq))
+  );
 }
 
 // Handle both category filtering and inner post filtering
 const filteredCategories = computed(() => {
   const q = normalize(searchQuery.value);
   const catQ = normalize(categorySearch.value);
-  const mode = searchMode.value;
 
   return postsByCategory.value
     .filter((cat) => {
@@ -83,7 +83,7 @@ const filteredCategories = computed(() => {
     .map((cat) => {
       const homepagePosts = (cat.posts || []).slice(0, INITIAL_LIMIT);
       const filteredHomepagePosts = homepagePosts.filter((p) =>
-        postMatchesSearch(p, q, mode),
+        postMatchesGeneralSearch(p, cat.categoryName, q),
       );
 
       return {
@@ -92,13 +92,11 @@ const filteredCategories = computed(() => {
       };
     })
     .filter((cat) => {
-      // If searching for specific posts, hide categories that have no matches
       if (!q) return true;
       return (cat._homepagePosts?.length || 0) > 0;
     });
 });
 
-// Detect if any filters are active
 const filtersActive = computed(
   () =>
     selectedCategories.value.length > 0 ||
@@ -106,25 +104,22 @@ const filtersActive = computed(
     searchQuery.value.trim() !== "",
 );
 
-// Clear ALL filters at once
 function clearAllFilters() {
   selectedCategories.value = [];
   categorySearch.value = "";
   searchQuery.value = "";
 }
 
-// Show no-results message when filters return nothing
 const noResults = computed(
   () => !loading.value && !error.value && filteredCategories.value.length === 0,
 );
 
-// Category icon helper
 function getCategoryIcon(categoryName) {
   const name = (categoryName || "").toLowerCase();
   if (name.includes("announcement")) return "pi pi-megaphone";
   if (name.includes("research")) return "pi pi-chart-line";
   if (name.includes("help")) return "pi pi-question-circle";
-  return "pi pi-file";
+  return "pi pi-folder-open";
 }
 
 onMounted(async () => {
@@ -142,7 +137,8 @@ onMounted(async () => {
           <div class="sticky-sidebar">
             <UserCard />
 
-            <div class="action-buttons-container mt-3" v-if="isLoggedIn && !isBanned">
+            <div class="action-buttons-container mt-3" v-if="isLoggedIn">
+              <AdminPanelButton />
               <CreatePostButton @post-refresh="fetchPosts" />
               <ViewReportsButton />
             </div>
@@ -182,18 +178,12 @@ onMounted(async () => {
             <div class="d-flex gap-2 align-items-center flex-grow-1">
               <div class="category-search-wrap shadow-sm">
                 <i class="pi pi-search ms-3 text-muted"></i>
-                <input v-model="searchQuery" type="text" :placeholder="`Search by ${searchMode}...`"
+                <input v-model="searchQuery" type="text" placeholder="Search posts..."
                   class="category-search-input" />
                 <button v-if="searchQuery" @click="searchQuery = ''" class="search-clear-btn">
                   ✕
                 </button>
               </div>
-
-              <select v-model="searchMode" class="sort-select shadow-sm" style="min-width: 140px">
-                <option value="title">Title</option>
-                <option value="tag">Tag</option>
-                <option value="author">Author</option>
-              </select>
             </div>
 
             <div class="d-flex align-items-center gap-4">

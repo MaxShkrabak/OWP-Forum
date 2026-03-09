@@ -7,6 +7,13 @@ const tags = ref([])
 const loading = ref(false)
 const error = ref('')
 
+const roles = [
+  { id: 1, label: 'User' },
+  { id: 2, label: 'Student' },
+  { id: 3, label: 'Moderator' },
+  { id: 4, label: 'Admin' },
+];
+
 const form = ref({
   open: false,
   mode: 'add', // add | edit
@@ -145,6 +152,10 @@ function requestDelete(t) {
 }
 
 onMounted(loadTags)
+
+function roleLabel(roleId) {
+  return roles.find((r) => r.id === Number(roleId))?.label || 'User';
+}
 </script>
 
 <template>
@@ -160,14 +171,15 @@ onMounted(loadTags)
 
         <button class="btn-add" @click="openAdd">
           <i class="bi bi-plus-lg"></i>
-          Add Tag
+          <span class="btn-text">Add Tag</span>
         </button>
       </div>
 
       <div v-if="loading" class="state mt-3 text-center">Loading…</div>
       <div v-if="error" class="err mt-3">{{ error }}</div>
 
-      <table v-if="!loading && filteredTags.length" class="admin-table mt-3">
+      <div class="table-wrapper">
+        <table v-if="!loading && filteredTags.length" class="admin-table mt-3">
         <thead>
           <tr>
             <th style="width: 90px;">ID</th>
@@ -180,20 +192,23 @@ onMounted(loadTags)
           <tr v-for="t in filteredTags" :key="t.TagID">
             <td class="admin-id">{{ t.TagID }}</td>
             <td class="admin-name">{{ t.Name }}</td>
-            <td class="admin-email">{{ t.UsableByRoleID }}</td>
+            <td class="admin-minrole">
+              <span class="role-full">{{ roleLabel(t.UsableByRoleID) }}</span>
+              <span class="role-short">{{ roleLabel(t.UsableByRoleID).charAt(0) }}</span></td>
             <td>
               <div class="actions">
                 <button class="btn-action" @click="openEdit(t)">
-                  <i class="bi bi-pencil-square"></i> Edit
+                  <i class="bi bi-pencil-square"></i> <span class="btn-text">Edit</span>
                 </button>
                 <button class="btn-action danger" @click="requestDelete(t)">
-                  <i class="bi bi-trash"></i> Delete
+                  <i class="bi bi-trash"></i> <span class="btn-text">Delete</span>
                 </button>
               </div>
             </td>
           </tr>
         </tbody>
-      </table>
+        </table>
+      </div>
 
       <div v-if="!loading && filteredTags.length === 0" class="state mt-4 text-center">
         No tags found.
@@ -214,10 +229,10 @@ onMounted(loadTags)
         <div class="form-field" style="margin-top: 14px;">
           <label class="field-label">Usable By Role ID</label>
           <select class="field-input" v-model="form.usableByRoleId">
-            <option :value="1">1 - User</option>
-            <option :value="2">2 - Student</option>
-            <option :value="3">3 - Moderator</option>
-            <option :value="4">4 - Admin</option>
+            <option :value="1">User</option>
+            <option :value="2">Student</option>
+            <option :value="3">Moderator</option>
+            <option :value="4">Admin</option>
           </select>
         </div>
 
@@ -262,7 +277,7 @@ onMounted(loadTags)
 .err { color: #ff6b6b; font-weight: bold; }
 
 .admin-card {
-  width: 100%; background: #fff; border-radius: 16px; padding: 24px;
+  width: 100%; background: #fff; border-radius: 16px; padding: 10px;
   box-shadow: 0 8px 30px rgba(0,0,0,0.05);
 }
 
@@ -277,7 +292,7 @@ onMounted(loadTags)
 
 .admin-id { color: #888; font-size: 0.85rem; }
 .admin-name { font-weight: 600; color: #1f3d3a; }
-.admin-email { font-size: 0.85rem; color: #5a6f6c; }
+.admin-minrole { font-size: 1rem; color: #5a6f6c; }
 
 .btn-add {
   display: inline-flex; align-items: center; gap: 8px;
@@ -328,4 +343,26 @@ onMounted(loadTags)
   outline: none; font-size: 15px;
 }
 .field-input:focus { border-color: #004750; box-shadow: 0 4px 12px rgba(0,71,80,0.12); }
+
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.role-short { display: none; }
+
+@media (max-width: 576px) {
+  .admin-table thead th:nth-child(1),
+  .admin-table tbody td:nth-child(1) {
+    display: none;
+  }
+  .admin-table tbody td {
+    padding: 8px 6px;
+  }
+  .btn-text { display: none; }
+  .admin-name { font-size: 0.85rem; }
+  .role-full { display: none !important; }
+  .role-short { display: inline !important; }
+}
 </style>
