@@ -444,13 +444,14 @@ defineExpose({
 }
 
 :deep(.tiptap-content) {
-    flex-grow: 1;
+    flex: 1 1 auto;
     overflow-y: auto;
-    min-height: 450px;
+    min-height: 0;
 }
 :deep(.tiptap) {
     padding: 1.25rem;
     outline: none;
     min-height: 100%;
+    box-sizing: border-box;
 }
 </style>
