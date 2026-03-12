@@ -8,6 +8,7 @@ BEGIN
         Content         NVARCHAR(1000) NOT NULL,
         TotalScore      INT NOT NULL CONSTRAINT DF_Comments_TotalScore DEFAULT 0,
         CreatedAt       DATETIME2 NOT NULL CONSTRAINT DF_Comments_CreatedAt DEFAULT SYSUTCDATETIME(),
+        UpdatedAt       DATETIME2(0) NULL,
         IsDeleted       BIT NOT NULL CONSTRAINT DF_Comments_IsDeleted DEFAULT 0,
         DeletedAt       DATETIME2 NULL
     );
