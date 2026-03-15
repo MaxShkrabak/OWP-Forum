@@ -30,16 +30,16 @@ export const syncProfileOnLoad = async () => {
       const { user } = data;
       isLoggedIn.value = true;
 
-      uid.value = user.User_ID;
-      fullName.value = `${user.FirstName} ${user.LastName}`;
-      userRole.value = user.RoleName || 'User';
-      userRoleId.value = user.RoleID;
-      isBanned.value = Boolean(Number(user.IsBanned ?? 0));
-      banType.value = user.BanType && (user.BanType === 'permanent' || user.BanType === 'temporary') ? user.BanType : null;
-      bannedUntil.value = user.BannedUntil ? String(user.BannedUntil) : null;
+      uid.value = user.userId;
+      fullName.value = `${user.firstName} ${user.lastName}`;
+      userRole.value = user.roleName || 'User';
+      userRoleId.value = user.roleId;
+      isBanned.value = Boolean(Number(user.isBanned ?? 0));
+      banType.value = user.banType && (user.banType === 'permanent' || user.banType === 'temporary') ? user.banType : null;
+      bannedUntil.value = user.bannedUntil ? String(user.bannedUntil) : null;
 
       // User avatar
-      const avatarPath = resolveAvatarPath(user.Avatar);
+      const avatarPath = resolveAvatarPath(user.avatar);
       userAvatar.value = avatarPath || defaultAvatar;
 
       localStorage.setItem('uid', uid.value);

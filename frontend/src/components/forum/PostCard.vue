@@ -28,11 +28,11 @@ async function handleVote(dir) {
   isVoting.value = true;
 
   try {
-    const data = await votePost(props.post.PostID, action);
+    const data = await votePost(props.post.postId, action);
 
     if (data.ok) {
       props.post.myVote = data.myVote;
-      props.post.TotalScore = data.score;
+      props.post.totalScore = data.score;
     }
   } catch (err) {
     console.error("Vote error:", err);
@@ -85,7 +85,7 @@ function isOfficialTag(name){
                 :class="{
                         'upvoted': Number(post.myVote) === 1,
                         'downvoted': Number(post.myVote) === -1, 'voting-bounce': isVoting }">
-            {{ post.TotalScore ?? 0 }}
+            {{ post.totalScore ?? 0 }}
           </span>
 
           <!-- Downvote -->
@@ -117,7 +117,7 @@ function isOfficialTag(name){
           </div>
 
           <div class="title-row">
-            <RouterLink :to="`/posts/${post.PostID}`" class="post-title-link">
+            <RouterLink :to="`/posts/${post.postId}`" class="post-title-link">
               {{ post.title }}
             </RouterLink>
           </div>
@@ -140,7 +140,7 @@ function isOfficialTag(name){
 
         <ReportingModal 
           :isOpen="isReportModalOpen"
-          :targetId="post.PostID"
+          :targetId="post.postId"
           :targetTitle="post.title"
           type="post" 
           @close="closeReportModal"
