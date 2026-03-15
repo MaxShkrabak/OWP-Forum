@@ -12,7 +12,7 @@ export async function resolveReport(reportId) {
 
 // Fetch report tags for report modal
 export async function getReportTags() {
-  const { data } = await client.get("/report/tags");
+  const { data } = await client.get("/reports/tags");
   return (data.tags || []).map((reportTag) => ({
     tagID: Number(reportTag.ReportTagID),
     name: reportTag.TagName,
@@ -22,7 +22,7 @@ export async function getReportTags() {
 // Process report
 export async function submitReport(reportData) {
     try {
-      const { data } = await client.post("/report", reportData);
+      const { data } = await client.post("/reports", reportData);
       return data;
     } catch (error) {
         if (error.response && error.response.data) {
