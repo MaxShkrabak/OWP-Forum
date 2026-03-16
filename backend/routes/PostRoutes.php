@@ -318,29 +318,32 @@ $post = [
 // Helper function to fetch counts for comments
 // TODO: Probably wont need anymore since I added total score to posts
 // TODO: STILL NEEDS WORK
-function fetchCounts($pdo, $table, $placeholders, $postIds, $countAlias)
-{
-    $counts = [];
-    try {
-        $sql = "
-            SELECT PostID, COUNT(*) AS $countAlias 
-            FROM $table 
-            WHERE PostID IN ($placeholders) 
-            GROUP BY PostID
-        ";
 
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute($postIds);
+if (!function_exists('fetchCounts')) {
+    function fetchCounts($pdo, $table, $placeholders, $postIds, $countAlias)
+    {
+        $counts = [];
+        try {
+            $sql = "
+                SELECT PostID, COUNT(*) AS $countAlias 
+                FROM $table 
+                WHERE PostID IN ($placeholders) 
+                GROUP BY PostID
+            ";
 
-        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            $pid = (int)$row['PostID'];
-            $counts[$pid] = (int)$row[$countAlias];
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($postIds);
+
+            while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                $pid = (int)$row['PostID'];
+                $counts[$pid] = (int)$row[$countAlias];
+            }
+        } catch (Throwable $e) {
+            return [];
         }
-    } catch (Throwable $e) {
-        return [];
-    }
 
-    return $counts;
+        return $counts;
+    }
 }
 
 $app->get('/api/categories/{id}/posts', function (Request $req, Response $res, array $args) use ($makePdo) {
