@@ -54,6 +54,24 @@ final class CommentControllerTest extends TestCase
         $banStmt = $this->createMock(\PDOStatement::class);
         $banStmt->method('fetch')->willReturn(['IsBanned' => 0]);
 
+        $lockStmt = $this->createMock(\PDOStatement::class);
+        $lockStmt->expects($this->once())
+            ->method('execute')
+            ->with([':res' => "create_comment_user_$userId"]);
+        $lockStmt->method('fetchColumn')->willReturn(0);
+
+        $recentCommentsStmt = $this->createMock(\PDOStatement::class);
+        $recentCommentsStmt->expects($this->once())
+            ->method('execute')
+            ->with([':uid' => $userId]);
+        $recentCommentsStmt->method('fetchColumn')->willReturn(0);
+
+        $lastCommentTimeStmt = $this->createMock(\PDOStatement::class);
+        $lastCommentTimeStmt->expects($this->once())
+            ->method('execute')
+            ->with([':uid' => $userId]);
+        $lastCommentTimeStmt->method('fetchColumn')->willReturn(false);
+
         $insertStmt = $this->createMock(\PDOStatement::class);
         $insertStmt->expects($this->once())->method('execute');
         $insertStmt->method('fetch')->willReturn([
@@ -94,9 +112,31 @@ final class CommentControllerTest extends TestCase
             'ReplyCount' => 0
         ]);
 
-        $this->pdo->method('prepare')->willReturnCallback(function (string $sql) use ($banStmt, $insertStmt, $selectStmt, $postOwnerStmt, $updateStmt) {
+        $this->pdo->expects($this->once())->method('beginTransaction')->willReturn(true);
+        $this->pdo->expects($this->once())->method('commit')->willReturn(true);
+        $this->pdo->expects($this->never())->method('rollBack');
+
+        $this->pdo->method('prepare')->willReturnCallback(function (string $sql) use (
+            $banStmt, 
+            $lockStmt, 
+            $recentCommentsStmt, 
+            $lastCommentTimeStmt, 
+            $insertStmt, 
+            $selectStmt, 
+            $postOwnerStmt, 
+            $updateStmt
+            ) {
             if (str_contains($sql, 'INSERT INTO dbo.Comments')) {
                 return $insertStmt;
+            }
+            if (str_contains($sql, 'sp_getapplock')) {
+                return $lockStmt;
+            }
+            if (str_contains($sql, 'DATEADD(HOUR, -1, SYSUTCDATETIME())')) {
+                return $recentCommentsStmt;
+            }
+            if (str_contains($sql, 'SELECT TOP 1 CreatedAt')) {
+                return $lastCommentTimeStmt;
             }
             if (str_contains($sql, 'SELECT p.PostID, p.Title, p.AuthorID')) {
                 return $postOwnerStmt;
@@ -267,6 +307,7 @@ final class CommentControllerTest extends TestCase
         $this->assertEquals(42, $json['score']);
         $this->assertEquals(-1, $json['myVote']);
     }
+
     #[AllowMockObjectsWithoutExpectations]
     public function testVoteFailsForBannedUser(): void
     {   
@@ -313,6 +354,24 @@ final class CommentControllerTest extends TestCase
         $banStmt = $this->createMock(PDOStatement::class);
         $banStmt->method('fetch')->willReturn(['IsBanned' => 0]);
 
+        $lockStmt = $this->createMock(\PDOStatement::class);
+        $lockStmt->expects($this->once())
+            ->method('execute')
+            ->with([':res' => "create_comment_user_$userId"]);
+        $lockStmt->method('fetchColumn')->willReturn(0);
+
+        $recentCommentsStmt = $this->createMock(\PDOStatement::class);
+        $recentCommentsStmt->expects($this->once())
+            ->method('execute')
+            ->with([':uid' => $userId]);
+        $recentCommentsStmt->method('fetchColumn')->willReturn(0);
+
+        $lastCommentTimeStmt = $this->createMock(\PDOStatement::class);
+        $lastCommentTimeStmt->expects($this->once())
+            ->method('execute')
+            ->with([':uid' => $userId]);
+        $lastCommentTimeStmt->method('fetchColumn')->willReturn(false);
+
         $insertStmt = $this->createMock(PDOStatement::class);
         $insertStmt->expects($this->once())->method('execute');
         $insertStmt->method('fetch')->willReturn([
@@ -351,10 +410,31 @@ final class CommentControllerTest extends TestCase
             'ReplyCount' => 0
         ]);
 
+        $this->pdo->expects($this->once())->method('beginTransaction')->willReturn(true);
+        $this->pdo->expects($this->once())->method('commit')->willReturn(true);
+        $this->pdo->expects($this->never())->method('rollBack');
+
         $this->pdo->method('prepare')->willReturnCallback(
-            function (string $sql) use ($banStmt, $insertStmt, $postOwnerStmt, $selectStmt) {
+            function (string $sql) use (
+                $banStmt, 
+                $lockStmt, 
+                $recentCommentsStmt, 
+                $lastCommentTimeStmt, 
+                $insertStmt, 
+                $postOwnerStmt, 
+                $selectStmt
+                ) {
                 if (str_contains($sql, 'INSERT INTO dbo.Comments')) {
                     return $insertStmt;
+                }
+                if (str_contains($sql, 'sp_getapplock')) {
+                    return $lockStmt;
+                }
+                if (str_contains($sql, 'DATEADD(HOUR, -1, SYSUTCDATETIME())')) {
+                    return $recentCommentsStmt;
+                }
+                if (str_contains($sql, 'SELECT TOP 1 CreatedAt')) {
+                    return $lastCommentTimeStmt;
                 }
                 if (str_contains($sql, 'SELECT p.PostID, p.Title, p.AuthorID')) {
                     return $postOwnerStmt;
@@ -400,6 +480,24 @@ final class CommentControllerTest extends TestCase
         $banStmt = $this->createMock(PDOStatement::class);
         $banStmt->method('fetch')->willReturn(['IsBanned' => 0]);
 
+        $lockStmt = $this->createMock(\PDOStatement::class);
+        $lockStmt->expects($this->once())
+            ->method('execute')
+            ->with([':res' => "create_comment_user_$userId"]);
+        $lockStmt->method('fetchColumn')->willReturn(0);
+
+        $recentCommentsStmt = $this->createMock(\PDOStatement::class);
+        $recentCommentsStmt->expects($this->once())
+            ->method('execute')
+            ->with([':uid' => $userId]);
+        $recentCommentsStmt->method('fetchColumn')->willReturn(0);
+
+        $lastCommentTimeStmt = $this->createMock(\PDOStatement::class);
+        $lastCommentTimeStmt->expects($this->once())
+            ->method('execute')
+            ->with([':uid' => $userId]);
+        $lastCommentTimeStmt->method('fetchColumn')->willReturn(false);
+
         $insertStmt = $this->createMock(PDOStatement::class);
         $insertStmt->expects($this->once())->method('execute');
         $insertStmt->method('fetch')->willReturn([
@@ -438,10 +536,30 @@ final class CommentControllerTest extends TestCase
             'ReplyCount' => 0
         ]);
 
+        $this->pdo->expects($this->once())->method('beginTransaction')->willReturn(true);
+        $this->pdo->expects($this->once())->method('commit')->willReturn(true);
+        $this->pdo->expects($this->never())->method('rollBack');
+
         $this->pdo->method('prepare')->willReturnCallback(
-            function (string $sql) use ($banStmt, $insertStmt, $postOwnerStmt, $selectStmt) {
+            function (string $sql) use ($banStmt, 
+            $lockStmt, 
+            $recentCommentsStmt, 
+            $lastCommentTimeStmt, 
+            $insertStmt, 
+            $postOwnerStmt, 
+            $selectStmt
+            ) {
                 if (str_contains($sql, 'INSERT INTO dbo.Comments')) {
                     return $insertStmt;
+                }
+                if (str_contains($sql, 'sp_getapplock')) {
+                    return $lockStmt;
+                }
+                if (str_contains($sql, 'DATEADD(HOUR, -1, SYSUTCDATETIME())')) {
+                    return $recentCommentsStmt;
+                }
+                if (str_contains($sql, 'SELECT TOP 1 CreatedAt')) {
+                    return $lastCommentTimeStmt;
                 }
                 if (str_contains($sql, 'SELECT p.PostID, p.Title, p.AuthorID')) {
                     return $postOwnerStmt;
@@ -487,6 +605,24 @@ final class CommentControllerTest extends TestCase
         $banStmt = $this->createMock(PDOStatement::class);
         $banStmt->method('fetch')->willReturn(['IsBanned' => 0]);
 
+        $lockStmt = $this->createMock(\PDOStatement::class);
+        $lockStmt->expects($this->once())
+            ->method('execute')
+            ->with([':res' => "create_comment_user_$userId"]);
+        $lockStmt->method('fetchColumn')->willReturn(0);
+
+        $recentCommentsStmt = $this->createMock(\PDOStatement::class);
+        $recentCommentsStmt->expects($this->once())
+            ->method('execute')
+            ->with([':uid' => $userId]);
+        $recentCommentsStmt->method('fetchColumn')->willReturn(0);
+
+        $lastCommentTimeStmt = $this->createMock(\PDOStatement::class);
+        $lastCommentTimeStmt->expects($this->once())
+            ->method('execute')
+            ->with([':uid' => $userId]);
+        $lastCommentTimeStmt->method('fetchColumn')->willReturn(false);
+
         $insertStmt = $this->createMock(PDOStatement::class);
         $insertStmt->expects($this->once())->method('execute');
         $insertStmt->method('fetch')->willReturn([
@@ -525,10 +661,31 @@ final class CommentControllerTest extends TestCase
             'ReplyCount' => 0
         ]);
 
+        $this->pdo->expects($this->once())->method('beginTransaction')->willReturn(true);
+        $this->pdo->expects($this->once())->method('commit')->willReturn(true);
+        $this->pdo->expects($this->never())->method('rollBack');
+
         $this->pdo->method('prepare')->willReturnCallback(
-            function (string $sql) use ($banStmt, $insertStmt, $postOwnerStmt, $selectStmt) {
+            function (string $sql) use (
+                $banStmt, 
+                $lockStmt, 
+                $recentCommentsStmt, 
+                $lastCommentTimeStmt, 
+                $insertStmt, 
+                $postOwnerStmt, 
+                $selectStmt
+                ) {
                 if (str_contains($sql, 'INSERT INTO dbo.Comments')) {
                     return $insertStmt;
+                }
+                if (str_contains($sql, 'sp_getapplock')) {
+                    return $lockStmt;
+                }
+                if (str_contains($sql, 'DATEADD(HOUR, -1, SYSUTCDATETIME())')) {
+                    return $recentCommentsStmt;
+                }
+                if (str_contains($sql, 'SELECT TOP 1 CreatedAt')) {
+                    return $lastCommentTimeStmt;
                 }
                 if (str_contains($sql, 'SELECT p.PostID, p.Title, p.AuthorID')) {
                     return $postOwnerStmt;
