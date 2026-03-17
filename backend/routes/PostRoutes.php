@@ -404,7 +404,7 @@ $searchWhere = '';
         $sql = "
             SELECT p.PostID, p.Title, p.CreatedAt, p.TotalScore,
                    (SELECT COUNT(*) FROM dbo.Comments cm WHERE cm.PostID = p.PostID) AS commentCount,
-                   u.FirstName, u.LastName, u.Avatar, r.Name AS RoleName,
+                   u.FirstName, u.LastName, u.Avatar, u.User_ID, r.Name AS RoleName,
                    ISNULL(pv.VoteValue, 0) AS myVote
             FROM dbo.Posts p
             LEFT JOIN dbo.Users u ON p.AuthorID = u.User_ID
@@ -454,6 +454,7 @@ $tagsByPostId = [];
                     'PostID'       => $pid,
                     'title'        => $row['Title'],
                     'createdAt'    => $row['CreatedAt'],
+                    'authorId'     => (int)($row['User_ID'] ?? 0),
                     'authorName'   => trim(($row['FirstName'] ?? '') . ' ' . ($row['LastName'] ?? '')),
                     'authorRole'   => $row['RoleName'] ?? 'User',
                     'authorAvatar' => $row['Avatar'] ?? null,
