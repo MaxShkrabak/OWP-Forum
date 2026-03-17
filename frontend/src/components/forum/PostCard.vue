@@ -4,7 +4,7 @@ import { RouterLink, useRouter } from "vue-router";
 import { timeAgo } from "@/utils/timeAgo";
 import UserRole from "@/components/user/UserRole.vue";
 import { votePost } from "@/api/posts";
-import { isLoggedIn } from "@/stores/userStore";
+import { isLoggedIn, uid, userRoleId } from "@/stores/userStore";
 import ReportingModal from "@/components/user/ReportingModal.vue"
 
 const props = defineProps({
@@ -65,6 +65,10 @@ watch(isLoggedIn, (loggedIn) => {
 
 function isOfficialTag(name){
   return name === 'Official';
+}
+
+function canViewReportButton() {
+  return props.post.authorId !== Number(uid.value) && userRoleId.value < 3;
 }
 </script>
 
@@ -132,7 +136,7 @@ function isOfficialTag(name){
               <i class="pi pi-comment me-1"></i>
               {{ post.commentCount }} comments
             </div>
-            <button class="report-btn" @click="openReportModal">
+            <button class="report-btn" @click="openReportModal" v-show="canViewReportButton()">
               <i class="pi pi-flag me-1"></i> Report
             </button>
           </div>
