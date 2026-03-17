@@ -196,13 +196,13 @@ class CommentController
             ORDER BY CreatedAt DESC
         ");
         $lastCommentStmt->execute([':uid' => $userId]);
-        $lastCraetedAt = $lastCommentStmt->fetchColumn();
+        $lastCreatedAt = $lastCommentStmt->fetchColumn();
 
-        if (!$lastCraetedAt) {
+        if (!$lastCreatedAt) {
             return null; // No previous comments, so no cooldown needed
         }
 
-        $lastTime = new \DateTimeImmutable((string)$lastCraetedAt, new \DateTimeZone('UTC'));
+        $lastTime = new \DateTimeImmutable((string)$lastCreatedAt, new \DateTimeZone('UTC'));
         $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
         $diffSeconds = $now->getTimestamp() - $lastTime->getTimestamp();
 
@@ -238,6 +238,12 @@ class CommentController
                 return json($res, ['ok' => false, 'error' => 'Missing post_id or content'], 400);
             }
 
+            $pdo->beginTransaction();
+
+            if($rateLimitResponse = $this->createCommentRateLimit($pdo, (int)$userId, $res)) {
+                return $rateLimitResponse;
+            }
+
             $insertSql = "INSERT INTO dbo.Comments (PostID, UserId, Content, ParentCommentId) 
                           OUTPUT INSERTED.CommentId, INSERTED.CreatedAt 
                           VALUES (:postId, :userId, :content, :parentCommentId)";
@@ -250,7 +256,6 @@ class CommentController
                 ':parentCommentId' => $parentCommentId
             ]);
             $inserted = $stmt->fetch(PDO::FETCH_ASSOC);
-            $this->maybeSendCommentNotification($pdo, $postId, (int)$userId);
 
             $commentDetailsSql = $pdo->prepare("
                 SELECT c.CommentId, c.PostId, c.ParentCommentId, c.Content, c.CreatedAt, c.UpdatedAt, c.UserId, c.TotalScore,
@@ -264,6 +269,14 @@ class CommentController
             ");
             $commentDetailsSql->execute([':commentId' => (int)$inserted['CommentId']]);
             $row = $commentDetailsSql->fetch(PDO::FETCH_ASSOC);
+
+            if(!$row) {
+                $pdo->rollBack();
+                return json($res, ['ok' => false, 'error' => 'Failed to load created comment'], 500);
+            }
+
+            $pdo->commit();
+            $this->maybeSendCommentNotification($pdo, $postId, (int)$userId);
 
             return json($res, [
                 'ok' => true,
@@ -284,6 +297,9 @@ class CommentController
                 ]
             ], 201);
         } catch (Throwable $e) {
+            if (isset($pdo) && $pdo instanceof PDO && $pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
             return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
         }
     }
