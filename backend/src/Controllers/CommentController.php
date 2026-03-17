@@ -147,6 +147,74 @@ class CommentController
         return true;
     }
 
+    private function createCommentRateLimit(PDO $pdo, int $userId, Response $res): ?Response
+    {
+        //Make thes into ENVs if desired
+        $commentCooldownSeconds = 15;
+        $commentsPerHourLimit = 30; 
+
+        $lockstmt = $pdo->prepare("
+            DECLARE @result INT;
+            EXEC @result = sp_getapplock
+                @lockOwner = 'Transaction',
+                @Resource = :res,
+                @LockMode = 'Exclusive',
+                @LockTimeout = 5000;
+            SELECT @result;
+        ");
+        $lockstmt->execute([':res' => "create_comment_user_$userId"]);
+        $lockResult = (int)($lockstmt->fetchColumn() ?? -999);
+
+        if ($lockResult < 0) {
+            $pdo->rollBack();
+            return json($res, ['ok' => false, 'error' => 'Could not acquire lock for rate limiting'], 503);
+        }
+
+        $recentCommentStmt = $pdo->prepare("
+            SELECT COUNT(*)
+            FROM dbo.Comments
+            WHERE UserId = :uid
+              AND IsDeleted = 0
+              AND CreatedAt >= DATEADD(HOUR, -1, SYSUTCDATETIME())
+        ");
+        $recentCommentStmt->execute([':uid' => $userId]);
+        $recentComments = (int)$recentCommentStmt->fetchColumn();
+
+        if ($recentComments >= $commentsPerHourLimit) {
+            $pdo->rollBack();
+            return json($res, ['ok' => false, 'error' => 'Comment rate limit exceeded. Please wait before commenting again.'], 429);
+        }
+
+        if ($commentCooldownSeconds <= 0) {
+            return null; // No cooldown configured
+        }
+
+        $lastCommentStmt = $pdo->prepare("
+            SELECT TOP 1 CreatedAt
+            FROM dbo.Comments
+            WHERE UserId = :uid AND IsDeleted = 0
+            ORDER BY CreatedAt DESC
+        ");
+        $lastCommentStmt->execute([':uid' => $userId]);
+        $lastCraetedAt = $lastCommentStmt->fetchColumn();
+
+        if (!$lastCraetedAt) {
+            return null; // No previous comments, so no cooldown needed
+        }
+
+        $lastTime = new \DateTimeImmutable((string)$lastCraetedAt, new \DateTimeZone('UTC'));
+        $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
+        $diffSeconds = $now->getTimestamp() - $lastTime->getTimestamp();
+
+        if ($diffSeconds < $commentCooldownSeconds) {
+            $secondsLeft = $commentCooldownSeconds - $diffSeconds;
+            $pdo->rollBack();
+            return json($res, ['ok' => false, 'error' => "Please wait {$secondsLeft} seconds before commenting again."], 429);
+        }
+
+        return null; // Passed rate limit checks
+    }
+
     public function createComment(Request $req, Response $res, array $args): Response
     {
         try {
