@@ -708,4 +708,117 @@ final class CommentControllerTest extends TestCase
         $this->assertTrue($json['ok']);
         $this->assertCount(0, $sentNotifications);
     }
+
+    #[AllowMockObjectsWithoutExpectations]
+    public function testCreateCommentFailsWhenHourlyLimitExceeded(): void
+    {
+        $postId = 101;
+        $userId = 1;
+
+        $request = (new ServerRequestFactory())->createServerRequest('POST', "/api/posts/{$postId}/comments")
+            ->withAttribute('user_id', $userId)
+            ->withParsedBody(['content' => 'This comment should be blocked by hourly limit.']);
+
+        $banStmt = $this->createMock(PDOStatement::class);
+        $banStmt->method('fetch')->willReturn(['IsBanned' => 0]);
+
+        $lockStmt = $this->createMock(\PDOStatement::class);
+        $lockStmt->expects($this->once())
+            ->method('execute')
+            ->with([':res' => "create_comment_user_$userId"]);
+        $lockStmt->method('fetchColumn')->willReturn(0);
+
+        $recentCommentsStmt = $this->createMock(\PDOStatement::class);
+        $recentCommentsStmt->expects($this->once())
+            ->method('execute')
+            ->with([':uid' => $userId]);
+        $recentCommentsStmt->method('fetchColumn')->willReturn(30); // Simulate 30 comments in the last hour
+
+        $this->pdo->expects($this->once())->method('beginTransaction')->willReturn(true);
+        $this->pdo->expects($this->never())->method('commit');
+        $this->pdo->expects($this->once())->method('rollBack')->willReturn(true);
+
+        $this->pdo->method('prepare')->willReturnCallback(function (string $sql) use ($banStmt, $lockStmt, $recentCommentsStmt) {
+            if (str_contains($sql, 'sp_getapplock')) {
+                return $lockStmt;
+            }
+            if (str_contains($sql, 'DATEADD(HOUR, -1, SYSUTCDATETIME())')) {
+                return $recentCommentsStmt;
+            }
+            if (str_contains($sql, 'dbo.Users')) {
+                return $banStmt;
+            } 
+
+            throw new Exception("Unexpected SQL: $sql");
+        });
+
+        $response = $this->controller->createComment($request, new Response(), ['postId' => $postId]);
+        $json = $this->decode($response);
+
+        $this->assertEquals(429, $response->getStatusCode());
+        $this->assertFalse($json['ok']);
+        $this->assertEquals('Comment rate limit exceeded. Please wait before commenting again.', $json['error']);
+    }
+
+    #[AllowMockObjectsWithoutExpectations]
+    public function testCreateCommentFailsWhenCooldownNotPassed(): void
+    {
+        $postId = 101;
+        $userId = 1;
+
+        $request = (new ServerRequestFactory())->createServerRequest('POST', "/api/posts/{$postId}/comments")
+            ->withAttribute('user_id', $userId)
+            ->withParsedBody(['content' => 'This comment should be blocked by cooldown.']);
+
+        $banStmt = $this->createMock(PDOStatement::class);
+        $banStmt->method('fetch')->willReturn(['IsBanned' => 0]);
+
+        $lockStmt = $this->createMock(\PDOStatement::class);
+        $lockStmt->expects($this->once())
+            ->method('execute')
+            ->with([':res' => "create_comment_user_$userId"]);
+        $lockStmt->method('fetchColumn')->willReturn(0);
+
+        $recentCommentsStmt = $this->createMock(\PDOStatement::class);
+        $recentCommentsStmt->expects($this->once())
+            ->method('execute')
+            ->with([':uid' => $userId]);
+        $recentCommentsStmt->method('fetchColumn')->willReturn(0);
+
+        $lastCommentTimeStmt = $this->createMock(\PDOStatement::class);
+        $lastCommentTimeStmt->expects($this->once())
+            ->method('execute')
+            ->with([':uid' => $userId]);
+        $lastCommentTimeStmt->method('fetchColumn')->willReturn(date('Y-m-d H:i:s', time() - 5));
+        
+        $this->pdo->expects($this->once())->method('beginTransaction')->willReturn(true);
+        $this->pdo->expects($this->never())->method('commit');
+        $this->pdo->expects($this->once())->method('rollBack')->willReturn(true);
+
+        
+        $this->pdo->method('prepare')->willReturnCallback(function (string $sql) use ($banStmt, $lockStmt, $recentCommentsStmt, $lastCommentTimeStmt) {
+            if (str_contains($sql, 'sp_getapplock')) {
+                return $lockStmt;
+            }
+            if (str_contains($sql, 'DATEADD(HOUR, -1, SYSUTCDATETIME())')) {
+                return $recentCommentsStmt;
+            }
+            if (str_contains($sql, 'SELECT TOP 1 CreatedAt')) {
+                return $lastCommentTimeStmt;
+            }
+            if (str_contains($sql, 'dbo.Users')) {
+                return $banStmt;
+            }
+
+            throw new Exception("Unexpected SQL: $sql");
+        });
+
+        $response = $this->controller->createComment($request, new Response(), ['postId' => $postId]);
+        $json = $this->decode($response);
+
+        $this->assertEquals(429, $response->getStatusCode());
+        $this->assertFalse($json['ok']);
+        $this->assertStringContainsString('Please wait', $json['error']);
+        $this->assertStringContainsString('before commenting again', $json['error']);
+    }
 }
