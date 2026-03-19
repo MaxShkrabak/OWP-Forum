@@ -127,3 +127,8 @@ export async function togglePostPin(PostID) {
   const { data } = await client.post(`/posts/${PostID}/pin`);
   return data;
 }
+
+export async function fetchPinnedPosts() {
+  const { data } = await client.get("/posts/pinned");
+  return data;
+}
