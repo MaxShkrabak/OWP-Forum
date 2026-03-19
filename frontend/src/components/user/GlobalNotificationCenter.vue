@@ -23,7 +23,7 @@ function getMessage(item) {
   return 'You have a new notification.';
 }
 
-async function dismissNotification(notificationId, postId) {
+async function markReadAndRemove(notificationId) {
   notifications.value = notifications.value.filter(n => n.notificationId !== notificationId);
 
   try {
@@ -31,10 +31,18 @@ async function dismissNotification(notificationId, postId) {
   } catch (e) {
     console.error('Failed to mark notification as read', e);
   }
+}
+
+async function openNotification(notificationId, postId) {
+  await markReadAndRemove(notificationId);
 
   if (postId) {
     router.push(`/posts/${postId}`);
   }
+}
+
+async function closeNotification(notificationId) {
+  await markReadAndRemove(notificationId);
 }
 
 async function pollNotifications() {
@@ -98,8 +106,17 @@ onBeforeUnmount(() => {
 
         <div class="notification-actions">
           <button
-            class="notification-btn"
-            @click="dismissNotification(item.notificationId, item.postId)"
+            type="button"
+            class="notification-btn notification-btn-secondary"
+            @click="closeNotification(item.notificationId)"
+          >
+            Close
+          </button>
+
+          <button
+            type="button"
+            class="notification-btn notification-btn-primary"
+            @click="openNotification(item.notificationId, item.postId)"
           >
             Open
           </button>
@@ -148,21 +165,34 @@ onBeforeUnmount(() => {
 .notification-actions {
   display: flex;
   justify-content: flex-end;
+  gap: 8px;
   margin-top: 12px;
 }
 
 .notification-btn {
   border: none;
-  background-color: #48773C;
-  color: white;
   border-radius: 8px;
   padding: 6px 12px;
   font-size: 0.875rem;
   cursor: pointer;
 }
 
-.notification-btn:hover {
+.notification-btn-primary {
+  background-color: #48773C;
+  color: white;
+}
+
+.notification-btn-primary:hover {
   background-color: #3a6130;
+}
+
+.notification-btn-secondary {
+  background-color: #e9ecef;
+  color: #495057;
+}
+
+.notification-btn-secondary:hover {
+  background-color: #dfe3e8;
 }
 
 .popup-enter-active,
