@@ -1,10 +1,10 @@
 <script setup>
-import { ref, watch  } from "vue";
+import { ref, watch, computed } from "vue";
 import { RouterLink, useRouter } from "vue-router";
 import { timeAgo } from "@/utils/timeAgo";
 import UserRole from "@/components/user/UserRole.vue";
 import { votePost } from "@/api/posts";
-import { isLoggedIn } from "@/stores/userStore";
+import { isLoggedIn, userRole } from "@/stores/userStore";
 import ReportingModal from "@/components/user/ReportingModal.vue"
 
 const props = defineProps({
@@ -14,6 +14,17 @@ const props = defineProps({
 const isVoting = ref(false);
 const isReportModalOpen = ref(false);
 const router = useRouter();
+
+const isAdmin = computed(() => {
+  return (userRole.value || "").trim().toLowerCase() === "admin";
+});
+
+const isAnnouncementNews = computed(() => {
+  const category = (props.post?.categoryName || "").trim().toLowerCase();
+  return category.includes("announcement") && category.includes("news");
+});
+
+const canShowPinIcon = computed(() => isAdmin.value && isAnnouncementNews.value);
 
 async function handleVote(dir) {
   if (isVoting.value) return;
@@ -120,6 +131,12 @@ function isOfficialTag(name){
             <RouterLink :to="`/posts/${post.PostID}`" class="post-title-link">
               {{ post.title }}
             </RouterLink>
+
+            <i
+              v-if="canShowPinIcon"
+              class="pi pi-thumbtack pin-icon"
+              title="Pin announcement"
+            ></i>
           </div>
 
           <div class="d-flex flex-wrap gap-2 mb-2">
@@ -218,6 +235,12 @@ function isOfficialTag(name){
   gap: 8px;
   margin-bottom: 4px;
   width: 100%;
+}
+
+.pin-icon {
+  color: #c2680a;
+  font-size: 0.9rem;
+  flex-shrink: 0;
 }
 
 .mobile-author-header {

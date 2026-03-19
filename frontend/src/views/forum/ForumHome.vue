@@ -82,9 +82,13 @@ const filteredCategories = computed(() => {
     })
     .map((cat) => {
       const homepagePosts = (cat.posts || []).slice(0, INITIAL_LIMIT);
-      const filteredHomepagePosts = homepagePosts.filter((p) =>
-        postMatchesGeneralSearch(p, cat.categoryName, q),
-      );
+      const filteredHomepagePosts = homepagePosts
+  .map((p) => ({
+    ...p,
+    categoryName: cat.categoryName,
+    categoryId: cat.categoryId,
+  }))
+  .filter((p) => postMatchesGeneralSearch(p, cat.categoryName, q));
 
       return {
         ...cat,
