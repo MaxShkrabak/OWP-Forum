@@ -950,3 +950,80 @@ $app->delete('/api/posts/{id}', function (Request $req, Response $res, array $ar
         return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
     }
 });
+
+$app->post('/api/posts/{id}/pin', function (Request $req, Response $res, array $args) use ($makePdo) {
+    try {
+        $userId = (int)$req->getAttribute("user_id");
+        if (!$userId) {
+            return json($res, ['ok' => false, 'error' => 'Not Authenticated'], 401);
+        }
+
+        $pdo = $makePdo();
+
+        if ($termsRes = \Forum\Helpers\requireTermsAccepted($req, $res, $pdo)) {
+            return $termsRes;
+        }
+
+        $postId = (int)$args['id'];
+        if ($postId <= 0) {
+            return json($res, ['ok' => false, 'error' => 'Invalid post ID.'], 400);
+        }
+
+        $roleStmt = $pdo->prepare("
+            SELECT ISNULL(r.Name, '') AS RoleName
+            FROM dbo.Users u
+            LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
+            WHERE u.User_ID = :uid
+        ");
+        $roleStmt->execute([':uid' => $userId]);
+        $roleName = trim((string)$roleStmt->fetchColumn());
+
+        if (strtolower($roleName) !== 'admin') {
+            return json($res, ['ok' => false, 'error' => 'Forbidden'], 403);
+        }
+
+        $postStmt = $pdo->prepare("
+            SELECT p.PostID, p.IsDeleted, c.Name AS CategoryName
+            FROM dbo.Posts p
+            LEFT JOIN dbo.Categories c ON c.CategoryID = p.CategoryID
+            WHERE p.PostID = :pid
+        ");
+        $postStmt->execute([':pid' => $postId]);
+        $post = $postStmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$post || (int)$post['IsDeleted'] === 1) {
+            return json($res, ['ok' => false, 'error' => 'Post not found.'], 404);
+        }
+
+        $categoryName = strtolower(trim((string)($post['CategoryName'] ?? '')));
+        $isAnnouncementNews = str_contains($categoryName, 'announcement') && str_contains($categoryName, 'news');
+
+        if (!$isAnnouncementNews) {
+            return json($res, ['ok' => false, 'error' => 'Only Announcement News posts can be pinned.'], 400);
+        }
+
+        $checkStmt = $pdo->prepare("SELECT 1 FROM dbo.Pinned WHERE PostID = :pid");
+        $checkStmt->execute([':pid' => $postId]);
+        $alreadyPinned = (bool)$checkStmt->fetchColumn();
+
+        if ($alreadyPinned) {
+            $deleteStmt = $pdo->prepare("DELETE FROM dbo.Pinned WHERE PostID = :pid");
+            $deleteStmt->execute([':pid' => $postId]);
+
+            return json($res, [
+                'ok' => true,
+                'isPinned' => false
+            ]);
+        }
+
+        $insertStmt = $pdo->prepare("INSERT INTO dbo.Pinned (PostID) VALUES (:pid)");
+        $insertStmt->execute([':pid' => $postId]);
+
+        return json($res, [
+            'ok' => true,
+            'isPinned' => true
+        ]);
+    } catch (Throwable $e) {
+        return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+    }
+});

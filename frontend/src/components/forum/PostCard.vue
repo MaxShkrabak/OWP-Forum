@@ -3,7 +3,7 @@ import { ref, watch, computed } from "vue";
 import { RouterLink, useRouter } from "vue-router";
 import { timeAgo } from "@/utils/timeAgo";
 import UserRole from "@/components/user/UserRole.vue";
-import { votePost } from "@/api/posts";
+import { votePost, togglePostPin } from "@/api/posts";
 import { isLoggedIn, userRole } from "@/stores/userStore";
 import ReportingModal from "@/components/user/ReportingModal.vue"
 
@@ -12,6 +12,7 @@ const props = defineProps({
 });
 
 const isVoting = ref(false);
+const isPinning = ref(false);
 const isReportModalOpen = ref(false);
 const router = useRouter();
 
@@ -49,6 +50,24 @@ async function handleVote(dir) {
     console.error("Vote error:", err);
   } finally {
     isVoting.value = false;
+  }
+}
+
+async function handlePinToggle() {
+  if (isPinning.value) return;
+
+  isPinning.value = true;
+
+  try {
+    const data = await togglePostPin(props.post.PostID);
+
+    if (data.ok) {
+      props.post.isPinned = data.isPinned;
+    }
+  } catch (err) {
+    console.error("Pin toggle error:", err);
+  } finally {
+    isPinning.value = false;
   }
 }
 
@@ -132,11 +151,19 @@ function isOfficialTag(name){
               {{ post.title }}
             </RouterLink>
 
-            <i
+            <button
               v-if="canShowPinIcon"
-              class="pi pi-thumbtack pin-icon"
-              title="Pin announcement"
-            ></i>
+              class="pin-btn"
+              type="button"
+              :disabled="isPinning"
+              @click="handlePinToggle"
+              :title="post.isPinned ? 'Unpin announcement' : 'Pin announcement'"
+            >
+              <i
+                class="pi pi-thumbtack pin-icon"
+                :class="{ pinned: !!post.isPinned, 'is-pinning': isPinning }"
+              ></i>
+            </button>
           </div>
 
           <div class="d-flex flex-wrap gap-2 mb-2">
@@ -237,10 +264,34 @@ function isOfficialTag(name){
   width: 100%;
 }
 
+.pin-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.pin-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .pin-icon {
   color: #c2680a;
   font-size: 0.9rem;
   flex-shrink: 0;
+  transition: transform 0.2s ease-in-out, opacity 0.2s ease-in-out;
+}
+
+.pin-icon.pinned {
+  transform: rotate(25deg);
+}
+
+.pin-icon.is-pinning {
+  opacity: 0.6;
 }
 
 .mobile-author-header {
