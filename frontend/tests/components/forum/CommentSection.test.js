@@ -1,8 +1,8 @@
 import { mount, flushPromises } from "@vue/test-utils";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import CommentSection from "@/components/forum/CommentSection.vue";
+import TextEditor from "@/components/forum/TextEditor.vue";
 import { fetchComments, updateComment } from "@/api/comments";
-import CommentEditor from "@/components/forum/CommentTextEditor.vue";
 
 vi.mock("@/api/auth", () => ({
   checkAuth: vi.fn(() =>
@@ -97,7 +97,7 @@ describe("CommentSection.vue", () => {
     const submitButton = wrapper.find(".btn-submit");
     expect(submitButton.element.disabled).toBe(true);
 
-    const editor = wrapper.findComponent(CommentEditor);
+    const editor = wrapper.findComponent(TextEditor);
     await editor.vm.$emit("update:modelValue", "This is a test comment");
     expect(submitButton.element.disabled).toBe(false);
   });
@@ -166,7 +166,7 @@ describe("CommentSection.vue", () => {
     await editButtons[0].trigger("click");
     await flushPromises();
 
-    const editors = wrapper.findAllComponents(CommentEditor);
+    const editors = wrapper.findAllComponents(TextEditor);
 
     const editEditor = editors.at(-1);
     expect(editEditor.exists()).toBe(true);

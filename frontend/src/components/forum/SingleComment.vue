@@ -492,6 +492,11 @@ watch(isEditing, (active) => {
   font-size: 0.5rem !important;
 }
 
+.comment-body {
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
 .timestamp {
   font-size: 12px;
 }
