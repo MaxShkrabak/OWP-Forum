@@ -4,7 +4,7 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 
 use Forum\Controllers\TermsController;
 
-use function Forum\Helpers\{json, setSessionCookie, clearSessionCookie};
+use function Forum\Helpers\{json, setSessionCookie, clearSessionCookie, markNotificationsRead};
 
 $app->get('/api/me', function(Request $req, Response $res) use ($makePdo) {
     try {
@@ -24,6 +24,9 @@ $app->get('/api/me', function(Request $req, Response $res) use ($makePdo) {
                 SELECT u.User_ID, u.Email, u.FirstName, u.LastName, u.Avatar, r.Name as RoleName, r.RoleID,
                        ISNULL(u.IsBanned, 0) as IsBanned, u.BanType, u.BannedUntil,
                        ISNULL(u.EmailNotificationsEnabled, 1) as EmailNotificationsEnabled,
+                       ISNULL(u.PushNotificationsEnabled, 1) as PushNotificationsEnabled,
+                       ISNULL(u.PostLikeNotificationsEnabled, 1) as PostLikeNotificationsEnabled,
+                       ISNULL(u.PostReplyNotificationsEnabled, 1) as PostReplyNotificationsEnabled,
                        ISNULL(u.TermsAccepted, 0) as termsAccepted, u.TermsAcceptedAt as termsAcceptedAt
                 FROM dbo.Users u
                 LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
@@ -34,6 +37,7 @@ $app->get('/api/me', function(Request $req, Response $res) use ($makePdo) {
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
         } catch (Throwable $e) {
         }
+
         if (!$user) {
             try {
                 $sql = "
@@ -54,7 +58,10 @@ $app->get('/api/me', function(Request $req, Response $res) use ($makePdo) {
         if (!$user) {
             $sql = "
                 SELECT u.User_ID, u.Email, u.FirstName, u.LastName, u.Avatar, r.Name as RoleName, r.RoleID,
-                    ISNULL(u.EmailNotificationsEnabled, 1) as EmailNotificationsEnabled
+                    ISNULL(u.EmailNotificationsEnabled, 1) as EmailNotificationsEnabled,
+                    ISNULL(u.PushNotificationsEnabled, 1) as PushNotificationsEnabled,
+                    ISNULL(u.PostLikeNotificationsEnabled, 1) as PostLikeNotificationsEnabled,
+                    ISNULL(u.PostReplyNotificationsEnabled, 1) as PostReplyNotificationsEnabled
                 FROM dbo.Users u
                 LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
                 WHERE u.User_ID = :uid
@@ -70,6 +77,7 @@ $app->get('/api/me', function(Request $req, Response $res) use ($makePdo) {
                 $user['termsAcceptedAt'] = null;
             }
         }
+
         if ($user && !array_key_exists('termsAccepted', $user)) {
             $user['termsAccepted'] = 0;
             $user['termsAcceptedAt'] = null;
@@ -84,6 +92,10 @@ $app->get('/api/me', function(Request $req, Response $res) use ($makePdo) {
         $user['BannedUntil'] = isset($user['BannedUntil']) && $user['BannedUntil'] ? $user['BannedUntil'] : null;
         $user['termsAccepted'] = (int)($user['termsAccepted'] ?? 0);
         $user['termsAcceptedAt'] = isset($user['termsAcceptedAt']) && $user['termsAcceptedAt'] ? $user['termsAcceptedAt'] : null;
+        $user['EmailNotificationsEnabled'] = (int)($user['EmailNotificationsEnabled'] ?? 1);
+        $user['PushNotificationsEnabled'] = (int)($user['PushNotificationsEnabled'] ?? 1);
+        $user['PostLikeNotificationsEnabled'] = (int)($user['PostLikeNotificationsEnabled'] ?? 1);
+        $user['PostReplyNotificationsEnabled'] = (int)($user['PostReplyNotificationsEnabled'] ?? 1);
 
         // Effective ban: treat expired temporary ban as not banned (no DB write)
         if ($user['IsBanned'] && $user['BanType'] === 'temporary' && $user['BannedUntil']) {
@@ -183,7 +195,7 @@ $app->post('/api/register-new-user', function (Request $req, Response $res) use 
             VALUES (:email, :first, :last, 1, GETDATE())
         ";
 
-        $pdo->prepare($insertUser) ->execute([                
+        $pdo->prepare($insertUser)->execute([                
             ":email" => $email,
             ":first" => $first,
             ":last" => $last,
@@ -231,7 +243,6 @@ $app->post('/api/accept-terms', function(Request $req, Response $res) use ($make
 });
 
 $app->post('/api/logout', function (Request $req, Response $res) use ($makePdo) {
-
     $cookies = $req->getCookieParams();
     $rawToken = $cookies['session'] ?? '';
 
@@ -300,7 +311,11 @@ $app->get('/api/user/notification-settings', function (Request $req, Response $r
         $pdo = $makePdo();
 
         $sql = "
-            SELECT ISNULL(EmailNotificationsEnabled, 1) as EmailNotificationsEnabled
+            SELECT
+                ISNULL(EmailNotificationsEnabled, 1) AS EmailNotificationsEnabled,
+                ISNULL(PushNotificationsEnabled, 1) AS PushNotificationsEnabled,
+                ISNULL(PostLikeNotificationsEnabled, 1) AS PostLikeNotificationsEnabled,
+                ISNULL(PostReplyNotificationsEnabled, 1) AS PostReplyNotificationsEnabled
             FROM dbo.Users
             WHERE User_ID = :uid
         ";
@@ -316,7 +331,10 @@ $app->get('/api/user/notification-settings', function (Request $req, Response $r
         return json($res, [
             'ok' => true,
             'settings' => [
-                'emailNotifications' => (bool)$result['EmailNotificationsEnabled']
+                'emailNotifications' => (bool)$result['EmailNotificationsEnabled'],
+                'pushNotifications'  => (bool)$result['PushNotificationsEnabled'],
+                'postLikes'          => (bool)$result['PostLikeNotificationsEnabled'],
+                'postReplies'        => (bool)$result['PostReplyNotificationsEnabled']
             ]
         ]);
     } catch (Throwable $e) {
@@ -333,36 +351,131 @@ $app->post('/api/user/notification-settings', function (Request $req, Response $
         }
 
         $data = $req->getParsedBody() ?? [];
-        
-        if (!array_key_exists('emailNotifications', $data)) {
-            return json($res, ['ok' => false, 'error' => 'Invalid emailNotifications value'], 400);
+
+        $required = [
+            'emailNotifications',
+            'pushNotifications',
+            'postLikes',
+            'postReplies',
+        ];
+
+        foreach ($required as $field) {
+            if (!array_key_exists($field, $data)) {
+                return json($res, ['ok' => false, 'error' => "Missing $field"], 400);
+            }
         }
 
         $emailNotifications = filter_var($data['emailNotifications'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+        $pushNotifications  = filter_var($data['pushNotifications'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+        $postLikes          = filter_var($data['postLikes'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+        $postReplies        = filter_var($data['postReplies'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
 
-        if ($emailNotifications === null) {
-            return json($res, ['ok' => false, 'error' => 'Invalid emailNotifications value'], 400);
+        if (
+            $emailNotifications === null ||
+            $pushNotifications === null ||
+            $postLikes === null ||
+            $postReplies === null
+        ) {
+            return json($res, ['ok' => false, 'error' => 'Invalid notification settings payload'], 400);
         }
 
         $pdo = $makePdo();
 
         $updateSql = "
             UPDATE dbo.Users
-            SET EmailNotificationsEnabled = :enabled
+            SET EmailNotificationsEnabled = :emailEnabled,
+                PushNotificationsEnabled = :pushEnabled,
+                PostLikeNotificationsEnabled = :postLikeEnabled,
+                PostReplyNotificationsEnabled = :postReplyEnabled
             WHERE User_ID = :uid
         ";
 
         $pdo->prepare($updateSql)->execute([
-            ':enabled' => $emailNotifications ? 1 : 0,
-            ':uid' => $userId
+            ':emailEnabled'     => $emailNotifications ? 1 : 0,
+            ':pushEnabled'      => $pushNotifications ? 1 : 0,
+            ':postLikeEnabled'  => $postLikes ? 1 : 0,
+            ':postReplyEnabled' => $postReplies ? 1 : 0,
+            ':uid'              => $userId
         ]);
 
         return json($res, [
-            'ok' => true, 
+            'ok' => true,
             'settings' => [
-                'emailNotifications' => $emailNotifications
+                'emailNotifications' => $emailNotifications,
+                'pushNotifications'  => $pushNotifications,
+                'postLikes'          => $postLikes,
+                'postReplies'        => $postReplies
             ]
         ]);
+    } catch (Throwable $e) {
+        return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+    }
+});
+
+$app->get('/api/user/notifications', function (Request $req, Response $res) use ($makePdo) {
+    try {
+        $userId = (int)$req->getAttribute('user_id');
+        if (!$userId) {
+            return json($res, ['ok' => false, 'error' => 'Unauthorized'], 401);
+        }
+
+        $pdo = $makePdo();
+
+        $sql = "
+            SELECT TOP 20
+                n.NotificationID,
+                n.PostID,
+                n.[Type],
+                n.IsRead,
+                n.CreatedAt,
+                p.Title
+            FROM dbo.Notifications n
+            JOIN dbo.Posts p ON p.PostID = n.PostID
+            WHERE n.UserID = :uid
+              AND n.IsRead = 0
+              AND p.IsDeleted = 0
+            ORDER BY n.CreatedAt DESC, n.NotificationID DESC
+        ";
+
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([':uid' => $userId]);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $items = array_map(function ($row) {
+            return [
+                'notificationId' => (int)$row['NotificationID'],
+                'postId'         => (int)$row['PostID'],
+                'type'           => (string)$row['Type'],
+                'isRead'         => (bool)$row['IsRead'],
+                'title'          => (string)$row['Title'],
+                'createdAt'      => $row['CreatedAt']
+            ];
+        }, $rows);
+
+        return json($res, ['ok' => true, 'items' => $items]);
+    } catch (Throwable $e) {
+        return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+    }
+});
+
+$app->post('/api/user/notifications/read', function (Request $req, Response $res) use ($makePdo) {
+    try {
+        $userId = (int)$req->getAttribute('user_id');
+        if (!$userId) {
+            return json($res, ['ok' => false, 'error' => 'Unauthorized'], 401);
+        }
+
+        $data = $req->getParsedBody() ?? [];
+        $notificationIds = is_array($data['notificationIds'] ?? null) ? $data['notificationIds'] : [];
+
+        if (empty($notificationIds)) {
+            return json($res, ['ok' => false, 'error' => 'notificationIds is required'], 400);
+        }
+
+        $pdo = $makePdo();
+        $ok = markNotificationsRead($pdo, $userId, $notificationIds);
+
+        return json($res, ['ok' => $ok]);
     } catch (Throwable $e) {
         return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
     }

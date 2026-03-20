@@ -10,6 +10,7 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 
 use function Forum\Helpers\json;
 use function Forum\Helpers\checkUserBan;
+use function Forum\Helpers\createNotification;
 
 class CommentController
 {
@@ -183,6 +184,27 @@ class CommentController
             ]);
             $inserted = $stmt->fetch(PDO::FETCH_ASSOC);
             $this->maybeSendCommentNotification($pdo, $postId, (int)$userId);
+
+$postOwnerStmt = $pdo->prepare("
+    SELECT p.AuthorID,
+           ISNULL(u.PushNotificationsEnabled, 1) AS PushNotificationsEnabled,
+           ISNULL(u.PostReplyNotificationsEnabled, 1) AS PostReplyNotificationsEnabled
+    FROM dbo.Posts p
+    JOIN dbo.Users u ON u.User_ID = p.AuthorID
+    WHERE p.PostID = :postId
+");
+$postOwnerStmt->execute([':postId' => $postId]);
+$postOwner = $postOwnerStmt->fetch(PDO::FETCH_ASSOC);
+
+if ($postOwner) {
+    $postOwnerId = (int)($postOwner['AuthorID'] ?? 0);
+    $pushEnabled = (int)($postOwner['PushNotificationsEnabled'] ?? 1) === 1;
+    $repliesEnabled = (int)($postOwner['PostReplyNotificationsEnabled'] ?? 1) === 1;
+
+    if ($postOwnerId > 0 && $postOwnerId !== (int)$userId && $pushEnabled && $repliesEnabled) {
+        createNotification($pdo, $postOwnerId, $postId, 'postReply');
+    }
+}
 
             $commentDetailsSql = $pdo->prepare("
                 SELECT c.CommentId, c.PostId, c.ParentCommentId, c.Content, c.CreatedAt, c.UpdatedAt, c.UserId, c.TotalScore,

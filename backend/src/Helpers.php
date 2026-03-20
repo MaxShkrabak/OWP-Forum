@@ -3,6 +3,8 @@ namespace Forum\Helpers;
 
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
+use PDO;
+use Throwable;
 
 if (!function_exists('Forum\Helpers\json')) {
     function json(Response $res, array $data, int $status = 200): Response {
@@ -131,5 +133,61 @@ if (!function_exists('Forum\Helpers\requireTermsAccepted')) {
         }
 
         return null;
+    }
+}
+
+if (!function_exists('Forum\\Helpers\\createNotification')) {
+    function createNotification(PDO $pdo, int $userId, int $postId, string $type): bool
+    {
+        if ($userId <= 0 || $postId <= 0) return false;
+        if (!in_array($type, ['postLike', 'postReply'], true)) return false;
+
+        try {
+            $sql = "
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM dbo.Notifications
+                    WHERE UserID = ?
+                      AND PostID = ?
+                      AND [Type] = ?
+                      AND IsRead = 0
+                )
+                BEGIN
+                    INSERT INTO dbo.Notifications (UserID, PostID, [Type], IsRead)
+                    VALUES (?, ?, ?, 0)
+                END
+            ";
+
+            $stmt = $pdo->prepare($sql);
+            return $stmt->execute([
+                $userId,
+                $postId,
+                $type,
+                $userId,
+                $postId,
+                $type,
+            ]);
+        } catch (Throwable $e) {
+            error_log('createNotification failed: ' . $e->getMessage());
+            return false;
+        }
+    }
+}
+
+if (!function_exists('Forum\\Helpers\\markNotificationsRead')) {
+    function markNotificationsRead(PDO $pdo, int $userId, array $notificationIds): bool
+    {
+        $ids = array_values(array_filter(array_map('intval', $notificationIds), fn($v) => $v > 0));
+        if ($userId <= 0 || empty($ids)) return false;
+
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $sql = "
+            UPDATE dbo.Notifications
+            SET IsRead = 1
+            WHERE UserID = ? AND NotificationID IN ($placeholders)
+        ";
+
+        $stmt = $pdo->prepare($sql);
+        return $stmt->execute(array_merge([$userId], $ids));
     }
 }
