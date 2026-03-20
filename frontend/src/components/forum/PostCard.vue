@@ -1,25 +1,56 @@
 <script setup>
-import { ref, watch  } from "vue";
+import { ref, watch, computed } from "vue";
 import { RouterLink, useRouter } from "vue-router";
 import { timeAgo } from "@/utils/timeAgo";
 import UserRole from "@/components/user/UserRole.vue";
-import { votePost } from "@/api/posts";
-import { isLoggedIn, uid, userRoleId } from "@/stores/userStore";
-import ReportingModal from "@/components/user/ReportingModal.vue"
+import { votePost, togglePostPin } from "@/api/posts";
+import { isLoggedIn, userRole, uid, userRoleId } from "@/stores/userStore";
+import ReportingModal from "@/components/user/ReportingModal.vue";
 
 const props = defineProps({
   post: { type: Object, required: true },
 });
 
+const emit = defineEmits(["post-refresh"]);
+
 const isVoting = ref(false);
+const isPinning = ref(false);
 const isReportModalOpen = ref(false);
+const pinMessage = ref("");
+const pinMessageType = ref("success");
+let pinMessageTimeout = null;
+
 const router = useRouter();
+
+const isAdmin = computed(() => {
+  return (userRole.value || "").trim().toLowerCase() === "admin";
+});
+
+const isAnnouncementNews = computed(() => {
+  const category = (props.post?.categoryName || "").trim().toLowerCase();
+  return category.includes("announcement") && category.includes("news");
+});
+
+const canShowPinIcon = computed(() => isAdmin.value && isAnnouncementNews.value);
+
+function showPinMessage(message, type = "success") {
+  pinMessage.value = message;
+  pinMessageType.value = type;
+
+  if (pinMessageTimeout) {
+    clearTimeout(pinMessageTimeout);
+  }
+
+  pinMessageTimeout = setTimeout(() => {
+    pinMessage.value = "";
+  }, 2200);
+}
 
 async function handleVote(dir) {
   if (isVoting.value) return;
 
   const currentVote = Number(props.post.myVote ?? 0);
- 
+
   let action = dir;
   if ((dir === "up" && currentVote === 1) || (dir === "down" && currentVote === -1)) {
     action = "clear";
@@ -38,6 +69,32 @@ async function handleVote(dir) {
     console.error("Vote error:", err);
   } finally {
     isVoting.value = false;
+  }
+}
+
+async function handlePinToggle() {
+  if (isPinning.value) return;
+
+  isPinning.value = true;
+
+  try {
+    const data = await togglePostPin(props.post.PostID);
+
+    if (data.ok) {
+      props.post.isPinned = data.isPinned;
+
+      emit("post-refresh", {
+        pinMessage: data.isPinned ? "Pinned successfully" : "Unpinned successfully",
+        pinMessageType: "success",
+      });
+    } else {
+      showPinMessage(data.error || "Failed to update pin state", "error");
+    }
+  } catch (err) {
+    console.error("Pin toggle error:", err);
+    showPinMessage("Failed to update pin state", "error");
+  } finally {
+    isPinning.value = false;
   }
 }
 
@@ -63,8 +120,8 @@ watch(isLoggedIn, (loggedIn) => {
   }
 });
 
-function isOfficialTag(name){
-  return name === 'Official';
+function isOfficialTag(name) {
+  return name === "Official";
 }
 
 function canViewReportButton() {
@@ -73,31 +130,40 @@ function canViewReportButton() {
 </script>
 
 <template>
-  <div class="post-card shadow-sm mb-3">
+  <div class="post-card shadow-sm mb-3" :class="{ 'pinned-post': !!post.isPinned }">
+    <div
+      v-if="pinMessage"
+      class="pin-toast"
+      :class="{ error: pinMessageType === 'error' }"
+    >
+      {{ pinMessage }}
+    </div>
+
     <div class="responsive-container">
       <div class="main-content-area">
         <div class="vote-container">
-          <!-- Upvote -->
           <button
             class="vote-btn-up pi pi-chevron-up mb-1"
             :class="{ active: Number(post.myVote) === 1, 'is-voting': isVoting }"
-            @click="isLoggedIn ? handleVote('up') : router.push('/login')">
-          </button>
+            @click="isLoggedIn ? handleVote('up') : router.push('/login')"
+          ></button>
 
-          <!-- Vote count -->
-          <span class="vote-count"
-                :class="{
-                        'upvoted': Number(post.myVote) === 1,
-                        'downvoted': Number(post.myVote) === -1, 'voting-bounce': isVoting }">
+          <span
+            class="vote-count"
+            :class="{
+              upvoted: Number(post.myVote) === 1,
+              downvoted: Number(post.myVote) === -1,
+              'voting-bounce': isVoting
+            }"
+          >
             {{ post.TotalScore ?? 0 }}
           </span>
 
-          <!-- Downvote -->
           <button
             class="vote-btn-down pi pi-chevron-down mt-1"
             :class="{ active: Number(post.myVote) === -1, 'is-voting': isVoting }"
-            @click="isLoggedIn ? handleVote('down') : router.push('/login')">
-          </button>
+            @click="isLoggedIn ? handleVote('down') : router.push('/login')"
+          ></button>
         </div>
 
         <div class="title-and-meta-column">
@@ -124,11 +190,32 @@ function canViewReportButton() {
             <RouterLink :to="`/posts/${post.PostID}`" class="post-title-link">
               {{ post.title }}
             </RouterLink>
+
+            <button
+              v-if="canShowPinIcon"
+              class="pin-btn"
+              type="button"
+              :disabled="isPinning"
+              @click="handlePinToggle"
+              :title="post.isPinned ? 'Unpin announcement' : 'Pin announcement'"
+            >
+              <i
+                class="pi pi-thumbtack pin-icon"
+                :class="{ pinned: !!post.isPinned, 'is-pinning': isPinning }"
+              ></i>
+            </button>
+
+            <span v-if="post.isPinned" class="pinned-badge">Pinned</span>
           </div>
 
           <div class="d-flex flex-wrap gap-2 mb-2">
-            <span v-for="tag in post.tags" :key="tag" :class="isOfficialTag(tag) ? 'post-tag-mod-admin' : 'post-tag'">
-              {{ tag }}</span>
+            <span
+              v-for="tag in post.tags"
+              :key="tag"
+              :class="isOfficialTag(tag) ? 'post-tag-mod-admin' : 'post-tag'"
+            >
+              {{ tag }}
+            </span>
           </div>
 
           <div class="meta-footer">
@@ -142,11 +229,11 @@ function canViewReportButton() {
           </div>
         </div>
 
-        <ReportingModal 
+        <ReportingModal
           :isOpen="isReportModalOpen"
           :targetId="post.PostID"
           :targetTitle="post.title"
-          type="post" 
+          type="post"
           @close="closeReportModal"
         />
       </div>
@@ -178,16 +265,59 @@ function canViewReportButton() {
 
 <style scoped>
 .post-card {
+  position: relative;
   background: white;
   border-radius: 10px;
   padding: 10px 14px;
   border: 1px solid rgba(0, 0, 0, 0.03);
   transition: all 0.2s ease-in-out;
 }
+
 .post-card:hover {
   transform: translateY(-3px);
   border-color: #2e6c44;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
+}
+
+.pinned-post {
+  background: linear-gradient(180deg, #fff8ef 0%, #fffdf9 100%);
+  border-color: #d8a15d;
+  box-shadow: 0 4px 14px rgba(194, 104, 10, 0.08) !important;
+}
+
+.pinned-post:hover {
+  border-color: #c2680a;
+  box-shadow: 0 6px 16px rgba(194, 104, 10, 0.12) !important;
+}
+
+.pin-toast {
+  position: absolute;
+  top: -10px;
+  right: 12px;
+  z-index: 20;
+  background: #b42318;
+  color: white;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 6px 10px;
+  border-radius: 8px;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
+  animation: pin-toast-in 0.2s ease-out;
+}
+
+.pin-toast.error {
+  background: #b42318;
+}
+
+@keyframes pin-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .responsive-container {
@@ -198,7 +328,6 @@ function canViewReportButton() {
   min-width: 0;
 }
 
-/* Main content of the post (excluding author section) */
 .main-content-area {
   display: flex;
   align-items: center;
@@ -222,6 +351,46 @@ function canViewReportButton() {
   gap: 8px;
   margin-bottom: 4px;
   width: 100%;
+}
+
+.pin-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.pin-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.pin-icon {
+  color: #c2680a;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+  transition: transform 0.2s ease-in-out, opacity 0.2s ease-in-out;
+}
+
+.pin-icon.pinned {
+  transform: rotate(25deg);
+}
+
+.pin-icon.is-pinning {
+  opacity: 0.6;
+}
+
+.pinned-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #c2680a;
+  color: #fff4e8;
+  white-space: nowrap;
 }
 
 .mobile-author-header {
@@ -275,12 +444,13 @@ function canViewReportButton() {
   font-weight: 700;
   font-size: 1rem;
   line-height: 1.2;
-  white-space: nowrap; /* TODO: We can let it wrap if the title MAX LENGTH is reasonable */
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   flex: 0 1 auto;
   min-width: 0;
 }
+
 .post-title-link:hover {
   color: #2e6c44;
   text-decoration: underline;
@@ -310,6 +480,7 @@ function canViewReportButton() {
   transform: translateY(-1px);
   text-shadow: 0 4px 2px #04392791;
 }
+
 .vote-btn-down:hover {
   color: #5e2b2c;
   transform: translateY(1px);
@@ -324,6 +495,7 @@ function canViewReportButton() {
 .vote-btn-up.active {
   color: #043927;
 }
+
 .vote-btn-down.active {
   color: #5e2b2c;
 }
@@ -349,13 +521,23 @@ function canViewReportButton() {
   color: #5e2b2c;
 }
 
-/* Loading bounce effect */
 @keyframes count-bounce {
-  0%  { transform: translateY(0); }
-  25% { transform: translateY(-5px); }
-  50% { transform: translateY(3px); }
-  70% { transform: translateY(-1px); }
-  85%, 100% { transform: translateY(0); }
+  0% {
+    transform: translateY(0);
+  }
+  25% {
+    transform: translateY(-5px);
+  }
+  50% {
+    transform: translateY(3px);
+  }
+  70% {
+    transform: translateY(-1px);
+  }
+  85%,
+  100% {
+    transform: translateY(0);
+  }
 }
 
 .voting-bounce {
@@ -363,6 +545,7 @@ function canViewReportButton() {
   display: inline-block;
   opacity: 0.8;
 }
+
 .post-tag-mod-admin,
 .post-tag {
   font-size: 0.65rem;
@@ -371,10 +554,12 @@ function canViewReportButton() {
   border-radius: 4px;
   white-space: nowrap;
 }
+
 .post-tag-mod-admin {
   background: linear-gradient(135deg, #c2680a 0%, #9a4e08 100%);
   color: #ffecd1;
 }
+
 .post-tag {
   background: #2e6c44;
   color: white;
@@ -398,6 +583,7 @@ function canViewReportButton() {
   font-weight: 600;
   cursor: pointer;
 }
+
 .report-btn:hover {
   color: #dc3545;
 }
@@ -446,9 +632,11 @@ function canViewReportButton() {
   .responsive-container {
     gap: 20px;
   }
+
   .mobile-author-header {
     display: none;
   }
+
   .desktop-only-author {
     display: flex;
     align-items: center;
