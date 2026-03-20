@@ -85,7 +85,7 @@ if (!function_exists('Forum\Helpers\checkUserBan')) {
             SELECT 
                 ISNULL(IsBanned, 0) AS IsBanned,
                 BanType, 
-                BannedUntil 
+                BannedUntil
             FROM dbo.Users WHERE User_ID = :uid
         ");
         $stmt->execute([':uid' => $userId]);
@@ -95,17 +95,34 @@ if (!function_exists('Forum\Helpers\checkUserBan')) {
             $banType = $user['BanType'] ? trim((string)$user['BanType']) : null;
             $bannedUntil = $user['BannedUntil'] ?? null;
 
-            $isRestricted = ($banType !== 'temporary' || !$bannedUntil) 
-                || (new \DateTimeImmutable($bannedUntil, new \DateTimeZone('UTC')) > new \DateTimeImmutable('now', new \DateTimeZone('UTC')));
-
-            if ($isRestricted) {
+            if ($banType !== 'temporary' || !$bannedUntil) {
                 $msg = 'Your account is restricted from performing this action.';
                 if ($banType === 'temporary' && $bannedUntil) {
                     $msg .= " Banned until: " . $bannedUntil;
                 }
                 return json($res, ['ok' => false, 'error' => $msg], 403);
             }
+
+            $banUntilDate = new \DateTimeImmutable($bannedUntil, new \DateTimeZone('UTC'));
+            $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
+
+            // Temporary ban active
+            if ($banUntilDate > $now) {
+                $msg = 'Your account is restricted from performing this action. Banned until: ' . $bannedUntil;
+                return json($res, ['ok' => false, 'error' => $msg], 403);
+            }
+
+            // Clear temporary ban since it has expired
+            $clearStmt = $pdo->prepare("
+                UPDATE dbo.Users
+                SET IsBanned = 0,
+                    BanType = NULL,
+                    BannedUntil = NULL
+                WHERE User_ID = :uid
+            ");
+            $clearStmt->execute([':uid' => $userId]);
         }
+
         return null;
     }
 }
