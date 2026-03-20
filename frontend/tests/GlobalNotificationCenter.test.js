@@ -247,7 +247,7 @@ describe("Global notifications — component behavior", () => {
     expect(wrapper.text()).not.toContain("Auto dismiss post");
   });
 
-  it("shows at most 3 notifications when more are fetched", async () => {
+  it("shows at most 3 notifications and discards overflow notifications", async () => {
     mockFetchNotifications.mockResolvedValue({
       ok: true,
       items: [
@@ -291,5 +291,44 @@ describe("Global notifications — component behavior", () => {
 
     const popups = wrapper.findAll(".notification-popup");
     expect(popups.length).toBe(3);
+
+    expect(wrapper.text()).toContain("Post 1");
+    expect(wrapper.text()).toContain("Post 2");
+    expect(wrapper.text()).toContain("Post 3");
+    expect(wrapper.text()).not.toContain("Post 4");
+
+    expect(mockMarkNotificationsRead).toHaveBeenCalledWith([4]);
   });
+});
+
+it("discards notifications with disabled types and marks them as read", async () => {
+  localStorage.setItem(
+    "notificationPreferences",
+    JSON.stringify({
+      emailNotifications: true,
+      pushNotifications: true,
+      postReplies: true,
+      postLikes: false,
+    })
+  );
+
+  mockFetchNotifications.mockResolvedValue({
+    ok: true,
+    items: [
+      {
+        notificationId: 9,
+        postId: 99,
+        type: "postLike",
+        isRead: false,
+        title: "Disabled like",
+        createdAt: "2026-03-19T12:00:00Z",
+      },
+    ],
+  });
+
+  const wrapper = mount(GlobalNotificationCenter);
+  await flushPromises();
+
+  expect(wrapper.text()).not.toContain("Disabled like");
+  expect(mockMarkNotificationsRead).toHaveBeenCalledWith([9]);
 });

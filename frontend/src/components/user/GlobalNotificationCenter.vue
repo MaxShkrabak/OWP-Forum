@@ -1,12 +1,11 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount } from 'vue';
-import { useRouter, useRoute } from 'vue-router';
+import { useRouter } from 'vue-router';
 import { fetchNotifications, markNotificationsRead } from '@/api/users';
 import { isLoggedIn } from '@/stores/userStore';
 import { isNotificationEnabled } from '@/utils/notificationPreferences';
 
 const router = useRouter();
-const route = useRoute();
 
 const notifications = ref([]);
 const seenIds = new Set();
@@ -54,6 +53,16 @@ async function markRead(notificationId) {
   }
 }
 
+async function markManyRead(notificationIds) {
+  if (!notificationIds.length) return;
+
+  try {
+    await markNotificationsRead(notificationIds);
+  } catch (e) {
+    console.error('Failed to mark notifications as read', e);
+  }
+}
+
 async function removeNotification(notificationId, shouldMarkRead = true) {
   notifications.value = notifications.value.filter(
     (n) => n.notificationId !== notificationId
@@ -87,16 +96,17 @@ function scheduleAutoDismiss(notificationId) {
 
 function tryDisplayNotification(item) {
   if (!canShowAnotherNotification()) {
-    return;
+    return false;
   }
 
   if (notifications.value.length >= MAX_VISIBLE) {
-    return;
+    return false;
   }
 
   notifications.value = [item, ...notifications.value];
   rememberShownNow();
   scheduleAutoDismiss(item.notificationId);
+  return true;
 }
 
 async function loadNotifications() {
@@ -108,12 +118,29 @@ async function loadNotifications() {
     const result = await fetchNotifications();
     if (!result?.ok || !Array.isArray(result.items)) return;
 
+    const discardIds = [];
+
     for (const item of result.items) {
-      if (!isNotificationEnabled(item.type)) continue;
-      if (seenIds.has(item.notificationId)) continue;
+      if (!isNotificationEnabled(item.type)) {
+        discardIds.push(item.notificationId);
+        continue;
+      }
+
+      if (seenIds.has(item.notificationId)) {
+        continue;
+      }
 
       seenIds.add(item.notificationId);
-      tryDisplayNotification(item);
+
+      const displayed = tryDisplayNotification(item);
+
+      if (!displayed) {
+        discardIds.push(item.notificationId);
+      }
+    }
+
+    if (discardIds.length > 0) {
+      await markManyRead(discardIds);
     }
   } catch (e) {
     console.error('Failed to fetch notifications', e);
