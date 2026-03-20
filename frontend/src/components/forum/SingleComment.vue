@@ -9,11 +9,10 @@ import {
 } from "@/api/comments";
 import { isLoggedIn, uid } from "@/stores/userStore";
 import { timeAgo } from "@/utils/timeAgo";
-import CommentEditor from "./CommentTextEditor.vue";
+import TextEditor from "./TextEditor.vue";
 
 const props = defineProps({
   comment: Object,
-  isLastChild: Boolean,
 });
 
 const router = useRouter();
@@ -45,6 +44,21 @@ const originalText = computed(() => props.comment.text || "");
 const editText = ref(originalText.value);
 const isSavingEdit = ref(false);
 const showSaveConfirm = ref(false);
+const editIsUploading = ref(false);
+const replyIsUploading = ref(false);
+
+const linkedImage = computed(() => {
+  return (
+    props.comment.text?.replace(
+      /<img[^>]+src="([^"]+)"[^>]*\/?>/gi,
+      (_, src) => {
+        const name =
+          decodeURIComponent(src.split("/").pop().split("?")[0]) || "image";
+        return `<a href="${src}" target="_blank" rel="noopener noreferrer">${name}</a>`;
+      },
+    ) ?? ""
+  );
+});
 
 const isAuthor = computed(() => {
   const currentUid = Number(uid?.value ?? 0);
@@ -63,7 +77,6 @@ const toggleReply = () => {
 };
 
 const startEdit = () => {
-  if (!isAuthor.value) return;
   if (!isEditing.value) {
     editText.value = originalText.value;
     openEditComment && openEditComment(props.comment.id);
@@ -268,7 +281,13 @@ watch(isEditing, (active) => {
 
         <div v-if="isEditing" class="comment-body mb-2">
           <div class="border rounded-3 overflow-hidden bg-white">
-            <CommentEditor v-model="editText" :is-focused="true" />
+            <TextEditor
+              v-model="editText"
+              v-model:isUploading="editIsUploading"
+              :compact="true"
+              :show-toolbar="true"
+              placeholder="Edit your comment..."
+            />
             <div
               class="d-flex justify-content-end align-items-center gap-3 px-3 pb-2 pt-2 bg-white"
             >
@@ -282,16 +301,16 @@ watch(isEditing, (active) => {
               <button
                 class="btn-submit border-0 rounded-2 fw-bold px-3 py-1 small"
                 type="button"
-                :disabled="!hasEditChanges || isSavingEdit"
+                :disabled="!hasEditChanges || isSavingEdit || editIsUploading"
                 @click="saveEdit"
               >
-                Save
+                {{ editIsUploading ? "Uploading..." : "Save" }}
               </button>
             </div>
           </div>
         </div>
 
-        <div v-else class="comment-body mb-2 small" v-html="comment.text"></div>
+        <div v-else class="comment-body mb-2 small" v-html="linkedImage"></div>
 
         <div class="d-flex align-items-center gap-3 gap-sm-2 flex-wrap">
           <div
@@ -331,9 +350,11 @@ watch(isEditing, (active) => {
           <div
             class="reply-box-container mb-2 border rounded-3 overflow-hidden bg-white"
           >
-            <CommentEditor
+            <TextEditor
               v-model="replyText"
-              :is-focused="true"
+              v-model:isUploading="replyIsUploading"
+              :compact="true"
+              :show-toolbar="true"
               placeholder="Write a reply..."
             />
             <div
@@ -347,10 +368,12 @@ watch(isEditing, (active) => {
               </button>
               <button
                 class="btn-submit border-0 rounded-2 fw-bold px-3 py-1 small"
-                :disabled="!replyText"
+                :disabled="
+                  !replyText || replyText === '<p></p>' || replyIsUploading
+                "
                 @click="handleReply"
               >
-                Reply
+                {{ replyIsUploading ? "Uploading..." : "Reply" }}
               </button>
             </div>
           </div>
@@ -474,12 +497,6 @@ watch(isEditing, (active) => {
 }
 
 /* Menu */
-.dropdown-menu {
-  left: 0 !important;
-  right: auto !important;
-  background-color: white;
-}
-
 .btn-options {
   color: #9ca3af;
   transition: color 0.2s;
@@ -487,11 +504,6 @@ watch(isEditing, (active) => {
 
 .btn-options:hover {
   color: #111827;
-}
-
-.dropdown-item {
-  font-size: 0.85rem;
-  color: #1f2937;
 }
 
 /* Voting styles */

@@ -1,8 +1,8 @@
 <script setup>
-import { ref, computed, provide, onMounted } from "vue";
+import { ref, provide, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import SingleComment from "./SingleComment.vue";
-import CommentEditor from "./CommentTextEditor.vue";
+import CommentEditor from "./TextEditor.vue";
 
 import {
   fetchComments as apiFetchComments,
@@ -36,6 +36,8 @@ const hasMore = ref(true);
 const isLoadingMore = ref(false);
 
 const commentTotalCount = ref(0);
+const isUploading = ref(false);
+const editorRef = ref(null);
 
 const sortOptions = [
   { label: "Newest", value: "latest" },
@@ -175,6 +177,7 @@ const submitComment = async () => {
     const data = await apiSubmitComment(props.postId, newComment.value);
     if (data && data.ok) {
       newComment.value = "";
+      editorRef.value?.clearContent();
       isFocused.value = false;
       commentTotalCount.value++;
 
@@ -209,10 +212,9 @@ const submitReply = async (replyContent, parentCommentId) => {
 
 provide("submitReply", submitReply);
 
-const totalCommentsCount = computed(() => commentTotalCount.value);
-
 const cancelComment = () => {
   newComment.value = "";
+  editorRef.value?.clearContent();
   isFocused.value = false;
 };
 
@@ -228,7 +230,7 @@ onMounted(() => {
     >
       <div class="d-flex align-items-center gap-2">
         <i class="pi pi-comments"></i>
-        <span>Comments ({{ totalCommentsCount }})</span>
+        <span>Comments ({{ commentTotalCount }})</span>
       </div>
 
       <div class="sort-dropdown d-inline-flex align-items-center">
@@ -260,12 +262,15 @@ onMounted(() => {
           @click="handleCommentBoxClick()"
         >
           <CommentEditor
+            ref="editorRef"
             v-model="newComment"
+            v-model:isUploading="isUploading"
             :disabled="!isLoggedIn"
+            :compact="true"
+            :show-toolbar="isFocused"
             :placeholder="
               isLoggedIn ? 'Add a comment...' : 'Sign in to comment'
             "
-            :isFocused="isFocused"
           />
 
           <div
@@ -280,10 +285,10 @@ onMounted(() => {
             </button>
             <button
               class="btn-submit border-0 rounded-2 fw-bold px-4 py-2"
-              :disabled="!newComment || newComment === '<p></p>'"
+              :disabled="!newComment || newComment === '<p></p>' || isUploading"
               @click.stop="submitComment"
             >
-              Comment
+              {{ isUploading ? "Uploading..." : "Comment" }}
             </button>
           </div>
         </div>
@@ -361,14 +366,6 @@ onMounted(() => {
   border-color: #035157 !important;
 }
 
-.comment-textarea {
-  outline: none;
-  resize: vertical;
-  font-size: 0.95rem;
-  color: #1f2937;
-  min-height: 80px;
-}
-
 .btn-cancel {
   color: #4b5563;
   font-size: 0.9rem;
@@ -421,11 +418,6 @@ onMounted(() => {
   opacity: 0;
 }
 
-.header-row {
-  border-bottom: 1px solid #e5e7eb;
-  padding-bottom: 0.75rem;
-}
-
 .sort-dropdown {
   background-color: rgba(30, 77, 56, 0.06); /* Subtle green tint */
   border: 1px solid #cce3d6;
@@ -468,16 +460,5 @@ onMounted(() => {
   color: #1f2937;
   text-transform: none;
   font-weight: normal;
-}
-
-@media (max-width: 599px) {
-  .comment-textarea {
-    font-size: 0.85rem;
-    padding: 0.75rem !important;
-  }
-  .btn-submit {
-    padding: 0.5rem 1rem !important;
-    font-size: 0.8rem;
-  }
 }
 </style>
