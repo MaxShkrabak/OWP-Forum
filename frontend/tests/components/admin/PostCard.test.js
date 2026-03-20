@@ -70,7 +70,7 @@ function makePost(overrides = {}) {
   return {
     PostID: 101,
     postId: 101,
-    title: "Pinned announcement",
+    title: "Pinned post",
     createdAt: "2026-03-19T10:00:00Z",
     authorId: 7,
     authorName: "Jane Doe",
@@ -80,7 +80,7 @@ function makePost(overrides = {}) {
     commentCount: 4,
     TotalScore: 12,
     myVote: 0,
-    categoryName: "Announcement News",
+    categoryName: "General",
     isPinned: false,
     ...overrides,
   };
@@ -93,10 +93,10 @@ describe("PostCard — pin/unpin", () => {
     mocks.store.userRole.value = "admin";
   });
 
-  it("shows pin icon for admin on announcement news posts", () => {
+  it("shows pin icon for admin on posts from any category", () => {
     const wrapper = mount(PostCard, {
       props: {
-        post: makePost(),
+        post: makePost({ categoryName: "Help" }),
       },
     });
 
@@ -104,12 +104,22 @@ describe("PostCard — pin/unpin", () => {
     expect(wrapper.find(".pin-icon").exists()).toBe(true);
   });
 
+  it("shows pin icon for admin even when category is not announcement", () => {
+    const wrapper = mount(PostCard, {
+      props: {
+        post: makePost({ categoryName: "Research" }),
+      },
+    });
+
+    expect(wrapper.find(".pin-btn").exists()).toBe(true);
+  });
+
   it("hides pin icon for non-admin users", () => {
     mocks.store.userRole.value = "user";
 
     const wrapper = mount(PostCard, {
       props: {
-        post: makePost(),
+        post: makePost({ categoryName: "Help" }),
       },
     });
 

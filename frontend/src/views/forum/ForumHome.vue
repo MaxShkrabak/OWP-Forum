@@ -101,10 +101,6 @@ function postMatchesGeneralSearch(post, categoryName, q) {
   );
 }
 
-function isAnnouncementCategory(categoryName) {
-  const name = normalize(categoryName);
-  return name.includes("announcement");
-}
 
 const filteredCategories = computed(() => {
   const q = normalize(searchQuery.value);
@@ -127,15 +123,14 @@ const filteredCategories = computed(() => {
         categoryId: cat.categoryId,
       }));
 
-      const pinnedForCategory = isAnnouncementCategory(cat.categoryName)
-        ? pinnedPosts.value
-            .map((p) => ({
-              ...p,
-              categoryName: cat.categoryName,
-              categoryId: cat.categoryId,
-            }))
-            .filter((p) => postMatchesGeneralSearch(p, cat.categoryName, q))
-        : [];
+      const pinnedForCategory = pinnedPosts.value
+        .filter((p) => Number(p.categoryId) === Number(cat.categoryId))
+        .map((p) => ({
+          ...p,
+          categoryName: cat.categoryName,
+          categoryId: cat.categoryId,
+        }))
+        .filter((p) => postMatchesGeneralSearch(p, cat.categoryName, q));
 
       const pinnedIds = new Set(
         pinnedForCategory.map((p) => Number(p.PostID ?? p.postId))
