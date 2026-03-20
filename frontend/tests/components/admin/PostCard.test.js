@@ -25,10 +25,14 @@ vi.mock("@/stores/userStore", async () => {
 
   mocks.store.isLoggedIn = ref(true);
   mocks.store.userRole = ref("admin");
+  mocks.store.userRoldId = ref(4);
+  mocks.store.uid = ref(7);
 
   return {
     isLoggedIn: mocks.store.isLoggedIn,
     userRole: mocks.store.userRole,
+    userRoldId: mocks.store.userRoldId,
+    uid: mocks.store.uid,
   };
 });
 
