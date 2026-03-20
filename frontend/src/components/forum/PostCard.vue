@@ -26,13 +26,7 @@ const isAdmin = computed(() => {
   return (userRole.value || "").trim().toLowerCase() === "admin";
 });
 
-const isAnnouncementNews = computed(() => {
-  const category = (props.post?.categoryName || "").trim().toLowerCase();
-  return category.includes("announcement") && category.includes("news");
-});
-
-const canShowPinIcon = computed(() => isAdmin.value && isAnnouncementNews.value);
-
+const canShowPinIcon = computed(() => isAdmin.value);
 function showPinMessage(message, type = "success") {
   pinMessage.value = message;
   pinMessageType.value = type;
