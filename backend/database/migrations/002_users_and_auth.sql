@@ -2,15 +2,21 @@
 IF OBJECT_ID('dbo.Users', 'U') IS NULL
 BEGIN
   CREATE TABLE dbo.Users (
-    User_ID        INT IDENTITY(1,1) PRIMARY KEY,
-    Email          NVARCHAR(255) NOT NULL UNIQUE,
-    FirstName      NVARCHAR(120) NULL,
-    LastName       NVARCHAR(120) NULL,
-    RoleID         INT NULL FOREIGN KEY REFERENCES dbo.Roles(RoleID),
-    Avatar         VARCHAR(100) NOT NULL DEFAULT'pfp-0.png',
-    EmailVerified  BIT NOT NULL DEFAULT(0),
-    Created        DATETIME2(0) NOT NULL DEFAULT(SYSUTCDATETIME()),
-    LastLogin      DATETIME2(0) NULL
+    User_ID                    INT IDENTITY(1,1) PRIMARY KEY,
+    Email                      NVARCHAR(255) NOT NULL UNIQUE,
+    FirstName                  NVARCHAR(120) NULL,
+    LastName                   NVARCHAR(120) NULL,
+    RoleID                     INT NULL FOREIGN KEY REFERENCES dbo.Roles(RoleID),
+    Avatar                     VARCHAR(100) NOT NULL DEFAULT 'pfp-0.png',
+    EmailVerified              BIT NOT NULL DEFAULT(0),
+    Created                    DATETIME2(0) NOT NULL DEFAULT(SYSUTCDATETIME()),
+    LastLogin                  DATETIME2(0) NULL,
+    termsAccepted              BIT NOT NULL CONSTRAINT DF_Users_termsAccepted DEFAULT 0,
+    termsAcceptedAt            DATETIME NULL,
+    IsBanned                   BIT NOT NULL CONSTRAINT DF_Users_IsBanned DEFAULT 0,
+    BanType                    NVARCHAR(20) NULL,
+    BannedUntil                DATETIME2(0) NULL,
+    EmailNotificationsEnabled  BIT NOT NULL CONSTRAINT DF_Users_EmailNotificationsEnabled DEFAULT (1)
   );
 END;
 GO

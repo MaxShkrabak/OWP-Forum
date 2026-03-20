@@ -329,7 +329,8 @@ $app->get('/api/categories/{id}/posts', function (Request $req, Response $res, a
             'comments' => 'commentCount DESC, p.CreatedAt DESC',
             default    => 'p.CreatedAt DESC',
         };
-$searchWhere = '';
+
+        $searchWhere = '';
         if ($hasSearch) {
             if ($mode === 'title') {
                 $searchWhere = " AND p.Title LIKE :q ";
@@ -349,12 +350,12 @@ $searchWhere = '';
                 $placeholderStr = implode(',', $placeholders);
 
                 $searchWhere = " AND p.PostID IN (
-        SELECT pt.PostID FROM dbo.PostTags pt
-        JOIN dbo.Tags t ON t.TagID = pt.TagID
-        WHERE t.Name IN ($placeholderStr)
-        GROUP BY pt.PostID
-        HAVING COUNT(DISTINCT t.Name) = $tagCount
-    ) ";
+                    SELECT pt.PostID FROM dbo.PostTags pt
+                    JOIN dbo.Tags t ON t.TagID = pt.TagID
+                    WHERE t.Name IN ($placeholderStr)
+                    GROUP BY pt.PostID
+                    HAVING COUNT(DISTINCT t.Name) = $tagCount
+                ) ";
             }
         }
 
@@ -420,7 +421,8 @@ $searchWhere = '';
         if (!empty($rows)) {
             $postIds = array_map(fn($r) => (int)$r['PostID'], $rows);
             $placeholders = implode(',', array_fill(0, count($postIds), '?'));
-$tagsByPostId = [];
+
+            $tagsByPostId = [];
             $tagSql = "SELECT pt.PostID, t.Name FROM dbo.PostTags pt
                        JOIN dbo.Tags t ON t.TagID = pt.TagID
                        WHERE pt.PostID IN ($placeholders)
@@ -570,6 +572,164 @@ $app->post('/api/posts/{id}/vote', function (Request $req, Response $res, array 
             'ok'     => true,
             'myVote' => $val,
             'score'  => $score
+        ]);
+    } catch (Throwable $e) {
+        return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+    }
+});
+
+$app->post('/api/posts/{id}/pin', function (Request $req, Response $res, array $args) use ($makePdo) {
+    try {
+        $userId = (int)$req->getAttribute("user_id");
+        if (!$userId) {
+            return json($res, ['ok' => false, 'error' => 'Not Authenticated'], 401);
+        }
+
+        $pdo = $makePdo();
+
+        if ($termsRes = \Forum\Helpers\requireTermsAccepted($req, $res, $pdo)) {
+            return $termsRes;
+        }
+
+        $postId = (int)$args['id'];
+        if ($postId <= 0) {
+            return json($res, ['ok' => false, 'error' => 'Invalid post ID.'], 400);
+        }
+
+        $roleStmt = $pdo->prepare("
+            SELECT ISNULL(r.Name, '') AS RoleName
+            FROM dbo.Users u
+            LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
+            WHERE u.User_ID = :uid
+        ");
+        $roleStmt->execute([':uid' => $userId]);
+        $roleName = trim((string)$roleStmt->fetchColumn());
+
+        if (strtolower($roleName) !== 'admin') {
+            return json($res, ['ok' => false, 'error' => 'Forbidden'], 403);
+        }
+
+        $postStmt = $pdo->prepare("
+            SELECT p.PostID, p.IsDeleted
+            FROM dbo.Posts p
+            WHERE p.PostID = :pid
+        ");
+        $postStmt->execute([':pid' => $postId]);
+        $post = $postStmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$post || (int)$post['IsDeleted'] === 1) {
+            return json($res, ['ok' => false, 'error' => 'Post not found.'], 404);
+        }
+
+        $checkStmt = $pdo->prepare("SELECT 1 FROM dbo.Pinned WHERE PostID = :pid");
+        $checkStmt->execute([':pid' => $postId]);
+        $alreadyPinned = (bool)$checkStmt->fetchColumn();
+
+        if ($alreadyPinned) {
+            $deleteStmt = $pdo->prepare("DELETE FROM dbo.Pinned WHERE PostID = :pid");
+            $deleteStmt->execute([':pid' => $postId]);
+
+            return json($res, [
+                'ok' => true,
+                'isPinned' => false
+            ]);
+        }
+
+        $insertStmt = $pdo->prepare("INSERT INTO dbo.Pinned (PostID) VALUES (:pid)");
+        $insertStmt->execute([':pid' => $postId]);
+
+        return json($res, [
+            'ok' => true,
+            'isPinned' => true
+        ]);
+    } catch (Throwable $e) {
+        return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+    }
+});
+
+$app->get('/api/posts/pinned', function (Request $req, Response $res) use ($makePdo) {
+    try {
+        $pdo = $makePdo();
+        $userId = (int)($req->getAttribute("user_id") ?? 0);
+
+        $sql = "
+            SELECT
+                p.PostID,
+                p.Title,
+                p.CreatedAt,
+                p.CategoryID,
+                p.TotalScore,
+                (SELECT COUNT(*) FROM dbo.Comments cm WHERE cm.PostID = p.PostID) AS commentCount,
+                u.FirstName,
+                u.LastName,
+                u.Avatar,
+                u.User_ID,
+                r.Name AS RoleName,
+                c.Name AS CategoryName,
+                ISNULL(pv.VoteValue, 0) AS myVote
+            FROM dbo.Pinned pin
+            INNER JOIN dbo.Posts p ON pin.PostID = p.PostID
+            LEFT JOIN dbo.Users u ON p.AuthorID = u.User_ID
+            LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
+            LEFT JOIN dbo.Categories c ON p.CategoryID = c.CategoryID
+            LEFT JOIN dbo.PostVotes pv ON p.PostID = pv.PostID AND pv.User_ID = :userId
+            WHERE p.IsDeleted = 0
+            ORDER BY pin.CreatedAt DESC, p.CreatedAt DESC
+        ";
+
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([':userId' => $userId]);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        if (empty($rows)) {
+            return json($res, ['ok' => true, 'posts' => []]);
+        }
+
+        $postIds = array_map(fn($r) => (int)$r['PostID'], $rows);
+        $placeholders = implode(',', array_fill(0, count($postIds), '?'));
+
+        $tagsByPostId = [];
+        $tagSql = "
+            SELECT pt.PostID, t.Name
+            FROM dbo.PostTags pt
+            JOIN dbo.Tags t ON t.TagID = pt.TagID
+            WHERE pt.PostID IN ($placeholders)
+            ORDER BY CASE WHEN t.Name = 'Official' THEN 0 ELSE 1 END, t.Name ASC
+        ";
+
+        $tagStmt = $pdo->prepare($tagSql);
+        $tagStmt->execute($postIds);
+
+        while ($tag = $tagStmt->fetch(PDO::FETCH_ASSOC)) {
+            $tagsByPostId[(int)$tag['PostID']][] = $tag['Name'];
+        }
+
+        $posts = [];
+        foreach ($rows as $row) {
+            $pid = (int)$row['PostID'];
+
+            $posts[] = [
+                'PostID'       => $pid,
+                'postId'       => $pid,
+                'categoryId'   => (int)($row['CategoryID'] ?? 0),
+                'categoryName' => $row['CategoryName'] ?? '',
+                'title'        => $row['Title'],
+                'createdAt'    => $row['CreatedAt'],
+                'authorId'     => (int)($row['User_ID'] ?? 0),
+                'authorName'   => trim(($row['FirstName'] ?? '') . ' ' . ($row['LastName'] ?? '')),
+                'authorRole'   => $row['RoleName'] ?? 'User',
+                'authorAvatar' => $row['Avatar'] ?? null,
+                'tags'         => $tagsByPostId[$pid] ?? [],
+                'commentCount' => (int)($row['commentCount'] ?? 0),
+                'TotalScore'   => (int)($row['TotalScore'] ?? 0),
+                'myVote'       => (int)($row['myVote'] ?? 0),
+                'isPinned'     => true,
+            ];
+        }
+
+        return json($res, [
+            'ok' => true,
+            'posts' => $posts,
         ]);
     } catch (Throwable $e) {
         return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
@@ -754,7 +914,8 @@ $app->put('/api/posts/{id}', function (Request $req, Response $res, array $args)
         if ($userId !== $authorId && $userRoleId < 3) {
             return json($res, ['ok' => false, 'error' => 'Permission denied.'], 403);
         }
-$catStmt = $pdo->prepare("SELECT CategoryID, UsableByRoleID FROM dbo.Categories WHERE CategoryID = :catId");
+
+        $catStmt = $pdo->prepare("SELECT CategoryID, UsableByRoleID FROM dbo.Categories WHERE CategoryID = :catId");
         $catStmt->execute(['catId' => $categoryIdIn]);
         $categoryData = $catStmt->fetch(PDO::FETCH_ASSOC);
 
