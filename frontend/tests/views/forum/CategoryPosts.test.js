@@ -2,11 +2,13 @@ import { mount, flushPromises } from "@vue/test-utils";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import CategoryPage from "@/views/forum/CategoryPosts.vue";
 import { fetchPosts, getFilterTags } from "@/api/posts";
-import { useRoute } from "vue-router";
+import { RouterLink, useRoute } from "vue-router";
+import { userRole } from "@/stores/userStore";
 
 vi.mock("vue-router", () => ({
   useRoute: vi.fn(),
   useRouter: vi.fn(() => ({ back: vi.fn() })),
+  RouterLink: vi.fn().mockImplementation(({ children }) => children),
 }));
 
 vi.mock("@/api/posts", () => ({
@@ -16,7 +18,7 @@ vi.mock("@/api/posts", () => ({
 
 vi.mock("@/stores/userStore", () => ({
   isLoggedIn: true,
-  isBanned: false,
+  userRole: "admin",
 }));
 
 describe("CategoryPage.vue", () => {

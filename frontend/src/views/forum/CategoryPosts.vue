@@ -6,9 +6,10 @@ import PostCard from '@/components/forum/PostCard.vue';
 import UserCard from '@/components/user/UserCard.vue';
 import CreatePostButton from '@/components/forum/CreatePostButton.vue';
 import ViewReportsButton from '@/components/admin/ViewReportsButton.vue';
-import { isLoggedIn, isBanned } from '@/stores/userStore';
+import { isLoggedIn } from '@/stores/userStore';
 import { fetchPosts as apiGetPosts, getFilterTags as apiGetTags } from '@/api/posts';
 import { getPaginationRange } from '@/utils/pagination';
+import AdminPanelButton from '@/components/admin/AdminPanelButton.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -20,7 +21,7 @@ const error = ref(null);
 const currentPage = ref(1);
 const totalPages = ref(1);
 const totalPosts = ref(0);
-const limit = ref(Number(localStorage.getItem('category_limit')) || 5);
+const limit = ref(Number(localStorage.getItem('category_limit')) || 10);
 const sort = ref(localStorage.getItem('category_sort') || 'latest');
 
 const allTags = ref([]);          
@@ -109,12 +110,10 @@ onMounted(async () => {
           <div class="sticky-sidebar">
             <UserCard />
 
-            <div class="action-buttons-container mt-4" v-if="isLoggedIn && !isBanned">
-              <CreatePostButton
-                @post-refresh="loadCategoryPosts"
-                class="w-100 shadow-sm"
-              />
-              <ViewReportsButton class="w-100 mt-2" />
+            <div class="action-buttons-container mt-3" v-if="isLoggedIn">
+              <AdminPanelButton />
+              <CreatePostButton @post-refresh="loadCategoryPosts" />
+              <ViewReportsButton />
             </div>
 
             <!-- Tag Filter -->
@@ -264,6 +263,11 @@ onMounted(async () => {
 .category-page {
   background-color: #cbdad5;
   min-height: 80vh;
+}
+.action-buttons-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 .category-header {
   background: linear-gradient(135deg, #004b33 0%, #003d4c 100%);
