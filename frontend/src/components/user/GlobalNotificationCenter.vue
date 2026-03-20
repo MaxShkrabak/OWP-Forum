@@ -1,15 +1,22 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { fetchNotifications, markNotificationsRead } from '@/api/users';
 import { isLoggedIn } from '@/stores/userStore';
 import { isNotificationEnabled } from '@/utils/notificationPreferences';
 
 const router = useRouter();
+const route = useRoute();
+
 const notifications = ref([]);
 const seenIds = new Set();
-let intervalId = null;
+const shownTimestamps = ref([]);
 let isFetching = false;
+
+const AUTO_DISMISS_MS = 5000;
+const MAX_VISIBLE = 3;
+const MAX_PER_MINUTE = 3;
+const RATE_WINDOW_MS = 60_000;
 
 function getMessage(item) {
   if (item.type === 'postLike') {
@@ -23,9 +30,23 @@ function getMessage(item) {
   return 'You have a new notification.';
 }
 
-async function markReadAndRemove(notificationId) {
-  notifications.value = notifications.value.filter(n => n.notificationId !== notificationId);
+function pruneRateWindow() {
+  const now = Date.now();
+  shownTimestamps.value = shownTimestamps.value.filter(
+    (ts) => now - ts < RATE_WINDOW_MS
+  );
+}
 
+function canShowAnotherNotification() {
+  pruneRateWindow();
+  return shownTimestamps.value.length < MAX_PER_MINUTE;
+}
+
+function rememberShownNow() {
+  shownTimestamps.value.push(Date.now());
+}
+
+async function markRead(notificationId) {
   try {
     await markNotificationsRead([notificationId]);
   } catch (e) {
@@ -33,8 +54,18 @@ async function markReadAndRemove(notificationId) {
   }
 }
 
+async function removeNotification(notificationId, shouldMarkRead = true) {
+  notifications.value = notifications.value.filter(
+    (n) => n.notificationId !== notificationId
+  );
+
+  if (shouldMarkRead) {
+    await markRead(notificationId);
+  }
+}
+
 async function openNotification(notificationId, postId) {
-  await markReadAndRemove(notificationId);
+  await removeNotification(notificationId, true);
 
   if (postId) {
     router.push(`/posts/${postId}`);
@@ -42,10 +73,33 @@ async function openNotification(notificationId, postId) {
 }
 
 async function closeNotification(notificationId) {
-  await markReadAndRemove(notificationId);
+  await removeNotification(notificationId, true);
 }
 
-async function pollNotifications() {
+function scheduleAutoDismiss(notificationId) {
+  window.setTimeout(() => {
+    const exists = notifications.value.some((n) => n.notificationId === notificationId);
+    if (exists) {
+      removeNotification(notificationId, true);
+    }
+  }, AUTO_DISMISS_MS);
+}
+
+function tryDisplayNotification(item) {
+  if (!canShowAnotherNotification()) {
+    return;
+  }
+
+  if (notifications.value.length >= MAX_VISIBLE) {
+    return;
+  }
+
+  notifications.value = [item, ...notifications.value];
+  rememberShownNow();
+  scheduleAutoDismiss(item.notificationId);
+}
+
+async function loadNotifications() {
   if (!isLoggedIn.value || isFetching) return;
 
   isFetching = true;
@@ -54,18 +108,12 @@ async function pollNotifications() {
     const result = await fetchNotifications();
     if (!result?.ok || !Array.isArray(result.items)) return;
 
-    const fresh = [];
-
     for (const item of result.items) {
       if (!isNotificationEnabled(item.type)) continue;
       if (seenIds.has(item.notificationId)) continue;
 
       seenIds.add(item.notificationId);
-      fresh.push(item);
-    }
-
-    if (fresh.length > 0) {
-      notifications.value = [...fresh, ...notifications.value].slice(0, 5);
+      tryDisplayNotification(item);
     }
   } catch (e) {
     console.error('Failed to fetch notifications', e);
@@ -74,16 +122,25 @@ async function pollNotifications() {
   }
 }
 
+function onWindowFocus() {
+  loadNotifications();
+}
+
+function onVisibilityChange() {
+  if (document.visibilityState === 'visible') {
+    loadNotifications();
+  }
+}
+
 onMounted(() => {
-  pollNotifications();
-  intervalId = window.setInterval(pollNotifications, 8000);
+  loadNotifications();
+  window.addEventListener('focus', onWindowFocus);
+  document.addEventListener('visibilitychange', onVisibilityChange);
 });
 
 onBeforeUnmount(() => {
-  if (intervalId) {
-    clearInterval(intervalId);
-    intervalId = null;
-  }
+  window.removeEventListener('focus', onWindowFocus);
+  document.removeEventListener('visibilitychange', onVisibilityChange);
 });
 </script>
 
@@ -99,6 +156,16 @@ onBeforeUnmount(() => {
           <div class="notification-title">
             {{ item.type === 'postLike' ? 'Post liked' : 'Post replied to' }}
           </div>
+
+          <button
+            type="button"
+            class="notification-close-x"
+            @click="closeNotification(item.notificationId)"
+            aria-label="Close notification"
+          >
+            ×
+          </button>
+
           <div class="notification-message">
             {{ getMessage(item) }}
           </div>
@@ -139,6 +206,7 @@ onBeforeUnmount(() => {
 }
 
 .notification-popup {
+  position: relative;
   width: 320px;
   max-width: calc(100vw - 32px);
   background: #ffffff;
@@ -154,6 +222,23 @@ onBeforeUnmount(() => {
   font-size: 0.95rem;
   color: #2f3a2f;
   margin-bottom: 6px;
+  padding-right: 24px;
+}
+
+.notification-close-x {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  border: none;
+  background: transparent;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  color: #6c757d;
+}
+
+.notification-close-x:hover {
+  color: #343a40;
 }
 
 .notification-message {

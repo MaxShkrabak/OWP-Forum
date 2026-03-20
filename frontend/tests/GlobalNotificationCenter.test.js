@@ -1,11 +1,13 @@
 /**
  * Global notifications — unit tests.
- * Focus:
+ * Covers:
+ * - preference defaults
  * - preference gating
- * - popup rendering from fetched notifications
- * - close marks read
+ * - popup rendering from fetched unread notifications
+ * - close marks read and removes
  * - open marks read and navigates
- * - disabled preferences block popup display
+ * - auto-dismiss after 5 seconds
+ * - rate limit / max visible notifications
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { mount, flushPromises } from "@vue/test-utils";
@@ -16,6 +18,9 @@ const pushMock = vi.fn();
 vi.mock("vue-router", () => ({
   useRouter: () => ({
     push: pushMock,
+  }),
+  useRoute: () => ({
+    fullPath: "/",
   }),
 }));
 
@@ -97,6 +102,7 @@ describe("Global notifications — component behavior", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -210,5 +216,80 @@ describe("Global notifications — component behavior", () => {
 
     expect(mockMarkNotificationsRead).toHaveBeenCalledWith([401]);
     expect(pushMock).toHaveBeenCalledWith("/posts/88");
+  });
+
+  it("auto-dismisses notification after 5 seconds", async () => {
+    vi.useFakeTimers();
+
+    mockFetchNotifications.mockResolvedValue({
+      ok: true,
+      items: [
+        {
+          notificationId: 501,
+          postId: 10,
+          type: "postLike",
+          isRead: false,
+          title: "Auto dismiss post",
+          createdAt: "2026-03-19T12:00:00Z",
+        },
+      ],
+    });
+
+    const wrapper = mount(GlobalNotificationCenter);
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("Auto dismiss post");
+
+    vi.advanceTimersByTime(5000);
+    await flushPromises();
+
+    expect(mockMarkNotificationsRead).toHaveBeenCalledWith([501]);
+    expect(wrapper.text()).not.toContain("Auto dismiss post");
+  });
+
+  it("shows at most 3 notifications when more are fetched", async () => {
+    mockFetchNotifications.mockResolvedValue({
+      ok: true,
+      items: [
+        {
+          notificationId: 1,
+          postId: 1,
+          type: "postLike",
+          isRead: false,
+          title: "Post 1",
+          createdAt: "2026-03-19T12:00:00Z",
+        },
+        {
+          notificationId: 2,
+          postId: 2,
+          type: "postLike",
+          isRead: false,
+          title: "Post 2",
+          createdAt: "2026-03-19T12:00:01Z",
+        },
+        {
+          notificationId: 3,
+          postId: 3,
+          type: "postReply",
+          isRead: false,
+          title: "Post 3",
+          createdAt: "2026-03-19T12:00:02Z",
+        },
+        {
+          notificationId: 4,
+          postId: 4,
+          type: "postReply",
+          isRead: false,
+          title: "Post 4",
+          createdAt: "2026-03-19T12:00:03Z",
+        },
+      ],
+    });
+
+    const wrapper = mount(GlobalNotificationCenter);
+    await flushPromises();
+
+    const popups = wrapper.findAll(".notification-popup");
+    expect(popups.length).toBe(3);
   });
 });
