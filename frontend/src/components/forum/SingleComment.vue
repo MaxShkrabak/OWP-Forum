@@ -6,10 +6,12 @@ import {
   voteComment as apiVoteComment,
   fetchCommentReplies,
   updateComment as apiUpdateComment,
+  deleteComment as apiDeleteComment,
 } from "@/api/comments";
-import { isLoggedIn, uid } from "@/stores/userStore";
+import { isLoggedIn, uid, userRole } from "@/stores/userStore";
 import { timeAgo } from "@/utils/timeAgo";
 import TextEditor from "./TextEditor.vue";
+import ReportingModal from "../user/ReportingModal.vue";
 
 const props = defineProps({
   comment: Object,
@@ -18,6 +20,8 @@ const props = defineProps({
     default: 0,
   },
 });
+
+const emit = defineEmits(["deleted"]);
 
 const router = useRouter();
 
@@ -32,6 +36,10 @@ const myVote = ref(Number(props.comment.myVote || 0));
 const showReplies = ref(false);
 const replyText = ref("");
 const isHoveringToggle = ref(false);
+
+const showReportModal = ref(false);
+const showDeleteConfirm = ref(false);
+const isDeleting = ref(false);
 
 const activeReplyId = inject("activeReplyId");
 const submitReply = inject("submitReply");
@@ -91,6 +99,25 @@ const isAuthor = computed(() => {
     props.comment.user?.userId ?? props.comment.userId ?? 0,
   );
   return currentUid > 0 && commentUserId === currentUid;
+});
+
+const currentUserRole = computed(() =>
+  String(userRole?.value || "").toLowerCase(),
+);
+
+const isModeratorOrAdmin = computed(() => {
+  return (
+    currentUserRole.value === "moderator" ||
+    currentUserRole.value === "admin"
+  );
+});
+
+const canDelete = computed(() => {
+  return isAuthor.value || isModeratorOrAdmin.value;
+});
+
+const canReport = computed(() => {
+  return isLoggedIn.value && !isAuthor.value && !isModeratorOrAdmin.value;
 });
 
 const toggleReply = () => {
@@ -228,6 +255,37 @@ const handleReply = async () => {
         showReplies.value = true;
       }
     }
+  }
+};
+
+const openReportModal = () => {
+  showReportModal.value = true;
+};
+
+const closeReportModal = () => {
+  showReportModal.value = false;
+};
+
+const askDeleteComment = () => {
+  showDeleteConfirm.value = true;
+};
+
+const confirmDeleteComment = async () => {
+  if (isDeleting.value) return;
+
+  isDeleting.value = true;
+  try {
+    const data = await apiDeleteComment(props.comment.id);
+    if (data?.ok) {
+      showDeleteConfirm.value = false;
+      emit("deleted", props.comment.id);
+    } else {
+      alert(data?.error || "Failed to delete comment.");
+    }
+  } catch (error) {
+    alert("Failed to delete comment.");
+  } finally {
+    isDeleting.value = false;
   }
 };
 
@@ -388,6 +446,22 @@ watch(isEditing, (active) => {
           >
             <span>Reply</span>
           </button>
+
+          <button
+            v-if="canDelete"
+            class="action-btn border-0 bg-transparent fw-bold d-flex align-items-center gap-1 p-0"
+            @click="askDeleteComment"
+          >
+            <span>Delete</span>
+          </button>
+
+          <button
+            v-if="canReport"
+            class="action-btn border-0 bg-transparent fw-bold d-flex align-items-center gap-1 p-0"
+            @click="openReportModal"
+          >
+            <span>Report</span>
+          </button>
         </div>
 
         <div v-if="isReplying" class="mt-2">
@@ -443,6 +517,7 @@ watch(isEditing, (active) => {
             :comment="reply"
             :depth="depth + 1"
             :is-last-child="index === localReplies.length - 1"
+            @deleted="emit('deleted', $event)"
           />
         </div>
       </div>
@@ -515,6 +590,49 @@ watch(isEditing, (active) => {
         </div>
       </Transition>
     </Teleport>
+
+    <Teleport to="body">
+      <Transition name="fade">
+        <div
+          v-if="showDeleteConfirm"
+          class="comment-modal-mask d-flex align-items-center justify-content-center"
+          @click.self="showDeleteConfirm = false"
+        >
+          <div class="comment-modal-card shadow-lg">
+            <p class="fw-bold mb-1">Delete comment?</p>
+            <p class="small text-muted mb-3">
+              This action cannot be undone.
+            </p>
+            <div class="d-flex justify-content-end gap-2">
+              <button
+                type="button"
+                class="btn-cancel border-0 bg-transparent fw-bold small"
+                @click="showDeleteConfirm = false"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                class="btn-submit border-0 rounded-2 fw-bold px-3 py-1 small"
+                :disabled="isDeleting"
+                @click="confirmDeleteComment"
+              >
+                <span v-if="isDeleting" class="pi pi-spin pi-spinner me-1"></span>
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <ReportingModal
+      :isOpen="showReportModal"
+      :targetId="comment.id"
+      :targetTitle="comment.text?.replace(/<[^>]*>/g, '').trim() || 'Comment'"
+      type="comment"
+      @close="closeReportModal"
+    />
   </div>
 </template>
 

@@ -221,6 +221,21 @@ const cancelComment = () => {
 onMounted(() => {
   loadComments();
 });
+
+const handleDeletedComment = (deletedCommentId) => {
+  const before = flatCommentsList.value.length;
+
+  flatCommentsList.value = flatCommentsList.value.filter(
+    (comment) =>
+      comment.id !== deletedCommentId &&
+      comment.parentCommentId !== deletedCommentId,
+  );
+
+  const removedCount = before - flatCommentsList.value.length;
+  commentTotalCount.value = Math.max(0, commentTotalCount.value - removedCount);
+  commentsTree.value = buildCommentTree(flatCommentsList.value);
+};
+
 </script>
 
 <template>
@@ -299,6 +314,7 @@ onMounted(() => {
           v-for="comment in commentsTree"
           :key="comment.id"
           :comment="comment"
+          @deleted="handleDeletedComment"
         />
       </div>
 

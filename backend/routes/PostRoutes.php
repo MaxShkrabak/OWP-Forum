@@ -179,7 +179,7 @@ $app->get('/api/posts', function (Request $req, Response $res) use ($makePdo) {
 
         $getPostsSql = "
             SELECT p.PostID, p.Title, p.CreatedAt, p.CategoryID, p.TotalScore,
-                   (SELECT COUNT(*) FROM dbo.Comments cm WHERE cm.PostID = p.PostID) AS commentCount,
+                   (SELECT COUNT(*) FROM dbo.Comments cm WHERE cm.PostID = p.PostID AND cm.IsDeleted = 0) AS commentCount,
                    u.FirstName, u.LastName, u.Avatar, u.User_ID,
                    r.Name AS RoleName, c.Name AS CategoryName,
                    pv.VoteValue AS myVote
@@ -388,7 +388,7 @@ $app->get('/api/categories/{id}/posts', function (Request $req, Response $res, a
 
         $sql = "
             SELECT p.PostID, p.Title, p.CreatedAt, p.TotalScore,
-                   (SELECT COUNT(*) FROM dbo.Comments cm WHERE cm.PostID = p.PostID) AS commentCount,
+                   (SELECT COUNT(*) FROM dbo.Comments cm WHERE cm.PostID = p.PostID AND cm.IsDeleted = 0) AS commentCount,
                    u.FirstName, u.LastName, u.Avatar, u.User_ID, r.Name AS RoleName,
                    ISNULL(pv.VoteValue, 0) AS myVote
             FROM dbo.Posts p
@@ -689,7 +689,7 @@ $app->get('/api/posts/pinned', function (Request $req, Response $res) use ($make
                 p.CreatedAt,
                 p.CategoryID,
                 p.TotalScore,
-                (SELECT COUNT(*) FROM dbo.Comments cm WHERE cm.PostID = p.PostID) AS commentCount,
+                (SELECT COUNT(*) FROM dbo.Comments cm WHERE cm.PostID = p.PostID AND cm.IsDeleted = 0) AS commentCount,
                 u.FirstName,
                 u.LastName,
                 u.Avatar,
