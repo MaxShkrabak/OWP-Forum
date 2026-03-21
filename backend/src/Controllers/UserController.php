@@ -10,6 +10,7 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
 use function Forum\Helpers\json;
+use function Forum\Helpers\markNotificationsRead;
 
 final class UserController
 {
@@ -106,6 +107,77 @@ final class UserController
                 'ok' => true,
                 'settings' => ['emailNotifications' => $emailNotifications],
             ]);
+        } catch (Throwable $e) {
+            return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function getNotifications(Request $req, Response $res): Response
+    {
+        try {
+            $userId = (int)$req->getAttribute('user_id');
+            if (!$userId) {
+                return json($res, ['ok' => false, 'error' => 'Unauthorized'], 401);
+            }
+
+            $pdo = ($this->makePdo)();
+
+            $sql = "
+                SELECT TOP 20
+                    n.NotificationID,
+                    n.PostID,
+                    n.[Type],
+                    n.IsRead,
+                    n.CreatedAt,
+                    p.Title
+                FROM dbo.Notifications n
+                JOIN dbo.Posts p ON p.PostID = n.PostID
+                WHERE n.UserID = :uid
+                  AND n.IsRead = 0
+                  AND p.IsDeleted = 0
+                ORDER BY n.CreatedAt DESC, n.NotificationID DESC
+            ";
+
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([':uid' => $userId]);
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $items = array_map(function ($row) {
+                return [
+                    'notificationId' => (int)$row['NotificationID'],
+                    'postId'         => (int)$row['PostID'],
+                    'type'           => (string)$row['Type'],
+                    'isRead'         => (bool)$row['IsRead'],
+                    'title'          => (string)$row['Title'],
+                    'createdAt'      => $row['CreatedAt']
+                ];
+            }, $rows);
+
+            return json($res, ['ok' => true, 'items' => $items]);
+        } catch (Throwable $e) {
+            return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function markNotificationsRead(Request $req, Response $res): Response
+    {
+        try {
+            $userId = (int)$req->getAttribute('user_id');
+            if (!$userId) {
+                return json($res, ['ok' => false, 'error' => 'Unauthorized'], 401);
+            }
+
+            $data = $req->getParsedBody() ?? [];
+            $notificationIds = is_array($data['notificationIds'] ?? null) ? $data['notificationIds'] : [];
+
+            if (empty($notificationIds)) {
+                return json($res, ['ok' => false, 'error' => 'notificationIds is required'], 400);
+            }
+
+            $pdo = ($this->makePdo)();
+            $ok = markNotificationsRead($pdo, $userId, $notificationIds);
+
+            return json($res, ['ok' => $ok]);
         } catch (Throwable $e) {
             return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
         }

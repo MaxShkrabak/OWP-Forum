@@ -4,6 +4,8 @@ use Forum\Controllers\UserController;
 $userController = new UserController($makePdo);
 
 $app->post('/api/user/avatar', [$userController, 'updateAvatar']);
+$app->get('/api/user/notifications', [$userController, 'getNotifications']);
+$app->post('/api/user/notifications/read', [$userController, 'markNotificationsRead']);
 $app->get('/api/user/notification-settings', [$userController, 'getNotificationSettings']);
 $app->post('/api/user/notification-settings', [$userController, 'updateNotificationSettings']);
 $app->post('/api/accept-terms', [$userController, 'acceptTerms']);
