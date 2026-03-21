@@ -281,7 +281,7 @@ if ($postOwner) {
                     JOIN dbo.Users u ON u.User_ID = c.UserId
                     JOIN dbo.Roles r ON u.RoleID = r.RoleID
                     LEFT JOIN dbo.CommentVotes cv ON cv.CommentId = c.CommentId AND cv.UserId = :currentUserId
-                    WHERE c.PostId = :postId AND c.IsDeleted = 0
+                    WHERE c.PostId = :postId AND c.IsDeleted = 0 AND c.ParentCommentId IS NULL
                     ORDER BY {$orderBy}
                     OFFSET :offset ROWS FETCH NEXT :limit ROWS ONLY";
 

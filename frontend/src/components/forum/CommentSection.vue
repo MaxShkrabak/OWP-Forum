@@ -1,13 +1,15 @@
 <script setup>
-import { ref, computed, provide, onMounted } from "vue";
+import { ref, provide, onMounted } from "vue";
+import { useRouter } from "vue-router";
 import SingleComment from "./SingleComment.vue";
+import CommentEditor from "./TextEditor.vue";
 
 import {
   fetchComments as apiFetchComments,
   submitComment as apiSubmitComment,
-  formatCommentData
-} from '@/api/comments';
-import { uid, isLoggedIn } from '@/stores/userStore';
+  formatCommentData,
+} from "@/api/comments";
+import { uid, isLoggedIn } from "@/stores/userStore";
 
 const props = defineProps({
   postId: {
@@ -15,6 +17,8 @@ const props = defineProps({
     required: true,
   },
 });
+
+const router = useRouter();
 
 const flatCommentsList = ref([]);
 const commentsTree = ref([]);
@@ -32,16 +36,18 @@ const hasMore = ref(true);
 const isLoadingMore = ref(false);
 
 const commentTotalCount = ref(0);
+const isUploading = ref(false);
+const editorRef = ref(null);
 
 const sortOptions = [
-  { label: 'Newest', value: 'latest' },
-  { label: 'Oldest', value: 'oldest' },
-  { label: 'Most Liked', value: 'mostLiked' }
+  { label: "Newest", value: "latest" },
+  { label: "Oldest", value: "oldest" },
+  { label: "Most Liked", value: "mostLiked" },
 ];
-const selectedSort = ref('latest');
+const selectedSort = ref("latest");
 
-provide('activeReplyId', activeReplyId);
-provide('activeEditId', activeEditId);
+provide("activeReplyId", activeReplyId);
+provide("activeEditId", activeEditId);
 
 const openEditComment = (commentId) => {
   if (activeEditId.value === commentId) return;
@@ -81,9 +87,9 @@ const cancelSwitchEdit = () => {
   showDiscardConfirm.value = false;
 };
 
-provide('openEditComment', openEditComment);
-provide('closeEditComment', closeEditComment);
-provide('markEditDirty', markEditDirty);
+provide("openEditComment", openEditComment);
+provide("closeEditComment", closeEditComment);
+provide("markEditDirty", markEditDirty);
 
 const buildCommentTree = (flatComments) => {
   const map = new Map();
@@ -107,6 +113,14 @@ const buildCommentTree = (flatComments) => {
   return tree;
 };
 
+const handleCommentBoxClick = () => {
+  if (isLoggedIn.value) {
+    isFocused.value = true;
+  } else {
+    router.push("/login");
+  }
+};
+
 const loadComments = async (isInitial = true) => {
   if (isInitial) {
     currentBatch.value = 1;
@@ -121,23 +135,23 @@ const loadComments = async (isInitial = true) => {
       props.postId,
       currentBatch.value,
       commentsPerLoad,
-      selectedSort.value
+      selectedSort.value,
     );
 
     if (data && data.ok) {
       commentTotalCount.value = data.total || 0;
 
+      const formattedItems = data.items.map(formatCommentData);
+      flatCommentsList.value = [...flatCommentsList.value, ...formattedItems];
+      commentsTree.value = buildCommentTree(flatCommentsList.value);
+
       if (
-        flatCommentsList.value.length + data.items.length >=
-        commentTotalCount.value
+        data.items.length < commentsPerLoad ||
+        currentBatch.value * commentsPerLoad >= commentTotalCount.value ||
+        flatCommentsList.value.length >= commentTotalCount.value
       ) {
         hasMore.value = false;
       }
-
-      const formattedItems = data.items.map(formatCommentData);
-
-      flatCommentsList.value = [...flatCommentsList.value, ...formattedItems];
-      commentsTree.value = buildCommentTree(flatCommentsList.value);
     }
   } catch (error) {
     console.error("Load error:", error);
@@ -156,11 +170,14 @@ const handleLoadMore = async () => {
 };
 
 const submitComment = async () => {
-  if (!newComment.value.trim()) return;
+  const cleanContent = newComment.value.replace(/(<([^>]+)>)/gi, "").trim();
+  if (!cleanContent) return;
+
   try {
     const data = await apiSubmitComment(props.postId, newComment.value);
     if (data && data.ok) {
       newComment.value = "";
+      editorRef.value?.clearContent();
       isFocused.value = false;
       commentTotalCount.value++;
 
@@ -195,10 +212,9 @@ const submitReply = async (replyContent, parentCommentId) => {
 
 provide("submitReply", submitReply);
 
-const totalCommentsCount = computed(() => commentTotalCount.value);
-
 const cancelComment = () => {
   newComment.value = "";
+  editorRef.value?.clearContent();
   isFocused.value = false;
 };
 
@@ -214,7 +230,7 @@ onMounted(() => {
     >
       <div class="d-flex align-items-center gap-2">
         <i class="pi pi-comments"></i>
-        <span>Comments ({{ totalCommentsCount }})</span>
+        <span>Comments ({{ commentTotalCount }})</span>
       </div>
 
       <div class="sort-dropdown d-inline-flex align-items-center">
@@ -226,7 +242,11 @@ onMounted(() => {
           @change="handleSortChange"
           class="sort-select"
         >
-          <option v-for="option in sortOptions" :key="option.value" :value="option.value">
+          <option
+            v-for="option in sortOptions"
+            :key="option.value"
+            :value="option.value"
+          >
             {{ option.label }}
           </option>
         </select>
@@ -238,32 +258,37 @@ onMounted(() => {
         <div
           class="reply-box-container border rounded-3 overflow-hidden bg-white"
           :class="{ 'focused-border': isFocused }"
+          :style="{ cursor: !isLoggedIn ? 'pointer' : 'text' }"
+          @click="handleCommentBoxClick()"
         >
-          <textarea
+          <CommentEditor
+            ref="editorRef"
             v-model="newComment"
-            @focus="isFocused = true"
-            :placeholder="isLoggedIn ? 'Add a comment...' : 'Sign in to comment'"
+            v-model:isUploading="isUploading"
             :disabled="!isLoggedIn"
-            class="comment-textarea w-100 border-0 p-3"
-            rows="2"
-          ></textarea>
+            :compact="true"
+            :show-toolbar="isFocused"
+            :placeholder="
+              isLoggedIn ? 'Add a comment...' : 'Sign in to comment'
+            "
+          />
 
           <div
             v-if="isFocused"
-            class="d-flex justify-content-end align-items-center gap-3 px-3 pb-2"
+            class="d-flex justify-content-end align-items-center gap-3 px-3 pb-2 pt-2"
           >
             <button
               class="btn-cancel border-0 bg-transparent fw-bold"
-              @click="cancelComment"
+              @click.stop="cancelComment"
             >
               Cancel
             </button>
             <button
               class="btn-submit border-0 rounded-2 fw-bold px-4 py-2"
-              :disabled="!newComment"
-              @click="submitComment"
+              :disabled="!newComment || newComment === '<p></p>' || isUploading"
+              @click.stop="submitComment"
             >
-              Comment
+              {{ isUploading ? "Uploading..." : "Comment" }}
             </button>
           </div>
         </div>
@@ -299,7 +324,8 @@ onMounted(() => {
           <div class="comment-modal-card shadow-lg">
             <p class="fw-bold mb-1">Discard unsaved changes?</p>
             <p class="small text-muted mb-3">
-              You have unsaved changes on another comment. If you continue, those changes will be lost.
+              You have unsaved changes on another comment. If you continue,
+              those changes will be lost.
             </p>
             <div class="d-flex justify-content-end gap-2">
               <button
@@ -338,14 +364,6 @@ onMounted(() => {
 }
 .focused-border {
   border-color: #035157 !important;
-}
-
-.comment-textarea {
-  outline: none;
-  resize: vertical;
-  font-size: 0.95rem;
-  color: #1f2937;
-  min-height: 80px;
 }
 
 .btn-cancel {
@@ -400,11 +418,6 @@ onMounted(() => {
   opacity: 0;
 }
 
-.header-row {
-  border-bottom: 1px solid #e5e7eb;
-  padding-bottom: 0.75rem;
-}
-
 .sort-dropdown {
   background-color: rgba(30, 77, 56, 0.06); /* Subtle green tint */
   border: 1px solid #cce3d6;
@@ -447,16 +460,5 @@ onMounted(() => {
   color: #1f2937;
   text-transform: none;
   font-weight: normal;
-}
-
-@media (max-width: 599px) {
-  .comment-textarea {
-    font-size: 0.85rem;
-    padding: 0.75rem !important;
-  }
-  .btn-submit {
-    padding: 0.5rem 1rem !important;
-    font-size: 0.8rem;
-  }
 }
 </style>
