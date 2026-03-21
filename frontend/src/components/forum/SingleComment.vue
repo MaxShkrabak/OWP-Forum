@@ -100,7 +100,7 @@ const toggleReply = () => {
   }
   activeReplyId.value = isReplying.value ? null : props.comment.id;
 
-  if (activeReplyId.value === props.comment.id && props.depth >= 2) {
+  if (activeReplyId.value === props.comment.id) {
     const authorName =
       props.comment.author || props.comment.user?.firstName || "User";
     replyText.value = `@${authorName} `;
@@ -618,7 +618,7 @@ watch(isEditing, (active) => {
   left: 19px;
   bottom: 30px;
   width: 1px;
-  background-color: #e5e7eb;
+  background-color: #c5cad3;
   cursor: pointer;
   transition: background-color 0.2s ease;
 }
@@ -633,8 +633,8 @@ watch(isEditing, (active) => {
   left: 0;
   width: 12px;
   height: 24px;
-  border-bottom: 1px solid #e5e7eb;
-  border-left: 1px solid #e5e7eb;
+  border-bottom: 1px solid #c5cad3;
+  border-left: 1px solid #c5cad3;
   border-bottom-left-radius: 12px;
   margin-top: -12px;
   transition: border-color 0.2s ease;
@@ -649,7 +649,7 @@ watch(isEditing, (active) => {
 .btn-toggle-replies {
   color: #035157;
   border-width: 1px !important;
-  border-color: #e5e7eb !important;
+  border-color: #c5cad3 !important;
   transition: border-color 0.2s ease;
 }
 
