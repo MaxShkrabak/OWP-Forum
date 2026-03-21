@@ -2,8 +2,7 @@ import { mount, flushPromises } from "@vue/test-utils";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import CategoryPage from "@/views/forum/CategoryPosts.vue";
 import { fetchPosts, getFilterTags } from "@/api/posts";
-import { RouterLink, useRoute } from "vue-router";
-import { userRole } from "@/stores/userStore";
+import { useRoute } from "vue-router";
 
 vi.mock("vue-router", () => ({
   useRoute: vi.fn(),
@@ -14,6 +13,7 @@ vi.mock("vue-router", () => ({
 vi.mock("@/api/posts", () => ({
   fetchPosts: vi.fn(),
   getFilterTags: vi.fn(),
+  fetchPinnedPosts: vi.fn(() => Promise.resolve([])),
 }));
 
 vi.mock("@/stores/userStore", () => ({
