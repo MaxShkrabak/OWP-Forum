@@ -4,6 +4,11 @@ import CommentSection from "@/components/forum/CommentSection.vue";
 import TextEditor from "@/components/forum/TextEditor.vue";
 import { fetchComments, updateComment } from "@/api/comments";
 
+vi.mock("@/stores/userStore", () => ({
+  isLoggedIn: { value: true },
+  uid: { value: 1 }, // Matches the userId: 1 in the mocked comments below
+}));
+
 vi.mock("@/api/auth", () => ({
   checkAuth: vi.fn(() =>
     Promise.resolve({
@@ -19,20 +24,13 @@ vi.mock("@/api/comments", () => ({
     Promise.resolve({
       ok: true,
       total: 15,
-      items: [
-        {
-          commentId: 1,
-          content: "This is my first comment!",
-          user: { userId: 1, firstName: "John", lastName: "Rogers" },
-          replies: [],
-        },
-        {
-          commentId: 2,
-          content: "Wow this post is cool!",
-          user: { userId: 2, firstName: "Jack", lastName: "Timothy" },
-          replies: [],
-        },
-      ],
+      // We dynamically generate 10 items here so the "Show More" button stays visible
+      items: Array.from({ length: 10 }, (_, i) => ({
+        commentId: i + 1,
+        content: `This is comment ${i + 1}`,
+        user: { userId: 1, firstName: "John", lastName: "Rogers" },
+        replies: [],
+      })),
     }),
   ),
   submitComment: vi.fn(),
@@ -68,6 +66,7 @@ vi.mock("@/api/comments", () => ({
       data.updatedAt !== data.createdAt,
   })),
 }));
+
 describe("CommentSection.vue", () => {
   let wrapper;
 
@@ -187,7 +186,7 @@ describe("CommentSection.vue", () => {
     confirmButton.dispatchEvent(new Event("click"));
     await flushPromises();
 
-    expect(updateComment).toHaveBeenCalled();
+    expect(updateComment).toHaveBeenCalledWith(1, "Updated comment content");
     const editedLabel = wrapper.find(".edited-label");
     expect(editedLabel.exists()).toBe(true);
   });
@@ -199,7 +198,7 @@ describe("CommentSection.vue", () => {
     await select.setValue("mostLiked");
     await flushPromises();
 
-    expect(fetchComments).toHaveBeenCalled();
+    expect(fetchComments).toHaveBeenCalledWith(12, 2, 10, "latest");
     const lastCallArgs = fetchComments.mock.calls.at(-1);
     expect(lastCallArgs[3]).toBe("mostLiked");
   });

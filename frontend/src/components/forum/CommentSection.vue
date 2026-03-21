@@ -141,17 +141,17 @@ const loadComments = async (isInitial = true) => {
     if (data && data.ok) {
       commentTotalCount.value = data.total || 0;
 
+      const formattedItems = data.items.map(formatCommentData);
+      flatCommentsList.value = [...flatCommentsList.value, ...formattedItems];
+      commentsTree.value = buildCommentTree(flatCommentsList.value);
+
       if (
-        flatCommentsList.value.length + data.items.length >=
-        commentTotalCount.value
+        data.items.length < commentsPerLoad ||
+        currentBatch.value * commentsPerLoad >= commentTotalCount.value ||
+        flatCommentsList.value.length >= commentTotalCount.value
       ) {
         hasMore.value = false;
       }
-
-      const formattedItems = data.items.map(formatCommentData);
-
-      flatCommentsList.value = [...flatCommentsList.value, ...formattedItems];
-      commentsTree.value = buildCommentTree(flatCommentsList.value);
     }
   } catch (error) {
     console.error("Load error:", error);

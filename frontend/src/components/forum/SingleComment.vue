@@ -1,5 +1,5 @@
 <script setup>
-import { ref, inject, computed, watch } from "vue";
+import { ref, inject, computed, watch, provide } from "vue";
 import { useRouter } from "vue-router";
 import UserRole from "@/components/user/UserRole.vue";
 import {
@@ -13,6 +13,10 @@ import TextEditor from "./TextEditor.vue";
 
 const props = defineProps({
   comment: Object,
+  depth: {
+    type: Number,
+    default: 0,
+  },
 });
 
 const router = useRouter();
@@ -36,6 +40,27 @@ const activeEditId = inject("activeEditId");
 const openEditComment = inject("openEditComment");
 const closeEditComment = inject("closeEditComment");
 const markEditDirty = inject("markEditDirty");
+
+const maxDepthContext = inject("maxDepthContext", null);
+
+if (props.depth === 1) {
+  provide("maxDepthContext", {
+    parentId: props.comment.id,
+    addReply: (newReplyData) => {
+      localReplies.value.push({
+        ...newReplyData,
+        id: newReplyData.commentId,
+        author: `${newReplyData.user.firstName} ${newReplyData.user.lastName}`,
+        role: newReplyData.user.role,
+        time: "Just now",
+        text: newReplyData.content,
+        replies: [],
+      });
+      showReplies.value = true;
+      props.comment.replyCount = (props.comment.replyCount || 0) + 1;
+    },
+  });
+}
 
 const isReplying = computed(() => activeReplyId.value === props.comment.id);
 const isEditing = computed(() => activeEditId?.value === props.comment.id);
@@ -74,6 +99,14 @@ const toggleReply = () => {
     return;
   }
   activeReplyId.value = isReplying.value ? null : props.comment.id;
+
+  if (activeReplyId.value === props.comment.id && props.depth >= 2) {
+    const authorName =
+      props.comment.author || props.comment.user?.firstName || "User";
+    replyText.value = `@${authorName} `;
+  } else {
+    replyText.value = "";
+  }
 };
 
 const startEdit = () => {
@@ -165,24 +198,35 @@ const toggleRepliesDropdown = async () => {
 };
 
 const handleReply = async () => {
-  const newCommentData = await submitReply(replyText.value, props.comment.id);
+  const targetParentId =
+    props.depth >= 2 && maxDepthContext
+      ? maxDepthContext.parentId
+      : props.comment.id;
+
+  const newCommentData = await submitReply(replyText.value, targetParentId);
 
   if (newCommentData) {
     replyText.value = "";
-    props.comment.replyCount = (props.comment.replyCount || 0) + 1;
 
-    if (hasFetched.value) {
-      localReplies.value.push({
-        ...newCommentData,
-        id: newCommentData.commentId,
-        author: `${newCommentData.user.firstName} ${newCommentData.user.lastName}`,
-        role: newCommentData.user.role,
-        time: "Just now",
-        text: newCommentData.content,
-        replies: [],
-      });
+    if (props.depth >= 2 && maxDepthContext) {
+      maxDepthContext.addReply(newCommentData);
+      activeReplyId.value = null;
+    } else {
+      props.comment.replyCount = (props.comment.replyCount || 0) + 1;
 
-      showReplies.value = true;
+      if (hasFetched.value) {
+        localReplies.value.push({
+          ...newCommentData,
+          id: newCommentData.commentId,
+          author: `${newCommentData.user.firstName} ${newCommentData.user.lastName}`,
+          role: newCommentData.user.role,
+          time: "Just now",
+          text: newCommentData.content,
+          replies: [],
+        });
+
+        showReplies.value = true;
+      }
     }
   }
 };
@@ -397,6 +441,7 @@ watch(isEditing, (active) => {
           ></div>
           <SingleComment
             :comment="reply"
+            :depth="depth + 1"
             :is-last-child="index === localReplies.length - 1"
           />
         </div>
@@ -642,6 +687,7 @@ watch(isEditing, (active) => {
 
   .child-connector {
     width: 20px;
+    top: 12px;
   }
 }
 
