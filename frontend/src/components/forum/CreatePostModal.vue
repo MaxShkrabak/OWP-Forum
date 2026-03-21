@@ -17,7 +17,7 @@ const props = defineProps({
   postData: Object,
   isRestricted: Boolean,
 });
-const emit = defineEmits(["close", "published"]);
+const emit = defineEmits(["close", "published", "cooldown"]);
 
 const router = useRouter();
 const showPublishedConfirmation = ref(false);
@@ -262,6 +262,7 @@ async function doPublish() {
         tags: form.value.tags,
         category: form.value.category || null,
       });
+      emit("cooldown", 60);
     }
 
     showPublishedConfirmation.value = true;
@@ -281,6 +282,10 @@ async function doPublish() {
       emit("close");
     }, 1200);
   } catch (err) {
+    if(err?.response?.status === 429){
+      emit("cooldown", 60);
+    }
+
     alert(props.isRestricted ? "Error updating metadata." : "An error occurred while publishing.");
     showPublishConfirm.value = false;
   } finally {

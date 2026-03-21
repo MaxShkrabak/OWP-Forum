@@ -1,10 +1,31 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import CreatePostModal from './CreatePostModal.vue';
 import { isBanned } from '@/stores/userStore';
+import { createPostBlockedUntil ,blockPostCreationFor } from '@/stores/postCreationCooldown';
+
 
 const isModalOpen = ref(false);
-const emit = defineEmits(['post-refresh']);
+const emit = defineEmits(["post-refresh"]);
+
+const now = ref(Date.now());
+let timer;
+
+onMounted(() => {
+  timer = setInterval(() => {
+    now.value = Date.now();
+  }, 1000);
+});
+
+onUnmounted(() => {
+  clearInterval(timer);
+});
+
+const secondsRemaining = computed(() =>
+  Math.max(0, Math.ceil((createPostBlockedUntil.value - now.value) / 1000))
+);
+
+const isCreateBlocked = computed(() => isBanned.value || secondsRemaining.value > 0);
 
 async function handlePublish() {
   isModalOpen.value = false;
@@ -14,12 +35,14 @@ async function handlePublish() {
 
 <template>
   <div class="action-container">
-    <button @click="isModalOpen = true" class="btn-create-post shadow-sm" :disabled="isBanned">
+    <button @click="isModalOpen = true" class="btn-create-post shadow-sm" :disabled="isCreateBlocked">
       <div class="btn-content">
         <div class="icon-wrap">
            <i class="pi pi-plus-circle"></i>
         </div>
-        <span class="btn-text">Create Post</span>
+        <span class="btn-text">
+        {{ secondsRemaining > 0 ? ` Create Post blocked for ${secondsRemaining} seconds` : 'Create Post' }}
+        </span>
       </div>
     </button>
 
@@ -28,6 +51,7 @@ async function handlePublish() {
       :show="isModalOpen"
       @close="isModalOpen = false"
       @published="handlePublish"
+      @cooldown="blockPostCreationFor"
     />
   </div>
 </template>
