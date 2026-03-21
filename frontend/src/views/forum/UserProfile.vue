@@ -19,6 +19,7 @@ const router = useRouter();
 const posts = ref([]);
 const loading = ref(true);
 const error = ref(null);
+const isPageResolved = ref(false);
 
 const currentPage = ref(1);
 const totalPages = ref(1);
@@ -56,6 +57,7 @@ async function checkAndSetUser() {
       console.error("User fetch error:", e);
     }
   }
+  isPageResolved.value = true;
 }
 
 async function getPosts() {
@@ -167,6 +169,8 @@ onMounted(() => {
         <div v-else-if="!isExistingUser" class="empty-state text-center py-5">
           User does not exist.
         </div>
+
+        <div v-else-if="!isPageResolved" class="text-center py-5"><div class="spinner-border text-success"></div></div>
 
         <div class="row" v-else>
 

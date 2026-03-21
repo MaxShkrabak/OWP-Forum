@@ -6,6 +6,7 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 use function Forum\Helpers\json;
 use function Forum\Helpers\resolveReportsForPost;
 use function Forum\Helpers\softDeleteCommentsForPost;
+use function Forum\Helpers\createNotification;
 
 $app->post("/api/create-post", function (Request $req, Response $res) use ($makePdo) {
     try {
@@ -388,7 +389,7 @@ $app->get('/api/categories/{id}/posts', function (Request $req, Response $res, a
         $sql = "
             SELECT p.PostID, p.Title, p.CreatedAt, p.TotalScore,
                    (SELECT COUNT(*) FROM dbo.Comments cm WHERE cm.PostID = p.PostID) AS commentCount,
-                   u.FirstName, u.LastName, u.Avatar, r.Name AS RoleName,
+                   u.FirstName, u.LastName, u.Avatar, u.User_ID, r.Name AS RoleName,
                    ISNULL(pv.VoteValue, 0) AS myVote
             FROM dbo.Posts p
             LEFT JOIN dbo.Users u ON p.AuthorID = u.User_ID
@@ -439,6 +440,7 @@ $app->get('/api/categories/{id}/posts', function (Request $req, Response $res, a
                     'postId'       => $pid,
                     'title'        => $row['Title'],
                     'createdAt'    => $row['CreatedAt'],
+                    'authorId'     => (int)($row['User_ID'] ?? 0),
                     'authorName'   => trim(($row['FirstName'] ?? '') . ' ' . ($row['LastName'] ?? '')),
                     'authorRole'   => $row['RoleName'] ?? 'User',
                     'authorAvatar' => $row['Avatar'] ?? null,
@@ -554,6 +556,11 @@ $app->post('/api/posts/{id}/vote', function (Request $req, Response $res, array 
 
         $val = ($action === 'up') ? 1 : (($action === 'down') ? -1 : 0);
 
+        $prevStmt = $pdo->prepare("SELECT VoteValue FROM dbo.PostVotes WHERE PostID = ? AND User_ID = ?");
+        $prevStmt->execute([$postId, $userId]);
+        $previousVote = $prevStmt->fetchColumn();
+        $previousVote = ($previousVote === false) ? 0 : (int)$previousVote;
+
         $upd = $pdo->prepare("UPDATE dbo.PostVotes SET VoteValue = ? WHERE PostID = ? AND User_ID = ?");
         $upd->execute([$val, $postId, $userId]);
 
@@ -562,6 +569,29 @@ $app->post('/api/posts/{id}/vote', function (Request $req, Response $res, array 
             $ins->execute([$postId, $userId, $val]);
         } elseif ($val === 0) {
             $pdo->prepare("DELETE FROM dbo.PostVotes WHERE PostID = ? AND User_ID = ?")->execute([$postId, $userId]);
+        }
+
+        if ($val === 1 && $previousVote !== 1) {
+            $ownerStmt = $pdo->prepare("
+                SELECT p.AuthorID,
+                       ISNULL(u.PushNotificationsEnabled, 1) AS PushNotificationsEnabled,
+                       ISNULL(u.PostLikeNotificationsEnabled, 1) AS PostLikeNotificationsEnabled
+                FROM dbo.Posts p
+                JOIN dbo.Users u ON u.User_ID = p.AuthorID
+                WHERE p.PostID = :postId
+            ");
+            $ownerStmt->execute([':postId' => $postId]);
+            $owner = $ownerStmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($owner) {
+                $postOwnerId = (int)($owner['AuthorID'] ?? 0);
+                $pushEnabled = (int)($owner['PushNotificationsEnabled'] ?? 1) === 1;
+                $likesEnabled = (int)($owner['PostLikeNotificationsEnabled'] ?? 1) === 1;
+
+                if ($postOwnerId > 0 && $postOwnerId !== $userId && $pushEnabled && $likesEnabled) {
+                    createNotification($pdo, $postOwnerId, $postId, 'postLike');
+                }
+            }
         }
 
         $stmt = $pdo->prepare("SELECT TotalScore FROM dbo.Posts WHERE PostID = ?");

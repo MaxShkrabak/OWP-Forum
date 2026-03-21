@@ -64,6 +64,22 @@ $app->get('/api/admin/users', function(Request $req, Response $res) use ($makePd
             return json($res, ['ok' => false, 'error' => 'Forbidden (admin only)'], 403);
         }
 
+        // Clear expired temporary bans before fetching users
+        try {
+            $pdo->exec("
+                UPDATE dbo.Users
+                SET IsBanned = 0,
+                    BanType = NULL,
+                    BannedUntil = NULL
+                WHERE ISNULL(IsBanned, 0) = 1
+                  AND BanType = 'temporary'
+                  AND BannedUntil IS NOT NULL
+                  AND BannedUntil <= GETDATE()
+            ");
+        } catch (Throwable $e) {
+            
+        }
+
         $params = $req->getQueryParams();
         $q = trim((string)($params['q'] ?? ''));
 
@@ -73,13 +89,13 @@ $app->get('/api/admin/users', function(Request $req, Response $res) use ($makePd
         if ($q !== '') {
             $where = "
                 WHERE (
-                    u.Email     LIKE :emailLike
+                    u.Email LIKE :emailLike
                     OR u.FirstName LIKE :firstLike
-                    OR u.LastName  LIKE :lastLike
+                    OR u.LastName LIKE :lastLike
             ";
             $bindings[':emailLike'] = '%' . $q . '%';
             $bindings[':firstLike'] = '%' . $q . '%';
-            $bindings[':lastLike']  = '%' . $q . '%';
+            $bindings[':lastLike'] = '%' . $q . '%';
             if (ctype_digit($q)) {
                 $where .= " OR u.User_ID = :uidSearch";
                 $bindings[':uidSearch'] = (int)$q;
@@ -87,7 +103,7 @@ $app->get('/api/admin/users', function(Request $req, Response $res) use ($makePd
             $where .= ")";
         }
 
-        // Single query when ban columns exist (migrations 008, 009)
+        // Single query when ban columns exist
         $users = [];
         try {
             $sql = "
