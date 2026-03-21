@@ -53,11 +53,11 @@ async function handleVote(dir) {
   isVoting.value = true;
 
   try {
-    const data = await votePost(props.post.PostID, action);
+    const data = await votePost(props.post.postId, action);
 
     if (data.ok) {
       props.post.myVote = data.myVote;
-      props.post.TotalScore = data.score;
+      props.post.totalScore = data.score;
     }
   } catch (err) {
     console.error("Vote error:", err);
@@ -139,18 +139,15 @@ function canViewReportButton() {
           <button
             class="vote-btn-up pi pi-chevron-up mb-1"
             :class="{ active: Number(post.myVote) === 1, 'is-voting': isVoting }"
-            @click="isLoggedIn ? handleVote('up') : router.push('/login')"
-          ></button>
+            @click="isLoggedIn ? handleVote('up') : router.push('/login')">
+          </button>
 
-          <span
-            class="vote-count"
-            :class="{
-              upvoted: Number(post.myVote) === 1,
-              downvoted: Number(post.myVote) === -1,
-              'voting-bounce': isVoting
-            }"
-          >
-            {{ post.TotalScore ?? 0 }}
+          <!-- Vote count -->
+          <span class="vote-count"
+                :class="{
+                        'upvoted': Number(post.myVote) === 1,
+                        'downvoted': Number(post.myVote) === -1, 'voting-bounce': isVoting }">
+            {{ post.totalScore ?? 0 }}
           </span>
 
           <button
@@ -181,7 +178,7 @@ function canViewReportButton() {
           </div>
 
           <div class="title-row">
-            <RouterLink :to="`/posts/${post.PostID}`" class="post-title-link">
+            <RouterLink :to="`/posts/${post.postId}`" class="post-title-link">
               {{ post.title }}
             </RouterLink>
 
@@ -225,7 +222,7 @@ function canViewReportButton() {
 
         <ReportingModal
           :isOpen="isReportModalOpen"
-          :targetId="post.PostID"
+          :targetId="post.postId"
           :targetTitle="post.title"
           type="post"
           @close="closeReportModal"

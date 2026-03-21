@@ -22,25 +22,8 @@ $app->post("/api/create-post", function (Request $req, Response $res) use ($make
             return $termsRes;
         }
 
-        try {
-            $banStmt = $pdo->prepare("
-                SELECT ISNULL(IsBanned, 0), BanType, BannedUntil
-                FROM dbo.Users WHERE User_ID = :uid
-            ");
-            $banStmt->execute([':uid' => $userId]);
-            $row = $banStmt->fetch(PDO::FETCH_NUM);
-            if ($row && (int)$row[0] === 1) {
-                $banType = $row[1] ? trim((string)$row[1]) : null;
-                $bannedUntil = $row[2] ?? null;
-                $effective = ($banType !== 'temporary' || !$bannedUntil)
-                    || (new \DateTimeImmutable($bannedUntil, new \DateTimeZone('UTC')) > new \DateTimeImmutable('now', new \DateTimeZone('UTC')));
-                if ($effective) {
-                    return json($res, ['ok' => false, 'error' => 'You are banned and cannot create posts.'], 403);
-                }
-            }
-        } catch (Throwable $e) {
-            // Columns may not exist yet (migration 008/009 not run)
-        }
+        $banResponse = \Forum\Helpers\checkUserBan($pdo, (int)$userId, $res);
+        if ($banResponse) return $banResponse;
 
         // Tag limit: 5 tags per post
         $data = $req->getParsedBody() ?? [];
@@ -241,9 +224,8 @@ $app->get('/api/posts', function (Request $req, Response $res) use ($makePdo) {
         foreach ($rows as $row) {
             $pid = (int)$row['PostID'];
             $catId = (int)$row['CategoryID'];
-
-            $post = [
-                'PostID'       => $pid,
+$post = [
+                'postId'       => $pid,
                 'categoryId'   => $catId,
                 'title'        => $row['Title'],
                 'createdAt'    => $row['CreatedAt'],
@@ -253,7 +235,7 @@ $app->get('/api/posts', function (Request $req, Response $res) use ($makePdo) {
                 'authorAvatar' => $row['Avatar'] ?? null,
                 'tags'         => $tagsByPostId[$pid] ?? [],
                 'commentCount' => (int)($row['commentCount'] ?? 0),
-                'TotalScore'   => (int)($row['TotalScore'] ?? 0),
+                'totalScore'   => (int)($row['TotalScore'] ?? 0),
                 'myVote'       => (int)($row['myVote'] ?? 0),
             ];
 
@@ -455,7 +437,7 @@ $app->get('/api/categories/{id}/posts', function (Request $req, Response $res, a
             foreach ($rows as $row) {
                 $pid = (int)$row['PostID'];
                 $posts[] = [
-                    'PostID'       => $pid,
+                    'postId'       => $pid,
                     'title'        => $row['Title'],
                     'createdAt'    => $row['CreatedAt'],
                     'authorId'     => (int)($row['User_ID'] ?? 0),
@@ -464,7 +446,7 @@ $app->get('/api/categories/{id}/posts', function (Request $req, Response $res, a
                     'authorAvatar' => $row['Avatar'] ?? null,
                     'tags'         => $tagsByPostId[$pid] ?? [],
                     'commentCount' => (int)($row['commentCount'] ?? 0),
-                    'TotalScore'   => (int)($row['TotalScore'] ?? 0),
+                    'totalScore'   => (int)($row['TotalScore'] ?? 0),
                     'myVote'       => (int)($row['myVote'] ?? 0),
                 ];
             }
@@ -889,7 +871,7 @@ $app->get('/api/get-post/{id}', function (Request $req, Response $res, array $ar
 
         // TODO: This needs to be fixed this was copilots (MERGE Conflicts Resolve) too many duplicates
         $responseData = [
-            'PostID'       => (int)$post['PostID'],
+            'postId'       => (int)$post['PostID'],
             'title'        => $post['Title'],
             'content'      => $post['Content'],
             'createdAt'    => $post['CreatedAt'],
@@ -904,7 +886,7 @@ $app->get('/api/get-post/{id}', function (Request $req, Response $res, array $ar
             'tags'         => $tags,                        // Array of objects (TagID & Name)
             'tagNames'     => $tagNames,                    // Flat array of strings
             'tagIds'       => $tagIds,                      // Flat array of IDs
-            'TotalScore'   => (int)($post['TotalScore'] ?? 0),
+            'totalScore'   => (int)($post['TotalScore'] ?? 0),
             'myVote'       => (int)($post['myVote'] ?? 0),
         ];
 
@@ -1049,7 +1031,7 @@ $app->put('/api/posts/{id}', function (Request $req, Response $res, array $args)
         return json($res, [
             'ok' => true,
             'post' => [
-                'PostID'       => (int)$updatedPost['PostID'],
+                'postId'       => (int)$updatedPost['PostID'],
                 'title'        => $updatedPost['Title'],
                 'content'      => $updatedPost['Content'],
                 'createdAt'    => $updatedPost['CreatedAt'],

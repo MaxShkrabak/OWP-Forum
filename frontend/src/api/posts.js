@@ -56,8 +56,8 @@ export async function fetchPosts({ categoryId = null, limit, sort = 'latest', pa
 
     data.posts = data.posts.map((post) => ({
       ...post,
-      postId: post.PostID,
-      likeCount: post.TotalScore ?? 0,
+      postId: post.postId,
+      likeCount: post.totalScore ?? 0,
       commentCount: post.commentCount ?? 0,
       tags: post.tags || [],
     }));
@@ -68,8 +68,8 @@ export async function fetchPosts({ categoryId = null, limit, sort = 'latest', pa
       ...cat,
       posts: (cat.posts || []).map((post) => ({
         ...post,
-        postId: post.postId ?? post.PostID,
-        likeCount: post.likeCount ?? post.TotalScore ?? 0,
+        postId: post.postId,
+        likeCount: post.likeCount ?? post.totalScore ?? 0,
         commentCount: post.commentCount ?? 0,
         tags: post.tags || [],
       })),
@@ -79,12 +79,12 @@ export async function fetchPosts({ categoryId = null, limit, sort = 'latest', pa
   return data;
 }
 
-export async function votePost(PostID, action) {
-  if (!PostID) {
+export async function votePost(postId, action) {
+  if (!postId) {
     return { ok: false, error: "Missing Post ID" };
   }
-  const { data } = await client.post(`/posts/${PostID}/vote`, { 
-    action: action 
+  const { data } = await client.post(`/posts/${postId}/vote`, {
+    action: action
   });
 
   return data;
@@ -109,8 +109,8 @@ export async function fetchLikedPosts({ userId, limit, sort = "latest", page = 1
   if (data?.posts) {
     data.posts = data.posts.map((post) => ({
       ...post,
-      postId: post.PostID,
-      likeCount: post.TotalScore ?? 0,
+      postId: post.postId,
+      likeCount: post.totalScore ?? 0,
       commentCount: post.commentCount ?? 0,
       tags: post.tags || [],
     }));
