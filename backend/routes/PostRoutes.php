@@ -832,8 +832,19 @@ $app->get('/api/get-post/{id}', function (Request $req, Response $res, array $ar
         $postID = (int)$args['id'];
         $userId = $req->getAttribute("user_id") ?? 0;
 
+        $incStmt = $pdo->prepare("
+            UPDATE dbo.Posts
+            SET ViewCount = ViewCount + 1
+            WHERE PostID = :id AND IsDeleted = 0
+        ");
+        $incStmt->execute(['id' => $postID]);
+        if ($incStmt->rowCount() === 0) {
+            return json($res, ['ok' => false, 'error' => "Post not found or has been deleted."], 404);
+        }
+
         $sql = "
             SELECT p.PostID, p.Title, p.Content, p.CreatedAt, p.UpdatedAt, p.CategoryID, p.AuthorID, p.TotalScore,
+                   p.ViewCount,
                    u.FirstName, u.LastName, u.Avatar,
                    r.Name AS RoleName, 
                    c.Name AS CategoryName,
@@ -887,6 +898,7 @@ $app->get('/api/get-post/{id}', function (Request $req, Response $res, array $ar
             'tagNames'     => $tagNames,                    // Flat array of strings
             'tagIds'       => $tagIds,                      // Flat array of IDs
             'totalScore'   => (int)($post['TotalScore'] ?? 0),
+            'viewCount'    => (int)($post['ViewCount'] ?? 0),
             'myVote'       => (int)($post['myVote'] ?? 0),
         ];
 

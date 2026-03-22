@@ -145,6 +145,16 @@ onMounted(async () => {
               </div>
             </div>
             <h1 class="post-title fs-2 m-0 text-break">{{ post.title }}</h1>
+            <p
+              v-if="post.viewCount != null"
+              class="post-view-count m-0 d-flex align-items-center gap-1"
+            >
+              <i class="pi pi-eye" aria-hidden="true"></i>
+              <span
+                >{{ Number(post.viewCount).toLocaleString() }}
+                {{ post.viewCount === 1 ? "view" : "views" }}</span
+              >
+            </p>
           </div>
 
           <ViewPostContent
@@ -297,6 +307,12 @@ onMounted(async () => {
   color: #0d2b1a;
   line-height: 1.25;
   letter-spacing: -0.02em;
+}
+
+.post-view-count {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #5a7d6e;
 }
 
 .avatar-box {
