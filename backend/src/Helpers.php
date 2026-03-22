@@ -208,3 +208,28 @@ if (!function_exists('Forum\\Helpers\\markNotificationsRead')) {
         return $stmt->execute(array_merge([$userId], $ids));
     }
 }
+
+if (!function_exists('Forum\Helpers\fetchCounts')) {
+    function fetchCounts(PDO $pdo, string $table, string $placeholders, array $postIds, string $countAlias): array
+    {
+        try {
+            $sql = "
+                SELECT PostID, COUNT(*) AS $countAlias
+                FROM $table
+                WHERE PostID IN ($placeholders)
+                GROUP BY PostID
+            ";
+
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($postIds);
+
+            $counts = [];
+            while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                $counts[(int)$row['PostID']] = (int)$row[$countAlias];
+            }
+            return $counts;
+        } catch (Throwable $e) {
+            return [];
+        }
+    }
+}

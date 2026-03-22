@@ -90,7 +90,7 @@ function openRestrictedModal(modalType) {
 }
 
 const confirmDelete = async () => {
-  if (!props.post?.PostID || !canDelete.value) return;
+  if (!props.post?.postId || !canDelete.value) return;
   isDeleting.value = true;
   try {
     await client.delete(`posts/${props.post.postId}`);
