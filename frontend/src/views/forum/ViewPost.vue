@@ -154,18 +154,21 @@ onMounted(async () => {
 
           <section class="post-footer">
             <div
-              class="post-footer-row d-flex flex-wrap align-items-center justify-content-between gap-3 px-4 py-4"
+              class="post-footer-row d-flex align-items-center gap-3 px-4 py-4"
             >
               <PostModerationSidebar :post="post" />
               <p
                 v-if="post.viewCount != null"
-                class="post-view-count m-0 d-flex align-items-center gap-1 flex-shrink-0 ms-auto"
+                class="post-view-count m-0 d-flex align-items-center gap-1 flex-shrink-0"
+                :aria-label="`${Number(post.viewCount).toLocaleString()} ${post.viewCount === 1 ? 'view' : 'views'}`"
               >
                 <i class="pi pi-eye" aria-hidden="true"></i>
-                <span
-                  >{{ Number(post.viewCount).toLocaleString() }}
-                  {{ post.viewCount === 1 ? "view" : "views" }}</span
-                >
+                <span class="view-count-figures">{{
+                  Number(post.viewCount).toLocaleString()
+                }}</span>
+                <span class="view-count-word">{{
+                  post.viewCount === 1 ? "view" : "views"
+                }}</span>
               </p>
             </div>
           </section>
@@ -313,10 +316,54 @@ onMounted(async () => {
   letter-spacing: -0.02em;
 }
 
+.post-footer-row {
+  flex-wrap: nowrap;
+  justify-content: space-between;
+  min-width: 0;
+}
+
 .post-view-count {
   font-size: 0.8rem;
   font-weight: 600;
   color: #5a7d6e;
+  margin-inline-start: auto;
+  flex-shrink: 0;
+}
+
+.view-count-figures {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 415px) {
+  .post-footer-row {
+    gap: 0.5rem;
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+
+  /* One horizontal row: actions scroll, view count stays visible on the right */
+  .post-footer-row :deep(> div) {
+    flex: 1 1 auto !important;
+    min-width: 0;
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    overflow-y: hidden;
+    gap: 0.35rem;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+
+  .view-count-word {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
 }
 
 .avatar-box {
