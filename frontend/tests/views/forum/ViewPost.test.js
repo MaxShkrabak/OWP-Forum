@@ -33,6 +33,10 @@ const stubs = [
 describe("ViewPost.vue", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.stubGlobal("navigator", {
+      ...navigator,
+      clipboard: { writeText: vi.fn().mockResolvedValue(undefined) },
+    });
   });
 
   it("renders the correct title, author, role, date, and tags of a post", async () => {
@@ -67,6 +71,40 @@ describe("ViewPost.vue", () => {
     expect(renderedTags[2].text()).toBe("Research");
 
     expect(wrapper.find(".post-timestamp").text()).toContain("Feb 22, 2026");
+  });
+
+  it("Share copies the page URL and shows Link copied", async () => {
+    const fakePost = {
+      PostID: 123,
+      title: "T",
+      authorName: "A",
+      authorRole: "user",
+      authorAvatar: "pfp-1.png",
+      createdAt: "2026-02-22 14:20:00",
+      categoryName: "General",
+      tags: [],
+      content: "c",
+    };
+
+    getPost.mockResolvedValue(fakePost);
+
+    const wrapper = mount(ViewPost, {
+      global: { stubs },
+    });
+
+    await flushPromises();
+
+    const shareBtn = wrapper.find(".share-btn");
+    expect(shareBtn.exists()).toBe(true);
+
+    await shareBtn.trigger("click");
+    await flushPromises();
+
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+      window.location.href,
+    );
+
+    expect(wrapper.find(".link-copied-toast").text()).toContain("Link copied");
   });
 
   it("shows error state if post fetch fails", async () => {

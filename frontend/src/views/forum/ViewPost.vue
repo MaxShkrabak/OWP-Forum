@@ -16,6 +16,35 @@ const post = ref(null);
 const loading = ref(true);
 const error = ref(null);
 
+const linkCopiedVisible = ref(false);
+let linkCopiedTimeout = null;
+
+async function copyPostUrlToClipboard() {
+  const url = window.location.href;
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(url);
+    } else {
+      const ta = document.createElement("textarea");
+      ta.value = url;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "fixed";
+      ta.style.left = "-9999px";
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+    }
+    linkCopiedVisible.value = true;
+    if (linkCopiedTimeout) clearTimeout(linkCopiedTimeout);
+    linkCopiedTimeout = setTimeout(() => {
+      linkCopiedVisible.value = false;
+    }, 2200);
+  } catch (e) {
+    console.error("Copy link failed:", e);
+  }
+}
+
 const getLocalDate = (input) => {
   if (!input) return null;
   const dateStr = input.trim().replace(" ", "T") + "Z";
@@ -88,6 +117,15 @@ onMounted(async () => {
       </div>
 
       <div v-else-if="post" class="post-layout d-flex flex-column gap-1">
+        <div
+          v-if="linkCopiedVisible"
+          class="link-copied-toast"
+          role="status"
+          aria-live="polite"
+        >
+          Link copied
+        </div>
+
         <article class="post-card rounded-4 overflow-hidden">
           <div class="post-topbar d-flex align-items-center p-3 px-md-4 gap-3">
             <div class="flex-shrink-0 d-flex">
@@ -122,6 +160,18 @@ onMounted(async () => {
                   >{{ t.Name }}</span
                 >
               </div>
+            </div>
+
+            <div class="ms-auto flex-shrink-0">
+              <button
+                type="button"
+                class="share-btn d-inline-flex align-items-center gap-2 px-3 py-2 rounded-3"
+                title="Copy link to this post"
+                @click="copyPostUrlToClipboard"
+              >
+                <i class="pi pi-share-alt" aria-hidden="true"></i>
+                <span class="share-btn-label">Share</span>
+              </button>
             </div>
           </div>
 
@@ -255,6 +305,60 @@ onMounted(async () => {
 .back-btn:hover {
   background: rgba(255, 255, 255, 0.25);
   transform: translateX(-4px);
+}
+
+.share-btn {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.share-btn:hover {
+  background: rgba(255, 255, 255, 0.22);
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
+.share-btn:active {
+  transform: scale(0.98);
+}
+
+.share-btn-label {
+  line-height: 1;
+}
+
+.link-copied-toast {
+  position: fixed;
+  bottom: 1.25rem;
+  right: 1.25rem;
+  z-index: 1080;
+  background: #0d3d2a;
+  color: #e8f5ef;
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 10px 16px;
+  border-radius: 10px;
+  box-shadow: 0 10px 28px rgba(13, 43, 26, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  animation: link-copied-in 0.22s ease-out;
+}
+
+@keyframes link-copied-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .topbar-divider {
