@@ -38,19 +38,19 @@ function getUrlParams() {
 
 function checkIfCurrUser() {
   const urlUserId = getUrlParams();
-  return urlUserId === String(uid.value);
+  return String(urlUserId) === String(uid.value);
 }
 
 async function checkAndSetUser() {
   const userId = getUrlParams();
   
-  if (userId && userId !== String(uid.value)) {
+  if (userId && String(userId) !== String(uid.value)) {
     try {
       const data = await fetchUser(userId);
       if(data.ok) {
-        setAvatar.value = data.user.Avatar || 'pfp-0.png';
-        setFullName.value = data.user.FirstName + " " + data.user.LastName || 'Joe Smith';
-        setRole.value = data.user.RoleName || 'User';
+        setAvatar.value = data.user.avatar || 'pfp-0.png';
+        setFullName.value = data.user.firstName + " " + data.user.lastName;
+        setRole.value = data.user.roleName || 'User';
       }
     } catch (e) {
       isExistingUser.value = false;

@@ -251,7 +251,7 @@ $app->get('/api/categories/{id}/posts', function (Request $req, Response $res, a
             foreach ($rows as $row) {
                 $pid = (int)$row['PostID'];
                 $posts[] = [
-                    'PostID'       => $pid,
+                    'postId'       => $pid,
                     'title'        => $row['Title'],
                     'createdAt'    => $row['CreatedAt'],
                     'authorId'     => (int)($row['User_ID'] ?? 0),
@@ -260,7 +260,7 @@ $app->get('/api/categories/{id}/posts', function (Request $req, Response $res, a
                     'authorAvatar' => $row['Avatar'] ?? null,
                     'tags'         => $tagsByPostId[$pid] ?? [],
                     'commentCount' => (int)($row['commentCount'] ?? 0),
-                    'TotalScore'   => (int)($row['TotalScore'] ?? 0),
+                    'totalScore'   => (int)($row['TotalScore'] ?? 0),
                     'myVote'       => (int)($row['myVote'] ?? 0),
                 ];
             }

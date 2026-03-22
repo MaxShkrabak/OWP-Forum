@@ -13,7 +13,7 @@ vi.mock("@/api/auth", () => ({
   checkAuth: vi.fn(() =>
     Promise.resolve({
       ok: true,
-      user: { User_ID: 1, FirstName: "Test", LastName: "User" },
+      user: { userId: 1, firstName: "Test", lastName: "User" },
     }),
   ),
   logout: vi.fn(() => Promise.resolve({ ok: true })),
