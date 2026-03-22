@@ -7,16 +7,18 @@ import { useRoute } from "vue-router";
 vi.mock("vue-router", () => ({
   useRoute: vi.fn(),
   useRouter: vi.fn(() => ({ back: vi.fn() })),
+  RouterLink: vi.fn().mockImplementation(({ children }) => children),
 }));
 
 vi.mock("@/api/posts", () => ({
   fetchPosts: vi.fn(),
   getFilterTags: vi.fn(),
+  fetchPinnedPosts: vi.fn(() => Promise.resolve([])),
 }));
 
 vi.mock("@/stores/userStore", () => ({
   isLoggedIn: true,
-  isBanned: false,
+  userRole: "admin",
 }));
 
 describe("CategoryPage.vue", () => {

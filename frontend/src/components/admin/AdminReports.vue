@@ -193,7 +193,7 @@ function normalizeReport(r) {
   return {
     ...r,
     reportId: r.reportId ?? r.ReportID ?? r.ReportId,
-    postId: r.postId ?? r.PostID ?? r.PostId,
+    postId: r.postId,
     commentId: r.commentId ?? r.CommentID ?? r.CommentId,
     reason: r.reason ?? r.Reason ?? "",
     createdAt: r.createdAt ?? r.CreatedAt ?? "",

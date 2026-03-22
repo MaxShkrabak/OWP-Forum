@@ -72,10 +72,10 @@ async function handleVote(dir) {
 
   isVoting.value = true;
   try {
-    const data = await votePost(props.post.PostID, action);
+    const data = await votePost(props.post.postId, action);
     if (data?.ok) {
       props.post.myVote = data.myVote;
-      props.post.TotalScore = data.score;
+      props.post.totalScore = data.score;
     }
   } catch (err) {
     console.error("Vote error:", err);
@@ -93,7 +93,7 @@ const confirmDelete = async () => {
   if (!props.post?.PostID || !canDelete.value) return;
   isDeleting.value = true;
   try {
-    await client.delete(`posts/${props.post.PostID}`);
+    await client.delete(`posts/${props.post.postId}`);
     window.location.href = "/";
   } catch (err) {
     console.error("Delete failed:", err);
@@ -111,7 +111,9 @@ watch(isLoggedIn, (loggedIn) => {
 </script>
 
 <template>
-  <div class="d-flex flex-wrap align-items-center gap-2 w-100">
+  <div
+    class="d-flex flex-wrap align-items-center gap-2 flex-grow-1 min-w-0"
+  >
     <!-- Vote Buttons -->
     <div class="action-group vote-group d-flex align-items-center gap-1">
       <button
@@ -129,7 +131,7 @@ watch(isLoggedIn, (loggedIn) => {
           'voting-bounce': isVoting,
         }"
       >
-        {{ post.TotalScore ?? 0 }}
+        {{ post.totalScore ?? 0 }}
       </span>
 
       <button
@@ -204,7 +206,7 @@ watch(isLoggedIn, (loggedIn) => {
 
     <ReportingModal
       :isOpen="showReportModal"
-      :targetId="post.PostID"
+      :targetId="post.postId"
       :targetTitle="post.title"
       type="post"
       @close="showReportModal = false"
