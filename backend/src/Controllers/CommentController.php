@@ -147,6 +147,145 @@ class CommentController
 
         return true;
     }
+    private function getCommentRateLimitRole(PDO $pdo, int $userId): ?string {
+        $roleStmt = $pdo->prepare("
+            SELECT LOWER(r.NAME)
+            FROM dbo.Users u
+            LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
+            WHERE u.User_ID = :uid
+        ");
+
+        $roleStmt->execute([':uid' => $userId]);
+        $roleName = $roleStmt->fetchColumn();
+
+        return is_string($roleName)?trim($roleName):null;
+    }
+
+    private function ApplyCommentRateLimit(?string $roleName):bool {
+        if($roleName === null || $roleName === ''){
+            return true;
+        }
+
+        return in_array($roleName, ['user', 'student'], true);
+    }
+
+    private function getHourlyCommentResetSeconds(PDO $pdo, int $userId, int $commentsPerHourLimit): ?int {
+        $offset = max($commentsPerHourLimit - 1, 0);
+
+        $hourlyResetTimeStmt = $pdo->prepare("
+            Select CreatedAt
+            FROM dbo.Comments
+            WHERE UserID = :uid
+            AND isDeleted = 0
+            AND CreatedAt >= DATEADD(HOUR, -1, SYSUTCDATETIME())
+            ORDER BY CreatedAt DESC
+            OFFSET ($offset) ROWS FETCH NEXT 1 ROWS ONLY 
+        ");
+        $hourlyResetTimeStmt->execute([':uid' => $userId]);
+        $createdAt = $hourlyResetTimeStmt->fetchColumn();
+
+        if(!$createdAt){
+            return null;
+        }
+
+        $limitWindowCommentTime = new \DateTimeImmutable((string)$createdAt, new \DateTimeZone('UTC'));
+        $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
+        $secondsLeft = 3600 - ($now->getTimestamp() - $limitWindowCommentTime->getTimestamp());
+
+        return max(1, $secondsLeft);
+    }
+
+    private function createCommentRateLimit(PDO $pdo, int $userId, Response $res): ?Response
+    {
+        //Make thes into ENVs if desired
+        $commentCooldownSeconds = 15;
+        $commentsPerHourLimit = 50; 
+
+        $roleName = $this->getCommentRateLimitRole($pdo, $userId);
+
+        if(!$this->ApplyCommentRateLimit($roleName)){
+            return null;
+        }
+
+        $lockstmt = $pdo->prepare("
+            DECLARE @result INT;
+            EXEC @result = sp_getapplock
+                @lockOwner = 'Transaction',
+                @Resource = :res,
+                @LockMode = 'Exclusive',
+                @LockTimeout = 5000;
+            SELECT @result;
+        ");
+        $lockstmt->execute([':res' => "create_comment_user_$userId"]);
+        $lockResult = (int)($lockstmt->fetchColumn() ?? -999);
+
+        if ($lockResult < 0) {
+            $pdo->rollBack();
+            return json($res, ['ok' => false, 'error' => 'Could not acquire lock for rate limiting'], 503);
+        }
+
+        $recentCommentStmt = $pdo->prepare("
+            SELECT COUNT(*)
+            FROM dbo.Comments
+            WHERE UserId = :uid
+              AND IsDeleted = 0
+              AND CreatedAt >= DATEADD(HOUR, -1, SYSUTCDATETIME())
+        ");
+        $recentCommentStmt->execute([':uid' => $userId]);
+        $recentComments = (int)$recentCommentStmt->fetchColumn();
+
+        if ($recentComments >= $commentsPerHourLimit) {
+            $secondsLeft = $this->getHourlyCommentResetSeconds($pdo, $userId, $commentsPerHourLimit);
+            $pdo->rollBack();
+            return json($res, [
+                'ok' => false,
+                'error' => $secondsLeft !== null
+                    ? "You've reached the {$commentsPerHourLimit} comments per hour limit. Try again in {$secondsLeft} seconds."
+                    : "You've reached the {$commentsPerHourLimit} comments per hour limit. Please try again soon.",
+                'rateLimit' => [
+                    'type' => 'hourly_limit',
+                    'secondsLeft' => $secondsLeft,
+                    'limit' => $commentsPerHourLimit,
+                ],
+            ], 429);
+        }
+
+        if ($commentCooldownSeconds <= 0) {
+            return null;
+        }
+
+        $lastCommentStmt = $pdo->prepare("
+            SELECT TOP 1 CreatedAt
+            FROM dbo.Comments
+            WHERE UserId = :uid AND IsDeleted = 0
+            ORDER BY CreatedAt DESC
+        ");
+        $lastCommentStmt->execute([':uid' => $userId]);
+        $lastCreatedAt = $lastCommentStmt->fetchColumn();
+
+        if (!$lastCreatedAt) {
+            return null;
+        }
+
+        $lastTime = new \DateTimeImmutable((string)$lastCreatedAt, new \DateTimeZone('UTC'));
+        $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
+        $diffSeconds = $now->getTimestamp() - $lastTime->getTimestamp();
+
+        if ($diffSeconds < $commentCooldownSeconds) {
+            $secondsLeft = $commentCooldownSeconds - $diffSeconds;
+            $pdo->rollBack();
+            return json($res, [
+                'ok' => false,
+                'error' => "You're commenting too fast. Please wait {$secondsLeft} seconds before commenting again.",
+                'rateLimit' => [
+                    'type' => 'cooldown',
+                    'secondsLeft' => $secondsLeft,
+                ],
+            ], 429);
+        }
+
+        return null; 
+    }
 
     public function createComment(Request $req, Response $res, array $args): Response
     {
@@ -171,6 +310,12 @@ class CommentController
                 return json($res, ['ok' => false, 'error' => 'Missing post_id or content'], 400);
             }
 
+            $pdo->beginTransaction();
+
+            if($rateLimitResponse = $this->createCommentRateLimit($pdo, (int)$userId, $res)) {
+                return $rateLimitResponse;
+            }
+
             $insertSql = "INSERT INTO dbo.Comments (PostID, UserId, Content, ParentCommentId) 
                           OUTPUT INSERTED.CommentId, INSERTED.CreatedAt 
                           VALUES (:postId, :userId, :content, :parentCommentId)";
@@ -183,7 +328,6 @@ class CommentController
                 ':parentCommentId' => $parentCommentId
             ]);
             $inserted = $stmt->fetch(PDO::FETCH_ASSOC);
-            $this->maybeSendCommentNotification($pdo, $postId, (int)$userId);
 
 $postOwnerStmt = $pdo->prepare("
     SELECT p.AuthorID,
@@ -219,6 +363,14 @@ if ($postOwner) {
             $commentDetailsSql->execute([':commentId' => (int)$inserted['CommentId']]);
             $row = $commentDetailsSql->fetch(PDO::FETCH_ASSOC);
 
+            if(!$row) {
+                $pdo->rollBack();
+                return json($res, ['ok' => false, 'error' => 'Failed to load created comment'], 500);
+            }
+
+            $pdo->commit();
+            $this->maybeSendCommentNotification($pdo, $postId, (int)$userId);
+
             return json($res, [
                 'ok' => true,
                 'comment' => [
@@ -238,6 +390,9 @@ if ($postOwner) {
                 ]
             ], 201);
         } catch (Throwable $e) {
+            if (isset($pdo) && $pdo instanceof PDO && $pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
             return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
         }
     }
@@ -323,11 +478,45 @@ if ($postOwner) {
             if (!($userId = $req->getAttribute("user_id"))) {
                 return json($res, ['ok' => false, 'error' => 'Not authenticated'], 401);
             }
-
+            $commentId = (int)$args['id'];
             $pdo = ($this->makePdo)();
-            $stmt = $pdo->prepare("UPDATE dbo.Comments SET IsDeleted = 1, DeletedAt = SYSUTCDATETIME() WHERE CommentId = :id AND UserId = :uid");
-            $stmt->execute([':id' => (int)$args['id'], ':uid' => $userId]);
 
+            $commentStmt = $pdo->prepare("
+                SELECT c.CommentId, c.UserId, c.IsDeleted, r.Name AS RequesterRole
+                FROM dbo.Comments c
+                CROSS APPLY (
+                    SELECT rr.Name
+                    FROM dbo.Users u
+                    LEFT JOIN dbo.Roles rr ON u.RoleID = rr.RoleID
+                    WHERE u.User_ID = :uid
+                ) r
+                WHERE c.CommentId = :id
+            ");
+            $commentStmt->execute([
+                ':id' => $commentId,
+                ':uid' => (int)$userId
+            ]);
+            $row = $commentStmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$row || (int)$row['IsDeleted'] === 1) {
+                return json($res, ['ok' => false, 'error' => 'Comment not found'], 404);
+            }
+            
+            $isOwner = (int)$row['UserId'] === (int)$userId;
+            $role = strtolower((string)($row['RequesterRole'] ?? ''));
+            $isModeratorOrAdmin = in_array($role, ['moderator', 'admin'], true);
+
+            if (!$isOwner && !$isModeratorOrAdmin) {
+                return json($res, ['ok' => false, 'error' => 'You cannot delete this comment'], 403);
+            }
+
+            $stmt = $pdo->prepare("UPDATE dbo.Comments SET IsDeleted = 1, DeletedAt = SYSUTCDATETIME() WHERE CommentId = :id AND IsDeleted = 0");
+            $stmt->execute([':id' => $commentId]);
+
+            if ($stmt->rowCount() === 0) {
+                return json($res, ['ok' => false, 'error' => 'Failed to delete comment'], 500);
+            }
+            
             return json($res, ['ok' => true]);
         } catch (Throwable $e) {
             return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);

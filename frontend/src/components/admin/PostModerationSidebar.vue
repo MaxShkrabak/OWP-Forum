@@ -90,7 +90,7 @@ function openRestrictedModal(modalType) {
 }
 
 const confirmDelete = async () => {
-  if (!props.post?.PostID || !canDelete.value) return;
+  if (!props.post?.postId || !canDelete.value) return;
   isDeleting.value = true;
   try {
     await client.delete(`posts/${props.post.postId}`);
@@ -111,7 +111,9 @@ watch(isLoggedIn, (loggedIn) => {
 </script>
 
 <template>
-  <div class="d-flex flex-wrap align-items-center gap-2 w-100">
+  <div
+    class="d-flex flex-wrap align-items-center gap-2 flex-grow-1 min-w-0"
+  >
     <!-- Vote Buttons -->
     <div class="action-group vote-group d-flex align-items-center gap-1">
       <button

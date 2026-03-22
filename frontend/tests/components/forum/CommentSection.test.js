@@ -1,12 +1,13 @@
-import { mount, flushPromises } from "@vue/test-utils";
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { mount, flushPromises, DOMWrapper } from "@vue/test-utils";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import CommentSection from "@/components/forum/CommentSection.vue";
+import { fetchComments, submitComment, updateComment } from "@/api/comments";
 import TextEditor from "@/components/forum/TextEditor.vue";
-import { fetchComments, updateComment } from "@/api/comments";
 
 vi.mock("@/stores/userStore", () => ({
   isLoggedIn: { value: true },
   uid: { value: 1 }, // Matches the userId: 1 in the mocked comments below
+  userRole: { value: "user" },
 }));
 
 vi.mock("@/api/auth", () => ({
@@ -79,6 +80,10 @@ describe("CommentSection.vue", () => {
         stubs: { SingleComment: false },
       },
     });
+  });
+
+  afterEach(() => {
+    wrapper.unmount();
   });
 
   it("displays the correct total number of comments", () => {
@@ -178,12 +183,12 @@ describe("CommentSection.vue", () => {
     await saveButton.trigger("click");
     await flushPromises();
 
-    const confirmButton = document.querySelector(
+    const confirmButtonEl = document.querySelector(
       ".comment-modal-card .btn-submit",
     );
-    expect(confirmButton).not.toBeNull();
+    expect(confirmButtonEl).not.toBeNull();
 
-    confirmButton.dispatchEvent(new Event("click"));
+    await new DOMWrapper(confirmButtonEl).trigger("click");
     await flushPromises();
 
     expect(updateComment).toHaveBeenCalledWith(1, "Updated comment content");
@@ -201,5 +206,38 @@ describe("CommentSection.vue", () => {
     expect(fetchComments).toHaveBeenCalledWith(12, 2, 10, "latest");
     const lastCallArgs = fetchComments.mock.calls.at(-1);
     expect(lastCallArgs[3]).toBe("mostLiked");
+  });
+
+  it("shows a centered rate limit modal with minutes and seconds", async () => {
+    await flushPromises();
+
+    submitComment.mockRejectedValueOnce({
+      response: {
+        status: 429,
+        data: {
+          ok: false,
+          error:
+            "You're commenting too fast. Please wait 75 seconds before commenting again.",
+          rateLimit: {
+            type: "cooldown",
+            secondsLeft: 75,
+          },
+        },
+      },
+    });
+
+    await wrapper.find(".reply-box-container").trigger("click");
+
+    const editor = wrapper.findComponent(TextEditor);
+    expect(editor.exists()).toBe(true);
+    await editor.vm.$emit("update:modelValue", "Trying to post too quickly.");
+    await flushPromises();
+
+    const submitBtn = wrapper.find(".main-input-wrapper .btn-submit");
+    await submitBtn.trigger("click");
+    await flushPromises();
+
+    expect(document.body.textContent).toContain("You're commenting too fast");
+    expect(document.body.textContent).toContain("1 minute 15 seconds");
   });
 });

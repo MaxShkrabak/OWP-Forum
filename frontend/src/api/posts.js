@@ -119,12 +119,12 @@ export async function fetchLikedPosts({ userId, limit, sort = "latest", page = 1
   return data;
 }
 
-export async function togglePostPin(PostID) {
-  if (!PostID) {
+export async function togglePostPin(postId) {
+  if (!postId) {
     return { ok: false, error: "Missing Post ID" };
   }
 
-  const { data } = await client.post(`/posts/${PostID}/pin`);
+  const { data } = await client.post(`/posts/${postId}/pin`);
   return data;
 }
 
