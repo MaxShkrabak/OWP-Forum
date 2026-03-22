@@ -123,6 +123,7 @@ final class PostControllerTest extends TestCase
 
         $postStmt = $this->createMock(PDOStatement::class);
         $postStmt->method('execute')->willReturn(true);
+        $postStmt->method('fetchColumn')->willReturn(1);
         $postStmt->method('fetch')->willReturn([
             'PostID'       => $postId,
             'Title'        => 'Hello World',
