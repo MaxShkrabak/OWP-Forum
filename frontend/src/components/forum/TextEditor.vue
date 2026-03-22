@@ -14,7 +14,8 @@ import { Link } from '@tiptap/extension-link';
 const props = defineProps({
   modelValue: String,
   placeholder: String,
-  isUploading: Boolean
+  compact: { type: Boolean, default: false },
+  showToolbar: { type: Boolean, default: true },
 });
 
 const emit = defineEmits(['update:modelValue', 'update:isUploading']);
@@ -136,7 +137,15 @@ const triggerImageUpload = async () => {
             emit('update:isUploading', true);
             try {
                 const data = await uploadImage(file);
-                editor.value.chain().focus().setImage({ src: data.url }).run();
+                if (props.compact) {
+                    const filename = file.name || 'image';
+                    editor.value.chain().focus().insertContent([
+                        { type: 'text', marks: [{ type: 'link', attrs: { href: data.url, target: '_blank' } }], text: filename },
+                        { type: 'text', text: ' ' },
+                    ]).run();
+                } else {
+                    editor.value.chain().focus().setImage({ src: data.url }).run();
+                }
             } catch (err) { 
                 console.error(err); 
             } finally {
@@ -178,8 +187,8 @@ defineExpose({
 });</script>
 
 <template>
-    <div class="editor-container">
-        <div v-if="editor" class="tiptap-toolbar">
+    <div class="editor-container" :class="{ 'compact-mode': compact }">
+        <div v-if="editor && showToolbar" class="tiptap-toolbar">
             <!-- Heading select -->
             <div class="toolbar-dropdown-group" title="Heading">
                 <select :value="currentHeadingValue" @change="handleHeadingChange" class="heading-select">
@@ -277,7 +286,13 @@ defineExpose({
             </button>
         </div>
 
-        <editor-content :editor="editor" class="tiptap-content" />
+        <div class="editor-body-wrapper">
+            <div
+                v-if="compact && (!modelValue || modelValue === '<p></p>')"
+                class="compact-placeholder"
+            >{{ placeholder }}</div>
+            <editor-content :editor="editor" class="tiptap-content" />
+        </div>
     </div>
 </template>
 
@@ -291,6 +306,43 @@ defineExpose({
     display: flex;
     flex-direction: column;
     min-height: 450px;
+}
+
+/* Compact mode for comments */
+.editor-container.compact-mode {
+    height: auto;
+    min-height: unset;
+    border: none;
+    border-radius: 0;
+}
+
+.editor-body-wrapper {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.compact-placeholder {
+    position: absolute;
+    top: 1rem;
+    left: 1.2rem;
+    color: #94a3b8;
+    pointer-events: none;
+    font-size: 0.95rem;
+    z-index: 1;
+}
+
+.compact-mode :deep(.tiptap-content) {
+    min-height: unset;
+}
+
+.compact-mode :deep(.tiptap) {
+    min-height: 80px;
+    font-size: 0.95rem;
+    padding: 1rem;
 }
 
 .tiptap-toolbar {
