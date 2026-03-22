@@ -1,7 +1,29 @@
 import { ref } from 'vue';
 
-export const createPostBlockedUntil = ref(0);
+const STORAGE_KEY = "createPostBlockedUntil";
+
+function getStoredBlockedUntil() {
+    const stored = Number(localStorage.getItem(STORAGE_KEY) ?? 0)
+
+    if (!Number.isFinite(stored) || stored <= Date.now()) {
+        localStorage.removeItem(STORAGE_KEY);
+        return 0;
+    }
+
+    return stored;
+}
+
+export const createPostBlockedUntil = ref(getStoredBlockedUntil());
 
 export function blockPostCreationFor(seconds) {
-    createPostBlockedUntil.value = Date.now() + seconds * 1000;
+    const safeSeconds = Math.max(0, Number(seconds) || 0);
+    const blockedUntil = safeSeconds > 0 ? Date.mow() + safeSeconds * 1000 : 0;
+
+    createPostBlockedUntil.value = blockedUntil;
+
+    if (blockedUntil > Date.now()) {
+        localStorage.setItem(STORAGE_KEY, String(blockedUntil));
+    } else {
+        localStorage.removeItem(STORAGE_KEY);
+    }
 }
