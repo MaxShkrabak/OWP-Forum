@@ -72,14 +72,70 @@ class PostController {
         try {
             $pdo = ($this->makePdo)();
             $postID = (int)$args['id'];
-            $userId = $req->getAttribute("user_id") ?? 0;
+            $userId = (int)($req->getAttribute("user_id") ?? 0);
+
+            /* View counts: only signed-in users; same user cannot bump the same post within the cooldown window. */
+            $viewCooldownHours = 12;
+
+            $existsStmt = $pdo->prepare("SELECT 1 FROM dbo.Posts WHERE PostID = :id AND IsDeleted = 0");
+            $existsStmt->execute(['id' => $postID]);
+            if (!$existsStmt->fetchColumn()) {
+                return json($res, ['ok' => false, 'error' => "Post not found or has been deleted."], 404);
+            }
+
+            if ($userId > 0) {
+                $dedupStmt = $pdo->prepare("
+                    SELECT LastViewedAt FROM dbo.PostViewDedup
+                    WHERE PostID = :pid AND UserID = :uid
+                ");
+                $dedupStmt->execute([':pid' => $postID, ':uid' => $userId]);
+                $lastRow = $dedupStmt->fetch(PDO::FETCH_ASSOC);
+
+                $shouldIncrement = true;
+                if ($lastRow) {
+                    $last = new \DateTimeImmutable($lastRow['LastViewedAt'], new \DateTimeZone('UTC'));
+                    $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
+                    $hoursSince = ($now->getTimestamp() - $last->getTimestamp()) / 3600.0;
+                    if ($hoursSince < $viewCooldownHours) {
+                        $shouldIncrement = false;
+                    }
+                }
+
+                if ($shouldIncrement) {
+                    $incStmt = $pdo->prepare("
+                        UPDATE dbo.Posts
+                        SET ViewCount = ViewCount + 1
+                        WHERE PostID = :id AND IsDeleted = 0
+                    ");
+                    $incStmt->execute(['id' => $postID]);
+                    if ($incStmt->rowCount() === 0) {
+                        return json($res, ['ok' => false, 'error' => "Post not found or has been deleted."], 404);
+                    }
+
+                    $dupExists = $pdo->prepare("SELECT 1 FROM dbo.PostViewDedup WHERE PostID = :pid AND UserID = :uid");
+                    $dupExists->execute([':pid' => $postID, ':uid' => $userId]);
+                    if ($dupExists->fetchColumn()) {
+                        $pdo->prepare("
+                            UPDATE dbo.PostViewDedup
+                            SET LastViewedAt = SYSUTCDATETIME()
+                            WHERE PostID = :pid AND UserID = :uid
+                        ")->execute([':pid' => $postID, ':uid' => $userId]);
+                    } else {
+                        $pdo->prepare("
+                            INSERT INTO dbo.PostViewDedup (PostID, UserID, LastViewedAt)
+                            VALUES (:pid, :uid, SYSUTCDATETIME())
+                        ")->execute([':pid' => $postID, ':uid' => $userId]);
+                    }
+                }
+            }
 
             $sql = "
                 SELECT p.PostID, p.Title, p.Content, p.CreatedAt, p.UpdatedAt, p.CategoryID, p.AuthorID, p.TotalScore,
-                       u.FirstName, u.LastName, u.Avatar,
-                       r.Name AS RoleName,
-                       c.Name AS CategoryName,
-                       ISNULL(pv.VoteValue, 0) AS myVote
+                        p.ViewCount,
+                        u.FirstName, u.LastName, u.Avatar,
+                        r.Name AS RoleName,
+                        c.Name AS CategoryName,
+                        ISNULL(pv.VoteValue, 0) AS myVote
                 FROM dbo.Posts p
                 LEFT JOIN dbo.Users u ON p.AuthorID = u.User_ID
                 LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
@@ -118,6 +174,7 @@ class PostController {
                 'tagNames'     => $tagNames,
                 'tagIds'       => $tagIds,
                 'totalScore'   => (int)($post['TotalScore'] ?? 0),
+                'viewCount'    => (int)($post['ViewCount'] ?? 0),
                 'myVote'       => (int)($post['myVote'] ?? 0),
             ]]);
         } catch (Throwable $e) {
