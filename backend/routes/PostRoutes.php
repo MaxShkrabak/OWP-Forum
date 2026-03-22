@@ -85,7 +85,7 @@ $app->get('/api/get-post/{id}', function (Request $req, Response $res, array $ar
 
         // TODO: This needs to be fixed this was copilots (MERGE Conflicts Resolve) too many duplicates
         $responseData = [
-            'PostID'       => (int)$post['PostID'],
+            'postId'       => (int)$post['PostID'],
             'title'        => $post['Title'],
             'content'      => $post['Content'],
             'createdAt'    => $post['CreatedAt'],
@@ -100,7 +100,7 @@ $app->get('/api/get-post/{id}', function (Request $req, Response $res, array $ar
             'tags'         => $tags,                        // Array of objects (TagID & Name)
             'tagNames'     => $tagNames,                    // Flat array of strings
             'tagIds'       => $tagIds,                      // Flat array of IDs
-            'TotalScore'   => (int)($post['TotalScore'] ?? 0),
+            'totalScore'   => (int)($post['TotalScore'] ?? 0),
             'myVote'       => (int)($post['myVote'] ?? 0),
         ];
 

@@ -88,7 +88,7 @@ class PostController {
                 $catId = (int)$row['CategoryID'];
 
                 $post = [
-                    'PostID'       => $pid,
+                    'postId'       => $pid,
                     'categoryId'   => $catId,
                     'title'        => $row['Title'],
                     'createdAt'    => $row['CreatedAt'],
@@ -98,7 +98,7 @@ class PostController {
                     'authorAvatar' => $row['Avatar'] ?? null,
                     'tags'         => $tagsByPostId[$pid] ?? [],
                     'commentCount' => (int)($row['commentCount'] ?? 0),
-                    'TotalScore'   => (int)($row['TotalScore'] ?? 0),
+                    'totalScore'   => (int)($row['TotalScore'] ?? 0),
                     'myVote'       => (int)($row['myVote'] ?? 0),
                 ];
 
@@ -451,7 +451,9 @@ class PostController {
     {
         try {
             $userId = (int)$req->getAttribute("user_id");
-            if (!$userId) return json($res, ['ok' => false, 'error' => 'Not Authenticated'], 401);
+            if (!$userId) {
+                return json($res, ['ok' => false, 'error' => 'Not Authenticated'], 401);
+            }
 
             $pdo = ($this->makePdo)();
 
@@ -513,6 +515,7 @@ class PostController {
         } catch (Throwable $e) {
             return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
         }
+
     }
 
     public function delPost(Request $req, Response $res, array $args): Response
