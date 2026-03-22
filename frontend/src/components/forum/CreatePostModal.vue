@@ -507,8 +507,7 @@ p {
   background: white;
   width: 90%;
   max-width: 55em;
-  height: 90vh;
-  max-height: 90vh;
+  max-height: 90%;
   border-radius: 16px;
   display: flex;
   flex-direction: column;
@@ -528,12 +527,10 @@ p {
 
 .modal-body {
   padding: 1.5em;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 1.5em;
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: hidden;
 }
 
 .post-top-section {
@@ -541,10 +538,7 @@ p {
 }
 
 .editor-section {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: hidden;
-  display: flex;
+  display: block;
 }
 
 .modal-footer {
@@ -678,9 +672,7 @@ p {
 }
 
 .custom-editor {
-  flex: 1 1 auto;
-  min-height: 0;
-  height: 100%;
+  height: 300px;
 }
 
 .user-info-section {
