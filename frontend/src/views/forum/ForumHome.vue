@@ -307,7 +307,12 @@ onMounted(async () => {
                 </div>
               </RouterLink>
 
-              <PostCard v-for="post in category._homepagePosts" :key="post.postId" :post="post" />
+              <PostCard
+                v-for="post in category._homepagePosts"
+                :key="post.postId ?? post.PostID"
+                :post="post"
+                @post-refresh="handlePostRefresh"
+              />
             </div>
           </template>
         </div>
