@@ -145,16 +145,6 @@ onMounted(async () => {
               </div>
             </div>
             <h1 class="post-title fs-2 m-0 text-break">{{ post.title }}</h1>
-            <p
-              v-if="post.viewCount != null"
-              class="post-view-count m-0 d-flex align-items-center gap-1"
-            >
-              <i class="pi pi-eye" aria-hidden="true"></i>
-              <span
-                >{{ Number(post.viewCount).toLocaleString() }}
-                {{ post.viewCount === 1 ? "view" : "views" }}</span
-              >
-            </p>
           </div>
 
           <ViewPostContent
@@ -163,7 +153,21 @@ onMounted(async () => {
           />
 
           <section class="post-footer">
-            <PostModerationSidebar :post="post" class="px-4 py-4" />
+            <div
+              class="post-footer-row d-flex flex-wrap align-items-center justify-content-between gap-3 px-4 py-4"
+            >
+              <PostModerationSidebar :post="post" />
+              <p
+                v-if="post.viewCount != null"
+                class="post-view-count m-0 d-flex align-items-center gap-1 flex-shrink-0 ms-auto"
+              >
+                <i class="pi pi-eye" aria-hidden="true"></i>
+                <span
+                  >{{ Number(post.viewCount).toLocaleString() }}
+                  {{ post.viewCount === 1 ? "view" : "views" }}</span
+                >
+              </p>
+            </div>
           </section>
         </article>
 
