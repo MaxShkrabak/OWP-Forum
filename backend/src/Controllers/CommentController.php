@@ -146,12 +146,65 @@ class CommentController
 
         return true;
     }
+    private function getCommentRateLimitRole(PDO $pdo, int $userId): ?string {
+        $roleStmt = $pdo->prepare("
+            SELECT LOWER(r.NAME)
+            FROM dbo.Users u
+            LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
+            WHERE u.User_ID = :uid
+        ");
+
+        $roleStmt->execute([':uid' => $userId]);
+        $roleName = $roleStmt->fetchColumn();
+
+        return is_string($roleName)?trim($roleName):null;
+    }
+
+    private function ApplyCommentRateLimit(?string $roleName):bool {
+        if($roleName === null || $roleName === ''){
+            return true;
+        }
+
+        return in_array($roleName, ['user', 'student'], true);
+    }
+
+    private function getHourlyCommentResetSeconds(PDO $pdo, int $userId, int $commentsPerHourLimit): ?int {
+        $offset = max($commentsPerHourLimit - 1, 0);
+
+        $hourlyResetTimeStmt = $pdo->prepare("
+            Select CreatedAt
+            FROM dbo.Comments
+            WHERE UserID = :uid
+            AND isDeleted = 0
+            AND CreatedAt >= DATEADD(HOUR, -1, SYSUTCDATETIME())
+            ORDERED BY CreatedAt DESC
+            OFFSET ($offset) ROWS FETCH NEXT 1 ROWS ONLY 
+        ");
+        $hourlyResetTimeStmt->execute([':uid => $userId']);
+        $createdAt = $hourlyResetTimeStmt->fetchColumn();
+
+        if(!$createdAt){
+            return null;
+        }
+
+        $limitWindowCommentTime = new DateTimeImmutable((string)createdAt, new DateTimeZone(UTC));
+        $now = new DateTimeImmutable('now', new DateTimeZone(UTC));
+        $secondsLeft = 3600 - ($now->getTimestamp() - $limitWindowCommentTime->getTimestamp());
+
+        return max(1, $secondsLeft);
+    }
 
     private function createCommentRateLimit(PDO $pdo, int $userId, Response $res): ?Response
     {
         //Make thes into ENVs if desired
         $commentCooldownSeconds = 15;
-        $commentsPerHourLimit = 30; 
+        $commentsPerHourLimit = 50; 
+
+        $roleName = $this->getCommentRateLimitRole($pdo, $userId);
+
+        if(!this->ApplyCommentRateLimit($roleName)){
+            return null;
+        }
 
         $lockstmt = $pdo->prepare("
             DECLARE @result INT;
@@ -181,12 +234,22 @@ class CommentController
         $recentComments = (int)$recentCommentStmt->fetchColumn();
 
         if ($recentComments >= $commentsPerHourLimit) {
+            $secondsLeft = this->getHourlyCommentResetSeconds($pdo, $userId, $commentsPerHourLimit);
             $pdo->rollBack();
-            return json($res, ['ok' => false, 'error' => 'Comment rate limit exceeded. Please wait before commenting again.'], 429);
+            return json($res, [
+                'ok' => false, 
+                'error' => $secondsLeft !== null
+                ? "You've reached the {$commentsPerHourLimit} comments per hour limit. Try again in {$secondsLeft} seconds."
+                : "You've reached the {$commentsPerHourLimit} comments per hour limit. Please try again soon.",
+                'rateLimit' => [
+                    'tyoe' => 'hourly_limit',
+                    "secondsLeft" => $secondsLeft,
+                ],
+            ], 429);
         }
 
         if ($commentCooldownSeconds <= 0) {
-            return null; // No cooldown configured
+            return null;
         }
 
         $lastCommentStmt = $pdo->prepare("
@@ -199,7 +262,7 @@ class CommentController
         $lastCreatedAt = $lastCommentStmt->fetchColumn();
 
         if (!$lastCreatedAt) {
-            return null; // No previous comments, so no cooldown needed
+            return null;
         }
 
         $lastTime = new \DateTimeImmutable((string)$lastCreatedAt, new \DateTimeZone('UTC'));
@@ -209,10 +272,17 @@ class CommentController
         if ($diffSeconds < $commentCooldownSeconds) {
             $secondsLeft = $commentCooldownSeconds - $diffSeconds;
             $pdo->rollBack();
-            return json($res, ['ok' => false, 'error' => "Please wait {$secondsLeft} seconds before commenting again."], 429);
+            return json($res, [
+                'ok' => false, 
+                'error' => "Please wait {$secondsLeft} seconds before commenting again.",
+                'rateLimit' => [
+                    'type' => 'cooldown',
+                    'secondsLeft' => $secondsLeft,
+                ],
+            ], 429);
         }
 
-        return null; // Passed rate limit checks
+        return null; 
     }
 
     public function createComment(Request $req, Response $res, array $args): Response
