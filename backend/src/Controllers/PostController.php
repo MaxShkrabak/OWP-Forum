@@ -273,7 +273,7 @@ class PostController {
 
             $sql = "
                 SELECT p.PostID, p.Title, p.CreatedAt, p.TotalScore,
-                       (SELECT COUNT(*) FROM dbo.Comments cm WHERE cm.PostID = p.PostID) AS commentCount,
+                       (SELECT COUNT(*) FROM dbo.Comments cm WHERE cm.PostID = p.PostID AND cm.IsDeleted = 0) AS commentCount,
                        u.FirstName, u.LastName, u.Avatar, u.User_ID, r.Name AS RoleName,
                        ISNULL(pv.VoteValue, 0) AS myVote
                 FROM dbo.Posts p
@@ -425,7 +425,7 @@ class PostController {
 
             $getPostsSql = "
                 SELECT p.PostID, p.Title, p.CreatedAt, p.CategoryID, p.TotalScore,
-                    (SELECT COUNT(*) FROM dbo.Comments cm WHERE cm.PostID = p.PostID) AS commentCount,
+                    (SELECT COUNT(*) FROM dbo.Comments cm WHERE cm.PostID = p.PostID AND cm.IsDeleted = 0) AS commentCount,
                     u.FirstName, u.LastName, u.Avatar, u.User_ID,
                     r.Name AS RoleName, c.Name AS CategoryName,
                     ISNULL(pv.VoteValue, 0) AS myVote
@@ -513,7 +513,7 @@ class PostController {
                     p.CreatedAt,
                     p.CategoryID,
                     p.TotalScore,
-                    (SELECT COUNT(*) FROM dbo.Comments cm WHERE cm.PostID = p.PostID) AS commentCount,
+                    (SELECT COUNT(*) FROM dbo.Comments cm WHERE cm.PostID = p.PostID AND cm.IsDeleted = 0) AS commentCount,
                     u.FirstName,
                     u.LastName,
                     u.Avatar,
@@ -870,6 +870,62 @@ class PostController {
 
     }
 
+    public function softDeletePost(Request $req, Response $res, array $args): Response
+    {
+        try {
+            $userId = (int)$req->getAttribute("user_id");
+            if (!$userId) {
+                return json($res, ['ok' => false, 'error' => 'Not Authenticated'], 401);
+            }
+
+            $pdo = ($this->makePdo)();
+
+            if ($termsRes = \Forum\Helpers\requireTermsAccepted($req, $res, $pdo)) {
+                return $termsRes;
+            }
+
+            $postId = (int)$args['id'];
+
+            $ownerStmt = $pdo->prepare("SELECT AuthorID FROM dbo.Posts WHERE PostID = :pid AND IsDeleted = 0");
+            $ownerStmt->execute([':pid' => $postId]);
+            $authorId = (int)$ownerStmt->fetchColumn();
+
+            if (!$authorId) {
+                return json($res, ['ok' => false, 'error' => 'Post not found or already deleted'], 404);
+            }
+
+            if ($authorId !== $userId) {
+                return json($res, ['ok' => false, 'error' => 'Forbidden'], 403);
+            }
+
+            $pdo->beginTransaction();
+
+            $stmt = $pdo->prepare("
+                UPDATE dbo.Posts
+                SET IsDeleted = 1, DeletedAt = SYSUTCDATETIME()
+                WHERE PostID = :pid AND IsDeleted = 0
+            ");
+            $stmt->execute([':pid' => $postId]);
+
+            if ($stmt->rowCount() === 0) {
+                $pdo->rollBack();
+                return json($res, ['ok' => false, 'error' => 'Post not found or already deleted'], 404);
+            }
+
+            softDeleteCommentsForPost($pdo, $postId);
+            resolveReportsForPost($pdo, $postId, (int)$userId);
+
+            $pdo->commit();
+
+            return json($res, ['ok' => true]);
+        } catch (Throwable $e) {
+            if (isset($pdo) && $pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
     public function delPost(Request $req, Response $res, array $args): Response
     {
         try {
@@ -902,10 +958,7 @@ class PostController {
                 return json($res, ['ok' => false, 'error' => 'Failed to delete post.'], 500);
             }
             
-            // Soft delete comments under this post
             softDeleteCommentsForPost($pdo, $postId);
-
-            // Resolve reports for this post + comments/replies under it
             resolveReportsForPost($pdo, $postId, (int)$userId);
 
             $pdo->commit();
@@ -1052,7 +1105,7 @@ class PostController {
             return json($res, [
                 'ok' => true,
                 'post' => [
-                    'postID'       => (int)$updatedPost['PostID'],
+                    'postId'       => (int)$updatedPost['PostID'],
                     'title'        => $updatedPost['Title'],
                     'content'      => $updatedPost['Content'],
                     'createdAt'    => $updatedPost['CreatedAt'],
