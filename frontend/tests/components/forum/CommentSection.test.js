@@ -211,7 +211,8 @@ describe("CommentSection.vue", () => {
         status: 429,
         data: {
           ok: false,
-          error: "You're commenting too fast. Please wait 75 seconds before commenting again.",
+          error:
+            "You're commenting too fast. Please wait 75 seconds before commenting again.",
           rateLimit: {
             type: "cooldown",
             secondsLeft: 75,
@@ -234,5 +235,4 @@ describe("CommentSection.vue", () => {
     expect(document.body.textContent).toContain("You're commenting too fast");
     expect(document.body.textContent).toContain("1 minute 15 seconds");
   });
-
 });
