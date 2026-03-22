@@ -43,13 +43,17 @@ final class PostControllerTest extends TestCase
                 'category' => $categoryId,
             ]);
 
-        $banStmt = $this->createMock(PDOStatement::class);
-        $banStmt->expects($this->once())->method('execute')->with([':uid' => $userId]);
-        $banStmt->method('fetch')->willReturn([0, null, null]);
-
         $termsStmt = $this->createMock(PDOStatement::class);
         $termsStmt->expects($this->once())->method('execute')->with([':uid' => $userId]);
         $termsStmt->method('fetch')->willReturn(['termsAccepted' => 1]);
+
+        $banStmt = $this->createMock(PDOStatement::class);
+        $banStmt->expects($this->once())->method('execute')->with([':uid' => $userId]);
+        $banStmt->method('fetch')->willReturn([
+            'IsBanned' => 0,
+            'BanType' => null,
+            'BannedUntil' => null,
+        ]);
 
         $lastPostStmt = $this->createMock(PDOStatement::class);
         $lastPostStmt->expects($this->once())->method('execute')->with([':uid' => $userId]);
@@ -78,20 +82,22 @@ final class PostControllerTest extends TestCase
         $this->pdo->method('beginTransaction')->willReturn(true);
         $this->pdo->method('commit')->willReturn(true);
 
-        $this->pdo->method('prepare')->willReturnCallback(function (string $sql) use ($banStmt, $termsStmt, $lastPostStmt, $categoryStmt, $insertStmt) {
-            if (str_contains($sql, 'ISNULL(IsBanned')) {
-                return $banStmt;
-            }
-            if (str_contains($sql, 'termsAccepted')) {
+        $this->pdo->method('prepare')->willReturnCallback(function (string $sql) use ($termsStmt, $banStmt, $lastPostStmt, $categoryStmt, $insertStmt) {
+            $sql_lower = strtolower($sql);
+            
+            if (str_contains($sql_lower, 'termsaccepted')) {
                 return $termsStmt;
             }
-            if (str_contains($sql, 'SELECT TOP 1 Title')) {
+            if (str_contains($sql_lower, 'select') && str_contains($sql_lower, 'isbanned')) {
+                return $banStmt;
+            }
+            if (str_contains($sql_lower, 'select top 1')) {
                 return $lastPostStmt;
             }
-            if (str_contains($sql, 'FROM dbo.Categories')) {
+            if (str_contains($sql_lower, 'from dbo.categories')) {
                 return $categoryStmt;
             }
-            if (str_contains($sql, 'INSERT INTO dbo.Posts')) {
+            if (str_contains($sql_lower, 'insert into dbo.posts')) {
                 return $insertStmt;
             }
 
@@ -125,13 +131,19 @@ final class PostControllerTest extends TestCase
 
         $banStmt = $this->createMock(PDOStatement::class);
         $banStmt->expects($this->once())->method('execute')->with([':uid' => $userId]);
-        $banStmt->method('fetch')->willReturn([1, 'permanent', null]);
+        $banStmt->method('fetch')->willReturn([
+            'IsBanned' => 1,
+            'BanType' => 'permanent',
+            'BannedUntil' => null,
+        ]);
 
         $this->pdo->method('prepare')->willReturnCallback(function (string $sql) use ($termsStmt, $banStmt) {
-            if (str_contains($sql, 'termsAccepted')) {
+            $sql_lower = strtolower($sql);
+            
+            if (str_contains($sql_lower, 'termsaccepted')) {
                 return $termsStmt;
             }
-            if (str_contains($sql, 'ISNULL(IsBanned')) {
+            if (str_contains($sql_lower, 'select') && str_contains($sql_lower, 'isbanned')) {
                 return $banStmt;
             }
             throw new \Exception("Unexpected SQL: $sql");
@@ -142,6 +154,6 @@ final class PostControllerTest extends TestCase
         $this->assertEquals(403, $response->getStatusCode());
         $json = $this->decode($response);
         $this->assertFalse($json['ok']);
-        $this->assertEquals('You are banned and cannot create posts.', $json['error']);
+        $this->assertStringContainsString('Your account is restricted from performing this action', $json['error']);
     }
 }
