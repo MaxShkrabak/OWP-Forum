@@ -220,9 +220,12 @@ describe("CommentSection.vue", () => {
       },
     });
 
-    const textarea = wrapper.find(".comment-textarea");
-    await textarea.trigger("focus");
-    await textarea.setValue("Trying to post too quickly.");
+    await wrapper.find(".reply-box-container").trigger("click");
+
+    const editor = wrapper.findComponent(TextEditor);
+    expect(editor.exists()).toBe(true);
+    await editor.vm.$emit("update:modelValue", "Trying to post too quickly.");
+    await flushPromises();
 
     const submitBtn = wrapper.find(".main-input-wrapper .btn-submit");
     await submitBtn.trigger("click");

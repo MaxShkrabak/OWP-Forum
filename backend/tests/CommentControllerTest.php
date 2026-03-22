@@ -779,6 +779,16 @@ final class CommentControllerTest extends TestCase
             'EmailNotificationsEnabled' => 1,
         ]);
 
+        $notificationPrefsStmt = $this->createMock(PDOStatement::class);
+        $notificationPrefsStmt->expects($this->once())
+            ->method('execute')
+            ->with([':postId' => $postId]);
+        $notificationPrefsStmt->method('fetch')->willReturn([
+            'AuthorID' => $userId,
+            'PushNotificationsEnabled' => 1,
+            'PostReplyNotificationsEnabled' => 1,
+        ]);
+
         $this->pdo->expects($this->once())->method('beginTransaction')->willReturn(true);
         $this->pdo->expects($this->once())->method('commit')->willReturn(true);
         $this->pdo->expects($this->never())->method('rollBack');
@@ -789,6 +799,7 @@ final class CommentControllerTest extends TestCase
             $insertStmt,
             $selectStmt,
             $postOwnerStmt,
+            $notificationPrefsStmt,
             $roleName
         ) {
             if (str_contains($sql, 'SELECT LOWER(r.NAME)')) {
@@ -799,6 +810,9 @@ final class CommentControllerTest extends TestCase
             }
             if (str_contains($sql, 'SELECT c.CommentId, c.PostId')) {
                 return $selectStmt;
+            }
+            if (str_contains($sql, 'PushNotificationsEnabled')) {
+                return $notificationPrefsStmt;
             }
             if (str_contains($sql, 'SELECT p.PostID, p.Title, p.AuthorID')) {
                 return $postOwnerStmt;

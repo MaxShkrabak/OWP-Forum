@@ -1,6 +1,5 @@
 <script setup>
 import { ref, computed, provide, onMounted, onBeforeUnmount } from "vue";
-import { ref, provide, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import SingleComment from "./SingleComment.vue";
 import CommentEditor from "./TextEditor.vue";
@@ -10,7 +9,7 @@ import {
   submitComment as apiSubmitComment,
   formatCommentData,
 } from "@/api/comments";
-import { uid, isLoggedIn } from "@/stores/userStore";
+import {isLoggedIn } from "@/stores/userStore";
 
 const props = defineProps({
   postId: {
