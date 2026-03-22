@@ -177,18 +177,18 @@ class CommentController
             WHERE UserID = :uid
             AND isDeleted = 0
             AND CreatedAt >= DATEADD(HOUR, -1, SYSUTCDATETIME())
-            ORDERED BY CreatedAt DESC
+            ORDER BY CreatedAt DESC
             OFFSET ($offset) ROWS FETCH NEXT 1 ROWS ONLY 
         ");
-        $hourlyResetTimeStmt->execute([':uid => $userId']);
+        $hourlyResetTimeStmt->execute([':uid' => $userId]);
         $createdAt = $hourlyResetTimeStmt->fetchColumn();
 
         if(!$createdAt){
             return null;
         }
 
-        $limitWindowCommentTime = new DateTimeImmutable((string)createdAt, new DateTimeZone(UTC));
-        $now = new DateTimeImmutable('now', new DateTimeZone(UTC));
+        $limitWindowCommentTime = new \DateTimeImmutable((string)$createdAt, new \DateTimeZone('UTC'));
+        $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
         $secondsLeft = 3600 - ($now->getTimestamp() - $limitWindowCommentTime->getTimestamp());
 
         return max(1, $secondsLeft);
@@ -202,7 +202,7 @@ class CommentController
 
         $roleName = $this->getCommentRateLimitRole($pdo, $userId);
 
-        if(!this->ApplyCommentRateLimit($roleName)){
+        if(!$this->ApplyCommentRateLimit($roleName)){
             return null;
         }
 
@@ -234,7 +234,7 @@ class CommentController
         $recentComments = (int)$recentCommentStmt->fetchColumn();
 
         if ($recentComments >= $commentsPerHourLimit) {
-            $secondsLeft = this->getHourlyCommentResetSeconds($pdo, $userId, $commentsPerHourLimit);
+            $secondsLeft = $this->getHourlyCommentResetSeconds($pdo, $userId, $commentsPerHourLimit);
             $pdo->rollBack();
             return json($res, [
                 'ok' => false, 
@@ -242,7 +242,7 @@ class CommentController
                 ? "You've reached the {$commentsPerHourLimit} comments per hour limit. Try again in {$secondsLeft} seconds."
                 : "You've reached the {$commentsPerHourLimit} comments per hour limit. Please try again soon.",
                 'rateLimit' => [
-                    'tyoe' => 'hourly_limit',
+                    'type' => 'hourly_limit',
                     "secondsLeft" => $secondsLeft,
                 ],
             ], 429);
