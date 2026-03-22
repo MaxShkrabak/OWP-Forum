@@ -37,7 +37,7 @@ export async function logout() {
 export async function getName() {
   const data = await checkAuth();
   if (data?.ok && data?.user) {
-    return `${data.user.firstName} ${data.user.lastName}`;
+    return `${data.user.FirstName} ${data.user.LastName}`;
   }
   return null;
 }

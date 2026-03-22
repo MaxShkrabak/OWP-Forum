@@ -246,7 +246,7 @@ async function doPublish() {
       });
 
     } else if (isEditMode.value) {
-      const targetId = props.postData.postId || props.postData.id;
+      const targetId = props.postData.PostID || props.postData.postId || props.postData.id;
 
       await client.put(`/posts/${targetId}`, {
         title: form.value.title.trim(),

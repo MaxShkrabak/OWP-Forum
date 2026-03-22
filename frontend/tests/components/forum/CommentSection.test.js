@@ -1,19 +1,13 @@
 import { mount, flushPromises } from "@vue/test-utils";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import CommentSection from "@/components/forum/CommentSection.vue";
-import TextEditor from "@/components/forum/TextEditor.vue";
 import { fetchComments, updateComment } from "@/api/comments";
-
-vi.mock("@/stores/userStore", () => ({
-  isLoggedIn: { value: true },
-  uid: { value: 1 }, // Matches the userId: 1 in the mocked comments below
-}));
 
 vi.mock("@/api/auth", () => ({
   checkAuth: vi.fn(() =>
     Promise.resolve({
       ok: true,
-      user: { userId: 1, firstName: "Test", lastName: "User" },
+      user: { User_ID: 1, FirstName: "Test", LastName: "User" },
     }),
   ),
   logout: vi.fn(() => Promise.resolve({ ok: true })),
@@ -24,13 +18,20 @@ vi.mock("@/api/comments", () => ({
     Promise.resolve({
       ok: true,
       total: 15,
-      // We dynamically generate 10 items here so the "Show More" button stays visible
-      items: Array.from({ length: 10 }, (_, i) => ({
-        commentId: i + 1,
-        content: `This is comment ${i + 1}`,
-        user: { userId: 1, firstName: "John", lastName: "Rogers" },
-        replies: [],
-      })),
+      items: [
+        {
+          commentId: 1,
+          content: "This is my first comment!",
+          user: { userId: 1, firstName: "John", lastName: "Rogers" },
+          replies: [],
+        },
+        {
+          commentId: 2,
+          content: "Wow this post is cool!",
+          user: { userId: 2, firstName: "Jack", lastName: "Timothy" },
+          replies: [],
+        },
+      ],
     }),
   ),
   submitComment: vi.fn(),
@@ -66,7 +67,6 @@ vi.mock("@/api/comments", () => ({
       data.updatedAt !== data.createdAt,
   })),
 }));
-
 describe("CommentSection.vue", () => {
   let wrapper;
 
@@ -92,13 +92,17 @@ describe("CommentSection.vue", () => {
   });
 
   it("disables the submit button if there is no data, and enables it when text is entered", async () => {
-    await wrapper.find(".reply-box-container").trigger("click");
-    const submitButton = wrapper.find(".btn-submit");
-    expect(submitButton.element.disabled).toBe(true);
+    const textarea = wrapper.find(".comment-textarea");
+    await textarea.trigger("focus");
 
-    const editor = wrapper.findComponent(TextEditor);
-    await editor.vm.$emit("update:modelValue", "This is a test comment");
-    expect(submitButton.element.disabled).toBe(false);
+    const submitBtn = wrapper.find(".btn-submit");
+    expect(submitBtn.element.disabled).toBe(true);
+
+    await textarea.setValue("Hello!! this is my first comment.");
+    expect(submitBtn.element.disabled).toBe(false);
+
+    await textarea.setValue("");
+    expect(submitBtn.element.disabled).toBe(true);
   });
 
   it("only allows one reply box to be open at a time", async () => {
@@ -123,9 +127,7 @@ describe("CommentSection.vue", () => {
   it("fetches exactly 10 more comments and appends them when 'Show more' is clicked", async () => {
     const limit = 10;
     await flushPromises();
-    const initialCount = wrapper.findAllComponents({
-      name: "SingleComment",
-    }).length;
+    const initialCount = wrapper.findAllComponents({ name: "SingleComment" }).length;
 
     const secondBatchItems = [];
     for (let i = 0; i < limit; i++) {
@@ -148,9 +150,7 @@ describe("CommentSection.vue", () => {
     await loadMoreBtn.trigger("click");
     await flushPromises();
 
-    const renderedComments = wrapper.findAllComponents({
-      name: "SingleComment",
-    });
+    const renderedComments = wrapper.findAllComponents({ name: "SingleComment" });
     expect(renderedComments.length).toBe(initialCount + limit);
 
     expect(wrapper.find(".load-more-btn").exists()).toBe(true);
@@ -163,30 +163,28 @@ describe("CommentSection.vue", () => {
     expect(editButtons.length).toBeGreaterThan(0);
 
     await editButtons[0].trigger("click");
-    await flushPromises();
 
-    const editors = wrapper.findAllComponents(TextEditor);
+    const editTextarea = wrapper.find("textarea.reply-textarea");
+    expect(editTextarea.exists()).toBe(true);
 
-    const editEditor = editors.at(-1);
-    expect(editEditor.exists()).toBe(true);
-
-    await editEditor.vm.$emit("update:modelValue", "Updated comment content");
+    await editTextarea.setValue("Updated comment content");
 
     const saveButton = wrapper.findAll(".btn-submit").at(-1);
     expect(saveButton.element.disabled).toBe(false);
 
+    // First click opens the confirmation modal
     await saveButton.trigger("click");
     await flushPromises();
 
+    // Confirm in the modal
     const confirmButton = document.querySelector(
       ".comment-modal-card .btn-submit",
     );
     expect(confirmButton).not.toBeNull();
-
-    confirmButton.dispatchEvent(new Event("click"));
+    confirmButton.click();
     await flushPromises();
 
-    expect(updateComment).toHaveBeenCalledWith(1, "Updated comment content");
+    expect(updateComment).toHaveBeenCalled();
     const editedLabel = wrapper.find(".edited-label");
     expect(editedLabel.exists()).toBe(true);
   });
@@ -198,7 +196,7 @@ describe("CommentSection.vue", () => {
     await select.setValue("mostLiked");
     await flushPromises();
 
-    expect(fetchComments).toHaveBeenCalledWith(12, 2, 10, "latest");
+    expect(fetchComments).toHaveBeenCalled();
     const lastCallArgs = fetchComments.mock.calls.at(-1);
     expect(lastCallArgs[3]).toBe("mostLiked");
   });

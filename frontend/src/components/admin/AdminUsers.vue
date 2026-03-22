@@ -54,14 +54,14 @@ async function loadUsers() {
     const res = await client.get('/admin/users', { params })
     users.value = (res.data.users || []).map(u => ({
       ...u,
-      IsBanned: Boolean(Number(u.isBanned ?? 0)),
-      BanType: u.banType && (u.banType === 'permanent' || u.banType === 'temporary') ? u.banType : null,
-      BannedUntil: u.bannedUntil ? String(u.bannedUntil) : null
+      IsBanned: Boolean(Number(u.IsBanned ?? 0)),
+      BanType: u.BanType && (u.BanType === 'permanent' || u.BanType === 'temporary') ? u.BanType : null,
+      BannedUntil: u.BannedUntil ? String(u.BannedUntil) : null
     }))
 
     // Populate roleDraft map
     const map = {}
-    for (const u of users.value) map[u.userId] = Number(u.roleId)
+    for (const u of users.value) map[u.User_ID] = Number(u.RoleID)
     roleDraft.value = map
   } catch (e) {
     error.value = e?.response?.data?.error || e.message || 'Failed to load users'
@@ -114,10 +114,10 @@ async function confirmBan() {
     payload.banType = 'permanent'
   }
   try {
-    await client.patch(`/admin/users/${banTarget.value.userId}/ban`, payload)
-    banTarget.value.isBanned = true
-    banTarget.value.banType = payload.banType
-    banTarget.value.bannedUntil = payload.bannedUntil || null
+    await client.patch(`/admin/users/${banTarget.value.User_ID}/ban`, payload)
+    banTarget.value.IsBanned = true
+    banTarget.value.BanType = payload.banType
+    banTarget.value.BannedUntil = payload.bannedUntil || null
     closeBanModal()
   } catch (e) {
     showWarningPopup(e?.response?.data?.error || 'Failed to update ban status')
@@ -126,19 +126,19 @@ async function confirmBan() {
 
 async function unban(user) {
   try {
-    await client.patch(`/admin/users/${user.userId}/ban`, { banned: false })
-    user.isBanned = false
-    user.banType = null
-    user.bannedUntil = null
+    await client.patch(`/admin/users/${user.User_ID}/ban`, { banned: false })
+    user.IsBanned = false
+    user.BanType = null
+    user.BannedUntil = null
   } catch (e) {
     showWarningPopup(e?.response?.data?.error || 'Failed to update ban status')
   }
 }
 
 function banStatusLabel(u) {
-  if (!u.isBanned) return 'Active'
-  if (u.banType === 'temporary' && u.bannedUntil) {
-    const formatted = formatBannedUntilDateTime(u.bannedUntil, { dateStyle: 'short', timeStyle: 'short' })
+  if (!u.IsBanned) return 'Active'
+  if (u.BanType === 'temporary' && u.BannedUntil) {
+    const formatted = formatBannedUntilDateTime(u.BannedUntil, { dateStyle: 'short', timeStyle: 'short' })
     return formatted ? 'Until ' + formatted : 'Temporary'
   }
   return 'Permanent'
@@ -146,21 +146,21 @@ function banStatusLabel(u) {
 
 function formatUserDisplay(u) {
   if (!u) return ''
-  const first = (u.firstName || '').trim()
-  const last = (u.lastName || '').trim()
-  const email = (u.email || '').trim()
+  const first = (u.FirstName || '').trim()
+  const last = (u.LastName || '').trim()
+  const email = (u.Email || '').trim()
   const hasName = first || last
   if (hasName) {
     const fullName = `${first} ${last}`.trim()
     return email ? `${fullName} (${email})` : fullName
   }
-  return email ? email : `ID: ${u.userId}`
+  return email ? email : `ID: ${u.User_ID}`
 }
 
 function isAdminUser(u) {
   if (!u) return false
-  if (Number(u.roleId) === 4) return true
-  return (u.roleName || '').toLowerCase() === 'admin'
+  if (Number(u.RoleID) === 4) return true
+  return (u.RoleName || '').toLowerCase() === 'admin'
 }
 
 // Role management functions
@@ -177,13 +177,13 @@ function closeRoleInfo() {
 }
 
 function onRoleSelected(user) {
-  const newRole = Number(roleDraft.value[user.userId])
-  const oldRole = Number(user.roleId)
+  const newRole = Number(roleDraft.value[user.User_ID])
+  const oldRole = Number(user.RoleID)
 
   if (newRole === oldRole) return
 
-  if (Number(user.userId) === Number(currentUserId.value)) {
-    roleDraft.value[user.userId] = oldRole
+  if (Number(user.User_ID) === Number(currentUserId.value)) {
+    roleDraft.value[user.User_ID] = oldRole
     showRoleInfo("Action not allowed", "You cannot change your own role.")
     return
   }
@@ -199,19 +199,19 @@ function onRoleSelected(user) {
 
 async function applyRoleChange(user, newRole) {
   try {
-    await client.patch(`/admin/users/${user.userId}/role`, { roleId: newRole })
-    user.roleId = String(newRole)
-    user.roleName = newRole === 1 ? 'user' : newRole === 2 ? 'student' : newRole === 3 ? 'moderator' : 'admin'
-    roleDraft.value[user.userId] = newRole
+    await client.patch(`/admin/users/${user.User_ID}/role`, { roleId: newRole })
+    user.RoleID = String(newRole)
+    user.RoleName = newRole === 1 ? 'user' : newRole === 2 ? 'student' : newRole === 3 ? 'moderator' : 'admin'
+    roleDraft.value[user.User_ID] = newRole
   } catch (e) {
-    roleDraft.value[user.userId] = Number(user.roleId)
+    roleDraft.value[user.User_ID] = Number(user.RoleID)
     alert(e?.response?.data?.error || 'Failed to update role')
   }
 }
 
 function cancelRoleConfirm() {
   const u = pendingRole.value.user
-  if (u) roleDraft.value[u.userId] = Number(u.roleId)
+  if (u) roleDraft.value[u.User_ID] = Number(u.RoleID)
   pendingRole.value = { user: null, newRoleId: null, oldRoleId: null }
   showRoleConfirm.value = false
 }
@@ -227,7 +227,7 @@ async function confirmRoleChange() {
 onMounted(async () => {
   try {
     const me = await client.get('/admin/me')
-    currentUserId.value = Number(me.data.user.userId)
+    currentUserId.value = Number(me.data.user.User_ID)
   } catch (e) {
     console.error("Failed to load current admin user", e)
   }
@@ -267,27 +267,27 @@ onMounted(async () => {
             </tr>
         </thead>
         <tbody>
-          <tr v-for="u in users" :key="u.userId" :class="{ 'row-banned': u.isBanned }">
-            <td class="admin-id">{{ u.userId }}</td>
+          <tr v-for="u in users" :key="u.User_ID" :class="{ 'row-banned': u.IsBanned }">
+            <td class="admin-id">{{ u.User_ID }}</td>
             <td>
               <div class="admin-name">
-                {{ (u.firstName || '') + ' ' + (u.lastName || '') }}
+                {{ (u.FirstName || '') + ' ' + (u.LastName || '') }}
               </div>
             </td>
-            <td class="admin-email">{{ u.email || '—' }}</td>
+            <td class="admin-email">{{ u.Email || '—' }}</td>
             <td>
               <select
                 class="role-select"
-                :class="roleLabel(roleDraft[u.userId]).toLowerCase()"
-                v-model="roleDraft[u.userId]"
-                :disabled="u.userId === currentUserId"
+                :class="roleLabel(roleDraft[u.User_ID]).toLowerCase()"
+                v-model="roleDraft[u.User_ID]"
+                :disabled="u.User_ID === currentUserId"
                 @change="onRoleSelected(u)"
               >
                 <option v-for="r in roles" :key="r.id" :value="r.id">{{ r.label }}</option>
               </select>
             </td>
             <td>
-              <span v-if="u.isBanned" class="badge badge-banned">
+              <span v-if="u.IsBanned" class="badge badge-banned">
                 <span class="desktop-only">{{ banStatusLabel(u) }}</span>
               </span>
               <span v-else class="badge badge-active">
@@ -296,7 +296,7 @@ onMounted(async () => {
             </td>
             <td>
               <button
-                v-if="!u.isBanned && !isAdminUser(u)"
+                v-if="!u.IsBanned && !isAdminUser(u)"
                 type="button"
                 class="btn-ban"
                 @click="openBanModal(u)"
@@ -307,7 +307,7 @@ onMounted(async () => {
               <i class="bi bi-x-lg mobile-only"></i>
               </button>
               <button
-                v-else-if="u.isBanned"
+                v-else-if="u.IsBanned"
                 type="button"
                 class="btn-unban"
                 @click="unban(u)"

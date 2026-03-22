@@ -12,25 +12,13 @@ const images = computed(() => {
   return Object.values(allImages).map((module) => module.default);
 });
 
-const selectedAvatar = ref('');
-const notificationPrefs = ref({
-  emailNotifications: true,
-  pushNotifications: true,
-  postReplies: true,
-  postLikes: true,
-});
-
-const syncPrefsToLocalStorage = () => {
-  localStorage.setItem('notificationPreferences', JSON.stringify(notificationPrefs.value));
-};
-
-// Load saved settings from localStorage + server
+// Load saved settings from localStorage
 const loadSettings = async () => {
-  const savedAvatar = localStorage.getItem('userAvatar') || images.value[0] || '';
+  const savedAvatar = localStorage.getItem('userAvatar') || images.value[0] || ''; // Default to pfp-0.png (index 0)
   const savedNotifications = localStorage.getItem('notificationPreferences');
-
+  
   selectedAvatar.value = savedAvatar;
-
+  
   if (savedNotifications) {
     try {
       const prefs = JSON.parse(savedNotifications);
@@ -43,14 +31,7 @@ const loadSettings = async () => {
   try {
     const result = await getNotificationSettings();
     if (result.ok && result.settings) {
-      notificationPrefs.value = {
-        ...notificationPrefs.value,
-        emailNotifications: !!result.settings.emailNotifications,
-        pushNotifications: !!result.settings.pushNotifications,
-        postLikes: !!result.settings.postLikes,
-        postReplies: !!result.settings.postReplies,
-      };
-      syncPrefsToLocalStorage();
+      notificationPrefs.value.emailNotifications = !!result.settings.emailNotifications;
     }
   } catch (e) {
     console.error('Failed to load notification settings from server', e);
@@ -70,10 +51,7 @@ const saveSettings = async () => {
     }
 
     const notificationResult = await saveNotificationSettings({
-      emailNotifications: notificationPrefs.value.emailNotifications,
-      pushNotifications: notificationPrefs.value.pushNotifications,
-      postLikes: notificationPrefs.value.postLikes,
-      postReplies: notificationPrefs.value.postReplies,
+      emailNotifications: notificationPrefs.value.emailNotifications
     });
 
     if (!notificationResult.ok) {
@@ -81,12 +59,15 @@ const saveSettings = async () => {
       return;
     }
 
+    // Store icon in localstorage
     localStorage.setItem('userAvatar', selectedAvatar.value);
-    syncPrefsToLocalStorage();
-    userAvatar.value = selectedAvatar.value;
+    localStorage.setItem('notificationPreferences', JSON.stringify(notificationPrefs.value));
+    userAvatar.value = selectedAvatar.value; // update store
     
+    // Close modal using Bootstrap
     const modalElement = document.getElementById('userSettingsModal');
     if (modalElement) {
+      // Try different ways to access Bootstrap Modal
       let modal = null;
       if (window.bootstrap && window.bootstrap.Modal) {
         modal = window.bootstrap.Modal.getInstance(modalElement);
@@ -97,6 +78,7 @@ const saveSettings = async () => {
       if (modal) {
         modal.hide();
       } else {
+        // Fallback: use jQuery/bootstrap event or just remove show class
         modalElement.classList.remove('show');
         modalElement.setAttribute('aria-hidden', 'true');
         modalElement.style.display = 'none';
@@ -106,10 +88,21 @@ const saveSettings = async () => {
       }
     }
   } catch (e) {
+    // Something went wrong
     const errorMsg = e.message || 'An error occured.';
     alert(errorMsg);
   } 
 };
+
+const selectedAvatar = ref('');
+const notificationPrefs = ref({
+  emailNotifications: true,
+  pushNotifications: true,
+  postReplies: true,
+  postLikes: true,
+  newFollowers: true,
+  mentions: true
+});
 
 // Watch for changes in store
 watch(userAvatar, (newAvatar) => {
@@ -134,6 +127,7 @@ const selectAvatar = (imagePath) => {
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
+          <!-- Avatar Selection Section -->
           <div class="settings-section">
             <h5 class="settings-section-title">Profile Picture</h5>
             <div class="current-avatar-container">
@@ -158,6 +152,7 @@ const selectAvatar = (imagePath) => {
 
           <hr class="settings-divider">
 
+          <!-- Notification Preferences Section -->
           <div class="settings-section">
             <h5 class="settings-section-title">Notification Preferences</h5>
             <div class="notification-options">
@@ -179,7 +174,7 @@ const selectAvatar = (imagePath) => {
               <div class="notification-item">
                 <div class="notification-info">
                   <label class="notification-label">Push Notifications</label>
-                  <span class="notification-description">Receive browser popup notifications in the app</span>
+                  <span class="notification-description">Receive browser push notifications</span>
                 </div>
                 <div class="form-check form-switch">
                   <input 
@@ -217,6 +212,36 @@ const selectAvatar = (imagePath) => {
                     type="checkbox" 
                     id="postLikes"
                     v-model="notificationPrefs.postLikes"
+                  >
+                </div>
+              </div>
+
+              <div class="notification-item">
+                <div class="notification-info">
+                  <label class="notification-label">New Followers</label>
+                  <span class="notification-description">Notify when someone follows you</span>
+                </div>
+                <div class="form-check form-switch">
+                  <input 
+                    class="form-check-input" 
+                    type="checkbox" 
+                    id="newFollowers"
+                    v-model="notificationPrefs.newFollowers"
+                  >
+                </div>
+              </div>
+
+              <div class="notification-item">
+                <div class="notification-info">
+                  <label class="notification-label">Mentions</label>
+                  <span class="notification-description">Notify when someone mentions you</span>
+                </div>
+                <div class="form-check form-switch">
+                  <input 
+                    class="form-check-input" 
+                    type="checkbox" 
+                    id="mentions"
+                    v-model="notificationPrefs.mentions"
                   >
                 </div>
               </div>

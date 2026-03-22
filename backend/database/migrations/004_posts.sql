@@ -4,22 +4,21 @@ IF OBJECT_ID('dbo.Posts','U') IS NULL
 BEGIN
     CREATE TABLE dbo.Posts
     (
-        PostID                        INT IDENTITY(1,1) CONSTRAINT PK_Posts PRIMARY KEY,
-        Title                         NVARCHAR(125)      NOT NULL,
-        CategoryID                    INT                NOT NULL
+        PostID      INT IDENTITY(1,1) CONSTRAINT PK_Posts PRIMARY KEY,
+        Title       NVARCHAR(125)      NOT NULL,
+        CategoryID  INT                NOT NULL
             CONSTRAINT FK_Posts_Categories REFERENCES dbo.Categories(CategoryID),
-        AuthorID                      INT                NOT NULL
+        AuthorID    INT                NOT NULL
             CONSTRAINT FK_Posts_Users      REFERENCES dbo.Users(User_ID),
-        TotalScore                    INT                NOT NULL      -- Sum of upvotes - downvotes
+        TotalScore  INT                NOT NULL      -- Sum of upvotes - downvotes
             CONSTRAINT DF_Posts_TotalVotes  DEFAULT (0),
-        Content                       NVARCHAR(MAX)      NOT NULL,
-        CreatedAt                     DATETIME2(0)       NOT NULL
+        Content     NVARCHAR(MAX)      NOT NULL,
+        CreatedAt   DATETIME2(0)       NOT NULL
             CONSTRAINT DF_Posts_CreatedAt DEFAULT (SYSUTCDATETIME()),
-        UpdatedAt                     DATETIME2(0)       NULL,
-        LastCommentNotificationSentAt DATETIME2(0)       NULL,
-        IsDeleted                     BIT                NOT NULL
+        UpdatedAt   DATETIME2(0)       NULL,
+        IsDeleted   BIT                NOT NULL
             CONSTRAINT DF_Posts_IsDeleted  DEFAULT (0),
-        DeletedAt                     DATETIME2(0)       NULL
+        DeletedAt   DATETIME2(0)       NULL
     );
 
     CREATE INDEX IX_Posts_CategoryID ON dbo.Posts(CategoryID);
