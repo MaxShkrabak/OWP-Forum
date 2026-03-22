@@ -256,13 +256,17 @@ async function doPublish() {
       });
 
     } else {
-      await createPost({
+      const response = await createPost({
         title: form.value.title.trim(),
         content: form.value.content,
         tags: form.value.tags,
         category: form.value.category || null,
       });
-      emit("cooldown", 60);
+
+      const cooldownSeconds = Number(response?.cooldownSeconds ?? 0);
+      if (cooldownSeconds > 0) {
+        emit("cooldown", cooldownSeconds);
+      }
     }
 
     showPublishedConfirmation.value = true;
@@ -282,11 +286,16 @@ async function doPublish() {
       emit("close");
     }, 1200);
   } catch (err) {
-    if(err?.response?.status === 429){
-      emit("cooldown", 60);
+    const cooldownSeconds = Number(err?.response?.data?.cooldownSeconds ?? 0);
+
+    if (cooldownSeconds > 0) {
+      emit("cooldown", cooldownSeconds);
     }
 
-    alert(props.isRestricted ? "Error updating metadata." : "An error occurred while publishing.");
+    alert(
+      err?.response?.data?.error ||
+      (props.isRestricted ? "Error updating metadata." : "An error occurred while publishing.")
+    );
     showPublishConfirm.value = false;
   } finally {
     isPublishing.value = false;
