@@ -72,7 +72,7 @@ async function handlePinToggle() {
   isPinning.value = true;
 
   try {
-    const data = await togglePostPin(props.post.PostID);
+    const data = await togglePostPin(props.post.postId);
 
     if (data.ok) {
       props.post.isPinned = data.isPinned;

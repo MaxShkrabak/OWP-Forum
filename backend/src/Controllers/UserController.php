@@ -11,6 +11,7 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 
 use function Forum\Helpers\json;
 use function Forum\Helpers\markNotificationsRead;
+use function Forum\Helpers\fetchCounts;
 
 final class UserController
 {
@@ -337,7 +338,7 @@ final class UserController
                 $tagsByPostId[(int)$tag['PostID']][] = $tag['Name'];
             }
 
-            $likeCounts = \fetchCounts($pdo, 'dbo.PostLikes', $placeholders, $postIds, 'LikeCount');
+            $likeCounts = fetchCounts($pdo, 'dbo.PostLikes', $placeholders, $postIds, 'LikeCount');
 
             $posts = [];
             $categoriesMap = [];
@@ -480,7 +481,7 @@ final class UserController
                 $tagsByPostId[(int)$t['PostID']][] = $t['Name'];
             }
 
-            $likeCounts = \fetchCounts($pdo, 'dbo.PostLikes', $placeholders, $postIds, 'LikeCount');
+            $likeCounts = fetchCounts($pdo, 'dbo.PostLikes', $placeholders, $postIds, 'LikeCount');
 
             $posts = [];
             foreach ($rows as $row) {
