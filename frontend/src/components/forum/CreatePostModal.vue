@@ -619,6 +619,7 @@ p {
   display: flex;
   align-items: center;
   gap: 2em;
+  margin-bottom: 1.75rem;
 }
 
 .title-input {
