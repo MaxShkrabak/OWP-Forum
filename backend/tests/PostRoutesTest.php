@@ -64,7 +64,9 @@ final class PostRoutesTest extends TestCase
                 function (string $sql) use ($termsStmt, $banStmt, $lockStmt, $recentPostsStmt) {
                     if (str_contains($sql, 'termsAccepted')) {
                         return $termsStmt;
-                    } elseif (str_contains($sql, 'SELECT ISNULL(IsBanned, 0), BanType, BannedUntil')) {
+                    } elseif (
+                        str_contains($sql, 'ISNULL(IsBanned, 0) AS IsBanned') &&
+                        str_contains($sql, 'FROM dbo.Users WHERE User_ID = :uid')) {
                         return $banStmt;
                     } elseif (str_contains($sql, 'sp_getapplock')) {
                         return $lockStmt;
@@ -169,7 +171,9 @@ final class PostRoutesTest extends TestCase
                 function (string $sql) use ($termsStmt, $banStmt, $lockStmt, $recentPostsStmt, $lastPostStmt, $categoryStmt, $insertPostStmt) {
                     if (str_contains($sql, 'termsAccepted')) {
                         return $termsStmt;
-                    } elseif (str_contains($sql, 'SELECT ISNULL(IsBanned, 0), BanType, BannedUntil')) {
+                    } elseif (
+                        str_contains($sql, 'ISNULL(IsBanned, 0) AS IsBanned') &&
+                        str_contains($sql, 'FROM dbo.Users WHERE User_ID = :uid')) { 
                         return $banStmt;
                     } elseif (str_contains($sql, 'sp_getapplock')) {
                         return $lockStmt;
