@@ -16,6 +16,7 @@ return function (Request $request, RequestHandler $handler) use ($makePdo) {
         '/api/me'                => ['GET'],
         '/api/posts'             => ['GET'],
         '/api/tags/filter'       => ['GET'],
+        '/api/posts/pinned'      => ['GET'],
     ];
 
     // Check if route is public

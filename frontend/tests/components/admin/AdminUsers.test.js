@@ -16,8 +16,8 @@ const { mockClient } = vi.hoisted(() => ({
 vi.mock("@/api/client", () => ({ default: mockClient }));
 
 const mockUsers = [
-  { User_ID: 1, FirstName: "Jane", LastName: "Doe", Email: "jane@example.com", RoleName: "User", RoleID: 1, IsBanned: 0, BanType: null, BannedUntil: null },
-  { User_ID: 2, FirstName: "John", LastName: "Smith", Email: "john@example.com", RoleName: "Admin", RoleID: 4, IsBanned: 0, BanType: null, BannedUntil: null },
+  { userId: 1, firstName: "Jane", lastName: "Doe", email: "jane@example.com", roleName: "User", roleId: 1, isBanned: 0, banType: null, bannedUntil: null },
+  { userId: 2, firstName: "John", lastName: "Smith", email: "john@example.com", roleName: "Admin", roleId: 4, isBanned: 0, banType: null, bannedUntil: null },
 ];
 
 // Current admin user ID used in /admin/me mock
@@ -26,7 +26,7 @@ const CURRENT_ADMIN_ID = 2;
 function setupMocks(users = mockUsers) {
   mockClient.get.mockImplementation((url) => {
     if (url === '/admin/me') {
-      return Promise.resolve({ data: { user: { User_ID: CURRENT_ADMIN_ID } } });
+      return Promise.resolve({ data: { user: { userId: CURRENT_ADMIN_ID } } });
     }
     // /admin/users
     return Promise.resolve({ data: { users: users.map(u => ({ ...u })) } });
@@ -115,7 +115,7 @@ describe("Assign Role (Admin)", () => {
   it("displays 'No users found' when searching for a non-existent user", async () => {
     mockClient.get.mockImplementation((url) => {
       if (url === '/admin/me') {
-        return Promise.resolve({ data: { user: { User_ID: CURRENT_ADMIN_ID } } });
+        return Promise.resolve({ data: { user: { userId: CURRENT_ADMIN_ID } } });
       }
       return Promise.resolve({ data: { users: [] } });
     });
