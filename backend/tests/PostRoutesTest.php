@@ -34,7 +34,11 @@ final class PostRoutesTest extends TestCase
             ->method('execute')
             ->with([':uid' => $userId]);
         $banStmt->method('fetch')
-            ->willReturn([0 => 0, 1 => null, 2 => null]);
+            ->willReturn([
+                'IsBanned' => 0,
+                'BanType' => null,
+                'BannedUntil' => null,
+            ]);
 
         $roleStmt = $this->createMock(PDOStatement::class);
         $roleStmt->expects($this->once())
@@ -127,7 +131,11 @@ final class PostRoutesTest extends TestCase
             ->method('execute')
             ->with([':uid' => $userId]);
         $banStmt->method('fetch')
-            ->willReturn([0 => 0, 1 => null, 2 => null]);
+            ->willReturn([
+                'IsBanned' => 0,
+                'BanType' => null,
+                'BannedUntil' => null,
+            ]);
 
         $roleStmt = $this->createMock(PDOStatement::class);
         $roleStmt->expects($this->once())

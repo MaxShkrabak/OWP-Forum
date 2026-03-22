@@ -605,8 +605,49 @@ class PostController {
             $tagsIn = array_values(array_unique(array_map('intval', $tagsIn)));
             $tagsIn = array_slice(array_filter($tagsIn, fn($v) => $v > 0), 0, 5);
 
-            // Simple spam protection: cooldown + duplicate check
+            // Simple spam protection: cooldown + duplicate check + hourly rate limit
             $postCooldownSeconds = 60;
+            $postPerHourLimit = 10;
+
+            $roleStmt = $pdo->prepare("
+                SELECT ISNULL(RoleID, 1)
+                FROM dbo.Users
+                WHERE User_ID = :uid
+            ");
+            $roleStmt->execute([':uid' => $userId]);
+            $currentRoleId = (int)($roleStmt->fetchColumn() ?? 1);
+            if ($currentRoleId <= 0) {
+                $currentRoleId = 1;
+            }
+
+            $isCooldownExempt = $currentRoleId >= 3;
+
+            $pdo->beginTransaction();
+
+            $lockStmt = $pdo->prepare("
+                DECLARE @result INT;
+                EXEC @result = sp_getapplock @lockOwner = 'Transaction', @Resource = :res, @LockMode = 'Exclusive', @LockTimeout = 10000;
+                SELECT @result;
+            ");
+            $lockStmt->execute([':res' => "create_post_user_$userId"]);
+            $lockResult = (int)($lockStmt->fetchColumn() ?? -999);
+
+            if ($lockResult < 0) {
+                $pdo->rollBack();
+                return json($res, ['ok' => false, 'error' => 'Could not acquire lock, please try again.'], 503);
+            }
+
+            $recentPostsStmt = $pdo->prepare("
+                SELECT COUNT(*) FROM dbo.Posts
+                WHERE AuthorID = :uid AND CreatedAt >= DATEADD(HOUR, -1, SYSUTCDATETIME())
+            ");
+            $recentPostsStmt->execute([':uid' => $userId]);
+            $recentPostCount = (int)$recentPostsStmt->fetchColumn();
+
+            if ($recentPostCount >= $postPerHourLimit) {
+                $pdo->rollBack();
+                return json($res, ['ok' => false, 'error' => 'You have reached the hourly post limit.'], 429);
+            }
 
             $lastPostStmt = $pdo->prepare("
                 SELECT TOP 1 Title, CreatedAt, CAST(Content AS NVARCHAR(MAX)) as Content
@@ -622,23 +663,24 @@ class PostController {
                 $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
                 $secondsSinceLastPost = $now->getTimestamp() - $lastTime->getTimestamp();
 
-                if ($secondsSinceLastPost < $postCooldownSeconds) {
+                if (!$isCooldownExempt && $secondsSinceLastPost < $postCooldownSeconds) {
                     $secondsLeft = $postCooldownSeconds - $secondsSinceLastPost;
+                    $pdo->rollBack();
                     return json($res, [
                         'ok' => false,
-                        'error' => "Please wait {$secondsLeft}s before posting again."
+                        'error' => "Please wait {$secondsLeft}s before posting again.",
+                        'cooldownSeconds' => $secondsLeft,
                     ], 429);
                 }
 
                 if ($lastPost['Title'] === $title && $lastPost['Content'] === $content) {
+                    $pdo->rollBack();
                     return json($res, [
                         'ok' => false,
                         'error' => 'You already created an identical post!'
                     ], 409);
                 }
             }
-
-            $pdo->beginTransaction();
 
             // Category section
             $getCategorySql = "
@@ -719,6 +761,7 @@ class PostController {
                 'ok'        => true,
                 'postId'    => $postId,
                 'createdAt' => $createdAtIso,
+                'cooldownSeconds' => $isCooldownExempt ? 0 : $postCooldownSeconds,
             ]);
         } catch (Throwable $e) {
             if (isset($pdo) && $pdo->inTransaction()) {
