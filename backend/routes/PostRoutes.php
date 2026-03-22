@@ -44,6 +44,19 @@ $app->post("/api/create-post", function (Request $req, Response $res) use ($make
         $postCooldownSeconds = 60;
         $postPerHourLimit = 10; //make into env if necessary
 
+        $roleStmt = $pdo->prepare("
+            SELECT ISNULL(RoleID, 1)
+            FROM dbo.Users
+            WHERE User_ID = :uid
+        ");
+        $roleStmt->execute([':uid' => $userId]);
+        $currentRoleId = (int)($roleStmt->fetchColumn() ?? 1);
+        if ($currentRoleId <= 0) {
+            $currentRoleId = 1;
+        }
+
+        $isCooldownExempt = $currentRoleId >= 3;
+
         $pdo->beginTransaction();
 
         $lockStmt = $pdo->prepare("
@@ -87,12 +100,13 @@ $app->post("/api/create-post", function (Request $req, Response $res) use ($make
             $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
             $secondsSinceLastPost = $now->getTimestamp() - $lastTime->getTimestamp();
 
-            if ($secondsSinceLastPost < $postCooldownSeconds) {
+            if (!$isCooldownExempt && $secondsSinceLastPost < $postCooldownSeconds) {
                 $secondsLeft = $postCooldownSeconds - $secondsSinceLastPost;
                 $pdo->rollBack();
                 return json($res, [
                     'ok' => false,
-                    'error' => "Please wait {$secondsLeft}s before posting again."
+                    'error' => "Please wait {$secondsLeft}s before posting again.",
+                    'cooldownSeconds' => $secondsLeft,
                 ], 429);
             }
 
@@ -181,9 +195,10 @@ $app->post("/api/create-post", function (Request $req, Response $res) use ($make
             ->format(\DateTime::ATOM);
 
         return json($res, [
-            'ok'        => true,
-            'postId'    => $postId,
+            'ok' => true,
+            'postId' => $postId,
             'createdAt' => $createdAtIso,
+            'cooldownSeconds' => $isCooldownExempt ? 0 : $postCooldownSeconds,
         ]);
     } catch (Throwable $e) {
         if (isset($pdo) && $pdo->inTransaction()) {
