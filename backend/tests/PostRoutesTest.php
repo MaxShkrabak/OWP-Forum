@@ -36,6 +36,13 @@ final class PostRoutesTest extends TestCase
         $banStmt->method('fetch')
             ->willReturn([0 => 0, 1 => null, 2 => null]);
 
+        $roleStmt = $this->createMock(PDOStatement::class);
+        $roleStmt->expects($this->once())
+            ->method('execute')
+            ->with([':uid' => $userId]);
+        $roleStmt->method('fetchColumn')
+            ->willReturn(1);
+
         $lockStmt = $this->createMock(PDOStatement::class);
         $lockStmt->expects($this->once())
             ->method('execute')
@@ -61,13 +68,18 @@ final class PostRoutesTest extends TestCase
 
         $pdo->method('prepare')
             ->willReturnCallback(
-                function (string $sql) use ($termsStmt, $banStmt, $lockStmt, $recentPostsStmt) {
+                function (string $sql) use ($termsStmt, $banStmt, $roleStmt ,$lockStmt, $recentPostsStmt) {
                     if (str_contains($sql, 'termsAccepted')) {
                         return $termsStmt;
                     } elseif (
                         str_contains($sql, 'ISNULL(IsBanned, 0) AS IsBanned') &&
                         str_contains($sql, 'FROM dbo.Users WHERE User_ID = :uid')) {
                         return $banStmt;
+                    } elseif (
+                        str_contains($sql, 'SELECT ISNULL(RoleID, 1)') &&
+                        str_contains($sql, 'WHERE User_ID = :uid')
+                    ) {
+                        return $roleStmt;
                     } elseif (str_contains($sql, 'sp_getapplock')) {
                         return $lockStmt;
                     } elseif (str_contains($sql, 'SELECT COUNT(*) FROM dbo.Posts')) {
@@ -116,6 +128,13 @@ final class PostRoutesTest extends TestCase
             ->with([':uid' => $userId]);
         $banStmt->method('fetch')
             ->willReturn([0 => 0, 1 => null, 2 => null]);
+
+        $roleStmt = $this->createMock(PDOStatement::class);
+        $roleStmt->expects($this->once())
+            ->method('execute')
+            ->with([':uid' => $userId]);
+        $roleStmt->method('fetchColumn')
+            ->willReturn(1);
 
         $lockStmt = $this->createMock(PDOStatement::class);
         $lockStmt->expects($this->once())
@@ -168,13 +187,18 @@ final class PostRoutesTest extends TestCase
 
         $pdo->method('prepare')
             ->willReturnCallback(
-                function (string $sql) use ($termsStmt, $banStmt, $lockStmt, $recentPostsStmt, $lastPostStmt, $categoryStmt, $insertPostStmt) {
+                function (string $sql) use ($termsStmt, $banStmt, $roleStmt ,$lockStmt, $recentPostsStmt, $lastPostStmt, $categoryStmt, $insertPostStmt) {
                     if (str_contains($sql, 'termsAccepted')) {
                         return $termsStmt;
                     } elseif (
                         str_contains($sql, 'ISNULL(IsBanned, 0) AS IsBanned') &&
                         str_contains($sql, 'FROM dbo.Users WHERE User_ID = :uid')) { 
                         return $banStmt;
+                    } elseif (
+                        str_contains($sql, 'SELECT ISNULL(RoleID, 1)') &&
+                        str_contains($sql, 'WHERE User_ID = :uid')
+                    ) {
+                        return $roleStmt;
                     } elseif (str_contains($sql, 'sp_getapplock')) {
                         return $lockStmt;
                     } elseif (str_contains($sql, 'SELECT COUNT(*) FROM dbo.Posts')) {
@@ -208,6 +232,7 @@ final class PostRoutesTest extends TestCase
 
         $this->assertEquals(200, $response->getStatusCode());
         $this->assertTrue($json['ok']);
+        $this->assertEquals(60, $json['cooldownSeconds']);
         $this->assertEquals(123, $json['postId']);
         $this->assertEquals('2024-01-01T00:00:00+00:00', $json['createdAt']);
     }

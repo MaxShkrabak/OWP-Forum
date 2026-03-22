@@ -17,7 +17,7 @@ export const createPostBlockedUntil = ref(getStoredBlockedUntil());
 
 export function blockPostCreationFor(seconds) {
     const safeSeconds = Math.max(0, Number(seconds) || 0);
-    const blockedUntil = safeSeconds > 0 ? Date.mow() + safeSeconds * 1000 : 0;
+    const blockedUntil = safeSeconds > 0 ? Date.now() + safeSeconds * 1000 : 0;
 
     createPostBlockedUntil.value = blockedUntil;
 
