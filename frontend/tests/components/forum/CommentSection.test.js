@@ -1,7 +1,7 @@
 import { mount, flushPromises } from "@vue/test-utils";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import CommentSection from "@/components/forum/CommentSection.vue";
-import { fetchComments, updateComment } from "@/api/comments";
+import { fetchComments, submitComment, updateComment } from "@/api/comments";
 
 vi.mock("@/api/auth", () => ({
   checkAuth: vi.fn(() =>
@@ -200,4 +200,34 @@ describe("CommentSection.vue", () => {
     const lastCallArgs = fetchComments.mock.calls.at(-1);
     expect(lastCallArgs[3]).toBe("mostLiked");
   });
+
+  it("shows a centered rate limit modal with minutes and seconds", async () => {
+    await flushPromises();
+
+    submitComment.mockRejectedValueOnce({
+      response: {
+        status: 429,
+        data: {
+          ok: false,
+          error: "You're commenting too fast. Please wait 75 seconds before commenting again.",
+          rateLimit: {
+            type: "cooldown",
+            secondsLeft: 75,
+          },
+        },
+      },
+    });
+
+    const textarea = wrapper.find(".comment-textarea");
+    await textarea.trigger("focus");
+    await textarea.setValue("Trying to post too quickly.");
+
+    const submitBtn = wrapper.find(".main-input-wrapper .btn-submit");
+    await submitBtn.trigger("click");
+    await flushPromises();
+
+    expect(document.body.textContent).toContain("You're commenting too fast");
+    expect(document.body.textContent).toContain("1 minute 15 seconds");
+  });
+
 });

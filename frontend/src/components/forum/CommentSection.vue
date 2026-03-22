@@ -436,6 +436,30 @@ onBeforeUnmount(() => {
     <Teleport to="body">
       <Transition name="fade">
         <div
+          v-if="commentFeedbackModal.open"
+          class="comment-modal-mask d-flex align-items-center justify-content-center"
+          @click.self="closeCommentFeedbackModal"
+        >
+          <div class="comment-modal-card shadow-lg">
+            <p class="fw-bold mb-1">{{ commentFeedbackModal.title }}</p>
+            <p class="small text-muted mb-3">{{ commentFeedbackMessage }}</p>
+            <div class="d-flex justify-content-end">
+              <button
+                type="button"
+                class="btn-submit border-0 rounded-2 fw-bold px-3 py-1 small"
+                @click="closeCommentFeedbackModal"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <Teleport to="body">
+      <Transition name="fade">
+        <div
           v-if="showDiscardConfirm"
           class="comment-modal-mask d-flex align-items-center justify-content-center"
           @click.self="cancelSwitchEdit"
@@ -446,13 +470,6 @@ onBeforeUnmount(() => {
               You have unsaved changes on another comment. If you continue, those changes will be lost.
             </p>
             <div class="d-flex justify-content-end gap-2">
-              <button
-                type="button"
-                class="btn-cancel border-0 bg-transparent fw-bold small"
-                @click="cancelSwitchEdit"
-              >
-                Back
-              </button>
               <button
                 type="button"
                 class="btn-submit border-0 rounded-2 fw-bold px-3 py-1 small"

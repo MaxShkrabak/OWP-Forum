@@ -237,13 +237,14 @@ class CommentController
             $secondsLeft = $this->getHourlyCommentResetSeconds($pdo, $userId, $commentsPerHourLimit);
             $pdo->rollBack();
             return json($res, [
-                'ok' => false, 
+                'ok' => false,
                 'error' => $secondsLeft !== null
-                ? "You've reached the {$commentsPerHourLimit} comments per hour limit. Try again in {$secondsLeft} seconds."
-                : "You've reached the {$commentsPerHourLimit} comments per hour limit. Please try again soon.",
+                    ? "You've reached the {$commentsPerHourLimit} comments per hour limit. Try again in {$secondsLeft} seconds."
+                    : "You've reached the {$commentsPerHourLimit} comments per hour limit. Please try again soon.",
                 'rateLimit' => [
                     'type' => 'hourly_limit',
-                    "secondsLeft" => $secondsLeft,
+                    'secondsLeft' => $secondsLeft,
+                    'limit' => $commentsPerHourLimit,
                 ],
             ], 429);
         }
@@ -273,8 +274,8 @@ class CommentController
             $secondsLeft = $commentCooldownSeconds - $diffSeconds;
             $pdo->rollBack();
             return json($res, [
-                'ok' => false, 
-                'error' => "Please wait {$secondsLeft} seconds before commenting again.",
+                'ok' => false,
+                'error' => "You're commenting too fast. Please wait {$secondsLeft} seconds before commenting again.",
                 'rateLimit' => [
                     'type' => 'cooldown',
                     'secondsLeft' => $secondsLeft,
