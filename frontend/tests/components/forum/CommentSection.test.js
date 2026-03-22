@@ -1,5 +1,5 @@
-import { mount, flushPromises } from "@vue/test-utils";
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { mount, flushPromises, DOMWrapper } from "@vue/test-utils";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import CommentSection from "@/components/forum/CommentSection.vue";
 import { fetchComments, submitComment, updateComment } from "@/api/comments";
 import TextEditor from "@/components/forum/TextEditor.vue";
@@ -7,6 +7,7 @@ import TextEditor from "@/components/forum/TextEditor.vue";
 vi.mock("@/stores/userStore", () => ({
   isLoggedIn: { value: true },
   uid: { value: 1 }, // Matches the userId: 1 in the mocked comments below
+  userRole: { value: "user" },
 }));
 
 vi.mock("@/api/auth", () => ({
@@ -79,6 +80,10 @@ describe("CommentSection.vue", () => {
         stubs: { SingleComment: false },
       },
     });
+  });
+
+  afterEach(() => {
+    wrapper.unmount();
   });
 
   it("displays the correct total number of comments", () => {
@@ -178,12 +183,12 @@ describe("CommentSection.vue", () => {
     await saveButton.trigger("click");
     await flushPromises();
 
-    const confirmButton = document.querySelector(
+    const confirmButtonEl = document.querySelector(
       ".comment-modal-card .btn-submit",
     );
-    expect(confirmButton).not.toBeNull();
+    expect(confirmButtonEl).not.toBeNull();
 
-    confirmButton.dispatchEvent(new Event("click"));
+    await new DOMWrapper(confirmButtonEl).trigger("click");
     await flushPromises();
 
     expect(updateComment).toHaveBeenCalledWith(1, "Updated comment content");

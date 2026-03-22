@@ -478,11 +478,45 @@ if ($postOwner) {
             if (!($userId = $req->getAttribute("user_id"))) {
                 return json($res, ['ok' => false, 'error' => 'Not authenticated'], 401);
             }
-
+            $commentId = (int)$args['id'];
             $pdo = ($this->makePdo)();
-            $stmt = $pdo->prepare("UPDATE dbo.Comments SET IsDeleted = 1, DeletedAt = SYSUTCDATETIME() WHERE CommentId = :id AND UserId = :uid");
-            $stmt->execute([':id' => (int)$args['id'], ':uid' => $userId]);
 
+            $commentStmt = $pdo->prepare("
+                SELECT c.CommentId, c.UserId, c.IsDeleted, r.Name AS RequesterRole
+                FROM dbo.Comments c
+                CROSS APPLY (
+                    SELECT rr.Name
+                    FROM dbo.Users u
+                    LEFT JOIN dbo.Roles rr ON u.RoleID = rr.RoleID
+                    WHERE u.User_ID = :uid
+                ) r
+                WHERE c.CommentId = :id
+            ");
+            $commentStmt->execute([
+                ':id' => $commentId,
+                ':uid' => (int)$userId
+            ]);
+            $row = $commentStmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$row || (int)$row['IsDeleted'] === 1) {
+                return json($res, ['ok' => false, 'error' => 'Comment not found'], 404);
+            }
+            
+            $isOwner = (int)$row['UserId'] === (int)$userId;
+            $role = strtolower((string)($row['RequesterRole'] ?? ''));
+            $isModeratorOrAdmin = in_array($role, ['moderator', 'admin'], true);
+
+            if (!$isOwner && !$isModeratorOrAdmin) {
+                return json($res, ['ok' => false, 'error' => 'You cannot delete this comment'], 403);
+            }
+
+            $stmt = $pdo->prepare("UPDATE dbo.Comments SET IsDeleted = 1, DeletedAt = SYSUTCDATETIME() WHERE CommentId = :id AND IsDeleted = 0");
+            $stmt->execute([':id' => $commentId]);
+
+            if ($stmt->rowCount() === 0) {
+                return json($res, ['ok' => false, 'error' => 'Failed to delete comment'], 500);
+            }
+            
             return json($res, ['ok' => true]);
         } catch (Throwable $e) {
             return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
