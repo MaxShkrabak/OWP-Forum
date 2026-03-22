@@ -235,25 +235,8 @@ class PostController {
                 return $termsRes;
             }
 
-            try {
-                $banStmt = $pdo->prepare("
-                    SELECT ISNULL(IsBanned, 0), BanType, BannedUntil
-                    FROM dbo.Users WHERE User_ID = :uid
-                ");
-                $banStmt->execute([':uid' => $userId]);
-                $row = $banStmt->fetch(PDO::FETCH_NUM);
-                if ($row && (int)$row[0] === 1) {
-                    $banType = $row[1] ? trim((string)$row[1]) : null;
-                    $bannedUntil = $row[2] ?? null;
-                    $effective = ($banType !== 'temporary' || !$bannedUntil)
-                        || (new \DateTimeImmutable($bannedUntil, new \DateTimeZone('UTC')) > new \DateTimeImmutable('now', new \DateTimeZone('UTC')));
-                    if ($effective) {
-                        return json($res, ['ok' => false, 'error' => 'You are banned and cannot create posts.'], 403);
-                    }
-                }
-            } catch (Throwable $e) {
-                // Columns may not exist yet
-            }
+            $banResponse = \Forum\Helpers\checkUserBan($pdo, (int)$userId, $res);
+            if ($banResponse) return $banResponse;
 
             // Tag limit: 5 tags per post
             $data = $req->getParsedBody() ?? [];
@@ -743,7 +726,7 @@ class PostController {
             return json($res, [
                 'ok' => true,
                 'post' => [
-                    'PostID'       => (int)$updatedPost['PostID'],
+                    'postID'       => (int)$updatedPost['PostID'],
                     'title'        => $updatedPost['Title'],
                     'content'      => $updatedPost['Content'],
                     'createdAt'    => $updatedPost['CreatedAt'],
