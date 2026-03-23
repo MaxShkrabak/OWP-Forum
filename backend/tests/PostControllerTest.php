@@ -55,6 +55,18 @@ final class PostControllerTest extends TestCase
             'BannedUntil' => null,
         ]);
 
+        $roleStmt = $this->createMock(PDOStatement::class);
+        $roleStmt->expects($this->once())->method('execute')->with([':uid' => $userId]);
+        $roleStmt->method('fetchColumn')->willReturn(1);
+
+        $lockStmt = $this->createMock(PDOStatement::class);
+        $lockStmt->expects($this->once())->method('execute')->with([':res' => "create_post_user_$userId"]);
+        $lockStmt->method('fetchColumn')->willReturn(0);
+
+        $recentPostsStmt = $this->createMock(PDOStatement::class);
+        $recentPostsStmt->expects($this->once())->method('execute')->with([':uid' => $userId]);
+        $recentPostsStmt->method('fetchColumn')->willReturn(0);
+
         $lastPostStmt = $this->createMock(PDOStatement::class);
         $lastPostStmt->expects($this->once())->method('execute')->with([':uid' => $userId]);
         $lastPostStmt->method('fetch')->willReturn(false);
@@ -82,7 +94,7 @@ final class PostControllerTest extends TestCase
         $this->pdo->method('beginTransaction')->willReturn(true);
         $this->pdo->method('commit')->willReturn(true);
 
-        $this->pdo->method('prepare')->willReturnCallback(function (string $sql) use ($termsStmt, $banStmt, $lastPostStmt, $categoryStmt, $insertStmt) {
+        $this->pdo->method('prepare')->willReturnCallback(function (string $sql) use ($termsStmt, $banStmt, $roleStmt, $lockStmt, $recentPostsStmt, $lastPostStmt, $categoryStmt, $insertStmt) {
             $sql_lower = strtolower($sql);
             
             if (str_contains($sql_lower, 'termsaccepted')) {
@@ -90,6 +102,15 @@ final class PostControllerTest extends TestCase
             }
             if (str_contains($sql_lower, 'select') && str_contains($sql_lower, 'isbanned')) {
                 return $banStmt;
+            }
+            if (str_contains($sql_lower, 'select isnull(roleid, 1)')) {
+                return $roleStmt;
+            }
+            if (str_contains($sql_lower, 'sp_getapplock')) {
+                return $lockStmt;
+            }
+            if (str_contains($sql_lower, 'select count(*) from dbo.posts')) {
+                return $recentPostsStmt;
             }
             if (str_contains($sql_lower, 'select top 1')) {
                 return $lastPostStmt;
@@ -111,6 +132,7 @@ final class PostControllerTest extends TestCase
         $this->assertTrue($json['ok']);
         $this->assertEquals(1001, $json['postId']);
         $this->assertArrayHasKey('createdAt', $json);
+        $this->assertEquals(60, $json['cooldownSeconds']);
     }
 
     public function testGetPostReturnsPostWhenFound(): void
@@ -148,7 +170,14 @@ final class PostControllerTest extends TestCase
             false
         );
 
-        $this->pdo->method('prepare')->willReturnCallback(function (string $sql) use ($postStmt, $tagStmt) {
+        $dedupStmt = $this->createMock(PDOStatement::class);
+        $dedupStmt->method('execute')->willReturn(true);
+        $dedupStmt->method('fetch')->willReturn([
+            'LastViewedAt' => gmdate('Y-m-d H:i:s'),
+        ]);
+
+        $this->pdo->method('prepare')->willReturnCallback(function (string $sql) use ($postStmt, $tagStmt, $dedupStmt) {
+            if (str_contains(strtolower($sql), 'dbo.postviewdedup')) return $dedupStmt;
             if (str_contains(strtolower($sql), 'dbo.posttags')) return $tagStmt;
             return $postStmt;
         });

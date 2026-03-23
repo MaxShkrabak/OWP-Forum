@@ -1,10 +1,35 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import CreatePostModal from './CreatePostModal.vue';
-import { isBanned } from '@/stores/userStore';
+import { isBanned, userRoleId } from '@/stores/userStore';
+import { createPostBlockedUntil ,blockPostCreationFor } from '@/stores/postCreationCooldown';
 
 const isModalOpen = ref(false);
-const emit = defineEmits(['post-refresh']);
+const emit = defineEmits(["post-refresh"]);
+
+const now = ref(Date.now());
+let timer;
+
+onMounted(() => {
+  timer = setInterval(() => {
+    now.value = Date.now();
+  }, 1000);
+});
+
+onUnmounted(() => {
+  clearInterval(timer);
+});
+
+const isCooldownExempt = computed(() => Number(userRoleId.value) >= 3);
+
+const secondsRemaining = computed(() =>
+  isCooldownExempt.value
+    ? 0
+    : Math.max(0, Math.ceil((createPostBlockedUntil.value - now.value) / 1000))
+);
+
+const showCooldownNotice = computed(() => secondsRemaining.value > 0);
+const isCreateBlocked = computed(() => isBanned.value || showCooldownNotice.value);
 
 async function handlePublish() {
   isModalOpen.value = false;
@@ -14,12 +39,18 @@ async function handlePublish() {
 
 <template>
   <div class="action-container">
-    <button @click="isModalOpen = true" class="btn-create-post shadow-sm" :disabled="isBanned">
+    <button @click="isModalOpen = true" class="btn-create-post shadow-sm" :disabled="isCreateBlocked">
       <div class="btn-content">
         <div class="icon-wrap">
-           <i class="pi pi-plus-circle"></i>
+          <i class="pi pi-plus-circle"></i>
         </div>
-        <span class="btn-text">Create Post</span>
+
+        <div class="btn-text-wrap">
+          <span class="btn-text-primary">Create Post</span>
+          <span v-if="showCooldownNotice" class="btn-text-secondary">
+            Blocked for {{ secondsRemaining }}s
+          </span>
+        </div>
       </div>
     </button>
 
@@ -28,6 +59,7 @@ async function handlePublish() {
       :show="isModalOpen"
       @close="isModalOpen = false"
       @published="handlePublish"
+      @cooldown="blockPostCreationFor"
     />
   </div>
 </template>
@@ -88,10 +120,11 @@ async function handlePublish() {
   align-items: center;
   justify-content: center;
 }
+
 .btn-content {
-  flex-direction: column; 
-  gap: 5px;
+  gap: 10px;
 }
+
 .icon-wrap {
   color: #3fbeac;
   background: rgba(255, 255, 255, 0.1);
@@ -99,20 +132,27 @@ async function handlePublish() {
   padding: 5px;
 }
 
-.btn-text {
+.btn-text-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  line-height: 1.1;
+}
+
+.btn-text-primary {
   font-weight: 700;
   font-family: 'Roboto', sans-serif;
   text-transform: uppercase;
   font-size: 1rem;
   letter-spacing: 1px;
-  text-align: center;
-  line-height: 1.2;
 }
 
-@media (min-width: 423px) {
-  .btn-content {
-    flex-direction: row;
-    gap: 8px;
-  }
+.btn-text-secondary {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  opacity: 0.9;
 }
+
 </style>
