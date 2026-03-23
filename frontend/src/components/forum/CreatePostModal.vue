@@ -246,7 +246,7 @@ async function doPublish() {
       });
 
     } else if (isEditMode.value) {
-      const targetId = props.postData.postId || props.postData.id;
+      const targetId = props.postData.PostID || props.postData.postId || props.postData.id;
 
       await client.put(`/posts/${targetId}`, {
         title: form.value.title.trim(),
@@ -334,88 +334,90 @@ const primaryButtonText = computed(() => {
             </div>
 
             <template v-else>
-              <div class="title-row">
-                <div class="input-group flex-grow-1 position-relative">
-                  <label v-if="!form.title" class="title-placeholder">
-                    Title<span class="star-red">*</span>
-                  </label>
+              <div class="post-top-section">
+                <div class="title-row">
+                  <div class="input-group flex-grow-1 position-relative">
+                    <label v-if="!form.title" class="title-placeholder">
+                      Title<span class="star-red">*</span>
+                    </label>
 
-                  <input v-model="form.title" class="title-input" :class="{ 'restricted-input': isRestricted }"
-                    :maxlength="MAX_TITLE_LEN" :disabled="isRestricted" />
-                  <span class="char-counter" :class="{ 'text-danger': titleLength >= MAX_TITLE_LEN }">
-                    {{ titleLength }}/{{ MAX_TITLE_LEN }}
-                  </span>
-                </div>
-
-                <div class="user-info-section" v-if="isLoggedIn">
-                  <div class="user-meta text-end">
-                    <span class="user-name">{{ fullName }}</span>
-                    <UserRole :role="userRole" />
+                    <input v-model="form.title" class="title-input" :class="{ 'restricted-input': isRestricted }"
+                       :maxlength="MAX_TITLE_LEN" :disabled="isRestricted" />
+                    <span class="char-counter" :class="{ 'text-danger': titleLength >= MAX_TITLE_LEN }">
+                      {{ titleLength }}/{{ MAX_TITLE_LEN }}
+                    </span>
                   </div>
-                  <div class="avatar-circle">
-                    <img :src="userAvatar" alt="icon" class="avatar-img" />
+
+                  <div class="user-info-section" v-if="isLoggedIn">
+                    <div class="user-meta text-end">
+                      <span class="user-name">{{ fullName }}</span>
+                      <UserRole :role="userRole" />
+                    </div>
+                    <div class="avatar-circle">
+                      <img :src="userAvatar" alt="icon" class="avatar-img" />
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div class="controls-bar">
-                <div class="category-side">
-                  <label class="form-label-small">
-                    Category<span v-if="!form.category" class="star-red">*</span>
-                  </label>
+                <div class="controls-bar">
+                  <div class="category-side">
+                    <label class="form-label-small">
+                      Category<span v-if="!form.category" class="star-red">*</span>
+                    </label>
 
-                  <select v-model="form.category" class="clean-select-rect">
-                    <option value="">Select Category</option>
-                    <option v-for="cat in allCategories" :key="cat.categoryId" :value="cat.categoryId">
-                      {{ cat.name }}
-                    </option>
-                  </select>
-                </div>
+                    <select v-model="form.category" class="clean-select-rect">
+                      <option value="">Select Category</option>
+                      <option v-for="cat in allCategories" :key="cat.categoryId" :value="cat.categoryId">
+                        {{ cat.name }}
+                      </option>
+                    </select>
+                  </div>
 
-                <div class="tags-side" ref="tagContainerRef">
-                  <label class="form-label-small">Tags ({{ form.tags.length }}/{{ MAX_TAGS }})</label>
-                  <div class="tag-adder-container">
-                    <div class="tag-trigger-group">
-                      <button type="button" class="tag-circle-add" @click="showTagPopup = !showTagPopup"
-                        :disabled="form.tags.length >= MAX_TAGS">
-                        +
-                      </button>
+                  <div class="tags-side" ref="tagContainerRef">
+                    <label class="form-label-small">Tags ({{ form.tags.length }}/{{ MAX_TAGS }})</label>
+                    <div class="tag-adder-container">
+                      <div class="tag-trigger-group">
+                        <button type="button" class="tag-circle-add" @click="showTagPopup = !showTagPopup"
+                          :disabled="form.tags.length >= MAX_TAGS">
+                          +
+                        </button>
 
-                      <div v-if="showTagPopup" class="tag-floating-box shadow-lg">
-                        <input v-model="tagSearch" class="tag-search-mini" placeholder="Search..." @click.stop />
-                        <div class="tag-options-list">
-                          <button v-for="t in filteredTags" :key="t.TagID || t.tagId" class="tag-opt" @click="
-                            () => {
-                              form.tags.push(t.TagID || t.tagId);
-                              tagSearch = '';
-                              showTagPopup = false;
-                            }
-                          ">
-                            {{ t.Name || t.name }}
-                          </button>
+                        <div v-if="showTagPopup" class="tag-floating-box shadow-lg">
+                          <input v-model="tagSearch" class="tag-search-mini" placeholder="Search..." @click.stop />
+                          <div class="tag-options-list">
+                            <button v-for="t in filteredTags" :key="t.TagID || t.tagId" class="tag-opt" @click="
+                                () => {
+                                  form.tags.push(t.TagID || t.tagId);
+                                  tagSearch = '';
+                                  showTagPopup = false;
+                                }
+                              ">
+                              {{ t.Name || t.name }}
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div class="tag-chips-flow">
-                      <span v-for="tid in form.tags" :key="tid"
-                        :class="isOfficialTag(tid) ? 'tag-chip-pill-mod-admin' : 'tag-chip-pill'">
-                        {{ tagNameById(tid) }}
-                        <button class="chip-remove" @click="removeTag(tid)">&times;</button>
-                      </span>
-                      <span v-if="form.tags.length === 0" class="muted-hint">No tags added yet</span>
+                      <div class="tag-chips-flow">
+                        <span v-for="tid in form.tags" :key="tid"
+                          :class="isOfficialTag(tid) ? 'tag-chip-pill-mod-admin' : 'tag-chip-pill'">
+                          {{ tagNameById(tid) }}
+                          <button class="chip-remove" @click="removeTag(tid)">&times;</button>
+                        </span>
+                        <span v-if="form.tags.length === 0" class="muted-hint">No tags added yet</span>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div class="comment-ctrl comm-checkbox-style" v-if="userRoleId >= 3">
-                  <span class="me-3">Disable Comments?</span>
-                  <input class="form-check-input" type="checkbox" id="checkComment" v-model="form.disableComments" />
-                  <label class="form-check-label" for="checkComment"></label>
+                  <div class="comment-ctrl comm-checkbox-style" v-if="userRoleId >= 3">
+                    <span class="me-3">Disable Comments?</span>
+                    <input class="form-check-input" type="checkbox" id="checkComment" v-model="form.disableComments" />
+                    <label class="form-check-label" for="checkComment"></label>
+                  </div>
                 </div>
               </div>
 
-              <div :class="{ 'restricted-input': isRestricted }">
+              <div class="editor-section" :class="{ 'restricted-input': isRestricted }">
                 <TextEditor v-model="form.content" v-model:isUploading="isUploading" class="custom-editor"
                   ref="editor" />
               </div>
@@ -488,7 +490,7 @@ const primaryButtonText = computed(() => {
               </div>
             </div>
           </div>
-
+          
         </div>
       </div>
     </Transition>
@@ -534,6 +536,7 @@ p {
   justify-content: space-between;
   align-items: center;
   background: #004b33;
+  flex-shrink: 0;
 }
 
 .modal-body {
@@ -544,6 +547,14 @@ p {
   gap: 1.5em;
 }
 
+.post-top-section {
+  flex-shrink: 0;
+}
+
+.editor-section {
+  display: block;
+}
+
 .modal-footer {
   padding: 1.25rem 1.5rem;
   border-top: 1px solid #e2e8f0;
@@ -551,6 +562,7 @@ p {
   justify-content: space-between;
   align-items: center;
   background: #f8fafc;
+  flex-shrink: 0;
 }
 
 .inner-warning-overlay {
@@ -621,6 +633,7 @@ p {
   display: flex;
   align-items: center;
   gap: 2em;
+  margin-bottom: 1.75rem;
 }
 
 .title-input {
