@@ -45,12 +45,7 @@ describe("ForumHome general search", () => {
   });
 
   it("finds posts by authorRole (nice-to-have)", () => {
-    const post = {
-      title: "Hello",
-      authorName: "Alice",
-      authorRole: "Admin",
-      tags: [],
-    };
+    const post = { title: "Hello", authorName: "Alice", authorRole: "Admin", tags: [] };
     expect(postMatchesGeneralSearch(post, "General", "admin")).toBe(true);
   });
 

@@ -1,20 +1,13 @@
-import { mount, flushPromises, DOMWrapper } from "@vue/test-utils";
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { mount, flushPromises } from "@vue/test-utils";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import CommentSection from "@/components/forum/CommentSection.vue";
-import { fetchComments, submitComment, updateComment } from "@/api/comments";
-import TextEditor from "@/components/forum/TextEditor.vue";
-
-vi.mock("@/stores/userStore", () => ({
-  isLoggedIn: { value: true },
-  uid: { value: 1 }, // Matches the userId: 1 in the mocked comments below
-  userRole: { value: "user" },
-}));
+import { fetchComments, updateComment } from "@/api/comments";
 
 vi.mock("@/api/auth", () => ({
   checkAuth: vi.fn(() =>
     Promise.resolve({
       ok: true,
-      user: { userId: 1, firstName: "Test", lastName: "User" },
+      user: { User_ID: 1, FirstName: "Test", LastName: "User" },
     }),
   ),
   logout: vi.fn(() => Promise.resolve({ ok: true })),
@@ -25,13 +18,20 @@ vi.mock("@/api/comments", () => ({
     Promise.resolve({
       ok: true,
       total: 15,
-      // We dynamically generate 10 items here so the "Show More" button stays visible
-      items: Array.from({ length: 10 }, (_, i) => ({
-        commentId: i + 1,
-        content: `This is comment ${i + 1}`,
-        user: { userId: 1, firstName: "John", lastName: "Rogers" },
-        replies: [],
-      })),
+      items: [
+        {
+          commentId: 1,
+          content: "This is my first comment!",
+          user: { userId: 1, firstName: "John", lastName: "Rogers" },
+          replies: [],
+        },
+        {
+          commentId: 2,
+          content: "Wow this post is cool!",
+          user: { userId: 2, firstName: "Jack", lastName: "Timothy" },
+          replies: [],
+        },
+      ],
     }),
   ),
   submitComment: vi.fn(),
@@ -67,7 +67,6 @@ vi.mock("@/api/comments", () => ({
       data.updatedAt !== data.createdAt,
   })),
 }));
-
 describe("CommentSection.vue", () => {
   let wrapper;
 
@@ -82,10 +81,6 @@ describe("CommentSection.vue", () => {
     });
   });
 
-  afterEach(() => {
-    wrapper.unmount();
-  });
-
   it("displays the correct total number of comments", () => {
     expect(wrapper.find(".comments-header").text()).toContain("Comments (15)");
   });
@@ -97,13 +92,17 @@ describe("CommentSection.vue", () => {
   });
 
   it("disables the submit button if there is no data, and enables it when text is entered", async () => {
-    await wrapper.find(".reply-box-container").trigger("click");
-    const submitButton = wrapper.find(".btn-submit");
-    expect(submitButton.element.disabled).toBe(true);
+    const textarea = wrapper.find(".comment-textarea");
+    await textarea.trigger("focus");
 
-    const editor = wrapper.findComponent(TextEditor);
-    await editor.vm.$emit("update:modelValue", "This is a test comment");
-    expect(submitButton.element.disabled).toBe(false);
+    const submitBtn = wrapper.find(".btn-submit");
+    expect(submitBtn.element.disabled).toBe(true);
+
+    await textarea.setValue("Hello!! this is my first comment.");
+    expect(submitBtn.element.disabled).toBe(false);
+
+    await textarea.setValue("");
+    expect(submitBtn.element.disabled).toBe(true);
   });
 
   it("only allows one reply box to be open at a time", async () => {
@@ -128,9 +127,7 @@ describe("CommentSection.vue", () => {
   it("fetches exactly 10 more comments and appends them when 'Show more' is clicked", async () => {
     const limit = 10;
     await flushPromises();
-    const initialCount = wrapper.findAllComponents({
-      name: "SingleComment",
-    }).length;
+    const initialCount = wrapper.findAllComponents({ name: "SingleComment" }).length;
 
     const secondBatchItems = [];
     for (let i = 0; i < limit; i++) {
@@ -153,9 +150,7 @@ describe("CommentSection.vue", () => {
     await loadMoreBtn.trigger("click");
     await flushPromises();
 
-    const renderedComments = wrapper.findAllComponents({
-      name: "SingleComment",
-    });
+    const renderedComments = wrapper.findAllComponents({ name: "SingleComment" });
     expect(renderedComments.length).toBe(initialCount + limit);
 
     expect(wrapper.find(".load-more-btn").exists()).toBe(true);
@@ -168,30 +163,28 @@ describe("CommentSection.vue", () => {
     expect(editButtons.length).toBeGreaterThan(0);
 
     await editButtons[0].trigger("click");
-    await flushPromises();
 
-    const editors = wrapper.findAllComponents(TextEditor);
+    const editTextarea = wrapper.find("textarea.reply-textarea");
+    expect(editTextarea.exists()).toBe(true);
 
-    const editEditor = editors.at(-1);
-    expect(editEditor.exists()).toBe(true);
-
-    await editEditor.vm.$emit("update:modelValue", "Updated comment content");
+    await editTextarea.setValue("Updated comment content");
 
     const saveButton = wrapper.findAll(".btn-submit").at(-1);
     expect(saveButton.element.disabled).toBe(false);
 
+    // First click opens the confirmation modal
     await saveButton.trigger("click");
     await flushPromises();
 
-    const confirmButtonEl = document.querySelector(
+    // Confirm in the modal
+    const confirmButton = document.querySelector(
       ".comment-modal-card .btn-submit",
     );
-    expect(confirmButtonEl).not.toBeNull();
-
-    await new DOMWrapper(confirmButtonEl).trigger("click");
+    expect(confirmButton).not.toBeNull();
+    confirmButton.click();
     await flushPromises();
 
-    expect(updateComment).toHaveBeenCalledWith(1, "Updated comment content");
+    expect(updateComment).toHaveBeenCalled();
     const editedLabel = wrapper.find(".edited-label");
     expect(editedLabel.exists()).toBe(true);
   });
@@ -203,41 +196,8 @@ describe("CommentSection.vue", () => {
     await select.setValue("mostLiked");
     await flushPromises();
 
-    expect(fetchComments).toHaveBeenCalledWith(12, 2, 10, "latest");
+    expect(fetchComments).toHaveBeenCalled();
     const lastCallArgs = fetchComments.mock.calls.at(-1);
     expect(lastCallArgs[3]).toBe("mostLiked");
-  });
-
-  it("shows a centered rate limit modal with minutes and seconds", async () => {
-    await flushPromises();
-
-    submitComment.mockRejectedValueOnce({
-      response: {
-        status: 429,
-        data: {
-          ok: false,
-          error:
-            "You're commenting too fast. Please wait 75 seconds before commenting again.",
-          rateLimit: {
-            type: "cooldown",
-            secondsLeft: 75,
-          },
-        },
-      },
-    });
-
-    await wrapper.find(".reply-box-container").trigger("click");
-
-    const editor = wrapper.findComponent(TextEditor);
-    expect(editor.exists()).toBe(true);
-    await editor.vm.$emit("update:modelValue", "Trying to post too quickly.");
-    await flushPromises();
-
-    const submitBtn = wrapper.find(".main-input-wrapper .btn-submit");
-    await submitBtn.trigger("click");
-    await flushPromises();
-
-    expect(document.body.textContent).toContain("You're commenting too fast");
-    expect(document.body.textContent).toContain("1 minute 15 seconds");
   });
 });

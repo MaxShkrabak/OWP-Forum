@@ -103,16 +103,3 @@ export const fetchCommentReplies = async (parentId) => {
     throw error;
   }
 };
-
-export const deleteComment = async (commentId) => {
-  try {
-    const response = await client.delete(`/comments/${commentId}`);
-    return response.data;
-  } catch (error) {
-    console.error(
-      "Error deleting comment:",
-      error.response?.data?.error || error.message,
-    );
-    throw error;
-  }
-};

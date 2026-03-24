@@ -1,27 +1,15 @@
 <script setup>
-import { ref, inject, computed, watch, provide } from "vue";
-import { useRouter } from "vue-router";
+import { ref, inject, computed, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import UserRole from "@/components/user/UserRole.vue";
-import {
-  voteComment as apiVoteComment,
-  fetchCommentReplies,
-  updateComment as apiUpdateComment,
-  deleteComment as apiDeleteComment,
-} from "@/api/comments";
-import { isLoggedIn, uid, userRole } from "@/stores/userStore";
-import { timeAgo } from "@/utils/timeAgo";
-import TextEditor from "./TextEditor.vue";
-import ReportingModal from "../user/ReportingModal.vue";
+import { voteComment as apiVoteComment, fetchCommentReplies, updateComment as apiUpdateComment } from '@/api/comments';
+import { isLoggedIn, uid } from '@/stores/userStore';
+import { timeAgo } from '@/utils/timeAgo';
 
 const props = defineProps({
   comment: Object,
-  depth: {
-    type: Number,
-    default: 0,
-  },
+  isLastChild: Boolean
 });
-
-const emit = defineEmits(["deleted"]);
 
 const router = useRouter();
 
@@ -34,109 +22,41 @@ const totalScore = ref(props.comment.score || 0);
 const myVote = ref(Number(props.comment.myVote || 0));
 
 const showReplies = ref(false);
-const replyText = ref("");
+const replyText = ref('');
 const isHoveringToggle = ref(false);
 
-const showReportModal = ref(false);
-const showDeleteConfirm = ref(false);
-const isDeleting = ref(false);
+const activeReplyId = inject('activeReplyId');
+const submitReply = inject('submitReply');
 
-const activeReplyId = inject("activeReplyId");
-const submitReply = inject("submitReply");
-
-const activeEditId = inject("activeEditId");
-const openEditComment = inject("openEditComment");
-const closeEditComment = inject("closeEditComment");
-const markEditDirty = inject("markEditDirty");
-
-const maxDepthContext = inject("maxDepthContext", null);
-
-if (props.depth === 1) {
-  provide("maxDepthContext", {
-    parentId: props.comment.id,
-    addReply: (newReplyData) => {
-      localReplies.value.push({
-        ...newReplyData,
-        id: newReplyData.commentId,
-        author: `${newReplyData.user.firstName} ${newReplyData.user.lastName}`,
-        role: newReplyData.user.role,
-        time: "Just now",
-        text: newReplyData.content,
-        replies: [],
-      });
-      showReplies.value = true;
-      props.comment.replyCount = (props.comment.replyCount || 0) + 1;
-    },
-  });
-}
+const activeEditId = inject('activeEditId');
+const openEditComment = inject('openEditComment');
+const closeEditComment = inject('closeEditComment');
+const markEditDirty = inject('markEditDirty');
 
 const isReplying = computed(() => activeReplyId.value === props.comment.id);
 const isEditing = computed(() => activeEditId?.value === props.comment.id);
 
-const originalText = computed(() => props.comment.text || "");
+const originalText = computed(() => props.comment.text || '');
 const editText = ref(originalText.value);
 const isSavingEdit = ref(false);
 const showSaveConfirm = ref(false);
-const editIsUploading = ref(false);
-const replyIsUploading = ref(false);
-
-const linkedImage = computed(() => {
-  return (
-    props.comment.text?.replace(
-      /<img[^>]+src="([^"]+)"[^>]*\/?>/gi,
-      (_, src) => {
-        const name =
-          decodeURIComponent(src.split("/").pop().split("?")[0]) || "image";
-        return `<a href="${src}" target="_blank" rel="noopener noreferrer">${name}</a>`;
-      },
-    ) ?? ""
-  );
-});
 
 const isAuthor = computed(() => {
   const currentUid = Number(uid?.value ?? 0);
-  const commentUserId = Number(
-    props.comment.user?.userId ?? props.comment.userId ?? 0,
-  );
+  const commentUserId = Number(props.comment.user?.userId ?? props.comment.userId ?? 0);
   return currentUid > 0 && commentUserId === currentUid;
-});
-
-const currentUserRole = computed(() =>
-  String(userRole?.value || "").toLowerCase(),
-);
-
-const isModeratorOrAdmin = computed(() => {
-  return (
-    currentUserRole.value === "moderator" ||
-    currentUserRole.value === "admin"
-  );
-});
-
-const canDelete = computed(() => {
-  return isAuthor.value || isModeratorOrAdmin.value;
-});
-
-const canReport = computed(() => {
-  return isLoggedIn.value && !isAuthor.value && !isModeratorOrAdmin.value;
 });
 
 const toggleReply = () => {
   if (!isLoggedIn.value) {
-    router.push("/login");
+    router.push('/login');
     return;
   }
   activeReplyId.value = isReplying.value ? null : props.comment.id;
-
-  if (activeReplyId.value === props.comment.id) {
-    const authorName =
-      props.comment.author || props.comment.user?.firstName || "User";
-    replyText.value = `@${authorName} `;
-  } else {
-    replyText.value = "";
-  }
 };
 
 const startEdit = () => {
+  if (!isAuthor.value) return;
   if (!isEditing.value) {
     editText.value = originalText.value;
     openEditComment && openEditComment(props.comment.id);
@@ -149,9 +69,7 @@ const cancelEdit = () => {
   closeEditComment && closeEditComment();
 };
 
-const hasEditChanges = computed(
-  () => editText.value.trim() !== originalText.value.trim(),
-);
+const hasEditChanges = computed(() => editText.value.trim() !== originalText.value.trim());
 
 const saveEdit = () => {
   if (!hasEditChanges.value || isSavingEdit.value) return;
@@ -166,20 +84,15 @@ const confirmSaveEdit = async () => {
 
   isSavingEdit.value = true;
   try {
-    const data = await apiUpdateComment(
-      props.comment.id,
-      editText.value.trim(),
-    );
+    const data = await apiUpdateComment(props.comment.id, editText.value.trim());
     if (data && data.ok && data.comment) {
       props.comment.text = data.comment.content;
       if (props.comment.user && data.comment.user) {
         props.comment.user = data.comment.user;
       }
-      if (typeof data.comment.updatedAt !== "undefined") {
+      if (typeof data.comment.updatedAt !== 'undefined') {
         props.comment.updatedAt = data.comment.updatedAt;
-        props.comment.wasEdited =
-          data.comment.updatedAt !== null &&
-          data.comment.updatedAt !== data.comment.createdAt;
+        props.comment.wasEdited = data.comment.updatedAt !== null && data.comment.updatedAt !== data.comment.createdAt;
       } else {
         props.comment.wasEdited = true;
       }
@@ -187,7 +100,7 @@ const confirmSaveEdit = async () => {
       closeEditComment && closeEditComment();
     }
   } catch (error) {
-    alert("Failed to update comment.");
+    alert('Failed to update comment.');
   } finally {
     isSavingEdit.value = false;
     showSaveConfirm.value = false;
@@ -195,8 +108,7 @@ const confirmSaveEdit = async () => {
 };
 
 function getAvatarSrc(file) {
-  return new URL(`../../assets/img/user-pfps-premade/${file}`, import.meta.url)
-    .href;
+  return new URL(`../../assets/img/user-pfps-premade/${file}`, import.meta.url).href;
 }
 
 const toggleRepliesDropdown = async () => {
@@ -205,13 +117,13 @@ const toggleRepliesDropdown = async () => {
     try {
       const data = await fetchCommentReplies(props.comment.id);
       if (data && data.ok) {
-        localReplies.value = data.items.map((item) => ({
+        localReplies.value = data.items.map(item => ({
           ...item,
           id: item.commentId,
           author: `${item.user.firstName} ${item.user.lastName}`,
           time: timeAgo(item.createdAt * 1000),
           text: item.content,
-          replies: [],
+          replies: []
         }));
         hasFetched.value = true;
       }
@@ -225,83 +137,36 @@ const toggleRepliesDropdown = async () => {
 };
 
 const handleReply = async () => {
-  const targetParentId =
-    props.depth >= 2 && maxDepthContext
-      ? maxDepthContext.parentId
-      : props.comment.id;
-
-  const newCommentData = await submitReply(replyText.value, targetParentId);
+  const newCommentData = await submitReply(replyText.value, props.comment.id);
 
   if (newCommentData) {
-    replyText.value = "";
+    replyText.value = '';
+    props.comment.replyCount = (props.comment.replyCount || 0) + 1;
 
-    if (props.depth >= 2 && maxDepthContext) {
-      maxDepthContext.addReply(newCommentData);
-      activeReplyId.value = null;
-    } else {
-      props.comment.replyCount = (props.comment.replyCount || 0) + 1;
-
-      if (hasFetched.value) {
-        localReplies.value.push({
-          ...newCommentData,
-          id: newCommentData.commentId,
-          author: `${newCommentData.user.firstName} ${newCommentData.user.lastName}`,
-          role: newCommentData.user.role,
-          time: "Just now",
-          text: newCommentData.content,
-          replies: [],
-        });
-
-        showReplies.value = true;
-      }
+    if (hasFetched.value) {
+      localReplies.value.push({
+        ...newCommentData,
+        id: newCommentData.commentId,
+        author: `${newCommentData.user.firstName} ${newCommentData.user.lastName}`,
+        role: newCommentData.user.role,
+        time: 'Just now',
+        text: newCommentData.content,
+        replies: []
+      });
+      
+      showReplies.value = true;
     }
-  }
-};
-
-const openReportModal = () => {
-  showReportModal.value = true;
-};
-
-const closeReportModal = () => {
-  showReportModal.value = false;
-};
-
-const askDeleteComment = () => {
-  showDeleteConfirm.value = true;
-};
-
-const confirmDeleteComment = async () => {
-  if (isDeleting.value) return;
-
-  isDeleting.value = true;
-  try {
-    const data = await apiDeleteComment(props.comment.id);
-    if (data?.ok) {
-      showDeleteConfirm.value = false;
-      emit("deleted", props.comment.id);
-    } else {
-      alert(data?.error || "Failed to delete comment.");
-    }
-  } catch (error) {
-    alert("Failed to delete comment.");
-  } finally {
-    isDeleting.value = false;
   }
 };
 
 const handleVote = async (direction) => {
-  if (!isLoggedIn.value) {
-    router.push("/login");
-    return;
-  }
+  if (!isLoggedIn.value) { router.push('/login'); return; }
   if (isVoting.value) return;
 
   let action = direction;
-  if (
-    (direction === "upvote" && myVote.value === 1) ||
-    (direction === "downvote" && myVote.value === -1)
-  ) {
-    action = "clear";
+  if ((direction === 'upvote' && myVote.value === 1) ||
+    (direction === 'downvote' && myVote.value === -1)) {
+    action = 'clear';
   }
 
   isVoting.value = true;
@@ -336,39 +201,25 @@ watch(isEditing, (active) => {
 
 <template>
   <div class="comment-node mb-3 position-relative">
-    <div
-      v-if="localReplies.length || comment.replyCount > 0"
-      class="thread-line"
-      :class="{ 'highlighted-thread-bg': isHoveringToggle }"
-      @click="toggleRepliesDropdown"
-      title="Toggle replies"
-    ></div>
+    <div v-if="localReplies.length || comment.replyCount > 0" class="thread-line"
+      :class="{ 'highlighted-thread-bg': isHoveringToggle }" @click="toggleRepliesDropdown" title="Toggle replies">
+    </div>
 
     <div class="d-flex gap-3 gap-sm-2 position-relative">
-      <div
-        class="avatar-col d-flex flex-column align-items-center flex-shrink-0"
-      >
+      <div class="avatar-col d-flex flex-column align-items-center flex-shrink-0">
         <div class="avatar-box shadow-sm overflow-hidden rounded-circle">
-          <img
-            :src="getAvatarSrc(comment.user?.avatar)"
-            class="avatar-box"
-            alt="user"
-          />
+          <img :src="getAvatarSrc(comment.user?.avatar)" class="avatar-box" alt="user" />
         </div>
       </div>
 
       <div class="flex-grow-1 overflow-visible">
         <div class="d-flex align-items-center mb-1 justify-content-between">
           <div class="d-flex align-items-center gap-2 flex-wrap">
-            <span class="author-name text-truncate small fw-bold">{{
-              comment.author
-            }}</span>
+            <span class="author-name text-truncate small fw-bold">{{ comment.author }}</span>
             <UserRole :role="comment.user?.role" />
             <span class="timestamp text-muted">
               {{ comment.time }}
-              <span v-if="comment.wasEdited" class="edited-label ms-1"
-                >(edited)</span
-              >
+              <span v-if="comment.wasEdited" class="edited-label ms-1">(edited)</span>
             </span>
           </div>
           <button
@@ -381,173 +232,85 @@ watch(isEditing, (active) => {
           </button>
         </div>
 
-        <div v-if="isEditing" class="comment-body mb-2">
-          <div class="border rounded-3 overflow-hidden bg-white">
-            <TextEditor
-              v-model="editText"
-              v-model:isUploading="editIsUploading"
-              :compact="true"
-              :show-toolbar="true"
-              placeholder="Edit your comment..."
-            />
-            <div
-              class="d-flex justify-content-end align-items-center gap-3 px-3 pb-2 pt-2 bg-white"
+        <div v-if="isEditing" class="comment-body mb-2 small">
+          <textarea
+            v-model="editText"
+            class="reply-textarea w-100 border rounded-3 p-2"
+            rows="3"
+          ></textarea>
+          <div class="d-flex justify-content-end align-items-center gap-3 mt-2">
+            <button
+              class="btn-cancel border-0 bg-transparent fw-bold small"
+              type="button"
+              @click="cancelEdit"
             >
-              <button
-                class="btn-cancel border-0 bg-transparent fw-bold small"
-                type="button"
-                @click="cancelEdit"
-              >
-                Cancel
-              </button>
-              <button
-                class="btn-submit border-0 rounded-2 fw-bold px-3 py-1 small"
-                type="button"
-                :disabled="!hasEditChanges || isSavingEdit || editIsUploading"
-                @click="saveEdit"
-              >
-                {{ editIsUploading ? "Uploading..." : "Save" }}
-              </button>
-            </div>
+              Cancel
+            </button>
+            <button
+              class="btn-submit border-0 rounded-2 fw-bold px-3 py-1 small"
+              type="button"
+              :disabled="!hasEditChanges || isSavingEdit"
+              @click="saveEdit"
+            >
+              Save
+            </button>
           </div>
         </div>
-
-        <div v-else class="comment-body mb-2 small" v-html="linkedImage"></div>
+        <div v-else class="comment-body mb-2 small">{{ comment.text }}</div>
 
         <div class="d-flex align-items-center gap-3 gap-sm-2 flex-wrap">
-          <div
-            class="vote-container d-flex align-items-center rounded-4 px-2 py-1"
-          >
-            <button
-              @click="handleVote('upvote')"
-              class="vote-btn-up pi pi-chevron-up border-0 bg-transparent p-0"
-              :class="{ active: myVote === 1, 'is-voting': isVoting }"
-            ></button>
-            <span
-              class="vote-count mx-2 fw-bold"
-              :class="{
-                upvoted: myVote === 1,
-                downvoted: myVote === -1,
-                'voting-bounce': isVoting,
-              }"
-              >{{ totalScore }}</span
-            >
-            <button
-              @click="handleVote('downvote')"
-              class="vote-btn-down pi pi-chevron-down border-0 bg-transparent p-0"
-              :class="{ active: myVote === -1, 'is-voting': isVoting }"
-            ></button>
+          <div class="vote-container d-flex align-items-center rounded-4 px-2 py-1">
+            <button @click="handleVote('upvote')" class="vote-btn-up pi pi-chevron-up border-0 bg-transparent p-0"
+              :class="{ 'active': myVote === 1, 'is-voting': isVoting }"></button>
+            <span class="vote-count mx-2 fw-bold"
+              :class="{ 'upvoted': myVote === 1, 'downvoted': myVote === -1, 'voting-bounce': isVoting }">{{ totalScore
+              }}</span>
+            <button @click="handleVote('downvote')" class="vote-btn-down pi pi-chevron-down border-0 bg-transparent p-0"
+              :class="{ 'active': myVote === -1, 'is-voting': isVoting }"></button>
           </div>
 
-          <button
-            class="action-btn border-0 bg-transparent fw-bold d-flex align-items-center gap-1 p-0"
-            @click="toggleReply"
-            :class="{ active: isReplying }"
-          >
+          <button class="action-btn border-0 bg-transparent fw-bold d-flex align-items-center gap-1 p-0"
+            @click="toggleReply" :class="{ 'active': isReplying }">
             <span>Reply</span>
-          </button>
-
-          <button
-            v-if="canDelete"
-            class="action-btn border-0 bg-transparent fw-bold d-flex align-items-center gap-1 p-0"
-            @click="askDeleteComment"
-          >
-            <span>Delete</span>
-          </button>
-
-          <button
-            v-if="canReport"
-            class="action-btn border-0 bg-transparent fw-bold d-flex align-items-center gap-1 p-0"
-            @click="openReportModal"
-          >
-            <span>Report</span>
           </button>
         </div>
 
         <div v-if="isReplying" class="mt-2">
-          <div
-            class="reply-box-container mb-2 border rounded-3 overflow-hidden bg-white"
-          >
-            <TextEditor
-              v-model="replyText"
-              v-model:isUploading="replyIsUploading"
-              :compact="true"
-              :show-toolbar="true"
-              placeholder="Write a reply..."
-            />
-            <div
-              class="d-flex justify-content-end align-items-center gap-3 px-3 pb-2 pt-2 bg-white"
-            >
-              <button
-                class="btn-cancel border-0 bg-transparent fw-bold small"
-                @click="activeReplyId = null"
-              >
-                Cancel
-              </button>
-              <button
-                class="btn-submit border-0 rounded-2 fw-bold px-3 py-1 small"
-                :disabled="
-                  !replyText || replyText === '<p></p>' || replyIsUploading
-                "
-                @click="handleReply"
-              >
-                {{ replyIsUploading ? "Uploading..." : "Reply" }}
-              </button>
+          <div class="reply-box-container border rounded-3 overflow-hidden bg-white">
+            <textarea v-model="replyText" class="reply-textarea w-100 border-0 outline-none p-3 small" rows="2"
+              placeholder="What are your thoughts?"></textarea>
+            <div class="d-flex justify-content-end align-items-center gap-3 px-3 pb-2">
+              <button class="btn-cancel border-0 bg-transparent fw-bold small"
+                @click="activeReplyId = null">Cancel</button>
+              <button class="btn-submit border-0 rounded-2 fw-bold px-3 py-1 small" :disabled="!replyText"
+                @click="handleReply">Reply</button>
             </div>
           </div>
         </div>
       </div>
     </div>
 
-    <div
-      v-if="localReplies.length || comment.replyCount > 0"
-      class="replies-wrapper position-relative"
-    >
+    <div v-if="localReplies.length || comment.replyCount > 0" class="replies-wrapper position-relative">
       <div v-if="showReplies">
-        <div
-          v-for="(reply, index) in localReplies"
-          :key="reply.id"
-          class="reply-item mt-3 position-relative ps-3 ps-sm-2"
-        >
-          <div
-            class="child-connector"
-            :class="{ 'highlighted-thread-border': isHoveringToggle }"
-          ></div>
-          <SingleComment
-            :comment="reply"
-            :depth="depth + 1"
-            :is-last-child="index === localReplies.length - 1"
-            @deleted="emit('deleted', $event)"
-          />
+        <div v-for="(reply, index) in localReplies" :key="reply.id"
+          class="reply-item mt-3 position-relative ps-3 ps-sm-2">
+          <div class="child-connector" :class="{ 'highlighted-thread-border': isHoveringToggle }"></div>
+          <SingleComment :comment="reply" :is-last-child="index === localReplies.length - 1" />
         </div>
       </div>
 
-      <div
-        class="position-relative ps-3 ps-sm-2 py-1 mt-2 d-flex align-items-center"
-      >
-        <div
-          class="child-connector toggle-connector"
-          :class="{ 'highlighted-thread-border': isHoveringToggle }"
-        ></div>
+      <div class="position-relative ps-3 ps-sm-2 py-1 mt-2 d-flex align-items-center">
+        <div class="child-connector toggle-connector" :class="{ 'highlighted-thread-border': isHoveringToggle }"></div>
         <button
           class="btn-toggle-replies border rounded-pill bg-transparent fw-bold d-flex align-items-center gap-2 px-3 py-1 ms-1"
-          @mouseenter="isHoveringToggle = true"
-          @mouseleave="isHoveringToggle = false"
-          @click="toggleRepliesDropdown"
-          :disabled="isLoadingReplies"
-        >
+          @mouseenter="isHoveringToggle = true" @mouseleave="isHoveringToggle = false" @click="toggleRepliesDropdown"
+          :disabled="isLoadingReplies">
+
           <i v-if="isLoadingReplies" class="pi pi-spin pi-spinner"></i>
-          <i
-            v-else
-            :class="showReplies ? 'pi pi-chevron-up' : 'pi pi-chevron-down'"
-          ></i>
+          <i v-else :class="showReplies ? 'pi pi-chevron-up' : 'pi pi-chevron-down'"></i>
 
           <span class="small">
-            {{
-              showReplies
-                ? "Hide replies"
-                : `View ${comment.replyCount || localReplies.length} replies`
-            }}
+            {{ showReplies ? 'Hide replies' : `View ${comment.replyCount || localReplies.length} replies` }}
           </span>
         </button>
       </div>
@@ -579,10 +342,7 @@ watch(isEditing, (active) => {
                 :disabled="isSavingEdit"
                 @click="confirmSaveEdit"
               >
-                <span
-                  v-if="isSavingEdit"
-                  class="pi pi-spin pi-spinner me-1"
-                ></span>
+                <span v-if="isSavingEdit" class="pi pi-spin pi-spinner me-1"></span>
                 Save changes
               </button>
             </div>
@@ -590,49 +350,6 @@ watch(isEditing, (active) => {
         </div>
       </Transition>
     </Teleport>
-
-    <Teleport to="body">
-      <Transition name="fade">
-        <div
-          v-if="showDeleteConfirm"
-          class="comment-modal-mask d-flex align-items-center justify-content-center"
-          @click.self="showDeleteConfirm = false"
-        >
-          <div class="comment-modal-card shadow-lg">
-            <p class="fw-bold mb-1">Delete comment?</p>
-            <p class="small text-muted mb-3">
-              This action cannot be undone.
-            </p>
-            <div class="d-flex justify-content-end gap-2">
-              <button
-                type="button"
-                class="btn-cancel border-0 bg-transparent fw-bold small"
-                @click="showDeleteConfirm = false"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                class="btn-submit border-0 rounded-2 fw-bold px-3 py-1 small"
-                :disabled="isDeleting"
-                @click="confirmDeleteComment"
-              >
-                <span v-if="isDeleting" class="pi pi-spin pi-spinner me-1"></span>
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
-
-    <ReportingModal
-      :isOpen="showReportModal"
-      :targetId="comment.id"
-      :targetTitle="comment.text?.replace(/<[^>]*>/g, '').trim() || 'Comment'"
-      type="comment"
-      @close="closeReportModal"
-    />
   </div>
 </template>
 
@@ -655,16 +372,17 @@ watch(isEditing, (active) => {
   font-size: 0.5rem !important;
 }
 
-.comment-body {
-  overflow-wrap: break-word;
-  word-break: break-word;
-}
-
 .timestamp {
   font-size: 12px;
 }
 
 /* Menu */
+.dropdown-menu {
+  left: 0 !important;
+  right: auto !important;
+  background-color: white;
+}
+
 .btn-options {
   color: #9ca3af;
   transition: color 0.2s;
@@ -672,6 +390,11 @@ watch(isEditing, (active) => {
 
 .btn-options:hover {
   color: #111827;
+}
+
+.dropdown-item {
+  font-size: 0.85rem;
+  color: #1f2937;
 }
 
 /* Voting styles */
@@ -715,6 +438,13 @@ watch(isEditing, (active) => {
   color: #111827;
 }
 
+.reply-textarea {
+  resize: vertical;
+  color: #1f2937;
+  min-height: 60px;
+  outline: none;
+}
+
 .btn-cancel {
   color: #4b5563;
 }
@@ -736,7 +466,7 @@ watch(isEditing, (active) => {
   left: 19px;
   bottom: 30px;
   width: 1px;
-  background-color: #c5cad3;
+  background-color: #e5e7eb;
   cursor: pointer;
   transition: background-color 0.2s ease;
 }
@@ -751,8 +481,8 @@ watch(isEditing, (active) => {
   left: 0;
   width: 12px;
   height: 24px;
-  border-bottom: 1px solid #c5cad3;
-  border-left: 1px solid #c5cad3;
+  border-bottom: 1px solid #e5e7eb;
+  border-left: 1px solid #e5e7eb;
   border-bottom-left-radius: 12px;
   margin-top: -12px;
   transition: border-color 0.2s ease;
@@ -767,7 +497,7 @@ watch(isEditing, (active) => {
 .btn-toggle-replies {
   color: #035157;
   border-width: 1px !important;
-  border-color: #c5cad3 !important;
+  border-color: #e5e7eb !important;
   transition: border-color 0.2s ease;
 }
 
@@ -805,7 +535,6 @@ watch(isEditing, (active) => {
 
   .child-connector {
     width: 20px;
-    top: 12px;
   }
 }
 

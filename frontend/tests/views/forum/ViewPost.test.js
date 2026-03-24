@@ -33,10 +33,6 @@ const stubs = [
 describe("ViewPost.vue", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.stubGlobal("navigator", {
-      ...navigator,
-      clipboard: { writeText: vi.fn().mockResolvedValue(undefined) },
-    });
   });
 
   it("renders the correct title, author, role, date, and tags of a post", async () => {
@@ -50,7 +46,6 @@ describe("ViewPost.vue", () => {
       categoryName: "General",
       tags: [{ Name: "Help" }, { Name: "Official" }, { Name: "Research" }],
       content: "Some content",
-      viewCount: 1247,
     };
 
     getPost.mockResolvedValue(fakePost);
@@ -72,106 +67,6 @@ describe("ViewPost.vue", () => {
     expect(renderedTags[2].text()).toBe("Research");
 
     expect(wrapper.find(".post-timestamp").text()).toContain("Feb 22, 2026");
-
-    const viewLine = wrapper.find(".post-view-count");
-    expect(viewLine.exists()).toBe(true);
-    expect(viewLine.text()).toContain("1,247");
-    expect(viewLine.text()).toContain("views");
-  });
-
-  it("shows singular 'view' when viewCount is 1", async () => {
-    getPost.mockResolvedValue({
-      title: "T",
-      authorName: "A",
-      authorRole: "User",
-      authorAvatar: "pfp-0.png",
-      createdAt: "2026-02-22 14:20:00",
-      categoryName: "General",
-      tags: [],
-      content: "c",
-      viewCount: 1,
-    });
-
-    const wrapper = mount(ViewPost, { global: { stubs } });
-    await flushPromises();
-
-    const viewLine = wrapper.find(".post-view-count");
-    expect(viewLine.text()).toMatch(/1/);
-    expect(viewLine.text()).toContain("view");
-    expect(viewLine.text()).not.toContain("views");
-  });
-
-  it("formats large view counts with locale grouping", async () => {
-    getPost.mockResolvedValue({
-      title: "T",
-      authorName: "A",
-      authorRole: "User",
-      authorAvatar: "pfp-0.png",
-      createdAt: "2026-02-22 14:20:00",
-      categoryName: "General",
-      tags: [],
-      content: "c",
-      viewCount: 1000000,
-    });
-
-    const wrapper = mount(ViewPost, { global: { stubs } });
-    await flushPromises();
-
-    expect(wrapper.find(".post-view-count").text()).toContain(
-      Number(1000000).toLocaleString(),
-    );
-  });
-
-  it("does not render view count when viewCount is absent", async () => {
-    getPost.mockResolvedValue({
-      title: "T",
-      authorName: "A",
-      authorRole: "User",
-      authorAvatar: "pfp-0.png",
-      createdAt: "2026-02-22 14:20:00",
-      categoryName: "General",
-      tags: [],
-      content: "c",
-    });
-
-    const wrapper = mount(ViewPost, { global: { stubs } });
-    await flushPromises();
-
-    expect(wrapper.find(".post-view-count").exists()).toBe(false);
-  });
-
-  it("Share copies the page URL and shows Link copied", async () => {
-    const fakePost = {
-      PostID: 123,
-      title: "T",
-      authorName: "A",
-      authorRole: "user",
-      authorAvatar: "pfp-1.png",
-      createdAt: "2026-02-22 14:20:00",
-      categoryName: "General",
-      tags: [],
-      content: "c",
-    };
-
-    getPost.mockResolvedValue(fakePost);
-
-    const wrapper = mount(ViewPost, {
-      global: { stubs },
-    });
-
-    await flushPromises();
-
-    const shareBtn = wrapper.find(".share-btn");
-    expect(shareBtn.exists()).toBe(true);
-
-    await shareBtn.trigger("click");
-    await flushPromises();
-
-    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
-      window.location.href,
-    );
-
-    expect(wrapper.find(".link-copied-toast").text()).toContain("Link copied");
   });
 
   it("shows error state if post fetch fails", async () => {
