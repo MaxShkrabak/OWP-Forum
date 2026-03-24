@@ -1,261 +1,238 @@
 <script setup>
-import { ref, onMounted, computed, watch } from "vue";
-import client from "@/api/client";
-import { formatBannedUntilDateTime } from "@/utils/banDate";
+import { ref, onMounted, computed, watch } from 'vue'
+import client from '@/api/client'
+import { formatBannedUntilDateTime } from '@/utils/banDate'
 
-const q = ref("");
-const users = ref([]);
-const loading = ref(false);
-const error = ref("");
-const currentUserId = ref(null);
+const q = ref('')
+const users = ref([])
+const loading = ref(false)
+const error = ref('')
+const currentUserId = ref(null)
 
-const showBanModal = ref(false);
-const banTarget = ref(null);
-const banKind = ref("permanent"); // 'permanent' | 'temporary'
-const banUntilDate = ref("");
+const showBanModal = ref(false)
+const banTarget = ref(null)
+const banKind = ref('permanent') // 'permanent' | 'temporary'
+const banUntilDate = ref('')
 
-const showWarning = ref(false);
-const warningMessage = ref("");
+const showWarning = ref(false)
+const warningMessage = ref('')
 
 // Role management state
-const roleDraft = ref({});
-const showRoleConfirm = ref(false);
-const pendingRole = ref({ user: null, newRoleId: null, oldRoleId: null });
-const roleInfoModal = ref({ open: false, title: "", message: "" });
+const roleDraft = ref({})
+const showRoleConfirm = ref(false)
+const pendingRole = ref({ user: null, newRoleId: null, oldRoleId: null })
+const roleInfoModal = ref({ open: false, title: '', message: '' })
 
 const roles = [
-  { id: 1, label: "User" },
-  { id: 2, label: "Student" },
-  { id: 3, label: "Moderator" },
-  { id: 4, label: "Admin" },
-];
+  { id: 1, label: 'User' },
+  { id: 2, label: 'Student' },
+  { id: 3, label: 'Moderator' },
+  { id: 4, label: 'Admin' },
+]
 
 // Tomorrow in local time (YYYY-MM-DD) so date picker min is correct in user's timezone
 const minBanDate = computed(() => {
-  const d = new Date();
-  d.setDate(d.getDate() + 1);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-});
+  const d = new Date()
+  d.setDate(d.getDate() + 1)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+})
 
-let searchTimeout = null;
+let searchTimeout = null
 function onSearchInput() {
-  clearTimeout(searchTimeout);
-  searchTimeout = setTimeout(() => loadUsers(), 350);
+  clearTimeout(searchTimeout)
+  searchTimeout = setTimeout(() => loadUsers(), 350)
 }
 
 async function loadUsers() {
-  loading.value = true;
-  error.value = "";
+  loading.value = true
+  error.value = ''
   try {
-    const params = q.value.trim() ? { q: q.value.trim() } : {};
-    const res = await client.get("/admin/users", { params });
-    users.value = (res.data.users || []).map((u) => ({
+    const params = q.value.trim() ? { q: q.value.trim() } : {}
+    const res = await client.get('/admin/users', { params })
+    users.value = (res.data.users || []).map(u => ({
       ...u,
-      isBanned: Boolean(Number(u.isBanned ?? 0)),
-      banType:
-        u.banType && (u.banType === "permanent" || u.banType === "temporary")
-          ? u.banType
-          : null,
-      bannedUntil: u.bannedUntil ? String(u.bannedUntil) : null,
-    }));
+      IsBanned: Boolean(Number(u.IsBanned ?? 0)),
+      BanType: u.BanType && (u.BanType === 'permanent' || u.BanType === 'temporary') ? u.BanType : null,
+      BannedUntil: u.BannedUntil ? String(u.BannedUntil) : null
+    }))
 
     // Populate roleDraft map
-    const map = {};
-    for (const u of users.value) map[u.userId] = Number(u.roleId);
-    roleDraft.value = map;
+    const map = {}
+    for (const u of users.value) map[u.User_ID] = Number(u.RoleID)
+    roleDraft.value = map
   } catch (e) {
-    error.value =
-      e?.response?.data?.error || e.message || "Failed to load users";
-    users.value = [];
+    error.value = e?.response?.data?.error || e.message || 'Failed to load users'
+    users.value = []
   } finally {
-    loading.value = false;
+    loading.value = false
   }
 }
 
 function openBanModal(user) {
-  banTarget.value = user;
-  banKind.value = "permanent";
-  banUntilDate.value = minBanDate.value;
-  showBanModal.value = true;
+  banTarget.value = user
+  banKind.value = 'permanent'
+  banUntilDate.value = minBanDate.value
+  showBanModal.value = true
 }
 
 // Keep date in sync when switching to temporary (ensure not before min)
 watch(banKind, (kind) => {
-  if (
-    kind === "temporary" &&
-    (!banUntilDate.value || banUntilDate.value < minBanDate.value)
-  ) {
-    banUntilDate.value = minBanDate.value;
+  if (kind === 'temporary' && (!banUntilDate.value || banUntilDate.value < minBanDate.value)) {
+    banUntilDate.value = minBanDate.value
   }
-});
+})
 
 function closeBanModal() {
-  showBanModal.value = false;
-  banTarget.value = null;
+  showBanModal.value = false
+  banTarget.value = null
 }
 
 function showWarningPopup(message) {
-  warningMessage.value = message;
-  showWarning.value = true;
+  warningMessage.value = message
+  showWarning.value = true
 }
 
 function closeWarningPopup() {
-  showWarning.value = false;
-  warningMessage.value = "";
+  showWarning.value = false
+  warningMessage.value = ''
 }
 
 async function confirmBan() {
-  if (!banTarget.value) return;
-  const payload = { banned: true };
-  if (banKind.value === "temporary") {
+  if (!banTarget.value) return
+  const payload = { banned: true }
+  if (banKind.value === 'temporary') {
     if (!banUntilDate.value) {
-      showWarningPopup("Please choose an end date for the temporary ban.");
-      return;
+      showWarningPopup('Please choose an end date for the temporary ban.')
+      return
     }
-    payload.banType = "temporary";
-    payload.bannedUntil = banUntilDate.value;
+    payload.banType = 'temporary'
+    payload.bannedUntil = banUntilDate.value
   } else {
-    payload.banType = "permanent";
+    payload.banType = 'permanent'
   }
   try {
-    await client.patch(`/admin/users/${banTarget.value.userId}/ban`, payload);
-    banTarget.value.isBanned = true;
-    banTarget.value.banType = payload.banType;
-    banTarget.value.bannedUntil = payload.bannedUntil || null;
-    closeBanModal();
+    await client.patch(`/admin/users/${banTarget.value.User_ID}/ban`, payload)
+    banTarget.value.IsBanned = true
+    banTarget.value.BanType = payload.banType
+    banTarget.value.BannedUntil = payload.bannedUntil || null
+    closeBanModal()
   } catch (e) {
-    showWarningPopup(e?.response?.data?.error || "Failed to update ban status");
+    showWarningPopup(e?.response?.data?.error || 'Failed to update ban status')
   }
 }
 
 async function unban(user) {
   try {
-    await client.patch(`/admin/users/${user.userId}/ban`, { banned: false });
-    user.isBanned = false;
-    user.banType = null;
-    user.bannedUntil = null;
+    await client.patch(`/admin/users/${user.User_ID}/ban`, { banned: false })
+    user.IsBanned = false
+    user.BanType = null
+    user.BannedUntil = null
   } catch (e) {
-    showWarningPopup(e?.response?.data?.error || "Failed to update ban status");
+    showWarningPopup(e?.response?.data?.error || 'Failed to update ban status')
   }
 }
 
 function banStatusLabel(u) {
-  if (!u.isBanned) return "Active";
-  if (u.banType === "temporary" && u.bannedUntil) {
-    const formatted = formatBannedUntilDateTime(u.bannedUntil, {
-      dateStyle: "short",
-      timeStyle: "short",
-    });
-    return formatted ? "Until " + formatted : "Temporary";
+  if (!u.IsBanned) return 'Active'
+  if (u.BanType === 'temporary' && u.BannedUntil) {
+    const formatted = formatBannedUntilDateTime(u.BannedUntil, { dateStyle: 'short', timeStyle: 'short' })
+    return formatted ? 'Until ' + formatted : 'Temporary'
   }
-  return "Permanent";
+  return 'Permanent'
 }
 
 function formatUserDisplay(u) {
-  if (!u) return "";
-  const first = (u.firstName || "").trim();
-  const last = (u.lastName || "").trim();
-  const email = (u.email || "").trim();
-  const hasName = first || last;
+  if (!u) return ''
+  const first = (u.FirstName || '').trim()
+  const last = (u.LastName || '').trim()
+  const email = (u.Email || '').trim()
+  const hasName = first || last
   if (hasName) {
-    const fullName = `${first} ${last}`.trim();
-    return email ? `${fullName} (${email})` : fullName;
+    const fullName = `${first} ${last}`.trim()
+    return email ? `${fullName} (${email})` : fullName
   }
-  return email ? email : `ID: ${u.userId}`;
+  return email ? email : `ID: ${u.User_ID}`
 }
 
 function isAdminUser(u) {
-  if (!u) return false;
-  if (Number(u.roleId) === 4) return true;
-  return (u.roleName || "").toLowerCase() === "admin";
+  if (!u) return false
+  if (Number(u.RoleID) === 4) return true
+  return (u.RoleName || '').toLowerCase() === 'admin'
 }
 
 // Role management functions
 function roleLabel(id) {
-  return id === 1
-    ? "User"
-    : id === 2
-      ? "Student"
-      : id === 3
-        ? "Moderator"
-        : "Admin";
+  return id === 1 ? 'User' : id === 2 ? 'Student' : id === 3 ? 'Moderator' : 'Admin'
 }
 
 function showRoleInfo(title, message) {
-  roleInfoModal.value = { open: true, title, message };
+  roleInfoModal.value = { open: true, title, message }
 }
 
 function closeRoleInfo() {
-  roleInfoModal.value.open = false;
+  roleInfoModal.value.open = false
 }
 
 function onRoleSelected(user) {
-  const newRole = Number(roleDraft.value[user.userId]);
-  const oldRole = Number(user.roleId);
+  const newRole = Number(roleDraft.value[user.User_ID])
+  const oldRole = Number(user.RoleID)
 
-  if (newRole === oldRole) return;
+  if (newRole === oldRole) return
 
-  if (Number(user.userId) === Number(currentUserId.value)) {
-    roleDraft.value[user.userId] = oldRole;
-    showRoleInfo("Action not allowed", "You cannot change your own role.");
-    return;
+  if (Number(user.User_ID) === Number(currentUserId.value)) {
+    roleDraft.value[user.User_ID] = oldRole
+    showRoleInfo("Action not allowed", "You cannot change your own role.")
+    return
   }
 
-  const involvesElevated = oldRole >= 3 || newRole >= 3;
+  const involvesElevated = (oldRole >= 3 || newRole >= 3)
   if (involvesElevated) {
-    pendingRole.value = { user, oldRoleId: oldRole, newRoleId: newRole };
-    showRoleConfirm.value = true;
-    return;
+    pendingRole.value = { user, oldRoleId: oldRole, newRoleId: newRole }
+    showRoleConfirm.value = true
+    return
   }
-  applyRoleChange(user, newRole);
+  applyRoleChange(user, newRole)
 }
 
 async function applyRoleChange(user, newRole) {
   try {
-    await client.patch(`/admin/users/${user.userId}/role`, { roleId: newRole });
-    user.roleId = String(newRole);
-    user.roleName =
-      newRole === 1
-        ? "user"
-        : newRole === 2
-          ? "student"
-          : newRole === 3
-            ? "moderator"
-            : "admin";
-    roleDraft.value[user.userId] = newRole;
+    await client.patch(`/admin/users/${user.User_ID}/role`, { roleId: newRole })
+    user.RoleID = String(newRole)
+    user.RoleName = newRole === 1 ? 'user' : newRole === 2 ? 'student' : newRole === 3 ? 'moderator' : 'admin'
+    roleDraft.value[user.User_ID] = newRole
   } catch (e) {
-    roleDraft.value[user.userId] = Number(user.roleId);
-    alert(e?.response?.data?.error || "Failed to update role");
+    roleDraft.value[user.User_ID] = Number(user.RoleID)
+    alert(e?.response?.data?.error || 'Failed to update role')
   }
 }
 
 function cancelRoleConfirm() {
-  const u = pendingRole.value.user;
-  if (u) roleDraft.value[u.userId] = Number(u.roleId);
-  pendingRole.value = { user: null, newRoleId: null, oldRoleId: null };
-  showRoleConfirm.value = false;
+  const u = pendingRole.value.user
+  if (u) roleDraft.value[u.User_ID] = Number(u.RoleID)
+  pendingRole.value = { user: null, newRoleId: null, oldRoleId: null }
+  showRoleConfirm.value = false
 }
 
 async function confirmRoleChange() {
-  const u = pendingRole.value.user;
-  const newRole = pendingRole.value.newRoleId;
-  showRoleConfirm.value = false;
-  if (u && newRole != null) await applyRoleChange(u, newRole);
-  pendingRole.value = { user: null, newRoleId: null, oldRoleId: null };
+  const u = pendingRole.value.user
+  const newRole = pendingRole.value.newRoleId
+  showRoleConfirm.value = false
+  if (u && newRole != null) await applyRoleChange(u, newRole)
+  pendingRole.value = { user: null, newRoleId: null, oldRoleId: null }
 }
 
 onMounted(async () => {
   try {
-    const me = await client.get("/admin/me");
-    currentUserId.value = Number(me.data.user.userId);
+    const me = await client.get('/admin/me')
+    currentUserId.value = Number(me.data.user.User_ID)
   } catch (e) {
-    console.error("Failed to load current admin user", e);
+    console.error("Failed to load current admin user", e)
   }
-  await loadUsers();
-});
+  await loadUsers()
+})
 </script>
 
 <template>
@@ -279,7 +256,7 @@ onMounted(async () => {
 
       <div class="table-wrapper">
         <table v-if="!loading && users.length" class="admin-table mt-3">
-          <thead>
+        <thead>
             <tr>
               <th>ID</th>
               <th>Name</th>
@@ -288,63 +265,61 @@ onMounted(async () => {
               <th>Status</th>
               <th>Action</th>
             </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="u in users"
-              :key="u.userId"
-              :class="{ 'row-banned': u.isBanned }"
-            >
-              <td class="admin-id">{{ u.userId }}</td>
-              <td>
-                <div class="admin-name">
-                  {{ (u.firstName || "") + " " + (u.lastName || "") }}
-                </div>
-              </td>
-              <td class="admin-email">{{ u.email || "—" }}</td>
-              <td>
-                <select
-                  class="role-select"
-                  :class="roleLabel(roleDraft[u.userId]).toLowerCase()"
-                  v-model="roleDraft[u.userId]"
-                  :disabled="u.userId === currentUserId"
-                  @change="onRoleSelected(u)"
-                >
-                  <option v-for="r in roles" :key="r.id" :value="r.id">
-                    {{ r.label }}
-                  </option>
-                </select>
-              </td>
-              <td>
-                <span v-if="u.isBanned" class="badge badge-banned">
-                  <span class="desktop-only">{{ banStatusLabel(u) }}</span>
-                </span>
-                <span v-else class="badge badge-active">
-                  <span class="desktop-only">Active</span>
-                </span>
-              </td>
-              <td>
-                <button
-                  v-if="!u.isBanned && !isAdminUser(u)"
-                  type="button"
-                  class="btn-ban"
-                  @click="openBanModal(u)"
-                >
-                  <span class="desktop-only"> Ban </span>
-                  <i class="bi bi-x-lg mobile-only"></i>
-                </button>
-                <button
-                  v-else-if="u.isBanned"
-                  type="button"
-                  class="btn-unban"
-                  @click="unban(u)"
-                >
-                  <span class="desktop-only"> Unban </span>
-                  <i class="bi bi-check-lg mobile-only"></i>
-                </button>
-              </td>
-            </tr>
-          </tbody>
+        </thead>
+        <tbody>
+          <tr v-for="u in users" :key="u.User_ID" :class="{ 'row-banned': u.IsBanned }">
+            <td class="admin-id">{{ u.User_ID }}</td>
+            <td>
+              <div class="admin-name">
+                {{ (u.FirstName || '') + ' ' + (u.LastName || '') }}
+              </div>
+            </td>
+            <td class="admin-email">{{ u.Email || '—' }}</td>
+            <td>
+              <select
+                class="role-select"
+                :class="roleLabel(roleDraft[u.User_ID]).toLowerCase()"
+                v-model="roleDraft[u.User_ID]"
+                :disabled="u.User_ID === currentUserId"
+                @change="onRoleSelected(u)"
+              >
+                <option v-for="r in roles" :key="r.id" :value="r.id">{{ r.label }}</option>
+              </select>
+            </td>
+            <td>
+              <span v-if="u.IsBanned" class="badge badge-banned">
+                <span class="desktop-only">{{ banStatusLabel(u) }}</span>
+              </span>
+              <span v-else class="badge badge-active">
+                <span class="desktop-only">Active</span>
+              </span>
+            </td>
+            <td>
+              <button
+                v-if="!u.IsBanned && !isAdminUser(u)"
+                type="button"
+                class="btn-ban"
+                @click="openBanModal(u)"
+              >
+              <span class="desktop-only">
+                Ban
+              </span>
+              <i class="bi bi-x-lg mobile-only"></i>
+              </button>
+              <button
+                v-else-if="u.IsBanned"
+                type="button"
+                class="btn-unban"
+                @click="unban(u)"
+              >
+                <span class="desktop-only">
+                Unban
+              </span>
+              <i class="bi bi-check-lg mobile-only"></i>
+              </button>
+            </td>
+          </tr>
+        </tbody>
         </table>
       </div>
 
@@ -354,11 +329,7 @@ onMounted(async () => {
     </div>
 
     <!-- Ban type modal -->
-    <div
-      v-if="showBanModal && banTarget"
-      class="modal-overlay"
-      @mousedown.self="closeBanModal"
-    >
+    <div v-if="showBanModal && banTarget" class="modal-overlay" @mousedown.self="closeBanModal">
       <div class="modal-card">
         <h3 class="modal-title">Ban user</h3>
         <p class="modal-subtitle">{{ formatUserDisplay(banTarget) }}</p>
@@ -383,22 +354,14 @@ onMounted(async () => {
           />
         </div>
         <div class="modal-actions">
-          <button type="button" class="btn-modal-cancel" @click="closeBanModal">
-            Cancel
-          </button>
-          <button type="button" class="btn-modal-confirm" @click="confirmBan">
-            Confirm ban
-          </button>
+          <button type="button" class="btn-modal-cancel" @click="closeBanModal">Cancel</button>
+          <button type="button" class="btn-modal-confirm" @click="confirmBan">Confirm ban</button>
         </div>
       </div>
     </div>
 
     <!-- Warning popup -->
-    <div
-      v-if="showWarning"
-      class="modal-overlay"
-      @mousedown.self="closeWarningPopup"
-    >
+    <div v-if="showWarning" class="modal-overlay" @mousedown.self="closeWarningPopup">
       <div class="modal-card modal-warning">
         <div class="warning-icon">
           <i class="bi bi-exclamation-triangle-fill"></i>
@@ -406,46 +369,29 @@ onMounted(async () => {
         <h3 class="modal-title">Warning</h3>
         <p class="warning-message">{{ warningMessage }}</p>
         <div class="modal-actions">
-          <button
-            type="button"
-            class="btn-modal-confirm"
-            @click="closeWarningPopup"
-          >
-            OK
-          </button>
+          <button type="button" class="btn-modal-confirm" @click="closeWarningPopup">OK</button>
         </div>
       </div>
     </div>
 
     <!-- Role change confirmation modal -->
-    <div
-      v-if="showRoleConfirm"
-      class="modal-overlay"
-      @mousedown.self="cancelRoleConfirm"
-    >
+    <div v-if="showRoleConfirm" class="modal-overlay" @mousedown.self="cancelRoleConfirm">
       <div class="confirm-card">
         <h3 class="confirm-title">Confirm role change?</h3>
         <p class="confirm-subtitle">
-          Change <strong>{{ formatUserDisplay(pendingRole.user) }}</strong> from
-          <strong>{{ roleLabel(pendingRole.oldRoleId) }}</strong> to
-          <strong>{{ roleLabel(pendingRole.newRoleId) }}</strong
-          >?
+          Change <strong>{{ formatUserDisplay(pendingRole.user) }}</strong>
+          from <strong>{{ roleLabel(pendingRole.oldRoleId) }}</strong>
+          to <strong>{{ roleLabel(pendingRole.newRoleId) }}</strong>?
         </p>
         <div class="confirm-actions">
           <button class="btn-back" @click="cancelRoleConfirm">Back</button>
-          <button class="btn-confirm" @click="confirmRoleChange">
-            Confirm
-          </button>
+          <button class="btn-confirm" @click="confirmRoleChange">Confirm</button>
         </div>
       </div>
     </div>
 
     <!-- Role info modal (e.g. cannot change own role) -->
-    <div
-      v-if="roleInfoModal.open"
-      class="modal-overlay"
-      @mousedown.self="closeRoleInfo"
-    >
+    <div v-if="roleInfoModal.open" class="modal-overlay" @mousedown.self="closeRoleInfo">
       <div class="confirm-card">
         <h3 class="confirm-title">{{ roleInfoModal.title }}</h3>
         <p class="confirm-subtitle">{{ roleInfoModal.message }}</p>
@@ -458,12 +404,8 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.mobile-only {
-  display: table;
-}
-.desktop-only {
-  display: none;
-}
+.mobile-only { display: table; }
+.desktop-only { display: none; }
 .page-title {
   font-size: 24px;
   font-weight: 700;
@@ -546,9 +488,7 @@ onMounted(async () => {
 .admin-table tbody tr {
   background: #fff;
   border-radius: 12px;
-  transition:
-    background 0.15s ease,
-    box-shadow 0.15s ease;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
 }
 
 .admin-table tbody tr.row-banned {
@@ -601,26 +541,10 @@ onMounted(async () => {
   cursor: not-allowed;
 }
 
-.role-select.admin {
-  background: #f2cece;
-  color: #ff0000;
-  border-color: #f2cece;
-}
-.role-select.moderator {
-  background: #fdf4d9;
-  color: #d29e00;
-  border-color: #fdf4d9;
-}
-.role-select.user {
-  background: #d5f5d7;
-  color: #0a3800;
-  border-color: #d5f5d7;
-}
-.role-select.student {
-  background: #b9d0e8;
-  color: #0015ff;
-  border-color: #b9d0e8;
-}
+.role-select.admin { background: #f2cece; color: #ff0000; border-color: #f2cece; }
+.role-select.moderator { background: #fdf4d9; color: #d29e00; border-color: #fdf4d9; }
+.role-select.user { background: #d5f5d7; color: #0a3800; border-color: #d5f5d7; }
+.role-select.student { background: #b9d0e8; color: #0015ff; border-color: #b9d0e8; }
 
 .badge {
   display: inline-block;
@@ -633,7 +557,7 @@ onMounted(async () => {
 .badge-banned {
   background: #fecaca;
   color: #b91c1c;
-  border: #ff6d6d 1px solid;
+  border : #ff6d6d 1px solid;
 }
 
 .badge-active {
@@ -825,23 +749,9 @@ onMounted(async () => {
   text-align: center;
 }
 
-.confirm-title {
-  margin: 0 0 12px;
-  font-size: 22px;
-  font-weight: 700;
-  color: #1f2937;
-}
-.confirm-subtitle {
-  margin: 0 0 24px;
-  font-size: 15px;
-  color: #4b5563;
-  line-height: 1.5;
-}
-.confirm-actions {
-  display: flex;
-  justify-content: center;
-  gap: 16px;
-}
+.confirm-title { margin: 0 0 12px; font-size: 22px; font-weight: 700; color: #1f2937; }
+.confirm-subtitle { margin: 0 0 24px; font-size: 15px; color: #4b5563; line-height: 1.5; }
+.confirm-actions { display: flex; justify-content: center; gap: 16px; }
 
 .btn-back {
   background: #fff;
@@ -852,9 +762,7 @@ onMounted(async () => {
   cursor: pointer;
   font-weight: 600;
 }
-.btn-back:hover {
-  background: #f1f5f9;
-}
+.btn-back:hover { background: #f1f5f9; }
 
 .btn-confirm {
   background: #004750;
@@ -865,29 +773,24 @@ onMounted(async () => {
   cursor: pointer;
   font-weight: 700;
 }
-.btn-confirm:hover {
-  background: #00363d;
-}
+.btn-confirm:hover { background: #00363d; }
 
 @media (min-width: 768px) {
   .admin-table thead th {
     font-size: 14px;
   }
   .badge {
-    padding: 2px 10px;
+  padding: 2px 10px;
   }
   .btn-ban {
-    padding: 2px 14px;
+  padding: 2px 14px;
   }
   .btn-unban {
-    padding: 2px 14px;
+  padding: 2px 14px;
   }
-  .mobile-only {
-    display: none;
-  }
-  .desktop-only {
-    display: table;
-  }
+  .mobile-only { display: none; }
+  .desktop-only { display: table; }
+  
 }
 
 @media (max-width: 576px) {

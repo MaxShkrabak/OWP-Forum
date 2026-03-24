@@ -111,8 +111,8 @@ function getActiveReportsEndpoint() {
 }
 
 function getCreateReportModalTagsEndpoint() {
-  // Provided in ReportRoutes.php: GET /api/reports/tags
-  return "/reports/tags";
+  // Provided in ReportRoutes.php: GET /api/report/tags
+  return "/report/tags";
 }
 
 /* -------------------- tests -------------------- */
@@ -152,7 +152,7 @@ describe("Report Tags (Admin) — API contract", () => {
   });
 
   it("create report modal tags endpoint matches ReportRoutes.php", () => {
-    expect(getCreateReportModalTagsEndpoint()).toBe("/reports/tags");
+    expect(getCreateReportModalTagsEndpoint()).toBe("/report/tags");
   });
 });
 

@@ -31,8 +31,7 @@ USING (VALUES
   ('Wastewater Treatment',  1),
   ('Water Treatment',       1),
   ('Wastewater Collection', 1),
-  ('Water Distribution',    1),
-  ('General',               1)
+  ('Water Distribution',    1)
 ) AS s(Name, UsableByRoleID)
     ON c.Name = s.Name
 WHEN NOT MATCHED BY TARGET THEN

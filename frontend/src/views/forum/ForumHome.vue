@@ -3,7 +3,7 @@ import CreatePostButton from "@/components/forum/CreatePostButton.vue";
 import { ref, onMounted, computed } from "vue";
 import { RouterLink } from "vue-router";
 import ForumHeader from "@/components/layout/ForumHeader.vue";
-import { fetchPosts as apiGetPosts, fetchPinnedPosts as apiGetPinnedPosts } from "@/api/posts";
+import { fetchPosts as apiGetPosts } from "@/api/posts";
 import { isLoggedIn } from "@/stores/userStore";
 import UserCard from "@/components/user/UserCard.vue";
 import ViewReportsButton from "@/components/admin/ViewReportsButton.vue";
@@ -11,70 +11,34 @@ import PostCard from "@/components/forum/PostCard.vue";
 import AdminPanelButton from "@/components/admin/AdminPanelButton.vue";
 
 const postsByCategory = ref([]);
-const pinnedPosts = ref([]);
 const totalPosts = ref(0);
 const loading = ref(true);
 const error = ref(null);
 
-const globalPinMessage = ref("");
-const globalPinMessageType = ref("success");
-let globalPinMessageTimeout = null;
-
+// Homepage search & Category search
 const searchQuery = ref("");
 const categorySearch = ref("");
+
+// Category checkbox filter (left sidebar)
 const selectedCategories = ref([]);
 const sort = ref("latest");
 
-const INITIAL_LIMIT = 5;
+const INITIAL_LIMIT = 5; // post limit per category on homepage
 
 async function fetchPosts() {
   loading.value = true;
   error.value = null;
   try {
-    const [postsData, pinnedData] = await Promise.all([
-      apiGetPosts({ sort: sort.value }),
-      apiGetPinnedPosts(),
-    ]);
-
-    if (postsData) {
-      postsByCategory.value = postsData.postsByCategory || [];
-      totalPosts.value = postsData.totalPosts || 0;
-    }
-
-    if (pinnedData?.posts) {
-      pinnedPosts.value = pinnedData.posts.map((post) => ({
-        ...post,
-        isPinned: true,
-      }));
-    } else {
-      pinnedPosts.value = [];
+    const data = await apiGetPosts({ sort: sort.value });
+    if (data) {
+      postsByCategory.value = data.postsByCategory || [];
+      totalPosts.value = data.totalPosts || 0;
     }
   } catch (e) {
     console.error("Error fetching posts:", e);
     error.value = e.message;
   } finally {
     loading.value = false;
-  }
-}
-
-function showGlobalPinMessage(message, type = "success") {
-  globalPinMessage.value = message;
-  globalPinMessageType.value = type;
-
-  if (globalPinMessageTimeout) {
-    clearTimeout(globalPinMessageTimeout);
-  }
-
-  globalPinMessageTimeout = setTimeout(() => {
-    globalPinMessage.value = "";
-  }, 2200);
-}
-
-async function handlePostRefresh(payload = null) {
-  await fetchPosts();
-
-  if (payload?.pinMessage) {
-    showGlobalPinMessage(payload.pinMessage, payload.pinMessageType || "success");
   }
 }
 
@@ -101,7 +65,7 @@ function postMatchesGeneralSearch(post, categoryName, q) {
   );
 }
 
-
+// Handle both category filtering and inner post filtering
 const filteredCategories = computed(() => {
   const q = normalize(searchQuery.value);
   const catQ = normalize(categorySearch.value);
@@ -117,33 +81,14 @@ const filteredCategories = computed(() => {
       return matchesSelection && matchesCatSearch;
     })
     .map((cat) => {
-      const normalizedCategoryPosts = (cat.posts || []).map((p) => ({
-        ...p,
-        categoryName: cat.categoryName,
-        categoryId: cat.categoryId,
-      }));
-
-      const pinnedForCategory = pinnedPosts.value
-        .filter((p) => Number(p.categoryId) === Number(cat.categoryId))
-        .map((p) => ({
-          ...p,
-          categoryName: cat.categoryName,
-          categoryId: cat.categoryId,
-        }))
-        .filter((p) => postMatchesGeneralSearch(p, cat.categoryName, q));
-
-      const pinnedIds = new Set(
-        pinnedForCategory.map((p) => Number(p.PostID ?? p.postId))
+      const homepagePosts = (cat.posts || []).slice(0, INITIAL_LIMIT);
+      const filteredHomepagePosts = homepagePosts.filter((p) =>
+        postMatchesGeneralSearch(p, cat.categoryName, q),
       );
-
-      const homepagePosts = normalizedCategoryPosts
-        .filter((p) => !pinnedIds.has(Number(p.PostID ?? p.postId)))
-        .slice(0, INITIAL_LIMIT)
-        .filter((p) => postMatchesGeneralSearch(p, cat.categoryName, q));
 
       return {
         ...cat,
-        _homepagePosts: [...pinnedForCategory, ...homepagePosts],
+        _homepagePosts: filteredHomepagePosts,
       };
     })
     .filter((cat) => {
@@ -206,21 +151,20 @@ onMounted(async () => {
                 </button>
               </div>
               <div class="list-group list-group-flush">
-                <label
-                  v-for="cat in postsByCategory"
-                  :key="cat.categoryId"
+                <label v-for="cat in postsByCategory" :key="cat.categoryId"
                   class="list-group-item list-group-item-action d-flex align-items-center justify-content-between border-0 py-2 px-3 clickable-label"
-                  :class="{ 'active-category': selectedCategories.includes(cat.categoryId) }"
-                >
+                  :class="{
+                    'active-category': selectedCategories.includes(
+                      cat.categoryId,
+                    ),
+                  }">
                   <div class="d-flex align-items-center">
-                    <input
-                      type="checkbox"
-                      class="form-check-input me-3 mt-0"
-                      :value="cat.categoryId"
-                      v-model="selectedCategories"
-                    />
+                    <input type="checkbox" class="form-check-input me-3 mt-0" :value="cat.categoryId"
+                      v-model="selectedCategories" />
                     <i :class="getCategoryIcon(cat.categoryName)" class="me-2 text-muted"></i>
-                    <span class="category-name-text">{{ cat.categoryName }}</span>
+                    <span class="category-name-text">{{
+                      cat.categoryName
+                    }}</span>
                   </div>
                   <span class="badge rounded-pill bg-light text-dark small border">{{ cat.postCount }}</span>
                 </label>
@@ -234,12 +178,8 @@ onMounted(async () => {
             <div class="d-flex gap-2 align-items-center flex-grow-1">
               <div class="category-search-wrap shadow-sm">
                 <i class="pi pi-search ms-3 text-muted"></i>
-                <input
-                  v-model="searchQuery"
-                  type="text"
-                  placeholder="Search posts..."
-                  class="category-search-input"
-                />
+                <input v-model="searchQuery" type="text" placeholder="Search posts..."
+                  class="category-search-input" />
                 <button v-if="searchQuery" @click="searchQuery = ''" class="search-clear-btn">
                   ✕
                 </button>
@@ -259,18 +199,9 @@ onMounted(async () => {
             </div>
           </div>
 
-          <div
-            v-if="globalPinMessage"
-            class="global-pin-toast"
-            :class="{ error: globalPinMessageType === 'error' }"
-          >
-            {{ globalPinMessage }}
-          </div>
-
           <div v-if="loading" class="text-center py-5">
             <div class="spinner-border text-success"></div>
           </div>
-
           <div v-else-if="error" class="alert alert-danger border-0 shadow-sm">
             {{ error }}
           </div>
@@ -281,8 +212,7 @@ onMounted(async () => {
                 <strong>Filters active:</strong>
                 <span v-if="searchQuery"> Search "{{ searchQuery }}"</span>
                 <span v-if="selectedCategories.length">
-                  Categories ({{ selectedCategories.length }})
-                </span>
+                  Categories ({{ selectedCategories.length }})</span>
               </div>
               <button @click="clearAllFilters">Clear all</button>
             </div>
@@ -294,25 +224,18 @@ onMounted(async () => {
               <button @click="clearAllFilters">Reset everything</button>
             </div>
 
-            <div
-              v-for="category in filteredCategories"
-              :key="category.categoryId"
-              :id="`category-${category.categoryId}`"
-              class="category-group mb-5"
-            >
+            <div v-for="category in filteredCategories" :key="category.categoryId"
+              :id="`category-${category.categoryId}`" class="category-group mb-5">
               <RouterLink :to="`/categories/${category.categoryId}`">
                 <div class="category-banner mb-3 shadow-sm">
                   <i :class="getCategoryIcon(category.categoryName) + ' me-2'"></i>
-                  <span class="category-title">{{ category.categoryName }}</span>
+                  <span class="category-title">{{
+                    category.categoryName
+                  }}</span>
                 </div>
               </RouterLink>
 
-              <PostCard
-                v-for="post in category._homepagePosts"
-                :key="post.postId ?? post.PostID"
-                :post="post"
-                @post-refresh="handlePostRefresh"
-              />
+              <PostCard v-for="post in category._homepagePosts" :key="post.postId ?? post.PostID" :post="post" />
             </div>
           </template>
         </div>
@@ -327,36 +250,7 @@ onMounted(async () => {
   min-height: 100vh;
 }
 
-.global-pin-toast {
-  position: sticky;
-  top: 12px;
-  z-index: 30;
-  margin-bottom: 14px;
-  background: #1f7a45;
-  color: white;
-  font-size: 0.82rem;
-  font-weight: 700;
-  padding: 10px 14px;
-  border-radius: 10px;
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
-  animation: global-pin-toast-in 0.2s ease-out;
-}
-
-.global-pin-toast.error {
-  background: #b42318;
-}
-
-@keyframes global-pin-toast-in {
-  from {
-    opacity: 0;
-    transform: translateY(-6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
+/* Active filter banner */
 .active-filter-banner {
   background: #ffffff;
   border: 1px solid #ddd;
@@ -416,6 +310,7 @@ onMounted(async () => {
   color: #000;
 }
 
+/* Clear filters button */
 .clear-btn {
   background: rgba(255, 255, 255, 0.15);
   border: 1px solid rgba(255, 255, 255, 0.2);
@@ -426,6 +321,7 @@ onMounted(async () => {
   border-radius: 6px;
   text-transform: uppercase;
   cursor: pointer;
+
   opacity: 0.9;
 }
 
@@ -506,7 +402,10 @@ onMounted(async () => {
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  background: linear-gradient(90deg,
+      transparent,
+      rgba(255, 255, 255, 0.1),
+      transparent);
   transition: 0.5s;
 }
 

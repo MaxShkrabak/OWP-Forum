@@ -22,7 +22,7 @@ $app->get('/api/admin/me', function(Request $req, Response $res) use ($makePdo) 
     $pdo = $makePdo();
 
     $sql = "
-        SELECT u.User_ID as userId, u.Email as email, u.RoleID as roleId, r.Name as roleName
+        SELECT u.User_ID, u.Email, u.RoleID, r.Name as RoleName
         FROM dbo.Users u
         LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
         WHERE u.User_ID = :uid
@@ -37,7 +37,7 @@ $app->get('/api/admin/me', function(Request $req, Response $res) use ($makePdo) 
     }
 
     // Admin = RoleID 4
-    if ((int)$user['roleId'] < 4) {
+    if ((int)$user['RoleID'] < 4) {
         return json($res, ['ok' => false, 'error' => 'Forbidden (admin only)'], 403);
     }
 
@@ -64,22 +64,6 @@ $app->get('/api/admin/users', function(Request $req, Response $res) use ($makePd
             return json($res, ['ok' => false, 'error' => 'Forbidden (admin only)'], 403);
         }
 
-        // Clear expired temporary bans before fetching users
-        try {
-            $pdo->exec("
-                UPDATE dbo.Users
-                SET IsBanned = 0,
-                    BanType = NULL,
-                    BannedUntil = NULL
-                WHERE ISNULL(IsBanned, 0) = 1
-                  AND BanType = 'temporary'
-                  AND BannedUntil IS NOT NULL
-                  AND BannedUntil <= GETDATE()
-            ");
-        } catch (Throwable $e) {
-            
-        }
-
         $params = $req->getQueryParams();
         $q = trim((string)($params['q'] ?? ''));
 
@@ -89,13 +73,13 @@ $app->get('/api/admin/users', function(Request $req, Response $res) use ($makePd
         if ($q !== '') {
             $where = "
                 WHERE (
-                    u.Email LIKE :emailLike
+                    u.Email     LIKE :emailLike
                     OR u.FirstName LIKE :firstLike
-                    OR u.LastName LIKE :lastLike
+                    OR u.LastName  LIKE :lastLike
             ";
             $bindings[':emailLike'] = '%' . $q . '%';
             $bindings[':firstLike'] = '%' . $q . '%';
-            $bindings[':lastLike'] = '%' . $q . '%';
+            $bindings[':lastLike']  = '%' . $q . '%';
             if (ctype_digit($q)) {
                 $where .= " OR u.User_ID = :uidSearch";
                 $bindings[':uidSearch'] = (int)$q;
@@ -103,14 +87,14 @@ $app->get('/api/admin/users', function(Request $req, Response $res) use ($makePd
             $where .= ")";
         }
 
-        // Single query when ban columns exist
+        // Single query when ban columns exist (migrations 008, 009)
         $users = [];
         try {
             $sql = "
                 SELECT TOP 50
-                    u.User_ID as userId, u.Email as email, u.FirstName as firstName, u.LastName as lastName, u.RoleID as roleId,
-                    r.Name as roleName,
-                    ISNULL(u.IsBanned, 0) as isBanned, u.BanType as banType, u.BannedUntil as bannedUntil
+                    u.User_ID, u.Email, u.FirstName, u.LastName, u.RoleID,
+                    r.Name as RoleName,
+                    ISNULL(u.IsBanned, 0) as IsBanned, u.BanType, u.BannedUntil
                 FROM dbo.Users u
                 LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
                 $where
@@ -123,8 +107,8 @@ $app->get('/api/admin/users', function(Request $req, Response $res) use ($makePd
             // Ban columns may not exist: run without them, then fetch ban data in second query
             $sql = "
                 SELECT TOP 50
-                    u.User_ID as userId, u.Email as email, u.FirstName as firstName, u.LastName as lastName, u.RoleID as roleId,
-                    r.Name as roleName
+                    u.User_ID, u.Email, u.FirstName, u.LastName, u.RoleID,
+                    r.Name as RoleName
                 FROM dbo.Users u
                 LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
                 $where
@@ -134,13 +118,13 @@ $app->get('/api/admin/users', function(Request $req, Response $res) use ($makePd
             $stmt->execute($bindings);
             $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
             foreach ($users as &$u) {
-                $u['isBanned'] = 0;
-                $u['banType'] = null;
-                $u['bannedUntil'] = null;
+                $u['IsBanned'] = 0;
+                $u['BanType'] = null;
+                $u['BannedUntil'] = null;
             }
             unset($u);
             try {
-                $ids = array_map(fn($u) => (int)$u['userId'], $users);
+                $ids = array_map(fn($u) => (int)$u['User_ID'], $users);
                 if (!empty($ids)) {
                     $placeholders = implode(',', array_fill(0, count($ids), '?'));
                     $banStmt = $pdo->prepare("SELECT User_ID, ISNULL(IsBanned, 0), BanType, BannedUntil FROM dbo.Users WHERE User_ID IN ($placeholders)");
@@ -149,16 +133,16 @@ $app->get('/api/admin/users', function(Request $req, Response $res) use ($makePd
                     while ($row = $banStmt->fetch(PDO::FETCH_NUM)) {
                         $uid = (int)$row[0];
                         $banMap[$uid] = [
-                            'isBanned' => (int)$row[1],
-                            'banType' => $row[2] ? trim((string)$row[2]) : null,
-                            'bannedUntil' => $row[3] ? $row[3] : null,
+                            'IsBanned' => (int)$row[1],
+                            'BanType' => $row[2] ? trim((string)$row[2]) : null,
+                            'BannedUntil' => $row[3] ? $row[3] : null,
                         ];
                     }
                     foreach ($users as &$u) {
-                        $bid = (int)$u['userId'];
-                        $u['isBanned'] = $banMap[$bid]['isBanned'] ?? 0;
-                        $u['banType'] = $banMap[$bid]['banType'] ?? null;
-                        $u['bannedUntil'] = $banMap[$bid]['bannedUntil'] ?? null;
+                        $bid = (int)$u['User_ID'];
+                        $u['IsBanned'] = $banMap[$bid]['IsBanned'] ?? 0;
+                        $u['BanType'] = $banMap[$bid]['BanType'] ?? null;
+                        $u['BannedUntil'] = $banMap[$bid]['BannedUntil'] ?? null;
                     }
                     unset($u);
                 }
