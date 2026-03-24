@@ -61,7 +61,7 @@ router.beforeEach(async (to, from, next) => {
   if (to.meta.requiresAdmin) {
     try {
       const res = await client.get("/me");
-      if (res.data.ok && res.data.user?.RoleName === "admin") {
+      if (res.data.ok && res.data.user?.roleName === "admin") {
         next();
         return;
       }

@@ -1,13 +1,15 @@
 <script setup>
-import { ref, computed, provide, onMounted } from "vue";
+import { ref, computed, provide, onMounted, onBeforeUnmount } from "vue";
+import { useRouter } from "vue-router";
 import SingleComment from "./SingleComment.vue";
+import CommentEditor from "./TextEditor.vue";
 
 import {
   fetchComments as apiFetchComments,
   submitComment as apiSubmitComment,
-  formatCommentData
-} from '@/api/comments';
-import { uid, isLoggedIn } from '@/stores/userStore';
+  formatCommentData,
+} from "@/api/comments";
+import {isLoggedIn } from "@/stores/userStore";
 
 const props = defineProps({
   postId: {
@@ -15,6 +17,8 @@ const props = defineProps({
     required: true,
   },
 });
+
+const router = useRouter();
 
 const flatCommentsList = ref([]);
 const commentsTree = ref([]);
@@ -26,22 +30,163 @@ const activeEditDirty = ref(false);
 const pendingEditId = ref(null);
 const showDiscardConfirm = ref(false);
 
+const commentFeedbackModal = ref({
+  open: false,
+  title: "",
+  type: null,
+  limit: null,
+  secondsLeft: null,
+  fallbackMessage: "",
+});
+
+const countdownSeconds = ref(0);
+let commentFeedbackTimer = null;
+
+const formatWaitTime = (totalSeconds) => {
+  const backendSeconds = Math.max(1, Math.ceil(Number(totalSeconds) || 0));
+  const minutes = Math.floor(backendSeconds / 60);
+  const seconds = backendSeconds % 60;
+
+  if (minutes === 0) {
+    return `${backendSeconds} second${backendSeconds === 1 ?"" : "s"}`;
+  }
+
+  if (seconds === 0){
+    return `${minutes} minute${minutes === 1 ?"" : "s"}`;
+  }
+  
+  return `${minutes} minute${minutes === 1 ?"" : "s"} ${seconds} second${seconds === 1 ?"" : "s"}`;
+};
+
+const stopCommentFeedbackCountdown=()=> {
+  if (commentFeedbackTimer){
+    clearInterval(commentFeedbackTimer);
+    commentFeedbackTimer = null;
+  }
+
+  countdownSeconds.value = 0;
+}
+
+const startCommentFeedbackCountdown = (secondsLeft) => {
+  stopCommentFeedbackCountdown();
+  const initialSeconds = Math.max(1, Math.ceil(Number(secondsLeft) || 0));
+  countdownSeconds.value = initialSeconds;
+  const endsAt = Date.now() + initialSeconds *1000;
+
+  const tick = () => {
+    countdownSeconds.value = Math.max(0, Math.ceil((endsAt - Date.now()) / 1000));
+
+    if (countdownSeconds.value <= 0){
+      stopCommentFeedbackCountdown();
+    }
+  };
+
+  tick();
+  commentFeedbackTimer = window.setInterval(tick, 250);
+};
+
+const commentFeedbackMessage = computed(() => {
+    const modal = commentFeedbackModal.value;
+    
+  if (!modal.open) {
+    return "";
+  }
+
+    if (modal.type === "cooldown" && modal.secondsLeft !== null) {
+      return countdownSeconds.value > 0
+        ? `Please wait ${formatWaitTime(countdownSeconds.value)} before commenting again.`
+        : "You can try commenting again now.";
+    }
+
+    if (modal.type === "hourly_limit" && modal.secondsLeft !== null) {
+      const limitValue = Number(modal.limit) || 50;
+
+      return countdownSeconds.value > 0
+        ? `You've reached the ${limitValue} comments per hour limit. Try again in ${formatWaitTime(countdownSeconds.value)}.`
+        : `You've reached the ${limitValue} comments per hour limit. You can try again now.`;
+    }
+  
+  return modal.fallbackMessage;
+});
+
+const closeCommentFeedbackModal = () => {
+  stopCommentFeedbackCountdown();
+
+  commentFeedbackModal.value = {
+    open: false,
+    title: "",
+    type: null,
+    limit: null,
+    secondsLeft: null,
+    fallbackMessage: "",
+  };
+};
+
+const openCommentFeedbackModal = (error, isReply = false) => {
+  const response = error ?.response;
+  const data = response ?.data ?? {};
+  const rateLimit = data.rateLimit ?? {};
+  const parseSecondsLeft = Number(rateLimit.secondsLeft);
+  const hasSecondsLeft = Number.isFinite(parseSecondsLeft) && parseSecondsLeft > 0;
+  const secondsLeft = hasSecondsLeft ? Math.ceil(parseSecondsLeft): null;
+  const limitValue = Number(rateLimit.limit) || 50;
+
+  stopCommentFeedbackCountdown();
+
+  let title =  isReply ? "Unable to post reply" : "Unable to post comment";
+  let type =  null;
+  let fallbackMessage = data.error || "Please try again";
+
+  if(response?.status === 429){
+    type = typeof rateLimit.type === "string" ? rateLimit.type: null;
+
+    if (type === "cooldown") {
+      title = "You're commenting too fast";
+      fallbackMessage = secondsLeft !== null
+        ? `Please wait ${formatWaitTime(secondsLeft)} before commenting again.`
+        : "Please wait a moment before commenting again.";
+    } else if (type === "hourly_limit") {
+      title = "Comment limit reached";
+      fallbackMessage = secondsLeft !== null
+        ? `You've reached the ${limitValue} comments per hour limit. Try again in ${formatWaitTime(secondsLeft)}.`
+        : `You've reached the ${limitValue} comments per hour limit. Please try again soon.`;
+    } else {
+      title = "Comment restricted";
+    }
+  }
+
+  commentFeedbackModal.value = {
+    open: true,
+    title,
+    type,
+    limit: limitValue,
+    secondsLeft,
+    fallbackMessage,
+  };
+
+  if (secondsLeft !== null){
+    startCommentFeedbackCountdown(secondsLeft);
+  }
+};
+
 const currentBatch = ref(1);
 const commentsPerLoad = 10;
 const hasMore = ref(true);
 const isLoadingMore = ref(false);
 
 const commentTotalCount = ref(0);
+const isUploading = ref(false);
+const editorRef = ref(null);
 
 const sortOptions = [
-  { label: 'Newest', value: 'latest' },
-  { label: 'Oldest', value: 'oldest' },
-  { label: 'Most Liked', value: 'mostLiked' }
+  { label: "Newest", value: "latest" },
+  { label: "Oldest", value: "oldest" },
+  { label: "Most Liked", value: "mostLiked" },
 ];
-const selectedSort = ref('latest');
+const selectedSort = ref("latest");
 
-provide('activeReplyId', activeReplyId);
-provide('activeEditId', activeEditId);
+provide("activeReplyId", activeReplyId);
+provide("activeEditId", activeEditId);
 
 const openEditComment = (commentId) => {
   if (activeEditId.value === commentId) return;
@@ -81,9 +226,9 @@ const cancelSwitchEdit = () => {
   showDiscardConfirm.value = false;
 };
 
-provide('openEditComment', openEditComment);
-provide('closeEditComment', closeEditComment);
-provide('markEditDirty', markEditDirty);
+provide("openEditComment", openEditComment);
+provide("closeEditComment", closeEditComment);
+provide("markEditDirty", markEditDirty);
 
 const buildCommentTree = (flatComments) => {
   const map = new Map();
@@ -107,6 +252,14 @@ const buildCommentTree = (flatComments) => {
   return tree;
 };
 
+const handleCommentBoxClick = () => {
+  if (isLoggedIn.value) {
+    isFocused.value = true;
+  } else {
+    router.push("/login");
+  }
+};
+
 const loadComments = async (isInitial = true) => {
   if (isInitial) {
     currentBatch.value = 1;
@@ -121,23 +274,23 @@ const loadComments = async (isInitial = true) => {
       props.postId,
       currentBatch.value,
       commentsPerLoad,
-      selectedSort.value
+      selectedSort.value,
     );
 
     if (data && data.ok) {
       commentTotalCount.value = data.total || 0;
 
+      const formattedItems = data.items.map(formatCommentData);
+      flatCommentsList.value = [...flatCommentsList.value, ...formattedItems];
+      commentsTree.value = buildCommentTree(flatCommentsList.value);
+
       if (
-        flatCommentsList.value.length + data.items.length >=
-        commentTotalCount.value
+        data.items.length < commentsPerLoad ||
+        currentBatch.value * commentsPerLoad >= commentTotalCount.value ||
+        flatCommentsList.value.length >= commentTotalCount.value
       ) {
         hasMore.value = false;
       }
-
-      const formattedItems = data.items.map(formatCommentData);
-
-      flatCommentsList.value = [...flatCommentsList.value, ...formattedItems];
-      commentsTree.value = buildCommentTree(flatCommentsList.value);
     }
   } catch (error) {
     console.error("Load error:", error);
@@ -156,11 +309,14 @@ const handleLoadMore = async () => {
 };
 
 const submitComment = async () => {
-  if (!newComment.value.trim()) return;
+  const cleanContent = newComment.value.replace(/(<([^>]+)>)/gi, "").trim();
+  if (!cleanContent) return;
+
   try {
     const data = await apiSubmitComment(props.postId, newComment.value);
     if (data && data.ok) {
       newComment.value = "";
+      editorRef.value?.clearContent();
       isFocused.value = false;
       commentTotalCount.value++;
 
@@ -169,7 +325,7 @@ const submitComment = async () => {
       commentsTree.value = buildCommentTree(flatCommentsList.value);
     }
   } catch (error) {
-    alert("Failed to post comment.");
+    openCommentFeedbackModal(error);
   }
 };
 
@@ -188,23 +344,37 @@ const submitReply = async (replyContent, parentCommentId) => {
     }
     return false;
   } catch (error) {
-    alert("Failed to post reply.");
+    openCommentFeedbackModal(error, true);
     return false;
   }
 };
 
 provide("submitReply", submitReply);
 
-const totalCommentsCount = computed(() => commentTotalCount.value);
-
 const cancelComment = () => {
   newComment.value = "";
+  editorRef.value?.clearContent();
   isFocused.value = false;
 };
 
 onMounted(() => {
   loadComments();
 });
+
+const handleDeletedComment = (deletedCommentId) => {
+  const before = flatCommentsList.value.length;
+
+  flatCommentsList.value = flatCommentsList.value.filter(
+    (comment) =>
+      comment.id !== deletedCommentId &&
+      comment.parentCommentId !== deletedCommentId,
+  );
+
+  const removedCount = before - flatCommentsList.value.length;
+  commentTotalCount.value = Math.max(0, commentTotalCount.value - removedCount);
+  commentsTree.value = buildCommentTree(flatCommentsList.value);
+};
+
 </script>
 
 <template>
@@ -214,7 +384,7 @@ onMounted(() => {
     >
       <div class="d-flex align-items-center gap-2">
         <i class="pi pi-comments"></i>
-        <span>Comments ({{ totalCommentsCount }})</span>
+        <span>Comments ({{ commentTotalCount }})</span>
       </div>
 
       <div class="sort-dropdown d-inline-flex align-items-center">
@@ -226,7 +396,11 @@ onMounted(() => {
           @change="handleSortChange"
           class="sort-select"
         >
-          <option v-for="option in sortOptions" :key="option.value" :value="option.value">
+          <option
+            v-for="option in sortOptions"
+            :key="option.value"
+            :value="option.value"
+          >
             {{ option.label }}
           </option>
         </select>
@@ -238,32 +412,37 @@ onMounted(() => {
         <div
           class="reply-box-container border rounded-3 overflow-hidden bg-white"
           :class="{ 'focused-border': isFocused }"
+          :style="{ cursor: !isLoggedIn ? 'pointer' : 'text' }"
+          @click="handleCommentBoxClick()"
         >
-          <textarea
+          <CommentEditor
+            ref="editorRef"
             v-model="newComment"
-            @focus="isFocused = true"
-            :placeholder="isLoggedIn ? 'Add a comment...' : 'Sign in to comment'"
+            v-model:isUploading="isUploading"
             :disabled="!isLoggedIn"
-            class="comment-textarea w-100 border-0 p-3"
-            rows="2"
-          ></textarea>
+            :compact="true"
+            :show-toolbar="isFocused"
+            :placeholder="
+              isLoggedIn ? 'Add a comment...' : 'Sign in to comment'
+            "
+          />
 
           <div
             v-if="isFocused"
-            class="d-flex justify-content-end align-items-center gap-3 px-3 pb-2"
+            class="d-flex justify-content-end align-items-center gap-3 px-3 pb-2 pt-2"
           >
             <button
               class="btn-cancel border-0 bg-transparent fw-bold"
-              @click="cancelComment"
+              @click.stop="cancelComment"
             >
               Cancel
             </button>
             <button
               class="btn-submit border-0 rounded-2 fw-bold px-4 py-2"
-              :disabled="!newComment"
-              @click="submitComment"
+              :disabled="!newComment || newComment === '<p></p>' || isUploading"
+              @click.stop="submitComment"
             >
-              Comment
+              {{ isUploading ? "Uploading..." : "Comment" }}
             </button>
           </div>
         </div>
@@ -274,6 +453,7 @@ onMounted(() => {
           v-for="comment in commentsTree"
           :key="comment.id"
           :comment="comment"
+          @deleted="handleDeletedComment"
         />
       </div>
 
@@ -292,6 +472,30 @@ onMounted(() => {
     <Teleport to="body">
       <Transition name="fade">
         <div
+          v-if="commentFeedbackModal.open"
+          class="comment-modal-mask d-flex align-items-center justify-content-center"
+          @click.self="closeCommentFeedbackModal"
+        >
+          <div class="comment-modal-card shadow-lg">
+            <p class="fw-bold mb-1">{{ commentFeedbackModal.title }}</p>
+            <p class="small text-muted mb-3">{{ commentFeedbackMessage }}</p>
+            <div class="d-flex justify-content-end">
+              <button
+                type="button"
+                class="btn-submit border-0 rounded-2 fw-bold px-3 py-1 small"
+                @click="closeCommentFeedbackModal"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <Teleport to="body">
+      <Transition name="fade">
+        <div
           v-if="showDiscardConfirm"
           class="comment-modal-mask d-flex align-items-center justify-content-center"
           @click.self="cancelSwitchEdit"
@@ -299,16 +503,10 @@ onMounted(() => {
           <div class="comment-modal-card shadow-lg">
             <p class="fw-bold mb-1">Discard unsaved changes?</p>
             <p class="small text-muted mb-3">
-              You have unsaved changes on another comment. If you continue, those changes will be lost.
+              You have unsaved changes on another comment. If you continue,
+              those changes will be lost.
             </p>
             <div class="d-flex justify-content-end gap-2">
-              <button
-                type="button"
-                class="btn-cancel border-0 bg-transparent fw-bold small"
-                @click="cancelSwitchEdit"
-              >
-                Back
-              </button>
               <button
                 type="button"
                 class="btn-submit border-0 rounded-2 fw-bold px-3 py-1 small"
@@ -338,14 +536,6 @@ onMounted(() => {
 }
 .focused-border {
   border-color: #035157 !important;
-}
-
-.comment-textarea {
-  outline: none;
-  resize: vertical;
-  font-size: 0.95rem;
-  color: #1f2937;
-  min-height: 80px;
 }
 
 .btn-cancel {
@@ -400,11 +590,6 @@ onMounted(() => {
   opacity: 0;
 }
 
-.header-row {
-  border-bottom: 1px solid #e5e7eb;
-  padding-bottom: 0.75rem;
-}
-
 .sort-dropdown {
   background-color: rgba(30, 77, 56, 0.06); /* Subtle green tint */
   border: 1px solid #cce3d6;
@@ -447,16 +632,5 @@ onMounted(() => {
   color: #1f2937;
   text-transform: none;
   font-weight: normal;
-}
-
-@media (max-width: 599px) {
-  .comment-textarea {
-    font-size: 0.85rem;
-    padding: 0.75rem !important;
-  }
-  .btn-submit {
-    padding: 0.5rem 1rem !important;
-    font-size: 0.8rem;
-  }
 }
 </style>

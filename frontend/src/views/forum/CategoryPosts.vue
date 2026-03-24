@@ -6,13 +6,16 @@ import PostCard from '@/components/forum/PostCard.vue';
 import UserCard from '@/components/user/UserCard.vue';
 import CreatePostButton from '@/components/forum/CreatePostButton.vue';
 import ViewReportsButton from '@/components/admin/ViewReportsButton.vue';
-import { isLoggedIn, isBanned } from '@/stores/userStore';
-import { fetchPosts as apiGetPosts, getFilterTags as apiGetTags } from '@/api/posts';
+import { isLoggedIn } from '@/stores/userStore';
+import { fetchPosts as apiGetPosts, fetchPinnedPosts as apiGetPinnedPosts, getFilterTags as apiGetTags } from '@/api/posts';
 import { getPaginationRange } from '@/utils/pagination';
+import AdminPanelButton from '@/components/admin/AdminPanelButton.vue';
 
 const route = useRoute();
 const router = useRouter();
+
 const posts = ref([]);
+const pinnedPosts = ref([]);
 const categoryName = ref('Loading...');
 const loading = ref(true);
 const error = ref(null);
@@ -20,10 +23,10 @@ const error = ref(null);
 const currentPage = ref(1);
 const totalPages = ref(1);
 const totalPosts = ref(0);
-const limit = ref(Number(localStorage.getItem('category_limit')) || 5);
+const limit = ref(Number(localStorage.getItem('category_limit')) || 10);
 const sort = ref(localStorage.getItem('category_sort') || 'latest');
 
-const allTags = ref([]);          
+const allTags = ref([]);
 const selectedTags = ref([]);
 
 async function fetchTags() {
@@ -48,9 +51,27 @@ async function loadCategoryPosts() {
       tags: selectedTags.value
     };
 
-    const data = await apiGetPosts(args);
-   
-    posts.value = data.posts || [];
+    const [data, pinnedData] = await Promise.all([
+      apiGetPosts(args),
+      apiGetPinnedPosts()
+    ]);
+
+    const categoryIdNum = Number(route.params.categoryId);
+
+    const pinnedForCategory = (pinnedData?.posts || []).filter(
+      (p) => Number(p.categoryId) === categoryIdNum
+    );
+
+    const pinnedIds = new Set(
+      pinnedForCategory.map((p) => Number(p.PostID ?? p.postId))
+    );
+
+    const normalPosts = (data.posts || []).filter(
+      (p) => !pinnedIds.has(Number(p.PostID ?? p.postId))
+    );
+
+    pinnedPosts.value = pinnedForCategory;
+    posts.value = [...pinnedForCategory, ...normalPosts];
     categoryName.value = data.categoryName || 'Category';
 
     if (data.meta) {
@@ -61,6 +82,7 @@ async function loadCategoryPosts() {
     console.error('Fetch error:', e);
     error.value = e.message;
     posts.value = [];
+    pinnedPosts.value = [];
   } finally {
     loading.value = false;
   }
@@ -90,6 +112,14 @@ const displayedPages = computed(() => {
 
 watch(currentPage, loadCategoryPosts);
 
+watch(
+  () => route.params.categoryId,
+  () => {
+    currentPage.value = 1;
+    loadCategoryPosts();
+  }
+);
+
 onMounted(async () => {
   await Promise.all([
     loadCategoryPosts(),
@@ -109,12 +139,10 @@ onMounted(async () => {
           <div class="sticky-sidebar">
             <UserCard />
 
-            <div class="action-buttons-container mt-4" v-if="isLoggedIn && !isBanned">
-              <CreatePostButton
-                @post-refresh="loadCategoryPosts"
-                class="w-100 shadow-sm"
-              />
-              <ViewReportsButton class="w-100 mt-2" />
+            <div class="action-buttons-container mt-3" v-if="isLoggedIn">
+              <AdminPanelButton />
+              <CreatePostButton @post-refresh="loadCategoryPosts" />
+              <ViewReportsButton />
             </div>
 
             <!-- Tag Filter -->
@@ -142,7 +170,6 @@ onMounted(async () => {
                 >
                   <i class="tag-pill-icon" :class="{ 'bi-check-circle-fill pe-1': selectedTags.includes(tag.name) }"></i>
                   {{ tag.name }}
-                  
                 </button>
               </div>
             </div>
@@ -197,6 +224,10 @@ onMounted(async () => {
             <div class="spinner-border text-success"></div>
           </div>
 
+          <div v-else-if="error" class="alert alert-danger border-0 shadow-sm">
+            {{ error }}
+          </div>
+
           <div v-else class="post-feed">
             <div v-if="posts.length === 0" class="empty-state text-center py-5">
               <p class="fw-medium text-secondary">
@@ -206,15 +237,13 @@ onMounted(async () => {
 
             <PostCard
               v-for="post in posts"
-              :key="post.postId"
+              :key="post.postId ?? post.PostID"
               :post="post"
               class="mb-3"
+              @post-refresh="loadCategoryPosts"
             />
 
-            <!-- Page navigation
-             -- TODO: would be nice to add "Go to page" input box
-             -- for larger number of pages and just make it look cleaner in general
-             -->
+            <!-- Page navigation -->
             <nav v-if="totalPages > 1" class="page-nav-wraper mt-5">
               <button
                 class="page-nav-btn"
@@ -265,6 +294,13 @@ onMounted(async () => {
   background-color: #cbdad5;
   min-height: 80vh;
 }
+
+.action-buttons-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 .category-header {
   background: linear-gradient(135deg, #004b33 0%, #003d4c 100%);
   padding: 1.25rem 1.75rem;
@@ -274,6 +310,7 @@ onMounted(async () => {
   flex-wrap: wrap;
   align-items: center;
 }
+
 .header-main-content {
   display: flex;
   align-items: center;
@@ -293,6 +330,7 @@ onMounted(async () => {
   justify-content: center;
   transition: all 0.3s ease;
 }
+
 .back-btn:hover {
   background: rgba(255, 255, 255, 0.25);
   transform: translateX(-4px);
@@ -311,6 +349,7 @@ onMounted(async () => {
   color: #f1be48;
   letter-spacing: 1.5px;
 }
+
 .category-title {
   margin: 0;
   font-weight: 700;
@@ -318,6 +357,7 @@ onMounted(async () => {
   line-height: 1.2;
   overflow-wrap: break-word;
 }
+
 .category-post-count {
   display: block;
   font-size: 0.8rem;
@@ -332,6 +372,7 @@ onMounted(async () => {
   margin-left: auto;
   align-items: center;
 }
+
 .sort-pill {
   display: flex;
   align-items: center;
@@ -342,6 +383,7 @@ onMounted(async () => {
   border-radius: 10px;
   transition: all 0.2s ease;
 }
+
 .sort-label {
   font-size: 0.6rem;
   font-weight: 800;
@@ -349,6 +391,7 @@ onMounted(async () => {
   color: rgba(255, 255, 255, 0.5);
   letter-spacing: 0.8px;
 }
+
 .sort-select {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid transparent;
@@ -361,10 +404,12 @@ onMounted(async () => {
   border-radius: 6px;
   transition: all 0.2s ease;
 }
+
 .sort-select:hover {
   background: rgba(255, 255, 255, 0.2);
   color: #f1be48;
 }
+
 .sort-select option {
   background-color: #004b33;
   color: #ffffff;
@@ -379,10 +424,12 @@ onMounted(async () => {
   gap: 16px;
   padding: 0 0 2rem;
 }
+
 .page-dots {
   color: rgba(255, 255, 255, 0.85);
   align-self: center;
 }
+
 .page-pages {
   display: flex;
   gap: 8px;
@@ -390,6 +437,7 @@ onMounted(async () => {
   padding: 6px;
   border-radius: 14px;
 }
+
 .page-num {
   width: 42px;
   height: 42px;
@@ -401,15 +449,18 @@ onMounted(async () => {
   cursor: pointer;
   transition: all 0.2s ease;
 }
+
 .page-num:hover {
   background: rgba(255, 255, 255, 0.226);
   color: #ffffff;
 }
+
 .page-num.active {
   background: #035157;
   color: #ffffff;
   box-shadow: 0 6px 16px rgba(3, 81, 87, 0.35);
 }
+
 .page-nav-btn {
   width: 42px;
   height: 42px;
@@ -422,6 +473,7 @@ onMounted(async () => {
   justify-content: center;
   cursor: pointer;
 }
+
 .page-nav-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
@@ -453,12 +505,14 @@ onMounted(async () => {
     border-radius: 12px;
     gap: 0.5rem 1.25rem;
   }
+
   .header-sorting {
     width: 100%;
     justify-content: space-between;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
     padding-top: 1rem;
   }
+
   .sort-pill {
     flex: 1;
     justify-content: space-between;
@@ -470,19 +524,23 @@ onMounted(async () => {
     gap: 0.75rem;
     align-items: flex-start;
   }
+
   .back-btn {
     width: 32px;
     height: 32px;
     border-radius: 8px;
     flex-shrink: 0;
   }
+
   .category-title {
     font-size: 1.25rem !important;
   }
+
   .sort-pill {
     padding: 4px 4px 4px 6px;
     gap: 3px;
   }
+
   .sort-select {
     font-size: 0.7rem;
     padding: 1px 2px;
@@ -493,13 +551,11 @@ onMounted(async () => {
    TAG FILTER CARD STYLES
    ========================= */
 
-/* Header bar */
 .filter-header {
   background: linear-gradient(135deg, #0b5f43 0%, #0a4f3b 100%);
   color: #ffffff;
 }
 
-/* Clear button */
 .clear-btn {
   background: rgba(255, 255, 255, 0.15);
   border: 1px solid rgba(255, 255, 255, 0.45);
@@ -518,7 +574,6 @@ onMounted(async () => {
   background: rgba(255, 255, 255, 0.25);
 }
 
-/* Tag pills (small, clean) */
 .tag-pill {
   background: #ffffff;
   border: 1px solid #e5e7eb;
@@ -530,6 +585,7 @@ onMounted(async () => {
   cursor: pointer;
   transition: all 0.12s ease;
 }
+
 .tag-pill-icon {
   color: green;
 }
@@ -538,12 +594,12 @@ onMounted(async () => {
   background: #ececec;
 }
 
-/* Active tag */
 .tag-pill.active {
   background: #007a4b34;
   color: #000000;
   border-color: #007a4c;
 }
+
 .tag-pill.active:hover {
   background: #007a4b5b;
   color: #000000;
