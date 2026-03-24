@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 use PHPUnit\Framework\TestCase;
-use Forum\Controllers\TermsController;
+use Forum\Controllers\UserController;
 
 final class TermsControllerTest extends TestCase
 {
@@ -43,8 +43,9 @@ final class TermsControllerTest extends TestCase
             }
         };
 
-        $controller = new TermsController();
-        $controller->acceptByUserId($pdo, 123);
+        $dummyMakePdo = fn() => $pdo;
+        $controller = new UserController($dummyMakePdo);
+        $controller->acceptTermsByUserId($pdo, 123);
 
         $this->assertSame([':uid' => 123], $executedParams);
     }

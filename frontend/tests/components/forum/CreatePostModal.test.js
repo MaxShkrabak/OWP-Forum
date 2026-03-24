@@ -38,24 +38,31 @@ describe("View Post Page Sidebar (Admin, Mod)", () => {
       props: {
         show: true,
         loading: false,
-        postData: { title: "Test Post", content: "Test Body", category: "General", tags: [] },
-        isRestricted: true, 
+        postData: {
+          title: "Test Post",
+          content: "Test Body",
+          category: "General",
+          tags: [],
+        },
+        isRestricted: true,
       },
       global: {
         stubs: { Teleport: true, Transition: true, TextEditor: true },
       },
     });
-    
+
     await flushPromises();
-    
+
     const titleInput = wrapper.find(".title-input");
     if (titleInput.exists()) {
-       expect(titleInput.element.disabled || titleInput.element.readOnly).toBe(true);
+      expect(titleInput.element.disabled || titleInput.element.readOnly).toBe(
+        true,
+      );
     }
-    
+
     const categoryDropdown = wrapper.find("select.category-dropdown");
     if (categoryDropdown.exists()) {
-       expect(categoryDropdown.element.disabled).toBe(false);
+      expect(categoryDropdown.element.disabled).toBe(false);
     }
   });
 });
@@ -65,7 +72,9 @@ describe("Fix Create Post Request Spam", () => {
 
   it("disables the publish button immediately after the first click", async () => {
     const { getCategories } = await import("@/api/posts");
-    vi.mocked(getCategories).mockResolvedValue([{ categoryId: "1", name: "General" }]);
+    vi.mocked(getCategories).mockResolvedValue([
+      { categoryId: "1", name: "General" },
+    ]);
 
     const wrapper = mount(CreatePostModal, {
       props: {
@@ -103,7 +112,8 @@ describe("Fix Create Post Request Spam", () => {
     await wrapper.vm.$nextTick();
 
     const confirmPublishBtns = wrapper.findAll(".publish-btn");
-    const confirmBtn = confirmPublishBtns.length > 1 ? confirmPublishBtns[1] : null;
+    const confirmBtn =
+      confirmPublishBtns.length > 1 ? confirmPublishBtns[1] : null;
     expect(confirmBtn).toBeDefined();
     if (confirmBtn) {
       await confirmBtn.trigger("click");
