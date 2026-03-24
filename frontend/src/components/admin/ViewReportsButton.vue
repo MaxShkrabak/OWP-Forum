@@ -96,6 +96,10 @@ async function handleResolve(reportId) {
 function onModalShown() {
 }
 
+function stripHTML(html) {
+  return html.replace(/<[^>]*>/g, "");
+}
+
 onMounted(() => {
   if (userRole.value === "moderator" || userRole.value === "admin") {
     loadReports();
@@ -200,7 +204,7 @@ onUnmounted(() => {
                         Ticket: </span>#{{ r.reportId }}
                     </span>
                       <div class="col-12">
-                        <span class="report-title col-12 my-2 mb-3 text-truncate">"{{ r.source === 'Comment' ? r.commentText : r.postTitle }}"</span>
+                        <span class="report-title col-12 my-2 mb-3 text-truncate">"{{ r.source === 'Comment' ? stripHTML(r.commentText) : r.postTitle }}"</span>
                         <span class="report-source col-12">
                           <span class="me-2">{{ r.source === 'Comment' ? 'Comment' : 'Post' }}</span>
                           <span class="report-source-by me-2">by</span> 
