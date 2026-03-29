@@ -17,7 +17,7 @@ final class PostControllerTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->pdo = $this->createMock(PDO::class);
+        $this->pdo = $this->createStub(PDO::class);
         $this->controller = new PostController(fn() => $this->pdo);
     }
 
@@ -72,11 +72,10 @@ final class PostControllerTest extends TestCase
         $lastPostStmt->method('fetch')->willReturn(false);
 
         $categoryStmt = $this->createMock(PDOStatement::class);
-        $categoryStmt->expects($this->once())->method('execute')->with([':catId' => $categoryId, ':userId' => $userId]);
+        $categoryStmt->expects($this->once())->method('execute')->with([':catId' => $categoryId]);
         $categoryStmt->method('fetch')->willReturn([
             'CategoryID' => $categoryId,
             'UsableByRoleID' => 1,
-            'UserRole' => 1,
         ]);
 
         $insertStmt = $this->createMock(PDOStatement::class);
@@ -96,7 +95,7 @@ final class PostControllerTest extends TestCase
 
         $this->pdo->method('prepare')->willReturnCallback(function (string $sql) use ($termsStmt, $banStmt, $roleStmt, $lockStmt, $recentPostsStmt, $lastPostStmt, $categoryStmt, $insertStmt) {
             $sql_lower = strtolower($sql);
-            
+
             if (str_contains($sql_lower, 'termsaccepted')) {
                 return $termsStmt;
             }
@@ -109,16 +108,16 @@ final class PostControllerTest extends TestCase
             if (str_contains($sql_lower, 'sp_getapplock')) {
                 return $lockStmt;
             }
-            if (str_contains($sql_lower, 'select count(*) from dbo.posts')) {
+            if (str_contains($sql_lower, 'select count(*) from dbo.forum_posts')) {
                 return $recentPostsStmt;
             }
             if (str_contains($sql_lower, 'select top 1')) {
                 return $lastPostStmt;
             }
-            if (str_contains($sql_lower, 'from dbo.categories')) {
+            if (str_contains($sql_lower, 'from dbo.forum_categories')) {
                 return $categoryStmt;
             }
-            if (str_contains($sql_lower, 'insert into dbo.posts')) {
+            if (str_contains($sql_lower, 'insert into dbo.forum_posts')) {
                 return $insertStmt;
             }
 
@@ -143,7 +142,7 @@ final class PostControllerTest extends TestCase
         $request = (new ServerRequestFactory())->createServerRequest('GET', "/api/get-post/$postId")
             ->withAttribute('user_id', $userId);
 
-        $postStmt = $this->createMock(PDOStatement::class);
+        $postStmt = $this->createStub(PDOStatement::class);
         $postStmt->method('execute')->willReturn(true);
         $postStmt->method('fetchColumn')->willReturn(1);
         $postStmt->method('fetch')->willReturn([
@@ -155,6 +154,7 @@ final class PostControllerTest extends TestCase
             'CategoryID'   => 2,
             'AuthorID'     => $userId,
             'TotalScore'   => 5,
+            'ViewCount'    => 12,
             'FirstName'    => 'Jane',
             'LastName'     => 'Doe',
             'Avatar'       => 'pfp-0.png',
@@ -163,22 +163,22 @@ final class PostControllerTest extends TestCase
             'myVote'       => 1,
         ]);
 
-        $tagStmt = $this->createMock(PDOStatement::class);
+        $tagStmt = $this->createStub(PDOStatement::class);
         $tagStmt->method('execute')->willReturn(true);
         $tagStmt->method('fetch')->willReturnOnConsecutiveCalls(
             ['PostID' => $postId, 'TagID' => 3, 'Name' => 'Official'],
             false
         );
 
-        $dedupStmt = $this->createMock(PDOStatement::class);
+        $dedupStmt = $this->createStub(PDOStatement::class);
         $dedupStmt->method('execute')->willReturn(true);
         $dedupStmt->method('fetch')->willReturn([
             'LastViewedAt' => gmdate('Y-m-d H:i:s'),
         ]);
 
         $this->pdo->method('prepare')->willReturnCallback(function (string $sql) use ($postStmt, $tagStmt, $dedupStmt) {
-            if (str_contains(strtolower($sql), 'dbo.postviewdedup')) return $dedupStmt;
-            if (str_contains(strtolower($sql), 'dbo.posttags')) return $tagStmt;
+            if (str_contains(strtolower($sql), 'postviewdedup')) return $dedupStmt;
+            if (str_contains(strtolower($sql), 'posttags')) return $tagStmt;
             return $postStmt;
         });
 
@@ -191,6 +191,7 @@ final class PostControllerTest extends TestCase
         $this->assertEquals('Hello World', $json['post']['title']);
         $this->assertEquals('Jane Doe', $json['post']['authorName']);
         $this->assertEquals(5, $json['post']['totalScore']);
+        $this->assertEquals(12, $json['post']['viewCount']);
         $this->assertEquals(1, $json['post']['myVote']);
         $this->assertEquals(['Official'], $json['post']['tagNames']);
         $this->assertEquals([3], $json['post']['tagIds']);
@@ -200,7 +201,7 @@ final class PostControllerTest extends TestCase
     {
         $request = (new ServerRequestFactory())->createServerRequest('GET', '/api/get-post/999');
 
-        $postStmt = $this->createMock(PDOStatement::class);
+        $postStmt = $this->createStub(PDOStatement::class);
         $postStmt->method('execute')->willReturn(true);
         $postStmt->method('fetch')->willReturn(false);
 
@@ -217,17 +218,20 @@ final class PostControllerTest extends TestCase
     {
         $request = (new ServerRequestFactory())->createServerRequest('GET', '/api/posts');
 
-        $stmt = $this->createMock(PDOStatement::class);
-        $stmt->method('execute')->willReturn(true);
-        $stmt->method('fetchAll')->willReturn([]);
+        $countQueryStmt = $this->createStub(PDOStatement::class);
+        $countQueryStmt->method('fetch')->willReturn(false);
 
-        $this->pdo->method('prepare')->willReturn($stmt);
+        $postStmt = $this->createStub(PDOStatement::class);
+        $postStmt->method('execute')->willReturn(true);
+        $postStmt->method('fetchAll')->willReturn([]);
+
+        $this->pdo->method('query')->willReturn($countQueryStmt);
+        $this->pdo->method('prepare')->willReturn($postStmt);
 
         $response = $this->controller->getPosts($request, new Response());
 
         $this->assertEquals(200, $response->getStatusCode());
         $json = $this->decode($response);
-        $this->assertEmpty($json['posts']);
         $this->assertEmpty($json['postsByCategory']);
         $this->assertEquals(0, $json['totalPosts']);
     }
@@ -251,16 +255,23 @@ final class PostControllerTest extends TestCase
             ],
         ];
 
-        $postStmt = $this->createMock(PDOStatement::class);
+        $countQueryStmt = $this->createStub(PDOStatement::class);
+        $countQueryStmt->method('fetch')->willReturnOnConsecutiveCalls(
+            ['CategoryID' => 10, 'postCount' => 2],
+            false
+        );
+
+        $postStmt = $this->createStub(PDOStatement::class);
         $postStmt->method('execute')->willReturn(true);
         $postStmt->method('fetchAll')->willReturn($rows);
 
-        $tagStmt = $this->createMock(PDOStatement::class);
+        $tagStmt = $this->createStub(PDOStatement::class);
         $tagStmt->method('execute')->willReturn(true);
         $tagStmt->method('fetch')->willReturn(false);
 
+        $this->pdo->method('query')->willReturn($countQueryStmt);
         $this->pdo->method('prepare')->willReturnCallback(function (string $sql) use ($postStmt, $tagStmt) {
-            if (str_contains(strtolower($sql), 'dbo.posttags')) return $tagStmt;
+            if (str_contains(strtolower($sql), 'posttags')) return $tagStmt;
             return $postStmt;
         });
 
@@ -268,10 +279,10 @@ final class PostControllerTest extends TestCase
 
         $this->assertEquals(200, $response->getStatusCode());
         $json = $this->decode($response);
-        $this->assertCount(2, $json['posts']);
         $this->assertEquals(2, $json['totalPosts']);
         $this->assertCount(1, $json['postsByCategory']);
         $this->assertEquals(10, $json['postsByCategory'][0]['categoryId']);
+        $this->assertCount(2, $json['postsByCategory'][0]['posts']);
         $this->assertEquals(2, $json['postsByCategory'][0]['postCount']);
     }
 
@@ -279,7 +290,7 @@ final class PostControllerTest extends TestCase
     {
         $request = (new ServerRequestFactory())->createServerRequest('GET', '/api/posts/pinned');
 
-        $stmt = $this->createMock(PDOStatement::class);
+        $stmt = $this->createStub(PDOStatement::class);
         $stmt->method('execute')->willReturn(true);
         $stmt->method('fetchAll')->willReturn([]);
 
@@ -304,16 +315,16 @@ final class PostControllerTest extends TestCase
             'Avatar' => 'admin.png', 'RoleName' => 'Admin', 'CategoryName' => 'News', 'myVote' => 0,
         ]];
 
-        $postStmt = $this->createMock(PDOStatement::class);
+        $postStmt = $this->createStub(PDOStatement::class);
         $postStmt->method('execute')->willReturn(true);
         $postStmt->method('fetchAll')->willReturn($rows);
 
-        $tagStmt = $this->createMock(PDOStatement::class);
+        $tagStmt = $this->createStub(PDOStatement::class);
         $tagStmt->method('execute')->willReturn(true);
         $tagStmt->method('fetch')->willReturn(false);
 
         $this->pdo->method('prepare')->willReturnCallback(function (string $sql) use ($postStmt, $tagStmt) {
-            if (str_contains(strtolower($sql), 'dbo.posttags')) return $tagStmt;
+            if (str_contains(strtolower($sql), 'posttags')) return $tagStmt;
             return $postStmt;
         });
 
@@ -332,7 +343,7 @@ final class PostControllerTest extends TestCase
     {
         $request = (new ServerRequestFactory())->createServerRequest('GET', '/api/categories/99/posts');
 
-        $catStmt = $this->createMock(PDOStatement::class);
+        $catStmt = $this->createStub(PDOStatement::class);
         $catStmt->method('execute')->willReturn(true);
         $catStmt->method('fetch')->willReturn(false);
 
@@ -350,11 +361,11 @@ final class PostControllerTest extends TestCase
         $categoryId = 3;
         $request = (new ServerRequestFactory())->createServerRequest('GET', "/api/categories/$categoryId/posts");
 
-        $catStmt = $this->createMock(PDOStatement::class);
+        $catStmt = $this->createStub(PDOStatement::class);
         $catStmt->method('execute')->willReturn(true);
         $catStmt->method('fetch')->willReturn(['CategoryID' => $categoryId, 'Name' => 'Support']);
 
-        $countStmt = $this->createMock(PDOStatement::class);
+        $countStmt = $this->createStub(PDOStatement::class);
         $countStmt->method('bindValue')->willReturn(true);
         $countStmt->method('execute')->willReturn(true);
         $countStmt->method('fetchColumn')->willReturn(1);
@@ -366,19 +377,19 @@ final class PostControllerTest extends TestCase
             'Avatar' => 'joe.png', 'RoleName' => 'User', 'myVote' => 0,
         ]];
 
-        $postStmt = $this->createMock(PDOStatement::class);
+        $postStmt = $this->createStub(PDOStatement::class);
         $postStmt->method('bindValue')->willReturn(true);
         $postStmt->method('execute')->willReturn(true);
         $postStmt->method('fetchAll')->willReturn($postRows);
 
-        $tagStmt = $this->createMock(PDOStatement::class);
+        $tagStmt = $this->createStub(PDOStatement::class);
         $tagStmt->method('execute')->willReturn(true);
         $tagStmt->method('fetch')->willReturn(false);
 
         $this->pdo->method('prepare')->willReturnCallback(function (string $sql) use ($catStmt, $countStmt, $postStmt, $tagStmt) {
             $lower = strtolower($sql);
-            if (str_contains($lower, 'dbo.posttags'))  return $tagStmt;
-            if (str_contains($lower, 'offset'))        return $postStmt;
+            if (str_contains($lower, 'posttags'))    return $tagStmt;
+            if (str_contains($lower, 'offset'))      return $postStmt;
             if (str_contains($lower, 'select count')) return $countStmt;
             return $catStmt;
         });
@@ -399,7 +410,7 @@ final class PostControllerTest extends TestCase
         $request = (new ServerRequestFactory())->createServerRequest('GET', '/api/verify/categories')
             ->withAttribute('user_id', 1);
 
-        $stmt = $this->createMock(PDOStatement::class);
+        $stmt = $this->createStub(PDOStatement::class);
         $stmt->method('execute')->willReturn(true);
         $stmt->method('fetchAll')->willReturn([
             ['CategoryID' => 1, 'Name' => 'Wastewater Collection'],
@@ -422,7 +433,7 @@ final class PostControllerTest extends TestCase
         $request = (new ServerRequestFactory())->createServerRequest('GET', '/api/tags')
             ->withAttribute('user_id', 1);
 
-        $stmt = $this->createMock(PDOStatement::class);
+        $stmt = $this->createStub(PDOStatement::class);
         $stmt->method('execute')->willReturn(true);
         $stmt->method('fetchAll')->willReturn([
             ['TagID' => 1, 'Name' => 'Bug'],
@@ -443,7 +454,7 @@ final class PostControllerTest extends TestCase
     {
         $request = (new ServerRequestFactory())->createServerRequest('GET', '/api/tags/filter');
 
-        $stmt = $this->createMock(PDOStatement::class);
+        $stmt = $this->createStub(PDOStatement::class);
         $stmt->method('fetchAll')->willReturn([
             ['TagID' => 1, 'Name' => 'Bug'],
             ['TagID' => 2, 'Name' => 'Feature'],
@@ -486,7 +497,7 @@ final class PostControllerTest extends TestCase
 
         $this->pdo->method('prepare')->willReturnCallback(function (string $sql) use ($termsStmt, $banStmt) {
             $sql_lower = strtolower($sql);
-            
+
             if (str_contains($sql_lower, 'termsaccepted')) {
                 return $termsStmt;
             }

@@ -155,7 +155,7 @@ class ReportControllerTest extends TestCase
 
         $this->pdo->method('prepare')->willReturnCallback(
             function (string $sql) use ($roleStmt, $reportStmt) {
-                if (str_contains($sql, 'dbo.Roles')) return $roleStmt;
+                if (str_contains($sql, 'dbo.Forum_Roles')) return $roleStmt;
                 return $reportStmt;
             }
         );
@@ -250,7 +250,7 @@ class ReportControllerTest extends TestCase
 
         $this->pdo->method('prepare')->willReturnCallback(
             function (string $sql) use ($roleStmt, $updateStmt) {
-                if (str_contains($sql, 'dbo.Roles')) return $roleStmt;
+                if (str_contains($sql, 'dbo.Forum_Roles')) return $roleStmt;
                 return $updateStmt;
             }
         );
@@ -278,7 +278,7 @@ class ReportControllerTest extends TestCase
 
         $this->pdo->method('prepare')->willReturnCallback(
             function (string $sql) use ($roleStmt, $updateStmt) {
-                if (str_contains($sql, 'dbo.Roles')) return $roleStmt;
+                if (str_contains($sql, 'dbo.Forum_Roles')) return $roleStmt;
                 return $updateStmt;
             }
         );

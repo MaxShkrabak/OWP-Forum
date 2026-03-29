@@ -11,7 +11,7 @@ $app->patch('/api/admin/posts/{id}/soft-delete', function(Request $req, Response
     $pdo = $makePdo();
 
     // Verify Role 3 (Moderator) or 4 (Admin)
-    $roleStmt = $pdo->prepare("SELECT RoleID FROM dbo.Users WHERE User_ID = :uid");
+    $roleStmt = $pdo->prepare("SELECT RoleID FROM dbo.Forum_Users WHERE User_ID = :uid");
     $roleStmt->execute([':uid' => $userId]);
     $userRole = (int)$roleStmt->fetchColumn();
 
@@ -25,7 +25,7 @@ $app->patch('/api/admin/posts/{id}/soft-delete', function(Request $req, Response
     try {
         // Update IsDeleted and DeletedAt
         $stmt = $pdo->prepare("
-            UPDATE dbo.Posts 
+            UPDATE dbo.Forum_Posts 
             SET IsDeleted = 1, DeletedAt = SYSUTCDATETIME() 
             WHERE PostID = :pid AND IsDeleted = 0
         ");
@@ -62,14 +62,14 @@ $app->patch('/api/admin/posts/{id}/metadata', function(Request $req, Response $r
     $pdo->beginTransaction();
     try {
         if (isset($data['CategoryID'])) {
-            $stmt = $pdo->prepare("UPDATE dbo.Posts SET CategoryID = :cid WHERE PostID = :pid");
+            $stmt = $pdo->prepare("UPDATE dbo.Forum_Posts SET CategoryID = :cid WHERE PostID = :pid");
             $stmt->execute([':cid' => $data['CategoryID'], ':pid' => $postId]);
         }
         
         // Tag logic: Clear old and insert new
         if (isset($data['TagIDs'])) {
-            $pdo->prepare("DELETE FROM dbo.PostTags WHERE PostID = :pid")->execute([':pid' => $postId]);
-            $tagStmt = $pdo->prepare("INSERT INTO dbo.PostTags (PostID, TagID) VALUES (:pid, :tid)");
+            $pdo->prepare("DELETE FROM dbo.Forum_PostTags WHERE PostID = :pid")->execute([':pid' => $postId]);
+            $tagStmt = $pdo->prepare("INSERT INTO dbo.Forum_PostTags (PostID, TagID) VALUES (:pid, :tid)");
             foreach ($data['TagIDs'] as $tagId) {
                 $tagStmt->execute([':pid' => $postId, ':tid' => $tagId]);
             }

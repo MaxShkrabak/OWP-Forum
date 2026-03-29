@@ -33,7 +33,7 @@ return function (Request $request, RequestHandler $handler) use ($makePdo) {
 
     if ($token) {
         $tokenHash = hash_hmac('sha256', $token, $_ENV['HMAC_KEY']);
-        $stmt = $makePdo()->prepare('SELECT User_ID, Expires FROM dbo.Sessions WHERE Token_Hash = ?');
+        $stmt = $makePdo()->prepare('SELECT User_ID, Expires FROM dbo.Forum_Sessions WHERE Token_Hash = ?');
         $stmt->execute([$tokenHash]);
         $session = $stmt->fetch(PDO::FETCH_ASSOC);
     }

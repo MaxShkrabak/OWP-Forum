@@ -1,34 +1,9 @@
 -- 009_notifications.sql
 
--- Add new notification preference columns to dbo.Users if they do not exist
-IF COL_LENGTH('dbo.Users', 'PushNotificationsEnabled') IS NULL
-BEGIN
-    ALTER TABLE dbo.Users
-    ADD PushNotificationsEnabled BIT NOT NULL
-        CONSTRAINT DF_Users_PushNotificationsEnabled DEFAULT (1);
-END
-GO
-
-IF COL_LENGTH('dbo.Users', 'PostLikeNotificationsEnabled') IS NULL
-BEGIN
-    ALTER TABLE dbo.Users
-    ADD PostLikeNotificationsEnabled BIT NOT NULL
-        CONSTRAINT DF_Users_PostLikeNotificationsEnabled DEFAULT (1);
-END
-GO
-
-IF COL_LENGTH('dbo.Users', 'PostReplyNotificationsEnabled') IS NULL
-BEGIN
-    ALTER TABLE dbo.Users
-    ADD PostReplyNotificationsEnabled BIT NOT NULL
-        CONSTRAINT DF_Users_PostReplyNotificationsEnabled DEFAULT (1);
-END
-GO
-
 -- Create notifications table
-IF OBJECT_ID('dbo.Notifications', 'U') IS NULL
+IF OBJECT_ID('dbo.Forum_Notifications', 'U') IS NULL
 BEGIN
-    CREATE TABLE dbo.Notifications (
+    CREATE TABLE dbo.Forum_Notifications (
         NotificationID INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
         UserID INT NOT NULL,
         PostID INT NOT NULL,
@@ -37,10 +12,10 @@ BEGIN
         CreatedAt DATETIME2(0) NOT NULL CONSTRAINT DF_Notifications_CreatedAt DEFAULT SYSUTCDATETIME(),
 
         CONSTRAINT FK_Notifications_User
-            FOREIGN KEY (UserID) REFERENCES dbo.Users(User_ID),
+            FOREIGN KEY (UserID) REFERENCES dbo.Forum_Users(User_ID),
 
         CONSTRAINT FK_Notifications_Post
-            FOREIGN KEY (PostID) REFERENCES dbo.Posts(PostID),
+            FOREIGN KEY (PostID) REFERENCES dbo.Forum_Posts(PostID),
 
         CONSTRAINT CK_Notifications_Type
             CHECK ([Type] IN ('postLike', 'postReply'))
@@ -53,11 +28,11 @@ IF NOT EXISTS (
     SELECT 1
     FROM sys.indexes
     WHERE name = 'IX_Notifications_UserID_IsRead_CreatedAt'
-      AND object_id = OBJECT_ID('dbo.Notifications')
+      AND object_id = OBJECT_ID('dbo.Forum_Notifications')
 )
 BEGIN
     CREATE INDEX IX_Notifications_UserID_IsRead_CreatedAt
-        ON dbo.Notifications (UserID, IsRead, CreatedAt DESC);
+        ON dbo.Forum_Notifications (UserID, IsRead, CreatedAt DESC);
 END
 GO
 
@@ -65,11 +40,11 @@ IF NOT EXISTS (
     SELECT 1
     FROM sys.indexes
     WHERE name = 'IX_Notifications_PostID_Type'
-      AND object_id = OBJECT_ID('dbo.Notifications')
+      AND object_id = OBJECT_ID('dbo.Forum_Notifications')
 )
 BEGIN
     CREATE INDEX IX_Notifications_PostID_Type
-        ON dbo.Notifications (PostID, [Type]);
+        ON dbo.Forum_Notifications (PostID, [Type]);
 END
 GO
 
@@ -78,11 +53,11 @@ IF NOT EXISTS (
     SELECT 1
     FROM sys.indexes
     WHERE name = 'UX_Notifications_User_Post_Type_Unread'
-      AND object_id = OBJECT_ID('dbo.Notifications')
+      AND object_id = OBJECT_ID('dbo.Forum_Notifications')
 )
 BEGIN
     CREATE UNIQUE INDEX UX_Notifications_User_Post_Type_Unread
-        ON dbo.Notifications (UserID, PostID, [Type])
+        ON dbo.Forum_Notifications (UserID, PostID, [Type])
         WHERE IsRead = 0;
 END
 GO

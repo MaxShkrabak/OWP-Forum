@@ -14,7 +14,8 @@ use function Forum\Helpers\resolveReportsForPost;
 use function Forum\Helpers\softDeleteCommentsForPost;
 use function Forum\Helpers\createNotification;
 
-class PostController {
+class PostController
+{
     private Closure $makePdo;
 
     public function __construct(Closure $makePdo)
@@ -24,7 +25,7 @@ class PostController {
 
     private function resolvePostAccess(PDO $pdo, int $postId, int $userId): array
     {
-        $postStmt = $pdo->prepare("SELECT PostID, AuthorID, IsDeleted FROM dbo.Posts WHERE PostID = :id");
+        $postStmt = $pdo->prepare("SELECT PostID, AuthorID, IsDeleted FROM dbo.Forum_Posts WHERE PostID = :id");
         $postStmt->execute(['id' => $postId]);
         $post = $postStmt->fetch(PDO::FETCH_ASSOC);
 
@@ -32,7 +33,7 @@ class PostController {
             return ['error' => 'Post not found.', 'status' => 404];
         }
 
-        $roleStmt = $pdo->prepare("SELECT ISNULL(RoleID, 1) FROM dbo.Users WHERE User_ID = :uid");
+        $roleStmt = $pdo->prepare("SELECT ISNULL(RoleID, 1) FROM dbo.Forum_Users WHERE User_ID = :uid");
         $roleStmt->execute(['uid' => $userId]);
         $userRoleId = (int)($roleStmt->fetchColumn() ?? 1);
         if ($userRoleId <= 0) $userRoleId = 1;
@@ -51,8 +52,8 @@ class PostController {
         $placeholders = implode(',', array_fill(0, count($postIds), '?'));
         $stmt = $pdo->prepare("
             SELECT pt.PostID, t.TagID, t.Name
-            FROM dbo.PostTags pt
-            JOIN dbo.Tags t ON t.TagID = pt.TagID
+            FROM dbo.Forum_PostTags pt
+            JOIN dbo.Forum_Tags t ON t.TagID = pt.TagID
             WHERE pt.PostID IN ($placeholders)
             ORDER BY CASE WHEN t.Name = 'Official' THEN 0 ELSE 1 END, t.Name ASC
         ");
@@ -77,15 +78,9 @@ class PostController {
             /* View counts: only signed-in users; same user cannot bump the same post within the cooldown window. */
             $viewCooldownHours = 12;
 
-            $existsStmt = $pdo->prepare("SELECT 1 FROM dbo.Posts WHERE PostID = :id AND IsDeleted = 0");
-            $existsStmt->execute(['id' => $postID]);
-            if (!$existsStmt->fetchColumn()) {
-                return json($res, ['ok' => false, 'error' => "Post not found or has been deleted."], 404);
-            }
-
             if ($userId > 0) {
                 $dedupStmt = $pdo->prepare("
-                    SELECT LastViewedAt FROM dbo.PostViewDedup
+                    SELECT LastViewedAt FROM dbo.Forum_PostViewDedup
                     WHERE PostID = :pid AND UserID = :uid
                 ");
                 $dedupStmt->execute([':pid' => $postID, ':uid' => $userId]);
@@ -103,7 +98,7 @@ class PostController {
 
                 if ($shouldIncrement) {
                     $incStmt = $pdo->prepare("
-                        UPDATE dbo.Posts
+                        UPDATE dbo.Forum_Posts
                         SET ViewCount = ViewCount + 1
                         WHERE PostID = :id AND IsDeleted = 0
                     ");
@@ -112,17 +107,17 @@ class PostController {
                         return json($res, ['ok' => false, 'error' => "Post not found or has been deleted."], 404);
                     }
 
-                    $dupExists = $pdo->prepare("SELECT 1 FROM dbo.PostViewDedup WHERE PostID = :pid AND UserID = :uid");
+                    $dupExists = $pdo->prepare("SELECT 1 FROM dbo.Forum_PostViewDedup WHERE PostID = :pid AND UserID = :uid");
                     $dupExists->execute([':pid' => $postID, ':uid' => $userId]);
                     if ($dupExists->fetchColumn()) {
                         $pdo->prepare("
-                            UPDATE dbo.PostViewDedup
+                            UPDATE dbo.Forum_PostViewDedup
                             SET LastViewedAt = SYSUTCDATETIME()
                             WHERE PostID = :pid AND UserID = :uid
                         ")->execute([':pid' => $postID, ':uid' => $userId]);
                     } else {
                         $pdo->prepare("
-                            INSERT INTO dbo.PostViewDedup (PostID, UserID, LastViewedAt)
+                            INSERT INTO dbo.Forum_PostViewDedup (PostID, UserID, LastViewedAt)
                             VALUES (:pid, :uid, SYSUTCDATETIME())
                         ")->execute([':pid' => $postID, ':uid' => $userId]);
                     }
@@ -136,11 +131,11 @@ class PostController {
                         r.Name AS RoleName,
                         c.Name AS CategoryName,
                         ISNULL(pv.VoteValue, 0) AS myVote
-                FROM dbo.Posts p
-                LEFT JOIN dbo.Users u ON p.AuthorID = u.User_ID
-                LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
-                LEFT JOIN dbo.Categories c ON p.CategoryID = c.CategoryID
-                LEFT JOIN dbo.PostVotes pv ON p.PostID = pv.PostID AND pv.User_ID = :userId
+                FROM dbo.Forum_Posts p
+                LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.User_ID
+                LEFT JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
+                LEFT JOIN dbo.Forum_Categories c ON p.CategoryID = c.CategoryID
+                LEFT JOIN dbo.Forum_PostVotes pv ON p.PostID = pv.PostID AND pv.User_ID = :userId
                 WHERE p.PostID = :id AND p.IsDeleted = 0
             ";
 
@@ -189,7 +184,7 @@ class PostController {
             $userId = $req->getAttribute("user_id") ?? 0;
             $pdo = ($this->makePdo)();
 
-            $catStmt = $pdo->prepare("SELECT CategoryID, Name FROM dbo.Categories WHERE CategoryID = :id");
+            $catStmt = $pdo->prepare("SELECT CategoryID, Name FROM dbo.Forum_Categories WHERE CategoryID = :id");
             $catStmt->execute(['id' => $categoryId]);
             $cat = $catStmt->fetch(PDO::FETCH_ASSOC);
 
@@ -237,8 +232,8 @@ class PostController {
                     }
                     $placeholderStr = implode(',', $placeholders);
                     $searchWhere = " AND p.PostID IN (
-                        SELECT pt.PostID FROM dbo.PostTags pt
-                        JOIN dbo.Tags t ON t.TagID = pt.TagID
+                        SELECT pt.PostID FROM dbo.Forum_PostTags pt
+                        JOIN dbo.Forum_Tags t ON t.TagID = pt.TagID
                         WHERE t.Name IN ($placeholderStr)
                         GROUP BY pt.PostID
                         HAVING COUNT(DISTINCT t.Name) = $tagCount
@@ -246,11 +241,24 @@ class PostController {
                 }
             }
 
+            $totalAllStmt = $pdo->prepare("SELECT COUNT(*) FROM dbo.Forum_Posts WHERE CategoryID = :id AND IsDeleted = 0");
+            $totalAllStmt->execute(['id' => $categoryId]);
+            $totalAll = (int)$totalAllStmt->fetchColumn();
+
+            $pinnedCountStmt = $pdo->prepare("
+                SELECT COUNT(*) FROM dbo.Forum_Pinned pin
+                JOIN dbo.Forum_Posts p ON p.PostID = pin.PostID
+                WHERE p.CategoryID = :id AND p.IsDeleted = 0
+            ");
+            $pinnedCountStmt->execute(['id' => $categoryId]);
+            $pinnedCount = (int)$pinnedCountStmt->fetchColumn();
+
             $countSql  = "
                 SELECT COUNT(*)
-                FROM dbo.Posts p
-                LEFT JOIN dbo.Users u ON p.AuthorID = u.User_ID
+                FROM dbo.Forum_Posts p
+                LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.User_ID
                 WHERE p.CategoryID = :id AND p.IsDeleted = 0
+                AND p.PostID NOT IN (SELECT PostID FROM dbo.Forum_Pinned)
                 $searchWhere
             ";
             $countStmt = $pdo->prepare($countSql);
@@ -267,20 +275,34 @@ class PostController {
             $countStmt->execute();
             $totalPosts = (int)$countStmt->fetchColumn();
 
-            $totalPages = (int)ceil($totalPosts / $limit);
-            $page       = ($page > $totalPages && $totalPages > 0) ? $totalPages : $page;
-            $offset     = ($page - 1) * $limit;
+            $firstPageCapacity = max(0, $limit - $pinnedCount);
+            if ($totalPosts <= $firstPageCapacity) {
+                $totalPages = 1;
+            } else {
+                $totalPages = 1 + (int)ceil(($totalPosts - $firstPageCapacity) / $limit);
+            }
+
+            $page = ($page > $totalPages && $totalPages > 0) ? $totalPages : $page;
+
+            if ($page === 1) {
+                $effectiveLimit = max(1, $firstPageCapacity);
+                $offset = 0;
+            } else {
+                $effectiveLimit = $limit;
+                $offset = $firstPageCapacity + ($page - 2) * $limit;
+            }
 
             $sql = "
                 SELECT p.PostID, p.Title, p.CreatedAt, p.TotalScore,
-                       (SELECT COUNT(*) FROM dbo.Comments cm WHERE cm.PostID = p.PostID AND cm.IsDeleted = 0) AS commentCount,
+                       (SELECT COUNT(*) FROM dbo.Forum_Comments cm WHERE cm.PostID = p.PostID AND cm.IsDeleted = 0) AS commentCount,
                        u.FirstName, u.LastName, u.Avatar, u.User_ID, r.Name AS RoleName,
                        ISNULL(pv.VoteValue, 0) AS myVote
-                FROM dbo.Posts p
-                LEFT JOIN dbo.Users u ON p.AuthorID = u.User_ID
-                LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
-                LEFT JOIN dbo.PostVotes pv ON p.PostID = pv.PostID AND pv.User_ID = :userId
+                FROM dbo.Forum_Posts p
+                LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.User_ID
+                LEFT JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
+                LEFT JOIN dbo.Forum_PostVotes pv ON p.PostID = pv.PostID AND pv.User_ID = :userId
                 WHERE p.CategoryID = :categoryId AND p.IsDeleted = 0
+                AND p.PostID NOT IN (SELECT PostID FROM dbo.Forum_Pinned)
                 $searchWhere
                 ORDER BY $orderBy
                 OFFSET :offset ROWS FETCH NEXT :limit ROWS ONLY
@@ -290,7 +312,7 @@ class PostController {
             $postStmt->bindValue(':categoryId', $categoryId, PDO::PARAM_INT);
             $postStmt->bindValue(':userId', $userId, PDO::PARAM_INT);
             $postStmt->bindValue(':offset', $offset, PDO::PARAM_INT);
-            $postStmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+            $postStmt->bindValue(':limit', $effectiveLimit, PDO::PARAM_INT);
             if ($hasSearch) {
                 if ($mode === 'tag') {
                     foreach ($tagBinds as $param => $val) {
@@ -334,7 +356,7 @@ class PostController {
                     'limit'      => $limit,
                     'sort'       => $sort,
                     'page'       => $page,
-                    'totalPosts' => $totalPosts,
+                    'totalPosts' => $totalAll,
                     'totalPages' => $totalPages,
                     'q'          => $qRaw,
                     'mode'       => $mode,
@@ -353,10 +375,10 @@ class PostController {
 
             $sql = "
                 SELECT c.CategoryID, c.Name
-                FROM dbo.Categories c
+                FROM dbo.Forum_Categories c
                 WHERE c.UsableByRoleID <= (
                     SELECT COALESCE(MAX(RoleID), 1)
-                    FROM dbo.Users
+                    FROM dbo.Forum_Users
                     WHERE User_ID = :userId
                 )
                 ORDER BY c.Name ASC
@@ -380,8 +402,8 @@ class PostController {
 
             $sql = "
                 SELECT TagID, Name
-                FROM dbo.Tags
-                WHERE UsableByRoleID <= ISNULL((SELECT RoleID FROM dbo.Users WHERE User_ID = :userId), 1)
+                FROM dbo.Forum_Tags
+                WHERE UsableByRoleID <= ISNULL((SELECT RoleID FROM dbo.Forum_Users WHERE User_ID = :userId), 1)
                 ORDER BY Name ASC
             ";
 
@@ -399,7 +421,7 @@ class PostController {
     {
         try {
             $pdo  = ($this->makePdo)();
-            $stmt = $pdo->query("SELECT TagID, Name FROM dbo.Tags ORDER BY Name ASC");
+            $stmt = $pdo->query("SELECT TagID, Name FROM dbo.Forum_Tags ORDER BY Name ASC");
             $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
             return json($res, ['ok' => true, 'items' => $items]);
@@ -416,40 +438,59 @@ class PostController {
 
             $params = $req->getQueryParams();
             $sort = strtolower($params['sort'] ?? 'latest');
+            $limit = min(max((int)($params['limit'] ?? 5), 1), 50);
+
             $orderBy = match ($sort) {
-                'oldest'   => 'p.CreatedAt ASC',
-                'upvotes'  => 'p.TotalScore DESC, p.CreatedAt DESC',
-                'comments' => 'commentCount DESC, p.CreatedAt DESC',
-                default    => 'p.CreatedAt DESC',
+                'oldest'   => 'CreatedAt ASC',
+                'upvotes'  => 'TotalScore DESC, CreatedAt DESC',
+                'comments' => 'commentCount DESC, CreatedAt DESC',
+                default    => 'CreatedAt DESC',
             };
 
+            $countStmt = $pdo->query("
+                SELECT CategoryID, COUNT(*) AS postCount
+                FROM dbo.Forum_Posts WHERE IsDeleted = 0
+                GROUP BY CategoryID
+            ");
+            $categoryCounts = [];
+            while ($row = $countStmt->fetch(PDO::FETCH_ASSOC)) {
+                $categoryCounts[(int)$row['CategoryID']] = (int)$row['postCount'];
+            }
+
             $getPostsSql = "
-                SELECT p.PostID, p.Title, p.CreatedAt, p.CategoryID, p.TotalScore,
-                    (SELECT COUNT(*) FROM dbo.Comments cm WHERE cm.PostID = p.PostID AND cm.IsDeleted = 0) AS commentCount,
-                    u.FirstName, u.LastName, u.Avatar, u.User_ID,
-                    r.Name AS RoleName, c.Name AS CategoryName,
-                    ISNULL(pv.VoteValue, 0) AS myVote
-                FROM dbo.Posts p
-                LEFT JOIN dbo.Users u ON p.AuthorID = u.User_ID
-                LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
-                LEFT JOIN dbo.Categories c ON p.CategoryID = c.CategoryID
-                LEFT JOIN dbo.PostVotes pv ON p.PostID = pv.PostID AND pv.User_ID = :userId
-                WHERE p.IsDeleted = 0
-                ORDER BY $orderBy
+                WITH PostsWithCounts AS (
+                    SELECT p.PostID, p.Title, p.CreatedAt, p.CategoryID, p.TotalScore,
+                        (SELECT COUNT(*) FROM dbo.Forum_Comments cm WHERE cm.PostID = p.PostID AND cm.IsDeleted = 0) AS commentCount,
+                        u.FirstName, u.LastName, u.Avatar, u.User_ID,
+                        r.Name AS RoleName, c.Name AS CategoryName,
+                        ISNULL(pv.VoteValue, 0) AS myVote
+                    FROM dbo.Forum_Posts p
+                    LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.User_ID
+                    LEFT JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
+                    LEFT JOIN dbo.Forum_Categories c ON p.CategoryID = c.CategoryID
+                    LEFT JOIN dbo.Forum_PostVotes pv ON p.PostID = pv.PostID AND pv.User_ID = :userId
+                    WHERE p.IsDeleted = 0
+                    AND p.PostID NOT IN (SELECT PostID FROM dbo.Forum_Pinned)
+                ),
+                RankedPosts AS (
+                    SELECT *, ROW_NUMBER() OVER (PARTITION BY CategoryID ORDER BY $orderBy) AS rn
+                    FROM PostsWithCounts
+                )
+                SELECT * FROM RankedPosts WHERE rn <= :limit
+                ORDER BY CategoryID, $orderBy
             ";
 
             $stmt = $pdo->prepare($getPostsSql);
-            $stmt->execute([':userId' => $userId]);
+            $stmt->execute([':userId' => $userId, ':limit' => $limit]);
             $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
             if (empty($rows)) {
-                return json($res, ['posts' => [], 'postsByCategory' => [], 'totalPosts' => 0]);
+                return json($res, ['postsByCategory' => [], 'totalPosts' => 0]);
             }
 
             $postIds      = array_map(fn($r) => (int)$r['PostID'], $rows);
             $tagsByPostId = $this->fetchTagsByPostIds($pdo, $postIds);
 
-            $posts = [];
             $categoriesMap = [];
 
             foreach ($rows as $row) {
@@ -471,8 +512,6 @@ class PostController {
                     'myVote'       => (int)($row['myVote'] ?? 0),
                 ];
 
-                $posts[] = $post;
-
                 if (!isset($categoriesMap[$catId])) {
                     $categoriesMap[$catId] = [
                         'categoryId'   => $catId,
@@ -485,15 +524,14 @@ class PostController {
 
             $postsByCategory = array_values($categoriesMap);
             foreach ($postsByCategory as &$cat) {
-                $cat['postCount'] = count($cat['posts']);
+                $cat['postCount'] = $categoryCounts[$cat['categoryId']] ?? count($cat['posts']);
             }
             unset($cat);
             usort($postsByCategory, fn($a, $b) => strcmp($a['categoryName'], $b['categoryName']));
 
             return json($res, [
-                'posts'           => $posts,
                 'postsByCategory' => $postsByCategory,
-                'totalPosts'      => count($posts),
+                'totalPosts'      => array_sum($categoryCounts),
             ]);
         } catch (Throwable $e) {
             return json($res, ['ok' => false, 'error' => 'Failed to load posts.'], 500);
@@ -513,7 +551,7 @@ class PostController {
                     p.CreatedAt,
                     p.CategoryID,
                     p.TotalScore,
-                    (SELECT COUNT(*) FROM dbo.Comments cm WHERE cm.PostID = p.PostID AND cm.IsDeleted = 0) AS commentCount,
+                    (SELECT COUNT(*) FROM dbo.Forum_Comments cm WHERE cm.PostID = p.PostID AND cm.IsDeleted = 0) AS commentCount,
                     u.FirstName,
                     u.LastName,
                     u.Avatar,
@@ -521,12 +559,12 @@ class PostController {
                     r.Name AS RoleName,
                     c.Name AS CategoryName,
                     ISNULL(pv.VoteValue, 0) AS myVote
-                FROM dbo.Pinned pin
-                INNER JOIN dbo.Posts p ON pin.PostID = p.PostID
-                LEFT JOIN dbo.Users u ON p.AuthorID = u.User_ID
-                LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
-                LEFT JOIN dbo.Categories c ON p.CategoryID = c.CategoryID
-                LEFT JOIN dbo.PostVotes pv ON p.PostID = pv.PostID AND pv.User_ID = :userId
+                FROM dbo.Forum_Pinned pin
+                INNER JOIN dbo.Forum_Posts p ON pin.PostID = p.PostID
+                LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.User_ID
+                LEFT JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
+                LEFT JOIN dbo.Forum_Categories c ON p.CategoryID = c.CategoryID
+                LEFT JOIN dbo.Forum_PostVotes pv ON p.PostID = pv.PostID AND pv.User_ID = :userId
                 WHERE p.IsDeleted = 0
                 ORDER BY pin.CreatedAt DESC, p.CreatedAt DESC
             ";
@@ -611,7 +649,7 @@ class PostController {
 
             $roleStmt = $pdo->prepare("
                 SELECT ISNULL(RoleID, 1)
-                FROM dbo.Users
+                FROM dbo.Forum_Users
                 WHERE User_ID = :uid
             ");
             $roleStmt->execute([':uid' => $userId]);
@@ -638,7 +676,7 @@ class PostController {
             }
 
             $recentPostsStmt = $pdo->prepare("
-                SELECT COUNT(*) FROM dbo.Posts
+                SELECT COUNT(*) FROM dbo.Forum_Posts
                 WHERE AuthorID = :uid AND CreatedAt >= DATEADD(HOUR, -1, SYSUTCDATETIME())
             ");
             $recentPostsStmt->execute([':uid' => $userId]);
@@ -651,7 +689,7 @@ class PostController {
 
             $lastPostStmt = $pdo->prepare("
                 SELECT TOP 1 Title, CreatedAt, CAST(Content AS NVARCHAR(MAX)) as Content
-                FROM dbo.Posts 
+                FROM dbo.Forum_Posts 
                 WHERE AuthorID = :uid AND IsDeleted = 0
                 ORDER BY CreatedAt DESC
             ");
@@ -683,18 +721,8 @@ class PostController {
             }
 
             // Category section
-            $getCategorySql = "
-                SELECT CategoryID, UsableByRoleID, 
-                    (SELECT RoleID FROM dbo.Users WHERE User_ID = :userId) as UserRole
-                FROM dbo.Categories 
-                WHERE CategoryID = :catId
-            ";
-
-            $catStmt = $pdo->prepare($getCategorySql);
-            $catStmt->execute([
-                ':catId'  => $categoryIdIn,
-                ':userId' => $userId
-            ]);
+            $catStmt = $pdo->prepare("SELECT CategoryID, UsableByRoleID FROM dbo.Forum_Categories WHERE CategoryID = :catId");
+            $catStmt->execute([':catId' => $categoryIdIn]);
             $categoryData = $catStmt->fetch(PDO::FETCH_ASSOC);
 
             if (!$categoryData) {
@@ -703,8 +731,7 @@ class PostController {
             }
 
             // Check if user has permission to use category
-            $userRole = (int)($categoryData['UserRole'] ?? 1);
-            if ($userRole < (int)$categoryData['UsableByRoleID']) {
+            if ($currentRoleId < (int)$categoryData['UsableByRoleID']) {
                 $pdo->rollBack();
                 return json($res, ['ok' => false, 'error' => 'Permission denied for this category.'], 403);
             }
@@ -713,7 +740,7 @@ class PostController {
 
             // Store post information section
             $storePost = "
-                INSERT INTO dbo.Posts (Title, CategoryID, AuthorID, Content)
+                INSERT INTO dbo.Forum_Posts (Title, CategoryID, AuthorID, Content)
                 OUTPUT INSERTED.PostID, INSERTED.CreatedAt
                 VALUES (:title, :categoryId, :authorId, :content)
             ";
@@ -733,9 +760,9 @@ class PostController {
                 $placeholders = implode(',', array_fill(0, count($tagsIn), '?'));
 
                 $checkTagsSql = "
-                    SELECT TagID FROM dbo.Tags 
+                    SELECT TagID FROM dbo.Forum_Tags 
                     WHERE TagID IN ($placeholders)
-                    AND UsableByRoleID <= ISNULL((SELECT RoleID FROM dbo.Users WHERE User_ID = ?), 1)
+                    AND UsableByRoleID <= ISNULL((SELECT RoleID FROM dbo.Forum_Users WHERE User_ID = ?), 1)
                 ";
 
                 $checkStmt = $pdo->prepare($checkTagsSql);
@@ -743,7 +770,7 @@ class PostController {
                 $validTagIds = $checkStmt->fetchAll(PDO::FETCH_COLUMN, 0);
 
                 if (!empty($validTagIds)) {
-                    $insTagSql = "INSERT INTO dbo.PostTags (PostID, TagID) VALUES (:pid, :tid)";
+                    $insTagSql = "INSERT INTO dbo.Forum_PostTags (PostID, TagID) VALUES (:pid, :tid)";
                     $insTagStmt = $pdo->prepare($insTagSql);
                     foreach ($validTagIds as $tid) {
                         $insTagStmt->execute([':pid' => $postId, ':tid' => (int)$tid]);
@@ -790,13 +817,13 @@ class PostController {
 
             $val = ($action === 'up') ? 1 : (($action === 'down') ? -1 : 0);
 
-            $prevStmt = $pdo->prepare("SELECT VoteValue FROM dbo.PostVotes WHERE PostID = ? AND User_ID = ?");
+            $prevStmt = $pdo->prepare("SELECT VoteValue FROM dbo.Forum_PostVotes WHERE PostID = ? AND User_ID = ?");
             $prevStmt->execute([$postId, $userId]);
             $previousVote = $prevStmt->fetchColumn();
             $previousVote = ($previousVote === false) ? 0 : (int)$previousVote;
 
             $pdo->prepare("
-                MERGE dbo.PostVotes AS target
+                MERGE dbo.Forum_PostVotes AS target
                 USING (SELECT ? AS PostID, ? AS User_ID, ? AS VoteValue) AS source
                     ON target.PostID = source.PostID AND target.User_ID = source.User_ID
                 WHEN MATCHED AND source.VoteValue = 0 THEN DELETE
@@ -807,28 +834,20 @@ class PostController {
 
             if ($val === 1 && $previousVote !== 1) {
                 $ownerStmt = $pdo->prepare("
-                    SELECT p.AuthorID,
-                        ISNULL(u.PushNotificationsEnabled, 1) AS PushNotificationsEnabled,
-                        ISNULL(u.PostLikeNotificationsEnabled, 1) AS PostLikeNotificationsEnabled
-                    FROM dbo.Posts p
-                    JOIN dbo.Users u ON u.User_ID = p.AuthorID
-                    WHERE p.PostID = :postId
+                    SELECT AuthorID FROM dbo.Forum_Posts WHERE PostID = :postId
                 ");
                 $ownerStmt->execute([':postId' => $postId]);
                 $owner = $ownerStmt->fetch(PDO::FETCH_ASSOC);
 
                 if ($owner) {
                     $postOwnerId = (int)($owner['AuthorID'] ?? 0);
-                    $pushEnabled = (int)($owner['PushNotificationsEnabled'] ?? 1) === 1;
-                    $likesEnabled = (int)($owner['PostLikeNotificationsEnabled'] ?? 1) === 1;
-
-                    if ($postOwnerId > 0 && $postOwnerId !== $userId && $pushEnabled && $likesEnabled) {
+                    if ($postOwnerId > 0 && $postOwnerId !== $userId) {
                         createNotification($pdo, $postOwnerId, $postId, 'postLike');
                     }
                 }
             }
 
-            $stmt = $pdo->prepare("SELECT TotalScore FROM dbo.Posts WHERE PostID = ?");
+            $stmt = $pdo->prepare("SELECT TotalScore FROM dbo.Forum_Posts WHERE PostID = ?");
             $stmt->execute([$postId]);
             $score = (int)$stmt->fetchColumn();
 
@@ -863,8 +882,8 @@ class PostController {
 
             $roleStmt = $pdo->prepare("
                 SELECT ISNULL(r.Name, '') AS RoleName
-                FROM dbo.Users u
-                LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
+                FROM dbo.Forum_Users u
+                LEFT JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
                 WHERE u.User_ID = :uid
             ");
             $roleStmt->execute([':uid' => $userId]);
@@ -875,8 +894,8 @@ class PostController {
             }
 
             $postStmt = $pdo->prepare("
-                SELECT p.PostID, p.IsDeleted
-                FROM dbo.Posts p
+                SELECT p.PostID, p.CategoryID, p.IsDeleted
+                FROM dbo.Forum_Posts p
                 WHERE p.PostID = :pid
             ");
             $postStmt->execute([':pid' => $postId]);
@@ -886,21 +905,28 @@ class PostController {
                 return json($res, ['ok' => false, 'error' => 'Post not found.'], 404);
             }
 
-            $checkStmt = $pdo->prepare("SELECT 1 FROM dbo.Pinned WHERE PostID = :pid");
+            $checkStmt = $pdo->prepare("SELECT 1 FROM dbo.Forum_Pinned WHERE PostID = :pid");
             $checkStmt->execute([':pid' => $postId]);
             $alreadyPinned = (bool)$checkStmt->fetchColumn();
 
             if ($alreadyPinned) {
-                $deleteStmt = $pdo->prepare("DELETE FROM dbo.Pinned WHERE PostID = :pid");
+                $deleteStmt = $pdo->prepare("DELETE FROM dbo.Forum_Pinned WHERE PostID = :pid");
                 $deleteStmt->execute([':pid' => $postId]);
 
-                return json($res, [
-                    'ok' => true,
-                    'isPinned' => false
-                ]);
+                return json($res, ['ok' => true, 'isPinned' => false]);
             }
 
-            $insertStmt = $pdo->prepare("INSERT INTO dbo.Pinned (PostID) VALUES (:pid)");
+            $limitStmt = $pdo->prepare("
+                SELECT COUNT(*) FROM dbo.Forum_Pinned pin
+                JOIN dbo.Forum_Posts p ON p.PostID = pin.PostID
+                WHERE p.CategoryID = :categoryId
+            ");
+            $limitStmt->execute([':categoryId' => $post['CategoryID']]);
+            if ((int)$limitStmt->fetchColumn() >= 2) {
+                return json($res, ['ok' => false, 'error' => 'Maximum of 2 pinned posts per category reached.'], 400);
+            }
+
+            $insertStmt = $pdo->prepare("INSERT INTO dbo.Forum_Pinned (PostID) VALUES (:pid)");
             $insertStmt->execute([':pid' => $postId]);
 
             return json($res, [
@@ -909,63 +935,6 @@ class PostController {
             ]);
         } catch (Throwable $e) {
             return json($res, ['ok' => false, 'error' => 'Failed to update pin.'], 500);
-        }
-
-    }
-
-    public function softDeletePost(Request $req, Response $res, array $args): Response
-    {
-        try {
-            $userId = (int)$req->getAttribute("user_id");
-            if (!$userId) {
-                return json($res, ['ok' => false, 'error' => 'Not Authenticated'], 401);
-            }
-
-            $pdo = ($this->makePdo)();
-
-            if ($termsRes = \Forum\Helpers\requireTermsAccepted($req, $res, $pdo)) {
-                return $termsRes;
-            }
-
-            $postId = (int)$args['id'];
-
-            $ownerStmt = $pdo->prepare("SELECT AuthorID FROM dbo.Posts WHERE PostID = :pid AND IsDeleted = 0");
-            $ownerStmt->execute([':pid' => $postId]);
-            $authorId = (int)$ownerStmt->fetchColumn();
-
-            if (!$authorId) {
-                return json($res, ['ok' => false, 'error' => 'Post not found or already deleted'], 404);
-            }
-
-            if ($authorId !== $userId) {
-                return json($res, ['ok' => false, 'error' => 'Forbidden'], 403);
-            }
-
-            $pdo->beginTransaction();
-
-            $stmt = $pdo->prepare("
-                UPDATE dbo.Posts
-                SET IsDeleted = 1, DeletedAt = SYSUTCDATETIME()
-                WHERE PostID = :pid AND IsDeleted = 0
-            ");
-            $stmt->execute([':pid' => $postId]);
-
-            if ($stmt->rowCount() === 0) {
-                $pdo->rollBack();
-                return json($res, ['ok' => false, 'error' => 'Post not found or already deleted'], 404);
-            }
-
-            softDeleteCommentsForPost($pdo, $postId);
-            resolveReportsForPost($pdo, $postId, (int)$userId);
-
-            $pdo->commit();
-
-            return json($res, ['ok' => true]);
-        } catch (Throwable $e) {
-            if (isset($pdo) && $pdo->inTransaction()) {
-                $pdo->rollBack();
-            }
-            return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
         }
     }
 
@@ -993,20 +962,20 @@ class PostController {
 
             $pdo->beginTransaction();
 
-            $delStmt = $pdo->prepare("UPDATE dbo.Posts SET IsDeleted = 1, UpdatedAt = SYSUTCDATETIME(), DeletedAt = SYSUTCDATETIME() WHERE PostID = :id AND IsDeleted = 0");
+            $delStmt = $pdo->prepare("UPDATE dbo.Forum_Posts SET IsDeleted = 1, UpdatedAt = SYSUTCDATETIME(), DeletedAt = SYSUTCDATETIME() WHERE PostID = :id AND IsDeleted = 0");
             $delStmt->execute(['id' => $postId]);
 
             if ($delStmt->rowCount() === 0) {
                 $pdo->rollBack();
                 return json($res, ['ok' => false, 'error' => 'Failed to delete post.'], 500);
             }
-            
+
             softDeleteCommentsForPost($pdo, $postId);
             resolveReportsForPost($pdo, $postId, (int)$userId);
 
             $pdo->commit();
 
-            $outStmt = $pdo->prepare("SELECT IsDeleted, DeletedAt, UpdatedAt FROM dbo.Posts WHERE PostID = :id");
+            $outStmt = $pdo->prepare("SELECT IsDeleted, DeletedAt, UpdatedAt FROM dbo.Forum_Posts WHERE PostID = :id");
             $outStmt->execute(['id' => $postId]);
             $result = $outStmt->fetch(PDO::FETCH_ASSOC);
 
@@ -1062,7 +1031,7 @@ class PostController {
             }
             $userRoleId = $access['userRoleId'];
 
-            $catStmt = $pdo->prepare("SELECT CategoryID, UsableByRoleID FROM dbo.Categories WHERE CategoryID = :catId");
+            $catStmt = $pdo->prepare("SELECT CategoryID, UsableByRoleID FROM dbo.Forum_Categories WHERE CategoryID = :catId");
             $catStmt->execute(['catId' => $categoryIdIn]);
             $categoryData = $catStmt->fetch(PDO::FETCH_ASSOC);
 
@@ -1076,7 +1045,7 @@ class PostController {
             $pdo->beginTransaction();
 
             $updatePostSql = $pdo->prepare("
-                UPDATE dbo.Posts 
+                UPDATE dbo.Forum_Posts 
                 SET Title = :title, Content = :content, CategoryID = :categoryId, UpdatedAt = SYSUTCDATETIME()
                 WHERE PostID = :postId AND IsDeleted = 0
             ");
@@ -1093,13 +1062,13 @@ class PostController {
                 return json($res, ['ok' => false, 'error' => 'Failed to update post.'], 500);
             }
 
-            $pdo->prepare("DELETE FROM dbo.PostTags WHERE PostID = :postId")->execute(['postId' => $postId]);
+            $pdo->prepare("DELETE FROM dbo.Forum_PostTags WHERE PostID = :postId")->execute(['postId' => $postId]);
 
             if (!empty($tagsIn)) {
                 $placeholders = implode(',', array_fill(0, count($tagsIn), '?'));
 
                 $checkTagsSql = "
-                    SELECT TagID FROM dbo.Tags 
+                    SELECT TagID FROM dbo.Forum_Tags 
                     WHERE TagID IN ($placeholders)
                     AND UsableByRoleID <= ?
                 ";
@@ -1109,7 +1078,7 @@ class PostController {
                 $validTagIds = $checkStmt->fetchAll(PDO::FETCH_COLUMN, 0);
 
                 if (!empty($validTagIds)) {
-                    $insTagSql = "INSERT INTO dbo.PostTags (PostID, TagID) VALUES (:pid, :tid)";
+                    $insTagSql = "INSERT INTO dbo.Forum_PostTags (PostID, TagID) VALUES (:pid, :tid)";
                     $insTagStmt = $pdo->prepare($insTagSql);
                     foreach ($validTagIds as $tid) {
                         $insTagStmt->execute([':pid' => $postId, ':tid' => (int)$tid]);
@@ -1122,8 +1091,8 @@ class PostController {
             $outStmt = $pdo->prepare("
                 SELECT p.PostID, p.Title, p.Content, p.CreatedAt, p.CategoryID, p.UpdatedAt,
                     c.Name AS CategoryName
-                FROM dbo.Posts p
-                LEFT JOIN dbo.Categories c ON c.CategoryID = p.CategoryID
+                FROM dbo.Forum_Posts p
+                LEFT JOIN dbo.Forum_Categories c ON c.CategoryID = p.CategoryID
                 WHERE p.PostID = :id
             ");
 
@@ -1136,8 +1105,8 @@ class PostController {
 
             $tagOutStmt = $pdo->prepare("
                 SELECT t.Name, t.TagID 
-                FROM dbo.PostTags pt 
-                JOIN dbo.Tags t ON t.TagID = pt.TagID 
+                FROM dbo.Forum_PostTags pt 
+                JOIN dbo.Forum_Tags t ON t.TagID = pt.TagID 
                 WHERE pt.PostID = :id
                 ORDER BY t.Name ASC
             ");
@@ -1166,5 +1135,4 @@ class PostController {
             return json($res, ['ok' => false, 'error' => 'Failed to update post.'], 500);
         }
     }
-
 }

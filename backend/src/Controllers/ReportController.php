@@ -26,7 +26,7 @@ class ReportController
         }
 
         $pdo = ($this->makePdo)();
-        $roleStmt = $pdo->prepare("SELECT r.Name FROM dbo.Users u LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID WHERE u.User_ID = :uid");
+        $roleStmt = $pdo->prepare("SELECT r.Name FROM dbo.Forum_Users u LEFT JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID WHERE u.User_ID = :uid");
         $roleStmt->execute([':uid' => $userId]);
         $role = $roleStmt->fetchColumn();
 
@@ -60,13 +60,13 @@ class ReportController
                     rt.TagName AS Reason,
                     r.ReportUserID AS ReporterId,
                     CONCAT(ur.FirstName, ' ', ur.LastName) AS ReporterName
-                FROM dbo.Reports r
-                INNER JOIN dbo.ReportTags rt ON r.ReportTagID = rt.ReportTagID
-                LEFT JOIN dbo.Posts p ON r.PostID = p.PostID
-                LEFT JOIN dbo.Comments c ON r.CommentID = c.CommentId
-                LEFT JOIN dbo.Users up ON up.User_ID = p.AuthorID
-                LEFT JOIN dbo.Users uc ON uc.User_ID = c.UserId
-                LEFT JOIN dbo.Users ur ON ur.User_ID = r.ReportUserID
+                FROM dbo.Forum_Reports r
+                INNER JOIN dbo.Forum_ReportTags rt ON r.ReportTagID = rt.ReportTagID
+                LEFT JOIN dbo.Forum_Posts p ON r.PostID = p.PostID
+                LEFT JOIN dbo.Forum_Comments c ON r.CommentID = c.CommentId
+                LEFT JOIN dbo.Forum_Users up ON up.User_ID = p.AuthorID
+                LEFT JOIN dbo.Forum_Users uc ON uc.User_ID = c.UserId
+                LEFT JOIN dbo.Forum_Users ur ON ur.User_ID = r.ReportUserID
                 WHERE r.Resolved = 0
                 ORDER BY r.CreatedAt DESC
             ";
@@ -112,7 +112,7 @@ class ReportController
             $userId = $auth['userId'];
             $reportId = (int)$args['id'];
 
-            $stmt = $pdo->prepare("UPDATE dbo.Reports SET Resolved = 1, ResolvedBy = :uid, ResolvedAt = SYSUTCDATETIME() WHERE ReportID = :id AND Resolved = 0");
+            $stmt = $pdo->prepare("UPDATE dbo.Forum_Reports SET Resolved = 1, ResolvedBy = :uid, ResolvedAt = SYSUTCDATETIME() WHERE ReportID = :id AND Resolved = 0");
             $stmt->execute([':uid' => $userId, ':id' => $reportId]);
 
             if ($stmt->rowCount() === 0) {
@@ -134,7 +134,7 @@ class ReportController
 
             $pdo = ($this->makePdo)();
 
-            $sql = "SELECT ReportTagID, TagName FROM dbo.ReportTags
+            $sql = "SELECT ReportTagID, TagName FROM dbo.Forum_ReportTags
                     ORDER BY CASE WHEN TagName = 'Other' THEN 1 ELSE 0 END, TagName ASC";
 
             $tags = $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);
@@ -166,7 +166,7 @@ class ReportController
 
             $pdo = ($this->makePdo)();
 
-            $checkSql = "SELECT TOP 1 ReportID FROM dbo.Reports
+            $checkSql = "SELECT TOP 1 ReportID FROM dbo.Forum_Reports
                          WHERE ReportUserID = :userId
                          AND COALESCE(PostID, 0) = :postId
                          AND COALESCE(CommentID, 0) = :commentId
@@ -183,7 +183,7 @@ class ReportController
                 return json($res, ['ok' => false, 'error' => "You have already reported this $type."], 400);
             }
 
-            $sql = "INSERT INTO dbo.Reports (ReportUserID, PostID, CommentID, ReportTagID, CreatedAt, Resolved)
+            $sql = "INSERT INTO dbo.Forum_Reports (ReportUserID, PostID, CommentID, ReportTagID, CreatedAt, Resolved)
                     VALUES (:userId, :postId, :commentId, :tagId, SYSUTCDATETIME(), 0)";
 
             $stmt = $pdo->prepare($sql);

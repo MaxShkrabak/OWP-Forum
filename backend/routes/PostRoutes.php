@@ -18,7 +18,5 @@ $app->get('/api/tags/filter',              [$postController, 'getTagsFilter']);
 $app->post('/api/create-post',             [$postController, 'createPost']);
 $app->post('/api/posts/{id}/vote',         [$postController, 'voteOnPost']);
 $app->post('/api/posts/{id}/pin',          [$postController, 'pinPost']);
-$app->patch('/api/posts/{id}/soft-delete', [$postController, 'softDeletePost']);
-
 $app->delete('/api/posts/{id}',            [$postController, 'delPost']);
 $app->put('/api/posts/{id}',               [$postController, 'editPost']);

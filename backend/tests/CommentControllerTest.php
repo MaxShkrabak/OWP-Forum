@@ -112,21 +112,25 @@ final class CommentControllerTest extends TestCase
             'ReplyCount' => 0
         ]);
 
+        $postAuthorStmt = $this->createStub(\PDOStatement::class);
+        $postAuthorStmt->method('fetch')->willReturn(false);
+
         $this->pdo->expects($this->once())->method('beginTransaction')->willReturn(true);
         $this->pdo->expects($this->once())->method('commit')->willReturn(true);
         $this->pdo->expects($this->never())->method('rollBack');
 
         $this->pdo->method('prepare')->willReturnCallback(function (string $sql) use (
-            $banStmt, 
-            $lockStmt, 
-            $recentCommentsStmt, 
-            $lastCommentTimeStmt, 
-            $insertStmt, 
-            $selectStmt, 
-            $postOwnerStmt, 
-            $updateStmt
+            $banStmt,
+            $lockStmt,
+            $recentCommentsStmt,
+            $lastCommentTimeStmt,
+            $insertStmt,
+            $selectStmt,
+            $postOwnerStmt,
+            $updateStmt,
+            $postAuthorStmt
             ) {
-            if (str_contains($sql, 'INSERT INTO dbo.Comments')) {
+            if (str_contains($sql, 'INSERT INTO dbo.Forum_Comments')) {
                 return $insertStmt;
             }
             if (str_contains($sql, 'sp_getapplock')) {
@@ -138,16 +142,19 @@ final class CommentControllerTest extends TestCase
             if (str_contains($sql, 'SELECT TOP 1 CreatedAt')) {
                 return $lastCommentTimeStmt;
             }
+            if (str_contains($sql, 'SELECT AuthorID FROM dbo.Forum_Posts')) {
+                return $postAuthorStmt;
+            }
             if (str_contains($sql, 'SELECT p.PostID, p.Title, p.AuthorID')) {
                 return $postOwnerStmt;
             }
             if (str_contains($sql, 'SELECT c.CommentId, c.PostId')) {
                 return $selectStmt;
             }
-            if (str_contains($sql, 'UPDATE dbo.Posts SET LastCommentNotificationSentAt')) {
+            if (str_contains($sql, 'UPDATE dbo.Forum_Posts SET LastCommentNotificationSentAt')) {
                 return $updateStmt;
             }
-            if (str_contains($sql, 'dbo.Users')) {
+            if (str_contains($sql, 'dbo.Forum_Users')) {
                 return $banStmt;
             }
             throw new \Exception("Unexpected SQL: $sql");
@@ -182,7 +189,7 @@ final class CommentControllerTest extends TestCase
         $banStmt->method('fetch')->willReturn(['IsBanned' => 0]);
 
         $this->pdo->method('prepare')->willReturnCallback(function (string $sql) use ($banStmt) {
-            if (str_contains($sql, 'dbo.Users')) return $banStmt;
+            if (str_contains($sql, 'dbo.Forum_Users')) return $banStmt;
             throw new \Exception("Unexpected SQL: $sql");
         });
 
@@ -293,7 +300,7 @@ final class CommentControllerTest extends TestCase
         $this->pdo->expects($this->exactly(4))
             ->method('prepare')
             ->willReturnCallback(function ($sql) use ($banStmt, $deleteStmt, $insertStmt, $scoreStmt) {
-                if (str_contains($sql, 'dbo.Users')) return $banStmt;
+                if (str_contains($sql, 'dbo.Forum_Users')) return $banStmt;
                 if (str_contains($sql, 'DELETE FROM')) return $deleteStmt;
                 if (str_contains($sql, 'INSERT INTO')) return $insertStmt;
                 if (str_contains($sql, 'SELECT TotalScore')) return $scoreStmt;
@@ -410,21 +417,25 @@ final class CommentControllerTest extends TestCase
             'ReplyCount' => 0
         ]);
 
+        $postAuthorStmt = $this->createStub(\PDOStatement::class);
+        $postAuthorStmt->method('fetch')->willReturn(false);
+
         $this->pdo->expects($this->once())->method('beginTransaction')->willReturn(true);
         $this->pdo->expects($this->once())->method('commit')->willReturn(true);
         $this->pdo->expects($this->never())->method('rollBack');
 
         $this->pdo->method('prepare')->willReturnCallback(
             function (string $sql) use (
-                $banStmt, 
-                $lockStmt, 
-                $recentCommentsStmt, 
-                $lastCommentTimeStmt, 
-                $insertStmt, 
-                $postOwnerStmt, 
-                $selectStmt
+                $banStmt,
+                $lockStmt,
+                $recentCommentsStmt,
+                $lastCommentTimeStmt,
+                $insertStmt,
+                $postOwnerStmt,
+                $selectStmt,
+                $postAuthorStmt
                 ) {
-                if (str_contains($sql, 'INSERT INTO dbo.Comments')) {
+                if (str_contains($sql, 'INSERT INTO dbo.Forum_Comments')) {
                     return $insertStmt;
                 }
                 if (str_contains($sql, 'sp_getapplock')) {
@@ -436,13 +447,16 @@ final class CommentControllerTest extends TestCase
                 if (str_contains($sql, 'SELECT TOP 1 CreatedAt')) {
                     return $lastCommentTimeStmt;
                 }
+                if (str_contains($sql, 'SELECT AuthorID FROM dbo.Forum_Posts')) {
+                    return $postAuthorStmt;
+                }
                 if (str_contains($sql, 'SELECT p.PostID, p.Title, p.AuthorID')) {
                     return $postOwnerStmt;
                 }
                 if (str_contains($sql, 'SELECT c.CommentId, c.PostId')) {
                     return $selectStmt;
                 }
-                if (str_contains($sql, 'dbo.Users')) {
+                if (str_contains($sql, 'dbo.Forum_Users')) {
                     return $banStmt;
                 }
 
@@ -536,20 +550,24 @@ final class CommentControllerTest extends TestCase
             'ReplyCount' => 0
         ]);
 
+        $postAuthorStmt = $this->createStub(\PDOStatement::class);
+        $postAuthorStmt->method('fetch')->willReturn(false);
+
         $this->pdo->expects($this->once())->method('beginTransaction')->willReturn(true);
         $this->pdo->expects($this->once())->method('commit')->willReturn(true);
         $this->pdo->expects($this->never())->method('rollBack');
 
         $this->pdo->method('prepare')->willReturnCallback(
-            function (string $sql) use ($banStmt, 
-            $lockStmt, 
-            $recentCommentsStmt, 
-            $lastCommentTimeStmt, 
-            $insertStmt, 
-            $postOwnerStmt, 
-            $selectStmt
+            function (string $sql) use ($banStmt,
+            $lockStmt,
+            $recentCommentsStmt,
+            $lastCommentTimeStmt,
+            $insertStmt,
+            $postOwnerStmt,
+            $selectStmt,
+            $postAuthorStmt
             ) {
-                if (str_contains($sql, 'INSERT INTO dbo.Comments')) {
+                if (str_contains($sql, 'INSERT INTO dbo.Forum_Comments')) {
                     return $insertStmt;
                 }
                 if (str_contains($sql, 'sp_getapplock')) {
@@ -561,13 +579,16 @@ final class CommentControllerTest extends TestCase
                 if (str_contains($sql, 'SELECT TOP 1 CreatedAt')) {
                     return $lastCommentTimeStmt;
                 }
+                if (str_contains($sql, 'SELECT AuthorID FROM dbo.Forum_Posts')) {
+                    return $postAuthorStmt;
+                }
                 if (str_contains($sql, 'SELECT p.PostID, p.Title, p.AuthorID')) {
                     return $postOwnerStmt;
                 }
                 if (str_contains($sql, 'SELECT c.CommentId, c.PostId')) {
                     return $selectStmt;
                 }
-                if (str_contains($sql, 'dbo.Users')) {
+                if (str_contains($sql, 'dbo.Forum_Users')) {
                     return $banStmt;
                 }
 
@@ -661,21 +682,25 @@ final class CommentControllerTest extends TestCase
             'ReplyCount' => 0
         ]);
 
+        $postAuthorStmt = $this->createStub(\PDOStatement::class);
+        $postAuthorStmt->method('fetch')->willReturn(false);
+
         $this->pdo->expects($this->once())->method('beginTransaction')->willReturn(true);
         $this->pdo->expects($this->once())->method('commit')->willReturn(true);
         $this->pdo->expects($this->never())->method('rollBack');
 
         $this->pdo->method('prepare')->willReturnCallback(
             function (string $sql) use (
-                $banStmt, 
-                $lockStmt, 
-                $recentCommentsStmt, 
-                $lastCommentTimeStmt, 
-                $insertStmt, 
-                $postOwnerStmt, 
-                $selectStmt
+                $banStmt,
+                $lockStmt,
+                $recentCommentsStmt,
+                $lastCommentTimeStmt,
+                $insertStmt,
+                $postOwnerStmt,
+                $selectStmt,
+                $postAuthorStmt
                 ) {
-                if (str_contains($sql, 'INSERT INTO dbo.Comments')) {
+                if (str_contains($sql, 'INSERT INTO dbo.Forum_Comments')) {
                     return $insertStmt;
                 }
                 if (str_contains($sql, 'sp_getapplock')) {
@@ -687,13 +712,16 @@ final class CommentControllerTest extends TestCase
                 if (str_contains($sql, 'SELECT TOP 1 CreatedAt')) {
                     return $lastCommentTimeStmt;
                 }
+                if (str_contains($sql, 'SELECT AuthorID FROM dbo.Forum_Posts')) {
+                    return $postAuthorStmt;
+                }
                 if (str_contains($sql, 'SELECT p.PostID, p.Title, p.AuthorID')) {
                     return $postOwnerStmt;
                 }
                 if (str_contains($sql, 'SELECT c.CommentId, c.PostId')) {
                     return $selectStmt;
                 }
-                if (str_contains($sql, 'dbo.Users')) {
+                if (str_contains($sql, 'dbo.Forum_Users')) {
                     return $banStmt;
                 }
 
@@ -779,15 +807,8 @@ final class CommentControllerTest extends TestCase
             'EmailNotificationsEnabled' => 1,
         ]);
 
-        $notificationPrefsStmt = $this->createMock(PDOStatement::class);
-        $notificationPrefsStmt->expects($this->once())
-            ->method('execute')
-            ->with([':postId' => $postId]);
-        $notificationPrefsStmt->method('fetch')->willReturn([
-            'AuthorID' => $userId,
-            'PushNotificationsEnabled' => 1,
-            'PostReplyNotificationsEnabled' => 1,
-        ]);
+        $postAuthorStmt = $this->createStub(\PDOStatement::class);
+        $postAuthorStmt->method('fetch')->willReturn(false);
 
         $this->pdo->expects($this->once())->method('beginTransaction')->willReturn(true);
         $this->pdo->expects($this->once())->method('commit')->willReturn(true);
@@ -799,20 +820,20 @@ final class CommentControllerTest extends TestCase
             $insertStmt,
             $selectStmt,
             $postOwnerStmt,
-            $notificationPrefsStmt,
+            $postAuthorStmt,
             $roleName
         ) {
             if (str_contains($sql, 'SELECT LOWER(r.NAME)')) {
                 return $roleStmt;
             }
-            if (str_contains($sql, 'INSERT INTO dbo.Comments')) {
+            if (str_contains($sql, 'INSERT INTO dbo.Forum_Comments')) {
                 return $insertStmt;
             }
             if (str_contains($sql, 'SELECT c.CommentId, c.PostId')) {
                 return $selectStmt;
             }
-            if (str_contains($sql, 'PushNotificationsEnabled')) {
-                return $notificationPrefsStmt;
+            if (str_contains($sql, 'SELECT AuthorID FROM dbo.Forum_Posts')) {
+                return $postAuthorStmt;
             }
             if (str_contains($sql, 'SELECT p.PostID, p.Title, p.AuthorID')) {
                 return $postOwnerStmt;
@@ -964,7 +985,7 @@ final class CommentControllerTest extends TestCase
             if (str_contains($sql, 'SELECT TOP 1 CreatedAt')) {
                 return $lastCommentTimeStmt;
             }
-            if (str_contains($sql, 'dbo.Users')) {
+            if (str_contains($sql, 'dbo.Forum_Users')) {
                 return $banStmt;
             }
 
