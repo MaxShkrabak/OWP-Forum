@@ -449,6 +449,12 @@ const handleDeletedComment = (deletedCommentId) => {
       </div>
 
       <div class="comments-container">
+        <div v-if="!commentsTree.length && !hasMore" class="text-center">
+          <span  
+          class="no-comments-text" 
+          style="font-style: italic; opacity: 0.6;"
+          >Be the first to comment!</span>
+        </div>
         <SingleComment
           v-for="comment in commentsTree"
           :key="comment.id"

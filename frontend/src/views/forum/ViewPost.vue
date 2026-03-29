@@ -170,7 +170,7 @@ onMounted(async () => {
                 @click="copyPostUrlToClipboard"
               >
                 <i class="pi pi-share-alt" aria-hidden="true"></i>
-                <span class="share-btn-label">Share</span>
+                <span class="share-btn-label d-none d-sm-block">Share</span>
               </button>
             </div>
           </div>
