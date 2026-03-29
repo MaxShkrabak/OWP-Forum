@@ -1,10 +1,10 @@
-IF OBJECT_ID ('dbo.Comments', 'U') IS NULL
+IF OBJECT_ID ('dbo.Forum_Comments', 'U') IS NULL
 BEGIN
-    CREATE TABLE dbo.Comments (
+    CREATE TABLE dbo.Forum_Comments (
         CommentId       INT IDENTITY(1,1) PRIMARY KEY,
-        PostId          INT NOT NULL CONSTRAINT FK_Comments_Posts REFERENCES dbo.Posts(PostID),
-        UserId          INT NOT NULL CONSTRAINT FK_Comments_Users REFERENCES dbo.Users(User_ID),
-        ParentCommentId INT NULL     CONSTRAINT FK_Comments_Parent REFERENCES dbo.Comments(CommentId),
+        PostId          INT NOT NULL CONSTRAINT FK_Comments_Posts REFERENCES dbo.Forum_Posts(PostID),
+        UserId          INT NOT NULL CONSTRAINT FK_Comments_Users REFERENCES dbo.Forum_Users(User_ID),
+        ParentCommentId INT NULL     CONSTRAINT FK_Comments_Parent REFERENCES dbo.Forum_Comments(CommentId),
         Content         NVARCHAR(1000) NOT NULL,
         TotalScore      INT NOT NULL CONSTRAINT DF_Comments_TotalScore DEFAULT 0,
         CreatedAt       DATETIME2 NOT NULL CONSTRAINT DF_Comments_CreatedAt DEFAULT SYSUTCDATETIME(),
@@ -13,15 +13,15 @@ BEGIN
         DeletedAt       DATETIME2 NULL
     );
 
-    CREATE INDEX IX_Comments_PostId ON dbo.Comments(PostId);
-    CREATE INDEX IX_Comments_ParentCommentId ON dbo.Comments(ParentCommentId);
-    CREATE INDEX IX_Comments_CreatedAt ON dbo.Comments(CreatedAt DESC);
+    CREATE INDEX IX_Comments_PostId ON dbo.Forum_Comments(PostId);
+    CREATE INDEX IX_Comments_ParentCommentId ON dbo.Forum_Comments(ParentCommentId);
+    CREATE INDEX IX_Comments_CreatedAt ON dbo.Forum_Comments(CreatedAt DESC);
 END;
 GO
 
-IF OBJECT_ID ('dbo.CommentVotes', 'U') IS NULL
+IF OBJECT_ID ('dbo.Forum_CommentVotes', 'U') IS NULL
 BEGIN
-    CREATE TABLE dbo.CommentVotes (
+    CREATE TABLE dbo.Forum_CommentVotes (
         CommentId INT NOT NULL,
         UserId    INT NOT NULL,
         VoteValue SMALLINT NOT NULL,
@@ -29,21 +29,21 @@ BEGIN
 
         CONSTRAINT PK_CommentVotes PRIMARY KEY (CommentId, UserId),
         CONSTRAINT FK_CommentVotes_Comments FOREIGN KEY (CommentId)
-            REFERENCES dbo.Comments(CommentId) ON DELETE CASCADE,
+            REFERENCES dbo.Forum_Comments(CommentId) ON DELETE CASCADE,
         CONSTRAINT FK_CommentVotes_Users FOREIGN KEY (UserId)
-            REFERENCES dbo.Users(User_ID)
+            REFERENCES dbo.Forum_Users(User_ID)
     );
 
-    CREATE INDEX IX_CommentVotes_CommentId ON dbo.CommentVotes(CommentId);
+    CREATE INDEX IX_CommentVotes_CommentId ON dbo.Forum_CommentVotes(CommentId);
 END;
 GO
 
-IF OBJECT_ID('dbo.tr_CommentVotes_SyncScore','TR') IS NOT NULL
-    DROP TRIGGER dbo.tr_CommentVotes_SyncScore;
+IF OBJECT_ID('dbo.Forum_tr_CommentVotes_SyncScore','TR') IS NOT NULL
+    DROP TRIGGER dbo.Forum_tr_CommentVotes_SyncScore;
 GO
 
-CREATE TRIGGER dbo.tr_CommentVotes_SyncScore
-ON dbo.CommentVotes
+CREATE TRIGGER dbo.Forum_tr_CommentVotes_SyncScore
+ON dbo.Forum_CommentVotes
 AFTER INSERT, UPDATE, DELETE
 AS
 BEGIN
@@ -51,7 +51,7 @@ BEGIN
 
     UPDATE c
     SET TotalScore = c.TotalScore + ISNULL(ins.Diff, 0) - ISNULL(del.Diff, 0)
-    FROM dbo.Comments c
+    FROM dbo.Forum_Comments c
     LEFT JOIN (
         SELECT CommentId, SUM(VoteValue) AS Diff
         FROM inserted

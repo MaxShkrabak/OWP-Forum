@@ -25,9 +25,9 @@ $pdo = new PDO($dsn, $user, $pass, [
 // ---------- HELPERS ----------
 function ensureSchemaVersions(PDO $pdo): void {
   $sql = <<<SQL
-IF OBJECT_ID('dbo.SchemaVersions', 'U') IS NULL
+IF OBJECT_ID('dbo.Forum_SchemaVersions', 'U') IS NULL
 BEGIN
-  CREATE TABLE dbo.SchemaVersions (
+  CREATE TABLE dbo.Forum_SchemaVersions (
       Id INT IDENTITY(1,1) PRIMARY KEY,
       ScriptName NVARCHAR(255) NOT NULL UNIQUE,
       AppliedAt  DATETIME2(0) NOT NULL DEFAULT SYSDATETIME()
@@ -38,7 +38,7 @@ SQL;
 }
 
 function appliedScripts(PDO $pdo): array {
-  $rows = $pdo->query("SELECT ScriptName FROM dbo.SchemaVersions")->fetchAll(PDO::FETCH_COLUMN);
+  $rows = $pdo->query("SELECT ScriptName FROM dbo.Forum_SchemaVersions")->fetchAll(PDO::FETCH_COLUMN);
   return $rows ? array_flip($rows) : [];
 }
 
@@ -109,7 +109,7 @@ foreach ($files as $file) {
     // Per-file transaction
     $pdo->beginTransaction();
     runSqlBatches($pdo, $sql);
-    $stmt = $pdo->prepare("INSERT INTO dbo.SchemaVersions (ScriptName) VALUES (:s)");
+    $stmt = $pdo->prepare("INSERT INTO dbo.Forum_SchemaVersions (ScriptName) VALUES (:s)");
     $stmt->execute([':s' => $file]);
     $pdo->commit();
     echo "OK\n";

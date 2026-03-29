@@ -23,8 +23,8 @@ $app->get('/api/admin/me', function(Request $req, Response $res) use ($makePdo) 
 
     $sql = "
         SELECT u.User_ID as userId, u.Email as email, u.RoleID as roleId, r.Name as roleName
-        FROM dbo.Users u
-        LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
+        FROM dbo.Forum_Users u
+        LEFT JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
         WHERE u.User_ID = :uid
     ";
 
@@ -56,7 +56,7 @@ $app->get('/api/admin/users', function(Request $req, Response $res) use ($makePd
         $pdo = $makePdo();
 
         // Verify admin
-        $roleStmt = $pdo->prepare("SELECT RoleID FROM dbo.Users WHERE User_ID = :uid");
+        $roleStmt = $pdo->prepare("SELECT RoleID FROM dbo.Forum_Users WHERE User_ID = :uid");
         $roleStmt->execute([':uid' => $adminId]);
         $adminRole = (int)($roleStmt->fetchColumn() ?? 0);
 
@@ -67,7 +67,7 @@ $app->get('/api/admin/users', function(Request $req, Response $res) use ($makePd
         // Clear expired temporary bans before fetching users
         try {
             $pdo->exec("
-                UPDATE dbo.Users
+                UPDATE dbo.Forum_Users
                 SET IsBanned = 0,
                     BanType = NULL,
                     BannedUntil = NULL
@@ -111,8 +111,8 @@ $app->get('/api/admin/users', function(Request $req, Response $res) use ($makePd
                     u.User_ID as userId, u.Email as email, u.FirstName as firstName, u.LastName as lastName, u.RoleID as roleId,
                     r.Name as roleName,
                     ISNULL(u.IsBanned, 0) as isBanned, u.BanType as banType, u.BannedUntil as bannedUntil
-                FROM dbo.Users u
-                LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
+                FROM dbo.Forum_Users u
+                LEFT JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
                 $where
                 ORDER BY u.User_ID DESC
             ";
@@ -125,8 +125,8 @@ $app->get('/api/admin/users', function(Request $req, Response $res) use ($makePd
                 SELECT TOP 50
                     u.User_ID as userId, u.Email as email, u.FirstName as firstName, u.LastName as lastName, u.RoleID as roleId,
                     r.Name as roleName
-                FROM dbo.Users u
-                LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
+                FROM dbo.Forum_Users u
+                LEFT JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
                 $where
                 ORDER BY u.User_ID DESC
             ";
@@ -143,7 +143,7 @@ $app->get('/api/admin/users', function(Request $req, Response $res) use ($makePd
                 $ids = array_map(fn($u) => (int)$u['userId'], $users);
                 if (!empty($ids)) {
                     $placeholders = implode(',', array_fill(0, count($ids), '?'));
-                    $banStmt = $pdo->prepare("SELECT User_ID, ISNULL(IsBanned, 0), BanType, BannedUntil FROM dbo.Users WHERE User_ID IN ($placeholders)");
+                    $banStmt = $pdo->prepare("SELECT User_ID, ISNULL(IsBanned, 0), BanType, BannedUntil FROM dbo.Forum_Users WHERE User_ID IN ($placeholders)");
                     $banStmt->execute($ids);
                     $banMap = [];
                     while ($row = $banStmt->fetch(PDO::FETCH_NUM)) {
@@ -187,7 +187,7 @@ $app->patch('/api/admin/users/{id}/role', function(Request $req, Response $res, 
         $pdo = $makePdo();
 
         // Verify admin
-        $roleStmt = $pdo->prepare("SELECT RoleID FROM dbo.Users WHERE User_ID = :uid");
+        $roleStmt = $pdo->prepare("SELECT RoleID FROM dbo.Forum_Users WHERE User_ID = :uid");
         $roleStmt->execute([':uid' => $adminId]);
         $adminRole = (int)($roleStmt->fetchColumn() ?? 0);
 
@@ -214,7 +214,7 @@ $app->patch('/api/admin/users/{id}/role', function(Request $req, Response $res, 
 
         // Update
         $update = $pdo->prepare("
-            UPDATE dbo.Users
+            UPDATE dbo.Forum_Users
             SET RoleID = :roleId
             WHERE User_ID = :uid
         ");
@@ -241,7 +241,7 @@ $app->patch('/api/admin/users/{id}/ban', function(Request $req, Response $res, a
 
         $pdo = $makePdo();
 
-        $roleStmt = $pdo->prepare("SELECT RoleID FROM dbo.Users WHERE User_ID = :uid");
+        $roleStmt = $pdo->prepare("SELECT RoleID FROM dbo.Forum_Users WHERE User_ID = :uid");
         $roleStmt->execute([':uid' => $adminId]);
         $adminRole = (int)($roleStmt->fetchColumn() ?? 0);
 
@@ -255,7 +255,7 @@ $app->patch('/api/admin/users/{id}/ban', function(Request $req, Response $res, a
         }
 
         // Prevent banning another administrator (BB-356)
-        $targetRoleStmt = $pdo->prepare("SELECT RoleID FROM dbo.Users WHERE User_ID = :uid");
+        $targetRoleStmt = $pdo->prepare("SELECT RoleID FROM dbo.Forum_Users WHERE User_ID = :uid");
         $targetRoleStmt->execute([':uid' => $targetUserId]);
         $targetRoleId = (int)($targetRoleStmt->fetchColumn() ?? 0);
 
@@ -300,7 +300,7 @@ $app->patch('/api/admin/users/{id}/ban', function(Request $req, Response $res, a
         try {
             if ($banned) {
                 $update = $pdo->prepare("
-                    UPDATE dbo.Users
+                    UPDATE dbo.Forum_Users
                     SET IsBanned = 1, BanType = :banType, BannedUntil = :bannedUntil
                     WHERE User_ID = :uid
                 ");
@@ -311,7 +311,7 @@ $app->patch('/api/admin/users/{id}/ban', function(Request $req, Response $res, a
                 ]);
             } else {
                 $update = $pdo->prepare("
-                    UPDATE dbo.Users
+                    UPDATE dbo.Forum_Users
                     SET IsBanned = 0, BanType = NULL, BannedUntil = NULL
                     WHERE User_ID = :uid
                 ");
@@ -339,7 +339,7 @@ function requireAdmin(Request $req, Response $res, $makePdo) {
         return [json($res, ['ok' => false, 'error' => 'Not Authenticated'], 401), null];
     }
     $pdo = $makePdo();
-    $roleStmt = $pdo->prepare("SELECT RoleID FROM dbo.Users WHERE User_ID = :uid");
+    $roleStmt = $pdo->prepare("SELECT RoleID FROM dbo.Forum_Users WHERE User_ID = :uid");
     $roleStmt->execute([':uid' => $userId]);
     $role = (int)($roleStmt->fetchColumn() ?? 0);
     if ($role < 4) {
@@ -354,7 +354,7 @@ $app->get('/api/admin/categories', function (Request $req, Response $res) use ($
     if ($err !== null) return $err;
 
     try {
-        $stmt = $pdo->query("SELECT CategoryID, Name, UsableByRoleID FROM dbo.Categories ORDER BY Name ASC");
+        $stmt = $pdo->query("SELECT CategoryID, Name, UsableByRoleID FROM dbo.Forum_Categories ORDER BY Name ASC");
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
         $items = array_map(fn($r) => [
             'categoryId' => (int)$r['CategoryID'],
@@ -383,12 +383,12 @@ $app->post('/api/admin/categories', function (Request $req, Response $res) use (
     }
 
     try {
-        $check = $pdo->prepare("SELECT CategoryID FROM dbo.Categories WHERE Name = :name");
+        $check = $pdo->prepare("SELECT CategoryID FROM dbo.Forum_Categories WHERE Name = :name");
         $check->execute([':name' => $name]);
         if ($check->fetch()) {
             return json($res, ['ok' => false, 'error' => 'A category with this name already exists.'], 409);
         }
-        $pdo->prepare("INSERT INTO dbo.Categories (Name, UsableByRoleID) VALUES (:name, :rid)")
+        $pdo->prepare("INSERT INTO dbo.Forum_Categories (Name, UsableByRoleID) VALUES (:name, :rid)")
             ->execute([':name' => $name, ':rid' => $usableByRoleID]);
         $idStmt = $pdo->query("SELECT SCOPE_IDENTITY() AS id");
         $newId = (int)($idStmt->fetch(PDO::FETCH_ASSOC)['id'] ?? 0);
@@ -414,7 +414,7 @@ $app->patch('/api/admin/categories/{id}', function (Request $req, Response $res,
     }
 
     try {
-        $check = $pdo->prepare("SELECT CategoryID FROM dbo.Categories WHERE Name = :name AND CategoryID != :id");
+        $check = $pdo->prepare("SELECT CategoryID FROM dbo.Forum_Categories WHERE Name = :name AND CategoryID != :id");
         $check->execute([':name' => $name, ':id' => $id]);
         if ($check->fetch()) {
             return json($res, ['ok' => false, 'error' => 'A category with this name already exists.'], 409);
@@ -423,10 +423,10 @@ $app->patch('/api/admin/categories/{id}', function (Request $req, Response $res,
             if ($usableByRoleID < 1 || $usableByRoleID > 4) {
                 return json($res, ['ok' => false, 'error' => 'usableByRoleID must be between 1 and 4.'], 400);
             }
-            $pdo->prepare("UPDATE dbo.Categories SET Name = :name, UsableByRoleID = :rid WHERE CategoryID = :id")
+            $pdo->prepare("UPDATE dbo.Forum_Categories SET Name = :name, UsableByRoleID = :rid WHERE CategoryID = :id")
                 ->execute([':name' => $name, ':rid' => $usableByRoleID, ':id' => $id]);
         } else {
-            $pdo->prepare("UPDATE dbo.Categories SET Name = :name WHERE CategoryID = :id")
+            $pdo->prepare("UPDATE dbo.Forum_Categories SET Name = :name WHERE CategoryID = :id")
                 ->execute([':name' => $name, ':id' => $id]);
         }
         return json($res, ['ok' => true]);
@@ -445,7 +445,7 @@ $app->delete('/api/admin/categories/{id}', function (Request $req, Response $res
 
     try {
         $pdo->beginTransaction();
-        $generalStmt = $pdo->prepare("SELECT CategoryID FROM dbo.Categories WHERE Name = N'General'");
+        $generalStmt = $pdo->prepare("SELECT CategoryID FROM dbo.Forum_Categories WHERE Name = N'General'");
         $generalStmt->execute();
         $general = $generalStmt->fetch(PDO::FETCH_ASSOC);
         if (!$general) {
@@ -457,9 +457,9 @@ $app->delete('/api/admin/categories/{id}', function (Request $req, Response $res
             $pdo->rollBack();
             return json($res, ['ok' => false, 'error' => 'Cannot delete the General category.'], 400);
         }
-        $move = $pdo->prepare("UPDATE dbo.Posts SET CategoryID = :generalId WHERE CategoryID = :id");
+        $move = $pdo->prepare("UPDATE dbo.Forum_Posts SET CategoryID = :generalId WHERE CategoryID = :id");
         $move->execute([':generalId' => $generalId, ':id' => $id]);
-        $del = $pdo->prepare("DELETE FROM dbo.Categories WHERE CategoryID = :id");
+        $del = $pdo->prepare("DELETE FROM dbo.Forum_Categories WHERE CategoryID = :id");
         $del->execute([':id' => $id]);
         $pdo->commit();
         return json($res, ['ok' => true]);

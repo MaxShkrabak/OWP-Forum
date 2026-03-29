@@ -1,6 +1,6 @@
-IF OBJECT_ID('dbo.Pinned','U') IS NULL
+IF OBJECT_ID('dbo.Forum_Pinned','U') IS NULL
 BEGIN
-    CREATE TABLE dbo.Pinned
+    CREATE TABLE dbo.Forum_Pinned
     (
         PostID    INT NOT NULL
             CONSTRAINT PK_Pinned PRIMARY KEY,
@@ -8,7 +8,7 @@ BEGIN
             CONSTRAINT DF_Pinned_CreatedAt DEFAULT (SYSUTCDATETIME()),
 
         CONSTRAINT FK_Pinned_Posts FOREIGN KEY (PostID)
-            REFERENCES dbo.Posts(PostID) ON DELETE CASCADE
+            REFERENCES dbo.Forum_Posts(PostID) ON DELETE CASCADE
     );
 END;
 GO

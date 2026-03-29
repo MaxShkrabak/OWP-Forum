@@ -1,17 +1,15 @@
-
-IF COL_LENGTH('dbo.Posts', 'ViewCount') IS NULL
+IF COL_LENGTH('dbo.Forum_Posts', 'ViewCount') IS NULL
 BEGIN
-    ALTER TABLE dbo.Posts ADD ViewCount INT NOT NULL
+    ALTER TABLE dbo.Forum_Posts ADD ViewCount INT NOT NULL
         CONSTRAINT DF_Posts_ViewCount DEFAULT (0);
 END;
 GO
 
-/* Do not bump UpdatedAt when only view counts change (same pattern as TotalScore). */
-IF OBJECT_ID('dbo.tr_Posts_SetUpdatedAt','TR') IS NOT NULL
-    DROP TRIGGER dbo.tr_Posts_SetUpdatedAt;
+IF OBJECT_ID('dbo.Forum_tr_Posts_SetUpdatedAt','TR') IS NOT NULL
+    DROP TRIGGER dbo.Forum_tr_Posts_SetUpdatedAt;
 GO
-CREATE TRIGGER dbo.tr_Posts_SetUpdatedAt
-ON dbo.Posts
+CREATE TRIGGER dbo.Forum_tr_Posts_SetUpdatedAt
+ON dbo.Forum_Posts
 AFTER UPDATE
 AS
 BEGIN
@@ -30,7 +28,20 @@ BEGIN
         RETURN;
     UPDATE p
     SET    UpdatedAt = SYSUTCDATETIME()
-    FROM   dbo.Posts p
+    FROM   dbo.Forum_Posts p
     JOIN   inserted i ON i.PostID = p.PostID;
+END;
+GO
+
+IF OBJECT_ID('dbo.Forum_PostViewDedup', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.Forum_PostViewDedup (
+        PostID       INT NOT NULL,
+        UserID       INT NOT NULL,
+        LastViewedAt DATETIME2 NOT NULL,
+        CONSTRAINT PK_PostViewDedup PRIMARY KEY (PostID, UserID),
+        CONSTRAINT FK_PostViewDedup_Posts FOREIGN KEY (PostID) REFERENCES dbo.Forum_Posts(PostID),
+        CONSTRAINT FK_PostViewDedup_Users FOREIGN KEY (UserID) REFERENCES dbo.Forum_Users(User_ID)
+    );
 END;
 GO

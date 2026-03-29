@@ -15,7 +15,7 @@ $app->get('/ping', function (Request $req, Response $res) use ($makePdo) {
     try {
         $pdo = $makePdo();
 
-        $n = (int)$pdo->query("SELECT COUNT(*) FROM dbo.Users")->fetchColumn();
+        $n = (int)$pdo->query("SELECT COUNT(*) FROM dbo.Forum_Users")->fetchColumn();
 
         return json($res, ['ok' => true, 'users' => $n]);
     } catch (Throwable $e) {
@@ -30,7 +30,7 @@ $app->get('/users', function (Request $req, Response $res) use ($makePdo) {
 
         $rows = $pdo->query("
             SELECT TOP (100) User_ID, Email, FirstName, LastName, RoleID, EmailVerified, Created, LastLogin
-            FROM dbo.Users
+            FROM dbo.Forum_Users
             ORDER BY User_ID DESC
         ")->fetchAll(PDO::FETCH_ASSOC);
 

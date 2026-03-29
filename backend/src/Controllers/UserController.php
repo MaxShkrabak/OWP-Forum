@@ -38,7 +38,7 @@ final class UserController
             $pdo = ($this->makePdo)();
 
             $pdo->prepare("
-                UPDATE dbo.Users SET Avatar = :avatar WHERE User_ID = :uid
+                UPDATE dbo.Forum_Users SET Avatar = :avatar WHERE User_ID = :uid
             ")->execute([':avatar' => $avatarFilename, ':uid' => $userId]);
 
             return json($res, [
@@ -62,7 +62,7 @@ final class UserController
             $pdo = ($this->makePdo)();
             $stmt = $pdo->prepare("
                 SELECT ISNULL(EmailNotificationsEnabled, 1) as EmailNotificationsEnabled
-                FROM dbo.Users WHERE User_ID = :uid
+                FROM dbo.Forum_Users WHERE User_ID = :uid
             ");
             $stmt->execute([':uid' => $userId]);
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -102,7 +102,7 @@ final class UserController
 
             $pdo = ($this->makePdo)();
             $pdo->prepare("
-                UPDATE dbo.Users SET EmailNotificationsEnabled = :enabled WHERE User_ID = :uid
+                UPDATE dbo.Forum_Users SET EmailNotificationsEnabled = :enabled WHERE User_ID = :uid
             ")->execute([':enabled' => $emailNotifications ? 1 : 0, ':uid' => $userId]);
 
             return json($res, [
@@ -132,8 +132,8 @@ final class UserController
                     n.IsRead,
                     n.CreatedAt,
                     p.Title
-                FROM dbo.Notifications n
-                JOIN dbo.Posts p ON p.PostID = n.PostID
+                FROM dbo.Forum_Notifications n
+                JOIN dbo.Forum_Posts p ON p.PostID = n.PostID
                 WHERE n.UserID = :uid
                   AND n.IsRead = 0
                   AND p.IsDeleted = 0
@@ -195,7 +195,7 @@ final class UserController
 
             $pdo = ($this->makePdo)();
             $pdo->prepare("
-                UPDATE dbo.Users
+                UPDATE dbo.Forum_Users
                 SET termsAccepted = 1, termsAcceptedAt = GETDATE()
                 WHERE User_ID = :uid
             ")->execute([':uid' => $userId]);
@@ -209,7 +209,7 @@ final class UserController
     public function acceptTermsByUserId(PDO $pdo, int $userId): void
     {
         $pdo->prepare("
-            UPDATE dbo.Users
+            UPDATE dbo.Forum_Users
             SET termsAccepted = 1, termsAcceptedAt = GETDATE()
             WHERE User_ID = :uid
         ")->execute([':uid' => $userId]);
@@ -223,8 +223,8 @@ final class UserController
 
             $stmt = $pdo->prepare("
                 SELECT User_ID, FirstName, LastName, Avatar, Name AS RoleName
-                FROM dbo.Users u
-                LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
+                FROM dbo.Forum_Users u
+                LEFT JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
                 WHERE User_ID = :uid
             ");
             $stmt->execute([':uid' => $userId]);
@@ -254,9 +254,9 @@ final class UserController
 
             $stmt = $pdo->prepare("
                 SELECT
-                    (SELECT COUNT(*) FROM dbo.Posts WHERE AuthorID = :uid1 AND IsDeleted = 0) AS postCount,
-                    (SELECT COALESCE(SUM(pv.VoteValue), 0) FROM dbo.PostVotes pv INNER JOIN dbo.Posts p ON pv.PostID = p.PostID WHERE p.AuthorID = :uid2 AND p.IsDeleted = 0) AS voteScore,
-                    (SELECT COUNT(*) FROM dbo.Comments WHERE UserID = :uid3 AND IsDeleted = 0) AS commentCount
+                    (SELECT COUNT(*) FROM dbo.Forum_Posts WHERE AuthorID = :uid1 AND IsDeleted = 0) AS postCount,
+                    (SELECT COALESCE(SUM(pv.VoteValue), 0) FROM dbo.Forum_PostVotes pv INNER JOIN dbo.Forum_Posts p ON pv.PostID = p.PostID WHERE p.AuthorID = :uid2 AND p.IsDeleted = 0) AS voteScore,
+                    (SELECT COUNT(*) FROM dbo.Forum_Comments WHERE UserID = :uid3 AND IsDeleted = 0) AS commentCount
             ");
             $stmt->execute([':uid1' => $userId, ':uid2' => $userId, ':uid3' => $userId]);
             $row = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -293,7 +293,7 @@ final class UserController
                 default    => 'p.CreatedAt DESC',
             };
 
-            $countStmt = $pdo->prepare("SELECT COUNT(*) FROM dbo.Posts WHERE AuthorID = :uid AND IsDeleted = 0");
+            $countStmt = $pdo->prepare("SELECT COUNT(*) FROM dbo.Forum_Posts WHERE AuthorID = :uid AND IsDeleted = 0");
             $countStmt->execute([':uid' => $authorId]);
             $totalPosts = (int)$countStmt->fetchColumn();
 
@@ -303,15 +303,15 @@ final class UserController
 
             $getPostsSql = "
                 SELECT p.AuthorID, p.PostID, p.Title, p.CreatedAt, p.CategoryID, p.TotalScore,
-                       (SELECT COUNT(*) FROM dbo.Comments cm WHERE cm.PostID = p.PostID AND cm.IsDeleted = 0) AS commentCount,
+                       (SELECT COUNT(*) FROM dbo.Forum_Comments cm WHERE cm.PostID = p.PostID AND cm.IsDeleted = 0) AS commentCount,
                        u.FirstName, u.LastName, u.Avatar, u.User_ID,
                        r.Name AS RoleName, c.Name AS CategoryName,
                        CASE WHEN pin.PostID IS NOT NULL THEN 1 ELSE 0 END AS isPinned
-                FROM dbo.Posts p
-                LEFT JOIN dbo.Users u ON p.AuthorID = u.User_ID
-                LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
-                LEFT JOIN dbo.Categories c ON p.CategoryID = c.CategoryID
-                LEFT JOIN dbo.Pinned pin ON p.PostID = pin.PostID
+                FROM dbo.Forum_Posts p
+                LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.User_ID
+                LEFT JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
+                LEFT JOIN dbo.Forum_Categories c ON p.CategoryID = c.CategoryID
+                LEFT JOIN dbo.Forum_Pinned pin ON p.PostID = pin.PostID
                 WHERE p.AuthorID = :uid AND p.IsDeleted = 0
                 ORDER BY $orderBy
                 OFFSET $offset ROWS FETCH NEXT $limit ROWS ONLY
@@ -331,8 +331,8 @@ final class UserController
             $tagsByPostId = [];
             $tagStmt = $pdo->prepare("
                 SELECT pt.PostID, t.Name
-                FROM dbo.PostTags pt
-                JOIN dbo.Tags t ON t.TagID = pt.TagID
+                FROM dbo.Forum_PostTags pt
+                JOIN dbo.Forum_Tags t ON t.TagID = pt.TagID
                 WHERE pt.PostID IN ($placeholders)
                 ORDER BY t.Name ASC
             ");
@@ -420,8 +420,8 @@ final class UserController
 
             $countStmt = $pdo->prepare("
                 SELECT COUNT(*)
-                FROM dbo.PostVotes pov
-                JOIN dbo.Posts p ON p.PostID = pov.PostID
+                FROM dbo.Forum_PostVotes pov
+                JOIN dbo.Forum_Posts p ON p.PostID = pov.PostID
                 WHERE pov.User_ID = :uid AND pov.VoteValue = 1 AND p.IsDeleted = 0
             ");
             $countStmt->execute([':uid' => $profileUserId]);
@@ -433,18 +433,18 @@ final class UserController
 
             $stmt = $pdo->prepare("
                 SELECT p.PostID, p.Title, p.CreatedAt, p.CategoryID, p.TotalScore,
-                       (SELECT COUNT(*) FROM dbo.Comments cm WHERE cm.PostID = p.PostID AND cm.IsDeleted = 0) AS commentCount,
+                       (SELECT COUNT(*) FROM dbo.Forum_Comments cm WHERE cm.PostID = p.PostID AND cm.IsDeleted = 0) AS commentCount,
                        u.FirstName, u.LastName, u.Avatar, u.User_ID,
                        r.Name AS RoleName, c.Name AS CategoryName,
                        ISNULL(pv.VoteValue, 0) AS myVote,
                        CASE WHEN pin.PostID IS NOT NULL THEN 1 ELSE 0 END AS isPinned
-                FROM dbo.PostVotes pov
-                JOIN dbo.Posts p ON p.PostID = pov.PostID
-                LEFT JOIN dbo.Users u ON p.AuthorID = u.User_ID
-                LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
-                LEFT JOIN dbo.Categories c ON p.CategoryID = c.CategoryID
-                LEFT JOIN dbo.PostVotes pv ON p.PostID = pv.PostID AND pv.User_ID = :viewerId
-                LEFT JOIN dbo.Pinned pin ON p.PostID = pin.PostID
+                FROM dbo.Forum_PostVotes pov
+                JOIN dbo.Forum_Posts p ON p.PostID = pov.PostID
+                LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.User_ID
+                LEFT JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
+                LEFT JOIN dbo.Forum_Categories c ON p.CategoryID = c.CategoryID
+                LEFT JOIN dbo.Forum_PostVotes pv ON p.PostID = pv.PostID AND pv.User_ID = :viewerId
+                LEFT JOIN dbo.Forum_Pinned pin ON p.PostID = pin.PostID
                 WHERE pov.User_ID = :profileId AND pov.VoteValue = 1 AND p.IsDeleted = 0
                 ORDER BY $orderBy
                 OFFSET :offset ROWS FETCH NEXT :limit ROWS ONLY
@@ -477,8 +477,8 @@ final class UserController
             $tagsByPostId = [];
             $tagStmt = $pdo->prepare("
                 SELECT pt.PostID, t.Name
-                FROM dbo.PostTags pt
-                JOIN dbo.Tags t ON t.TagID = pt.TagID
+                FROM dbo.Forum_PostTags pt
+                JOIN dbo.Forum_Tags t ON t.TagID = pt.TagID
                 WHERE pt.PostID IN ($placeholders)
                 ORDER BY t.Name ASC
             ");

@@ -77,7 +77,7 @@ final class PostRoutesTest extends TestCase
                         return $termsStmt;
                     } elseif (
                         str_contains($sql, 'ISNULL(IsBanned, 0) AS IsBanned') &&
-                        str_contains($sql, 'FROM dbo.Users WHERE User_ID = :uid')) {
+                        str_contains($sql, 'FROM dbo.Forum_Users WHERE User_ID = :uid')) {
                         return $banStmt;
                     } elseif (
                         str_contains($sql, 'SELECT ISNULL(RoleID, 1)') &&
@@ -86,7 +86,7 @@ final class PostRoutesTest extends TestCase
                         return $roleStmt;
                     } elseif (str_contains($sql, 'sp_getapplock')) {
                         return $lockStmt;
-                    } elseif (str_contains($sql, 'SELECT COUNT(*) FROM dbo.Posts')) {
+                    } elseif (str_contains($sql, 'SELECT COUNT(*) FROM dbo.Forum_Posts')) {
                         return $recentPostsStmt;
                     }
 
@@ -200,7 +200,7 @@ final class PostRoutesTest extends TestCase
                         return $termsStmt;
                     } elseif (
                         str_contains($sql, 'ISNULL(IsBanned, 0) AS IsBanned') &&
-                        str_contains($sql, 'FROM dbo.Users WHERE User_ID = :uid')) { 
+                        str_contains($sql, 'FROM dbo.Forum_Users WHERE User_ID = :uid')) { 
                         return $banStmt;
                     } elseif (
                         str_contains($sql, 'SELECT ISNULL(RoleID, 1)') &&
@@ -209,13 +209,13 @@ final class PostRoutesTest extends TestCase
                         return $roleStmt;
                     } elseif (str_contains($sql, 'sp_getapplock')) {
                         return $lockStmt;
-                    } elseif (str_contains($sql, 'SELECT COUNT(*) FROM dbo.Posts')) {
+                    } elseif (str_contains($sql, 'SELECT COUNT(*) FROM dbo.Forum_Posts')) {
                         return $recentPostsStmt;
                     } elseif (str_contains($sql, 'SELECT TOP 1 Title, CreatedAt')) {
                         return $lastPostStmt;
                     } elseif (str_contains($sql, 'SELECT CategoryID, UsableByRoleID')) {
                         return $categoryStmt;
-                    } elseif (str_contains($sql, 'INSERT INTO dbo.Posts')) {
+                    } elseif (str_contains($sql, 'INSERT INTO dbo.Forum_Posts')) {
                         return $insertPostStmt;
                     }
 

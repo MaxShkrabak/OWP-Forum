@@ -20,7 +20,7 @@ if (!function_exists('Forum\Helpers\resolveReportsForPost')) {
     {
         // Resolve reports directly on the post
         $pdo->prepare("
-            UPDATE dbo.Reports
+            UPDATE dbo.Forum_Reports
             SET Resolved = 1,
                 ResolvedBy = :uid,
                 ResolvedAt = SYSUTCDATETIME()
@@ -30,12 +30,12 @@ if (!function_exists('Forum\Helpers\resolveReportsForPost')) {
 
         // Resolve reports for any comments/replies under that post
         $pdo->prepare("
-            UPDATE dbo.Reports
+            UPDATE dbo.Forum_Reports
             SET Resolved = 1,
                 ResolvedBy = :uid,
                 ResolvedAt = SYSUTCDATETIME()
             WHERE Resolved = 0
-              AND CommentID IN (SELECT CommentID FROM dbo.Comments WHERE PostID = :pid)
+              AND CommentID IN (SELECT CommentID FROM dbo.Forum_Comments WHERE PostID = :pid)
         ")->execute([':uid' => $resolvedByUserId, ':pid' => $postId]);
     }
 }
@@ -44,7 +44,7 @@ if (!function_exists('Forum\Helpers\softDeleteCommentsForPost')) {
     function softDeleteCommentsForPost(\PDO $pdo, int $postId): void
     {
         $pdo->prepare("
-            UPDATE dbo.Comments
+            UPDATE dbo.Forum_Comments
             SET IsDeleted = 1,
                 DeletedAt = SYSUTCDATETIME()
             WHERE PostID = :pid
@@ -86,7 +86,7 @@ if (!function_exists('Forum\Helpers\checkUserBan')) {
                 ISNULL(IsBanned, 0) AS IsBanned,
                 BanType, 
                 BannedUntil
-            FROM dbo.Users WHERE User_ID = :uid
+            FROM dbo.Forum_Users WHERE User_ID = :uid
         ");
         $stmt->execute([':uid' => $userId]);
         $user = $stmt->fetch(\PDO::FETCH_ASSOC);
@@ -114,7 +114,7 @@ if (!function_exists('Forum\Helpers\checkUserBan')) {
 
             // Clear temporary ban since it has expired
             $clearStmt = $pdo->prepare("
-                UPDATE dbo.Users
+                UPDATE dbo.Forum_Users
                 SET IsBanned = 0,
                     BanType = NULL,
                     BannedUntil = NULL
@@ -137,7 +137,7 @@ if (!function_exists('Forum\Helpers\requireTermsAccepted')) {
 
         $stmt = $pdo->prepare("
             SELECT ISNULL(termsAccepted, 0) AS termsAccepted
-            FROM dbo.Users
+            FROM dbo.Forum_Users
             WHERE User_ID = :uid
         ");
         $stmt->execute([':uid' => $userId]);
@@ -163,14 +163,14 @@ if (!function_exists('Forum\\Helpers\\createNotification')) {
             $sql = "
                 IF NOT EXISTS (
                     SELECT 1
-                    FROM dbo.Notifications
+                    FROM dbo.Forum_Notifications
                     WHERE UserID = ?
                       AND PostID = ?
                       AND [Type] = ?
                       AND IsRead = 0
                 )
                 BEGIN
-                    INSERT INTO dbo.Notifications (UserID, PostID, [Type], IsRead)
+                    INSERT INTO dbo.Forum_Notifications (UserID, PostID, [Type], IsRead)
                     VALUES (?, ?, ?, 0)
                 END
             ";
@@ -199,7 +199,7 @@ if (!function_exists('Forum\\Helpers\\markNotificationsRead')) {
 
         $placeholders = implode(',', array_fill(0, count($ids), '?'));
         $sql = "
-            UPDATE dbo.Notifications
+            UPDATE dbo.Forum_Notifications
             SET IsRead = 1
             WHERE UserID = ? AND NotificationID IN ($placeholders)
         ";

@@ -38,8 +38,8 @@ final class AuthController
                        ISNULL(u.EmailNotificationsEnabled, 1) as EmailNotificationsEnabled,
                        ISNULL(u.TermsAccepted, 0) as termsAccepted,
                        u.TermsAcceptedAt as termsAcceptedAt
-                FROM dbo.Users u
-                LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
+                FROM dbo.Forum_Users u
+                LEFT JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
                 WHERE u.User_ID = :uid
             ";
             $stmt = $pdo->prepare($sql);
@@ -102,7 +102,7 @@ final class AuthController
 
         $stmt = $pdo->prepare("
             SELECT User_ID, EmailVerified
-            FROM dbo.Users
+            FROM dbo.Forum_Users
             WHERE Email = :email
         ");
         $stmt->execute([':email' => $email]);
@@ -116,8 +116,8 @@ final class AuthController
 
         $isVerified = (int)($user['EmailVerified'] ?? 0);
         $updateSql = ($isVerified === 0)
-            ? "UPDATE dbo.Users SET EmailVerified = 1, LastLogin=SYSDATETIME() WHERE User_ID = :uid"
-            : "UPDATE dbo.Users SET LastLogin=SYSDATETIME() WHERE User_ID = :uid";
+            ? "UPDATE dbo.Forum_Users SET EmailVerified = 1, LastLogin=SYSDATETIME() WHERE User_ID = :uid"
+            : "UPDATE dbo.Forum_Users SET LastLogin=SYSDATETIME() WHERE User_ID = :uid";
 
         $pdo->prepare($updateSql)->execute([':uid' => $user['User_ID']]);
 
@@ -125,7 +125,7 @@ final class AuthController
         $tokenHash = hash_hmac('sha256', $rawToken, $_ENV['HMAC_KEY']);
 
         $pdo->prepare("
-            INSERT INTO dbo.Sessions (User_ID, Token_Hash, Expires)
+            INSERT INTO dbo.Forum_Sessions (User_ID, Token_Hash, Expires)
             VALUES (:uid, :hash, DATEADD(hour, 24, SYSDATETIME()))
         ")->execute([
             ':uid' => $user['User_ID'],
@@ -147,7 +147,7 @@ final class AuthController
 
             $pdo = ($this->makePdo)();
 
-            $check = $pdo->prepare("SELECT 1 FROM dbo.Users WHERE Email = :email");
+            $check = $pdo->prepare("SELECT 1 FROM dbo.Forum_Users WHERE Email = :email");
             $check->execute([':email' => $email]);
 
             if ($check->fetchColumn()) {
@@ -155,7 +155,7 @@ final class AuthController
             }
 
             $pdo->prepare("
-                INSERT INTO dbo.Users (Email, FirstName, LastName, RoleID, Created)
+                INSERT INTO dbo.Forum_Users (Email, FirstName, LastName, RoleID, Created)
                 VALUES (:email, :first, :last, 1, GETDATE())
             ")->execute([
                 ':email' => $email,
@@ -181,7 +181,7 @@ final class AuthController
 
             $pdo = ($this->makePdo)();
 
-            $check = $pdo->prepare("SELECT 1 FROM dbo.Users WHERE Email = :email");
+            $check = $pdo->prepare("SELECT 1 FROM dbo.Forum_Users WHERE Email = :email");
             $check->execute([':email' => $email]);
 
             $emailExists = (bool)$check->fetchColumn();
@@ -200,7 +200,7 @@ final class AuthController
         if ($rawToken) {
             $tokenHash = hash_hmac('sha256', $rawToken, $_ENV['HMAC_KEY']);
             $pdo = ($this->makePdo)();
-            $pdo->prepare("DELETE FROM dbo.Sessions WHERE Token_Hash = :hash")
+            $pdo->prepare("DELETE FROM dbo.Forum_Sessions WHERE Token_Hash = :hash")
                 ->execute([':hash' => $tokenHash]);
         }
 
