@@ -234,6 +234,7 @@ watch(
 
 // Publish / Save
 async function doPublish() {
+  let newRoute = ``;
   if (isPublishing.value) return;
   isPublishing.value = true;
   try {
@@ -255,6 +256,8 @@ async function doPublish() {
         category: form.value.category || null,
       });
 
+      newRoute = `/posts/${targetId}`;
+
     } else {
       const response = await createPost({
         title: form.value.title.trim(),
@@ -267,6 +270,8 @@ async function doPublish() {
       if (cooldownSeconds > 0) {
         emit("cooldown", cooldownSeconds);
       }
+
+      newRoute = `/posts/${response.postId}`;
     }
 
     showPublishedConfirmation.value = true;
@@ -277,7 +282,11 @@ async function doPublish() {
       form.value = { title: "", category: "", content: "", tags: [] };
 
       if (!props.isRestricted) {
-        router.push("/");
+        if(isEditMode.value) {
+          location.reload();
+        } else {
+          router.push(newRoute || "/");
+        }
       } else {
         location.reload();
       }
@@ -429,7 +438,7 @@ const primaryButtonText = computed(() => {
             <div class="footer-actions">
               <button class="cancel-btn" @click="handleCloseRequest">Cancel</button>
               <button class="publish-btn"
-                :disabled="(isRestricted ? (!form.category || !hasMetadataChanges) : !canPublish) || loading || isPublishing"
+                :disabled="(isRestricted ? (!form.category || !hasMetadataChanges) : (!canPublish || !hasUnsavedChanges)) || loading || isPublishing"
                 @click="showPublishConfirm = true">
                 {{ primaryButtonText }}
               </button>
@@ -442,7 +451,7 @@ const primaryButtonText = computed(() => {
                 {{ isMetadataMode ? "Changes Saved" : isEditMode ? "Changes Saved" : "Post Published" }}
               </p>
               <p>
-                {{ isMetadataMode ? "Refreshing details..." : "Redirecting to home..." }}
+                {{ isMetadataMode ? "Refreshing details..." : "Redirecting to the post..." }}
               </p>
             </div>
           </div>
