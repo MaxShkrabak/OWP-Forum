@@ -3,7 +3,10 @@ import CreatePostButton from "@/components/forum/CreatePostButton.vue";
 import { ref, onMounted, computed } from "vue";
 import { RouterLink } from "vue-router";
 import ForumHeader from "@/components/layout/ForumHeader.vue";
-import { fetchPosts as apiGetPosts, fetchPinnedPosts as apiGetPinnedPosts } from "@/api/posts";
+import {
+  fetchPosts as apiGetPosts,
+  fetchPinnedPosts as apiGetPinnedPosts,
+} from "@/api/posts";
 import { isLoggedIn } from "@/stores/userStore";
 import UserCard from "@/components/user/UserCard.vue";
 import ViewReportsButton from "@/components/admin/ViewReportsButton.vue";
@@ -32,7 +35,7 @@ async function fetchPosts() {
   error.value = null;
   try {
     const [postsData, pinnedData] = await Promise.all([
-      apiGetPosts({ sort: sort.value }),
+      apiGetPosts({ sort: sort.value, limit: INITIAL_LIMIT }),
       apiGetPinnedPosts(),
     ]);
 
@@ -74,7 +77,10 @@ async function handlePostRefresh(payload = null) {
   await fetchPosts();
 
   if (payload?.pinMessage) {
-    showGlobalPinMessage(payload.pinMessage, payload.pinMessageType || "success");
+    showGlobalPinMessage(
+      payload.pinMessage,
+      payload.pinMessageType || "success",
+    );
   }
 }
 
@@ -100,7 +106,6 @@ function postMatchesGeneralSearch(post, categoryName, q) {
     tags.some((t) => normalize(t).includes(nq))
   );
 }
-
 
 const filteredCategories = computed(() => {
   const q = normalize(searchQuery.value);
@@ -133,17 +138,19 @@ const filteredCategories = computed(() => {
         .filter((p) => postMatchesGeneralSearch(p, cat.categoryName, q));
 
       const pinnedIds = new Set(
-        pinnedForCategory.map((p) => Number(p.PostID ?? p.postId))
+        pinnedForCategory.map((p) => Number(p.PostID ?? p.postId)),
       );
 
       const homepagePosts = normalizedCategoryPosts
         .filter((p) => !pinnedIds.has(Number(p.PostID ?? p.postId)))
-        .slice(0, INITIAL_LIMIT)
         .filter((p) => postMatchesGeneralSearch(p, cat.categoryName, q));
 
       return {
         ...cat,
-        _homepagePosts: [...pinnedForCategory, ...homepagePosts],
+        _homepagePosts: [...pinnedForCategory, ...homepagePosts].slice(
+          0,
+          INITIAL_LIMIT,
+        ),
       };
     })
     .filter((cat) => {
@@ -198,10 +205,20 @@ onMounted(async () => {
               <ViewReportsButton />
             </div>
 
-            <div class="card border-0 shadow-sm rounded-3 mt-4 d-none d-lg-block overflow-hidden">
-              <div class="filter-header px-3 py-2 d-flex justify-content-between align-items-center">
-                <span class="fw-bold small text-uppercase tracking-wider">Categories</span>
-                <button v-if="selectedCategories.length > 0" @click="selectedCategories = []" class="clear-btn">
+            <div
+              class="card border-0 shadow-sm rounded-3 mt-4 d-none d-lg-block overflow-hidden"
+            >
+              <div
+                class="filter-header px-3 py-2 d-flex justify-content-between align-items-center"
+              >
+                <span class="fw-bold small text-uppercase tracking-wider"
+                  >Categories</span
+                >
+                <button
+                  v-if="selectedCategories.length > 0"
+                  @click="selectedCategories = []"
+                  class="clear-btn"
+                >
                   Clear
                 </button>
               </div>
@@ -210,7 +227,11 @@ onMounted(async () => {
                   v-for="cat in postsByCategory"
                   :key="cat.categoryId"
                   class="list-group-item list-group-item-action d-flex align-items-center justify-content-between border-0 py-2 px-3 clickable-label"
-                  :class="{ 'active-category': selectedCategories.includes(cat.categoryId) }"
+                  :class="{
+                    'active-category': selectedCategories.includes(
+                      cat.categoryId,
+                    ),
+                  }"
                 >
                   <div class="d-flex align-items-center">
                     <input
@@ -219,10 +240,18 @@ onMounted(async () => {
                       :value="cat.categoryId"
                       v-model="selectedCategories"
                     />
-                    <i :class="getCategoryIcon(cat.categoryName)" class="me-2 text-muted"></i>
-                    <span class="category-name-text">{{ cat.categoryName }}</span>
+                    <i
+                      :class="getCategoryIcon(cat.categoryName)"
+                      class="me-2 text-muted"
+                    ></i>
+                    <span class="category-name-text">{{
+                      cat.categoryName
+                    }}</span>
                   </div>
-                  <span class="badge rounded-pill bg-light text-dark small border">{{ cat.postCount }}</span>
+                  <span
+                    class="badge rounded-pill bg-light text-dark small border"
+                    >{{ cat.postCount }}</span
+                  >
                 </label>
               </div>
             </div>
@@ -230,7 +259,9 @@ onMounted(async () => {
         </div>
 
         <div class="col-12 col-lg-9 order-2">
-          <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3 px-1 gap-3">
+          <div
+            class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3 px-1 gap-3"
+          >
             <div class="d-flex gap-2 align-items-center flex-grow-1">
               <div class="category-search-wrap shadow-sm">
                 <i class="pi pi-search ms-3 text-muted"></i>
@@ -240,17 +271,27 @@ onMounted(async () => {
                   placeholder="Search posts..."
                   class="category-search-input"
                 />
-                <button v-if="searchQuery" @click="searchQuery = ''" class="search-clear-btn">
+                <button
+                  v-if="searchQuery"
+                  @click="searchQuery = ''"
+                  class="search-clear-btn"
+                >
                   ✕
                 </button>
               </div>
             </div>
 
             <div class="d-flex align-items-center gap-4">
-              <div class="small text-secondary fw-bold text-uppercase tracking-wider">
+              <div
+                class="small text-secondary fw-bold text-uppercase tracking-wider"
+              >
                 {{ totalPosts }} posts
               </div>
-              <select v-model="sort" @change="fetchPosts" class="sort-select shadow-sm">
+              <select
+                v-model="sort"
+                @change="fetchPosts"
+                class="sort-select shadow-sm"
+              >
                 <option value="latest">Latest</option>
                 <option value="oldest">Oldest</option>
                 <option value="upvotes">Most Upvotes</option>
@@ -302,8 +343,12 @@ onMounted(async () => {
             >
               <RouterLink :to="`/categories/${category.categoryId}`">
                 <div class="category-banner mb-3 shadow-sm">
-                  <i :class="getCategoryIcon(category.categoryName) + ' me-2'"></i>
-                  <span class="category-title">{{ category.categoryName }}</span>
+                  <i
+                    :class="getCategoryIcon(category.categoryName) + ' me-2'"
+                  ></i>
+                  <span class="category-title">{{
+                    category.categoryName
+                  }}</span>
                 </div>
               </RouterLink>
 
@@ -506,7 +551,12 @@ onMounted(async () => {
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.1),
+    transparent
+  );
   transition: 0.5s;
 }
 

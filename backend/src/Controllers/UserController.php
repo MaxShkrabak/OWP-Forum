@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Forum\Controllers;
@@ -292,7 +293,7 @@ final class UserController
                 default    => 'p.CreatedAt DESC',
             };
 
-            $countStmt = $pdo->prepare("SELECT COUNT(*) FROM dbo.Posts WHERE AuthorID = :uid");
+            $countStmt = $pdo->prepare("SELECT COUNT(*) FROM dbo.Posts WHERE AuthorID = :uid AND IsDeleted = 0");
             $countStmt->execute([':uid' => $authorId]);
             $totalPosts = (int)$countStmt->fetchColumn();
 
@@ -302,14 +303,16 @@ final class UserController
 
             $getPostsSql = "
                 SELECT p.AuthorID, p.PostID, p.Title, p.CreatedAt, p.CategoryID, p.TotalScore,
-                       (SELECT COUNT(*) FROM dbo.Comments cm WHERE cm.PostID = p.PostID) AS commentCount,
+                       (SELECT COUNT(*) FROM dbo.Comments cm WHERE cm.PostID = p.PostID AND cm.IsDeleted = 0) AS commentCount,
                        u.FirstName, u.LastName, u.Avatar, u.User_ID,
-                       r.Name AS RoleName, c.Name AS CategoryName
+                       r.Name AS RoleName, c.Name AS CategoryName,
+                       CASE WHEN pin.PostID IS NOT NULL THEN 1 ELSE 0 END AS isPinned
                 FROM dbo.Posts p
                 LEFT JOIN dbo.Users u ON p.AuthorID = u.User_ID
                 LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
                 LEFT JOIN dbo.Categories c ON p.CategoryID = c.CategoryID
-                WHERE p.AuthorID = :uid
+                LEFT JOIN dbo.Pinned pin ON p.PostID = pin.PostID
+                WHERE p.AuthorID = :uid AND p.IsDeleted = 0
                 ORDER BY $orderBy
                 OFFSET $offset ROWS FETCH NEXT $limit ROWS ONLY
             ";
@@ -360,6 +363,7 @@ final class UserController
                     'commentCount' => (int)($row['commentCount'] ?? 0),
                     'likeCount'    => $likeCounts[$pid] ?? 0,
                     'totalScore'   => (int)($row['TotalScore'] ?? 0),
+                    'isPinned'     => (bool)($row['isPinned'] ?? false),
                 ];
 
                 $posts[] = $post;
@@ -429,16 +433,18 @@ final class UserController
 
             $stmt = $pdo->prepare("
                 SELECT p.PostID, p.Title, p.CreatedAt, p.CategoryID, p.TotalScore,
-                       (SELECT COUNT(*) FROM dbo.Comments cm WHERE cm.PostID = p.PostID) AS commentCount,
+                       (SELECT COUNT(*) FROM dbo.Comments cm WHERE cm.PostID = p.PostID AND cm.IsDeleted = 0) AS commentCount,
                        u.FirstName, u.LastName, u.Avatar, u.User_ID,
                        r.Name AS RoleName, c.Name AS CategoryName,
-                       ISNULL(pv.VoteValue, 0) AS myVote
+                       ISNULL(pv.VoteValue, 0) AS myVote,
+                       CASE WHEN pin.PostID IS NOT NULL THEN 1 ELSE 0 END AS isPinned
                 FROM dbo.PostVotes pov
                 JOIN dbo.Posts p ON p.PostID = pov.PostID
                 LEFT JOIN dbo.Users u ON p.AuthorID = u.User_ID
                 LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
                 LEFT JOIN dbo.Categories c ON p.CategoryID = c.CategoryID
                 LEFT JOIN dbo.PostVotes pv ON p.PostID = pv.PostID AND pv.User_ID = :viewerId
+                LEFT JOIN dbo.Pinned pin ON p.PostID = pin.PostID
                 WHERE pov.User_ID = :profileId AND pov.VoteValue = 1 AND p.IsDeleted = 0
                 ORDER BY $orderBy
                 OFFSET :offset ROWS FETCH NEXT :limit ROWS ONLY
@@ -500,6 +506,7 @@ final class UserController
                     'likeCount'    => $likeCounts[$pid] ?? 0,
                     'totalScore'   => (int)($row['TotalScore'] ?? 0),
                     'myVote'       => (int)($row['myVote'] ?? 0),
+                    'isPinned'     => (bool)($row['isPinned'] ?? false),
                 ];
             }
 
