@@ -185,10 +185,14 @@ onMounted(async () => {
                 />
               </div>
               <div class="author-details d-flex flex-column">
-                <div class="d-flex align-items-center gap-2">
-                  <span class="author-name">{{ post.authorName }}</span>
-                  <UserRole :role="post.authorRole" />
-                </div>
+                <RouterLink
+                style="text-decoration: none;"
+                  :to="`/profile?id=${post.authorId}`">
+                  <div class="d-flex align-items-center gap-2">
+                    <span class="author-name">{{ post.authorName }}</span>
+                    <UserRole :role="post.authorRole" />
+                  </div>
+                </RouterLink>
                 <div class="post-timestamp">
                   <span>{{ dateLabel }} {{ dateText }} at {{ timeText }}</span>
                 </div>
@@ -493,6 +497,10 @@ onMounted(async () => {
   font-weight: 700;
   font-size: 0.9rem;
   color: #1a2e22;
+}
+.author-name:hover {
+  text-decoration: underline;
+  color: #007a4c;
 }
 
 .post-timestamp {

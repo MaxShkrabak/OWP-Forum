@@ -360,10 +360,14 @@ watch(isEditing, (active) => {
       <div class="flex-grow-1 overflow-visible">
         <div class="d-flex align-items-center mb-1 justify-content-between">
           <div class="d-flex align-items-center gap-2 flex-wrap">
-            <span class="author-name text-truncate small fw-bold">{{
-              comment.author
-            }}</span>
-            <UserRole :role="comment.user?.role" />
+            <RouterLink
+            style="text-decoration: none; color: inherit;"
+            :to="`/profile?id=${comment.user?.userId}`">
+              <span class="author-name text-truncate small fw-bold pe-2">{{
+                comment.author
+              }}</span>
+              <UserRole :role="comment.user?.role" />
+            </RouterLink>
             <span class="timestamp text-muted">
               {{ comment.time }}
               <span v-if="comment.wasEdited" class="edited-label ms-1"
@@ -647,6 +651,12 @@ watch(isEditing, (active) => {
   height: 40px;
   position: relative;
   z-index: 0;
+}
+
+.author-name:hover {
+  color: #007a4c;
+  transition: color 0.1s;
+  text-decoration: underline;
 }
 
 :deep(.role-pill) {

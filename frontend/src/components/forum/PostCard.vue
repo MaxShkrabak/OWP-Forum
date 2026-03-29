@@ -236,7 +236,9 @@ function canViewReportButton() {
         <div class="v-divider"></div>
         <div class="author-info-wrap">
           <div class="text-end d-flex flex-column align-items-end">
-            <span class="author-name text-truncate">{{ post.authorName }}</span>
+            <RouterLink :to="`/profile?id=${post.authorId}`" class="author-name text-truncate">
+              {{ post.authorName }}
+            </RouterLink>
             <UserRole :role="post.authorRole" />
           </div>
           <div class="avatar-box shadow-sm">
@@ -595,6 +597,11 @@ function canViewReportButton() {
   font-size: 0.75rem;
   color: #1a1a1b;
   max-width: 120px;
+  text-decoration: none;
+}
+.author-name:hover {
+  color: #2e6c44;
+  text-decoration: underline;
 }
 
 .avatar-box {
@@ -610,6 +617,10 @@ function canViewReportButton() {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+.avatar-img:hover {
+  border: 2px solid #7e9291;
+  border-radius: 50%;
 }
 
 .author-info-wrap {
