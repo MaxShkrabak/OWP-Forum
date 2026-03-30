@@ -113,7 +113,7 @@ class ReportControllerTest extends TestCase
 
         $roleStmt = $this->createStub(PDOStatement::class);
         $roleStmt->method('execute')->willReturn(true);
-        $roleStmt->method('fetchColumn')->willReturn('student');
+        $roleStmt->method('fetchColumn')->willReturn(1);
 
         $this->pdo->method('prepare')->willReturn($roleStmt);
 
@@ -133,7 +133,7 @@ class ReportControllerTest extends TestCase
 
         $roleStmt = $this->createStub(PDOStatement::class);
         $roleStmt->method('execute')->willReturn(true);
-        $roleStmt->method('fetchColumn')->willReturn('admin');
+        $roleStmt->method('fetchColumn')->willReturn(4);
 
         $reportStmt = $this->createStub(PDOStatement::class);
         $reportStmt->method('execute')->willReturn(true);
@@ -155,8 +155,8 @@ class ReportControllerTest extends TestCase
 
         $this->pdo->method('prepare')->willReturnCallback(
             function (string $sql) use ($roleStmt, $reportStmt) {
-                if (str_contains($sql, 'dbo.Forum_Roles')) return $roleStmt;
-                return $reportStmt;
+                if (str_contains($sql, 'dbo.Forum_Reports')) return $reportStmt;
+                return $roleStmt;
             }
         );
 
@@ -225,7 +225,7 @@ class ReportControllerTest extends TestCase
 
         $roleStmt = $this->createStub(PDOStatement::class);
         $roleStmt->method('execute')->willReturn(true);
-        $roleStmt->method('fetchColumn')->willReturn('student');
+        $roleStmt->method('fetchColumn')->willReturn(1);
 
         $this->pdo->method('prepare')->willReturn($roleStmt);
 
@@ -242,7 +242,7 @@ class ReportControllerTest extends TestCase
 
         $roleStmt = $this->createStub(PDOStatement::class);
         $roleStmt->method('execute')->willReturn(true);
-        $roleStmt->method('fetchColumn')->willReturn('moderator');
+        $roleStmt->method('fetchColumn')->willReturn(3);
 
         $updateStmt = $this->createStub(PDOStatement::class);
         $updateStmt->method('execute')->willReturn(true);
@@ -250,8 +250,8 @@ class ReportControllerTest extends TestCase
 
         $this->pdo->method('prepare')->willReturnCallback(
             function (string $sql) use ($roleStmt, $updateStmt) {
-                if (str_contains($sql, 'dbo.Forum_Roles')) return $roleStmt;
-                return $updateStmt;
+                if (str_contains($sql, 'dbo.Forum_Reports')) return $updateStmt;
+                return $roleStmt;
             }
         );
 
@@ -270,7 +270,7 @@ class ReportControllerTest extends TestCase
 
         $roleStmt = $this->createStub(PDOStatement::class);
         $roleStmt->method('execute')->willReturn(true);
-        $roleStmt->method('fetchColumn')->willReturn('admin');
+        $roleStmt->method('fetchColumn')->willReturn(4);
 
         $updateStmt = $this->createStub(PDOStatement::class);
         $updateStmt->method('execute')->willReturn(true);
@@ -278,8 +278,8 @@ class ReportControllerTest extends TestCase
 
         $this->pdo->method('prepare')->willReturnCallback(
             function (string $sql) use ($roleStmt, $updateStmt) {
-                if (str_contains($sql, 'dbo.Forum_Roles')) return $roleStmt;
-                return $updateStmt;
+                if (str_contains($sql, 'dbo.Forum_Reports')) return $updateStmt;
+                return $roleStmt;
             }
         );
 
