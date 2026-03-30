@@ -12,14 +12,13 @@ use function Forum\Helpers\json;
 use function Forum\Helpers\checkUserBan;
 use function Forum\Helpers\createNotification;
 
-class CommentController
+class CommentController extends BaseController
 {
-    private Closure $makePdo;
     private Closure $sendCommentEmail;
 
     public function __construct(Closure $makePdo, ?Closure $sendCommentEmail = null)
     {
-        $this->makePdo = $makePdo;
+        parent::__construct($makePdo);
         $this->sendCommentEmail = $sendCommentEmail ?? fn(array $message) => $this->dispatchCommentNotification($message);
     }
 
@@ -72,7 +71,7 @@ class CommentController
         $cooldownMinutes = (int)($_ENV['COMMENT_EMAIL_COOLDOWN_MINUTES'] ?? 10);
         $lastTime = strtotime($lastSentAt);
 
-        if ($lastTime === false) return true; // If parsing fails, allow sending
+        if ($lastTime === false) return true;
 
         return $lastTime <= time() - ($cooldownMinutes * 60);
     }
@@ -200,7 +199,6 @@ class CommentController
 
     private function createCommentRateLimit(PDO $pdo, int $userId, Response $res): ?Response
     {
-        //Make thes into ENVs if desired
         $commentCooldownSeconds = 15;
         $commentsPerHourLimit = 50;
 
@@ -293,13 +291,8 @@ class CommentController
     public function createComment(Request $req, Response $res, array $args): Response
     {
         try {
-            $userId = $req->getAttribute("user_id");
-
-            if (!$userId) {
-                return json($res, ['ok' => false, 'error' => 'Not Authenticated'], 401);
-            }
-
-            $pdo = ($this->makePdo)();
+            [$err, $pdo, $userId] = $this->requireAuth($req, $res);
+            if ($err !== null) return $err;
 
             $banResponse = checkUserBan($pdo, (int)$userId, $res);
             if ($banResponse) return $banResponse;
@@ -324,12 +317,7 @@ class CommentController
             }
 
             if ((int)$postCheck['IsCommentsDisabled'] === 1) {
-                $roleStmt = $pdo->prepare("SELECT ISNULL(RoleID, 1) FROM dbo.Forum_Users WHERE User_ID = :uid");
-                $roleStmt->execute([':uid' => $userId]);
-                $userRoleId = (int)($roleStmt->fetchColumn() ?? 1);
-                if ($userRoleId < 3) {
-                    return json($res, ['ok' => false, 'error' => 'Comments are disabled on this post.'], 403);
-                }
+                return json($res, ['ok' => false, 'error' => 'Comments are disabled on this post.'], 403);
             }
 
             $pdo->beginTransaction();
@@ -491,11 +479,10 @@ class CommentController
     public function deleteComment(Request $req, Response $res, array $args): Response
     {
         try {
-            if (!($userId = $req->getAttribute("user_id"))) {
-                return json($res, ['ok' => false, 'error' => 'Not authenticated'], 401);
-            }
+            [$err, $pdo, $userId] = $this->requireAuth($req, $res);
+            if ($err !== null) return $err;
+
             $commentId = (int)$args['id'];
-            $pdo = ($this->makePdo)();
 
             $commentStmt = $pdo->prepare("
                 SELECT c.CommentId, c.UserId, c.IsDeleted, r.Name AS RequesterRole
@@ -590,10 +577,8 @@ class CommentController
     public function updateComment(Request $req, Response $res, array $args): Response
     {
         try {
-            $userId = $req->getAttribute("user_id");
-            if (!$userId) {
-                return json($res, ['ok' => false, 'error' => 'Not Authenticated'], 401);
-            }
+            [$err, $pdo, $userId] = $this->requireAuth($req, $res);
+            if ($err !== null) return $err;
 
             $commentId = (int)($args['id'] ?? 0);
             if ($commentId <= 0) {
@@ -605,9 +590,6 @@ class CommentController
             if ($content === '') {
                 return json($res, ['ok' => false, 'error' => 'Content cannot be empty'], 400);
             }
-
-            /** @var PDO $pdo */
-            $pdo = ($this->makePdo)();
 
             $banResponse = checkUserBan($pdo, (int)$userId, $res);
             if ($banResponse) return $banResponse;
@@ -682,16 +664,13 @@ class CommentController
     public function vote(Request $req, Response $res, array $args): Response
     {
         try {
-            if (($userId = $req->getAttribute('user_id')) === null) {
-                return json($res, ['ok' => false, 'error' => 'Not Authenticated'], 401);
-            }
+            [$err, $pdo, $userId] = $this->requireAuth($req, $res);
+            if ($err !== null) return $err;
 
             $commentId = (int)($args['id'] ?? 0);
             $data = $req->getParsedBody() ?? [];
 
             $action = strtolower((string)($data['dir'] ?? $data['action'] ?? ''));
-
-            $pdo = ($this->makePdo)();
 
             $banResponse = checkUserBan($pdo, (int)$userId, $res);
             if ($banResponse) return $banResponse;
