@@ -18,7 +18,9 @@ BEGIN
         LastCommentNotificationSentAt DATETIME2(0)       NULL,
         IsDeleted                     BIT                NOT NULL
             CONSTRAINT DF_Posts_IsDeleted  DEFAULT (0),
-        DeletedAt                     DATETIME2(0)       NULL
+        DeletedAt                     DATETIME2(0)       NULL,
+        IsCommentsDisabled            BIT                NOT NULL
+            CONSTRAINT DF_Posts_IsCommentsDisabled DEFAULT (0)
     );
 
     CREATE INDEX IX_Posts_CategoryID ON dbo.Forum_Posts(CategoryID);
@@ -88,10 +90,10 @@ END;
 GO
 
 -- Trigger to maintain TotalScore in Posts table
-IF OBJECT_ID('dbo.tr_PostVotes_SyncScore','TR') IS NOT NULL
-    DROP TRIGGER dbo.tr_PostVotes_SyncScore;
+IF OBJECT_ID('dbo.Forum_tr_PostVotes_SyncScore','TR') IS NOT NULL
+    DROP TRIGGER dbo.Forum_tr_PostVotes_SyncScore;
 GO
-CREATE TRIGGER dbo.tr_PostVotes_SyncScore
+CREATE TRIGGER dbo.Forum_tr_PostVotes_SyncScore
 ON dbo.Forum_PostVotes
 AFTER INSERT, UPDATE, DELETE
 AS
