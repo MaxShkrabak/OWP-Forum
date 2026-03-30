@@ -84,6 +84,7 @@ final class PostControllerTest extends TestCase
             ':categoryId' => $categoryId,
             ':authorId' => $userId,
             ':content' => $content,
+            ':isCommentsDisabled' => 0,
         ]);
         $insertStmt->method('fetch')->willReturn([
             'PostID' => 1001,

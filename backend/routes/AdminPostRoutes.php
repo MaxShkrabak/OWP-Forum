@@ -1,4 +1,5 @@
 <?php
+
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use function Forum\Helpers\json;
@@ -6,7 +7,7 @@ use function Forum\Helpers\resolveReportsForPost;
 use function Forum\Helpers\softDeleteCommentsForPost;
 
 // Soft Delete (Role 3+)
-$app->patch('/api/admin/posts/{id}/soft-delete', function(Request $req, Response $res, array $args) use ($makePdo) {
+$app->patch('/api/admin/posts/{id}/soft-delete', function (Request $req, Response $res, array $args) use ($makePdo) {
     $userId = $req->getAttribute('user_id');
     $pdo = $makePdo();
 
@@ -35,7 +36,7 @@ $app->patch('/api/admin/posts/{id}/soft-delete', function(Request $req, Response
             $pdo->rollBack();
             return json($res, ['ok' => false, 'error' => 'Post not found or already deleted'], 404);
         }
-        
+
         // Soft delete comments under this post
         softDeleteCommentsForPost($pdo, $postId);
 
@@ -52,10 +53,20 @@ $app->patch('/api/admin/posts/{id}/soft-delete', function(Request $req, Response
     }
 });
 
-// Update Metadata (Category/Tags)
-$app->patch('/api/admin/posts/{id}/metadata', function(Request $req, Response $res, array $args) use ($makePdo) {
+// Update Metadata (Category/Tags/CommentsDisabled)
+$app->patch('/api/admin/posts/{id}/metadata', function (Request $req, Response $res, array $args) use ($makePdo) {
     $userId = $req->getAttribute('user_id');
     $pdo = $makePdo();
+
+    // Verify Role 3 (Moderator) or 4 (Admin)
+    $roleStmt = $pdo->prepare("SELECT RoleID FROM dbo.Forum_Users WHERE User_ID = :uid");
+    $roleStmt->execute([':uid' => $userId]);
+    $userRole = (int)$roleStmt->fetchColumn();
+
+    if ($userRole < 3) {
+        return json($res, ['ok' => false, 'error' => 'Forbidden'], 403);
+    }
+
     $data = $req->getParsedBody();
     $postId = (int)$args['id'];
 
@@ -65,7 +76,13 @@ $app->patch('/api/admin/posts/{id}/metadata', function(Request $req, Response $r
             $stmt = $pdo->prepare("UPDATE dbo.Forum_Posts SET CategoryID = :cid WHERE PostID = :pid");
             $stmt->execute([':cid' => $data['CategoryID'], ':pid' => $postId]);
         }
-        
+
+        if (isset($data['isCommentsDisabled'])) {
+            $flag = $data['isCommentsDisabled'] ? 1 : 0;
+            $pdo->prepare("UPDATE dbo.Forum_Posts SET IsCommentsDisabled = :flag WHERE PostID = :pid")
+                ->execute([':flag' => $flag, ':pid' => $postId]);
+        }
+
         // Tag logic: Clear old and insert new
         if (isset($data['TagIDs'])) {
             $pdo->prepare("DELETE FROM dbo.Forum_PostTags WHERE PostID = :pid")->execute([':pid' => $postId]);
