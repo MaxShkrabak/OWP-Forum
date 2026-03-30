@@ -324,7 +324,12 @@ class CommentController
             }
 
             if ((int)$postCheck['IsCommentsDisabled'] === 1) {
-                return json($res, ['ok' => false, 'error' => 'Comments are disabled on this post.'], 403);
+                $roleStmt = $pdo->prepare("SELECT ISNULL(RoleID, 1) FROM dbo.Forum_Users WHERE User_ID = :uid");
+                $roleStmt->execute([':uid' => $userId]);
+                $userRoleId = (int)($roleStmt->fetchColumn() ?? 1);
+                if ($userRoleId < 3) {
+                    return json($res, ['ok' => false, 'error' => 'Comments are disabled on this post.'], 403);
+                }
             }
 
             $pdo->beginTransaction();

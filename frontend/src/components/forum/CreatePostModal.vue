@@ -125,7 +125,7 @@ function populateForm() {
       props.postData.category ||
       "";
     const dc = !!(
-      props.postData.is_comments_disabled || props.postData.disableComments
+      props.postData.is_comments_disabled || props.postData.disableComments || props.postData.isCommentsDisabled
     );
 
     const tgs =

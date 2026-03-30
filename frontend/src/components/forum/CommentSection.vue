@@ -9,7 +9,7 @@ import {
   submitComment as apiSubmitComment,
   formatCommentData,
 } from "@/api/comments";
-import { isLoggedIn } from "@/stores/userStore";
+import { isLoggedIn, userRoleId } from "@/stores/userStore";
 
 const props = defineProps({
   postId: {
@@ -419,7 +419,7 @@ const handleDeletedComment = (deletedCommentId) => {
     <div class="p-3 p-md-4">
       <div class="main-input-wrapper mb-4">
         <div
-          v-if="commentsDisabled"
+          v-if="commentsDisabled && userRoleId < 3"
           class="comments-disabled-notice border rounded-3 px-4 py-3"
         >
           <i class="pi pi-lock me-2"></i>Comments have been disabled on this
@@ -427,7 +427,14 @@ const handleDeletedComment = (deletedCommentId) => {
         </div>
 
         <div
-          v-else
+          v-if="commentsDisabled && userRoleId >= 3"
+          class="comments-disabled-mod-notice rounded-3 px-4 py-2 mb-2 justify-content-center d-flex align-items-center gap-2"
+        >
+          <i class="pi pi-lock me-2"></i>Comments are disabled for regular users on this post.
+        </div>
+
+        <div
+          v-if="!commentsDisabled || userRoleId >= 3"
           class="reply-box-container border rounded-3 overflow-hidden bg-white position-relative"
           :class="{ 'focused-border': isFocused }"
           @click="handleCommentBoxClick()"
@@ -563,6 +570,13 @@ const handleDeletedComment = (deletedCommentId) => {
   font-size: 0.9rem;
   font-style: italic;
   text-align: center;
+}
+
+.comments-disabled-mod-notice {
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  color: #92400e;
+  font-size: 0.85rem;
 }
 
 .guest-overlay {
