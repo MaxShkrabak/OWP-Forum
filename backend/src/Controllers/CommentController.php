@@ -420,15 +420,16 @@ if ($postOwner) {
             $countStmt->execute([':postId' => $postId]);
             $totalComments = (int)$countStmt->fetchColumn();
 
-            $sql = "SELECT c.CommentId, c.PostId, c.ParentCommentId, c.Content, c.CreatedAt, c.UpdatedAt, c.UserId, c.TotalScore,
+            $sql = "SELECT c.CommentId, c.PostId, c.ParentCommentId, c.Content, c.CreatedAt, c.UpdatedAt, c.UserId, c.TotalScore, c.IsDeleted,
                            u.FirstName, u.LastName, u.Avatar, r.Name AS RoleName,
                            ISNULL(cv.VoteValue, 0) AS MyVote,
-                           (SELECT COUNT(*) FROM dbo.Forum_Comments r WHERE r.ParentCommentId = c.CommentId AND IsDeleted = 0) AS ReplyCount
+                           (SELECT COUNT(*) FROM dbo.Forum_Comments cr WHERE cr.ParentCommentId = c.CommentId AND cr.IsDeleted = 0) AS ReplyCount
                     FROM dbo.Forum_Comments c
                     JOIN dbo.Forum_Users u ON u.User_ID = c.UserId
                     JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
                     LEFT JOIN dbo.Forum_CommentVotes cv ON cv.CommentId = c.CommentId AND cv.UserId = :currentUserId
-                    WHERE c.PostId = :postId AND c.IsDeleted = 0 AND c.ParentCommentId IS NULL
+                    WHERE c.PostId = :postId AND c.ParentCommentId IS NULL
+                      AND (c.IsDeleted = 0 OR (SELECT COUNT(*) FROM dbo.Forum_Comments cr WHERE cr.ParentCommentId = c.CommentId AND cr.IsDeleted = 0) > 0)
                     ORDER BY {$orderBy}
                     OFFSET :offset ROWS FETCH NEXT :limit ROWS ONLY";
 
@@ -441,20 +442,21 @@ if ($postOwner) {
 
             $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
             $items = array_map(function ($row) {
+                $isDeleted = (int)$row['IsDeleted'] === 1;
                 return [
                     'commentId' => (int)$row['CommentId'],
                     'postId'    => (int)$row['PostId'],
-                    'score'     => (int)$row['TotalScore'],
-                    'myVote'    => (int)$row['MyVote'],
-                    'user'      => $this->formatUserRow($row),
-                    'content'   => $row['Content'],
+                    'score'     => $isDeleted ? 0 : (int)$row['TotalScore'],
+                    'myVote'    => $isDeleted ? 0 : (int)$row['MyVote'],
+                    'user'      => $isDeleted ? null : $this->formatUserRow($row),
+                    'content'   => $isDeleted ? null : $row['Content'],
                     'createdAt' => strtotime($row['CreatedAt']),
                     'updatedAt' => isset($row['UpdatedAt']) && $row['UpdatedAt'] !== null
                         ? strtotime($row['UpdatedAt'])
                         : null,
                     'replyCount' => (int)$row['ReplyCount'],
                     'parentCommentId' => $row['ParentCommentId'] ? (int)$row['ParentCommentId'] : null,
-                    'isDeleted' => false
+                    'isDeleted' => $isDeleted
                 ];
             }, $rows);
 
@@ -522,15 +524,16 @@ if ($postOwner) {
             $userId = $req->getAttribute("user_id") ?? 0;
             $pdo = ($this->makePdo)();
 
-            $sql = "SELECT c.CommentId, c.PostId, c.ParentCommentId, c.Content, c.CreatedAt, c.UpdatedAt, c.UserId, c.TotalScore,
+            $sql = "SELECT c.CommentId, c.PostId, c.ParentCommentId, c.Content, c.CreatedAt, c.UpdatedAt, c.UserId, c.TotalScore, c.IsDeleted,
                            u.FirstName, u.LastName, u.Avatar, r.Name AS RoleName,
                            ISNULL(cv.VoteValue, 0) AS MyVote,
-                           (SELECT COUNT(*) FROM dbo.Forum_Comments r WHERE r.ParentCommentId = c.CommentId AND IsDeleted = 0) AS ReplyCount
+                           (SELECT COUNT(*) FROM dbo.Forum_Comments cr WHERE cr.ParentCommentId = c.CommentId AND cr.IsDeleted = 0) AS ReplyCount
                     FROM dbo.Forum_Comments c
                     JOIN dbo.Forum_Users u ON u.User_ID = c.UserId
                     JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
                     LEFT JOIN dbo.Forum_CommentVotes cv ON cv.CommentId = c.CommentId AND cv.UserId = :currentUserId
-                    WHERE c.ParentCommentId = :parentId AND c.IsDeleted = 0
+                    WHERE c.ParentCommentId = :parentId
+                      AND (c.IsDeleted = 0 OR (SELECT COUNT(*) FROM dbo.Forum_Comments cr WHERE cr.ParentCommentId = c.CommentId AND cr.IsDeleted = 0) > 0)
                     ORDER BY c.CreatedAt ASC";
 
             $stmt = $pdo->prepare($sql);
@@ -538,19 +541,21 @@ if ($postOwner) {
             $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
             $items = array_map(function ($row) {
+                $isDeleted = (int)$row['IsDeleted'] === 1;
                 return [
                     'commentId' => (int)$row['CommentId'],
                     'postId'    => (int)$row['PostId'],
-                    'score'     => (int)$row['TotalScore'],
-                    'myVote'    => (int)$row['MyVote'],
-                    'user'      => $this->formatUserRow($row),
-                    'content'   => $row['Content'],
+                    'score'     => $isDeleted ? 0 : (int)$row['TotalScore'],
+                    'myVote'    => $isDeleted ? 0 : (int)$row['MyVote'],
+                    'user'      => $isDeleted ? null : $this->formatUserRow($row),
+                    'content'   => $isDeleted ? null : $row['Content'],
                     'createdAt' => strtotime($row['CreatedAt']),
                     'updatedAt' => isset($row['UpdatedAt']) && $row['UpdatedAt'] !== null
                         ? strtotime($row['UpdatedAt'])
                         : null,
                     'replyCount' => (int)$row['ReplyCount'],
-                    'parentCommentId' => (int)$row['ParentCommentId']
+                    'parentCommentId' => (int)$row['ParentCommentId'],
+                    'isDeleted' => $isDeleted
                 ];
             }, $rows);
 

@@ -7,6 +7,7 @@ import {
   fetchCommentReplies,
   updateComment as apiUpdateComment,
   deleteComment as apiDeleteComment,
+  formatCommentData,
 } from "@/api/comments";
 import { isLoggedIn, uid, userRole } from "@/stores/userStore";
 import { timeAgo } from "@/utils/timeAgo";
@@ -107,8 +108,7 @@ const currentUserRole = computed(() =>
 
 const isModeratorOrAdmin = computed(() => {
   return (
-    currentUserRole.value === "moderator" ||
-    currentUserRole.value === "admin"
+    currentUserRole.value === "moderator" || currentUserRole.value === "admin"
   );
 });
 
@@ -205,14 +205,7 @@ const toggleRepliesDropdown = async () => {
     try {
       const data = await fetchCommentReplies(props.comment.id);
       if (data && data.ok) {
-        localReplies.value = data.items.map((item) => ({
-          ...item,
-          id: item.commentId,
-          author: `${item.user.firstName} ${item.user.lastName}`,
-          time: timeAgo(item.createdAt * 1000),
-          text: item.content,
-          replies: [],
-        }));
+        localReplies.value = data.items.map(formatCommentData);
         hasFetched.value = true;
       }
     } catch (error) {
@@ -349,7 +342,9 @@ watch(isEditing, (active) => {
         class="avatar-col d-flex flex-column align-items-center flex-shrink-0"
       >
         <div class="avatar-box shadow-sm overflow-hidden rounded-circle">
+          <div v-if="comment.isDeleted" class="avatar-box deleted-avatar"></div>
           <img
+            v-else
             :src="getAvatarSrc(comment.user?.avatar)"
             class="avatar-box"
             alt="user"
@@ -360,9 +355,17 @@ watch(isEditing, (active) => {
       <div class="flex-grow-1 overflow-visible">
         <div class="d-flex align-items-center mb-1 justify-content-between">
           <div class="d-flex align-items-center gap-2 flex-wrap">
+            <span
+              v-if="comment.isDeleted"
+              class="author-name text-truncate small fw-bold pe-2 text-muted fst-italic"
+            >
+              [deleted]
+            </span>
             <RouterLink
-            style="text-decoration: none; color: inherit;"
-            :to="`/profile?id=${comment.user?.userId}`">
+              v-else
+              style="text-decoration: none; color: inherit"
+              :to="`/profile?id=${comment.user?.userId}`"
+            >
               <span class="author-name text-truncate small fw-bold pe-2">{{
                 comment.author
               }}</span>
@@ -416,9 +419,18 @@ watch(isEditing, (active) => {
           </div>
         </div>
 
+        <div
+          v-else-if="comment.isDeleted"
+          class="comment-body mb-2 small text-muted fst-italic"
+        >
+          [deleted]
+        </div>
         <div v-else class="comment-body mb-2 small" v-html="linkedImage"></div>
 
-        <div class="d-flex align-items-center gap-3 gap-sm-2 flex-wrap">
+        <div
+          v-if="!comment.isDeleted"
+          class="d-flex align-items-center gap-3 gap-sm-2 flex-wrap"
+        >
           <div
             class="vote-container d-flex align-items-center rounded-4 px-2 py-1"
           >
@@ -604,9 +616,7 @@ watch(isEditing, (active) => {
         >
           <div class="comment-modal-card shadow-lg">
             <p class="fw-bold mb-1">Delete comment?</p>
-            <p class="small text-muted mb-3">
-              This action cannot be undone.
-            </p>
+            <p class="small text-muted mb-3">This action cannot be undone.</p>
             <div class="d-flex justify-content-end gap-2">
               <button
                 type="button"
@@ -621,7 +631,10 @@ watch(isEditing, (active) => {
                 :disabled="isDeleting"
                 @click="confirmDeleteComment"
               >
-                <span v-if="isDeleting" class="pi pi-spin pi-spinner me-1"></span>
+                <span
+                  v-if="isDeleting"
+                  class="pi pi-spin pi-spinner me-1"
+                ></span>
                 Delete
               </button>
             </div>
@@ -651,6 +664,10 @@ watch(isEditing, (active) => {
   height: 40px;
   position: relative;
   z-index: 0;
+}
+
+.deleted-avatar {
+  background-color: #91959e;
 }
 
 .author-name:hover {
