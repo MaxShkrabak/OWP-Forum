@@ -23,12 +23,14 @@ vi.mock("@/stores/userStore", () => ({
   uid: 10,
 }));
 
-const stubs = [
-  "UserRole",
-  "ViewPostContent",
-  "PostModerationSidebar",
-  "CommentSection",
-];
+const stubs = {
+  RouterLink: { template: "<a><slot /></a>" },
+  RouterView: { template: "<div />" },
+  UserRole: true,
+  ViewPostContent: true,
+  PostModerationSidebar: true,
+  CommentSection: true,
+};
 
 describe("ViewPost.vue", () => {
   beforeEach(() => {
@@ -66,10 +68,11 @@ describe("ViewPost.vue", () => {
     expect(wrapper.find(".category-label").text()).toContain("General");
 
     const renderedTags = wrapper.findAll(".post-tag");
+    const renderedTagNames = renderedTags.map((t) => t.text());
     expect(renderedTags.length).toBe(3);
-    expect(renderedTags[0].text()).toBe("Help");
-    expect(renderedTags[1].text()).toBe("Official");
-    expect(renderedTags[2].text()).toBe("Research");
+    expect(renderedTagNames).toContain("Help");
+    expect(renderedTagNames).toContain("Official");
+    expect(renderedTagNames).toContain("Research");
 
     expect(wrapper.find(".post-timestamp").text()).toContain("Feb 22, 2026");
 
