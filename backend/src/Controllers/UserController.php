@@ -12,6 +12,7 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 use function Forum\Helpers\json;
 use function Forum\Helpers\markNotificationsRead;
 use function Forum\Helpers\fetchCounts;
+use function Forum\Helpers\fetchTagNamesByPostIds;
 
 final class UserController extends BaseController
 {
@@ -303,19 +304,7 @@ final class UserController extends BaseController
             $postIds = array_map(fn($r) => (int)$r['PostID'], $rows);
             $placeholders = implode(',', array_fill(0, count($postIds), '?'));
 
-            $tagsByPostId = [];
-            $tagStmt = $pdo->prepare("
-                SELECT pt.PostID, t.Name
-                FROM dbo.Forum_PostTags pt
-                JOIN dbo.Forum_Tags t ON t.TagID = pt.TagID
-                WHERE pt.PostID IN ($placeholders)
-                ORDER BY t.Name ASC
-            ");
-            $tagStmt->execute($postIds);
-            while ($tag = $tagStmt->fetch(PDO::FETCH_ASSOC)) {
-                $tagsByPostId[(int)$tag['PostID']][] = $tag['Name'];
-            }
-
+            $tagsByPostId = fetchTagNamesByPostIds($pdo, $postIds);
             $likeCounts = fetchCounts($pdo, 'dbo.PostLikes', $placeholders, $postIds, 'LikeCount');
 
             $posts = [];
@@ -449,19 +438,7 @@ final class UserController extends BaseController
             $postIds = array_map(fn($r) => (int)$r['PostID'], $rows);
             $placeholders = implode(',', array_fill(0, count($postIds), '?'));
 
-            $tagsByPostId = [];
-            $tagStmt = $pdo->prepare("
-                SELECT pt.PostID, t.Name
-                FROM dbo.Forum_PostTags pt
-                JOIN dbo.Forum_Tags t ON t.TagID = pt.TagID
-                WHERE pt.PostID IN ($placeholders)
-                ORDER BY t.Name ASC
-            ");
-            $tagStmt->execute($postIds);
-            while ($t = $tagStmt->fetch(PDO::FETCH_ASSOC)) {
-                $tagsByPostId[(int)$t['PostID']][] = $t['Name'];
-            }
-
+            $tagsByPostId = fetchTagNamesByPostIds($pdo, $postIds);
             $likeCounts = fetchCounts($pdo, 'dbo.PostLikes', $placeholders, $postIds, 'LikeCount');
 
             $posts = [];

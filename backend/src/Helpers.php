@@ -209,6 +209,27 @@ if (!function_exists('Forum\\Helpers\\markNotificationsRead')) {
     }
 }
 
+if (!function_exists('Forum\Helpers\fetchTagNamesByPostIds')) {
+    function fetchTagNamesByPostIds(PDO $pdo, array $postIds): array
+    {
+        if (empty($postIds)) return [];
+        $placeholders = implode(',', array_fill(0, count($postIds), '?'));
+        $stmt = $pdo->prepare("
+            SELECT pt.PostID, t.Name
+            FROM dbo.Forum_PostTags pt
+            JOIN dbo.Forum_Tags t ON t.TagID = pt.TagID
+            WHERE pt.PostID IN ($placeholders)
+            ORDER BY t.Name ASC
+        ");
+        $stmt->execute($postIds);
+        $tagsByPostId = [];
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $tagsByPostId[(int)$row['PostID']][] = $row['Name'];
+        }
+        return $tagsByPostId;
+    }
+}
+
 if (!function_exists('Forum\Helpers\fetchCounts')) {
     function fetchCounts(PDO $pdo, string $table, string $placeholders, array $postIds, string $countAlias): array
     {
