@@ -86,7 +86,7 @@ class UserControllerTest extends TestCase
         $this->assertEquals(401, $response->getStatusCode());
         $body = json_decode((string)$response->getBody(), true);
         $this->assertFalse($body['ok']);
-        $this->assertEquals('Unauthorized', $body['error']);
+        $this->assertEquals('Not Authenticated', $body['error']);
     }
 
     public function test_acceptTerms_returns_ok_when_authenticated(): void

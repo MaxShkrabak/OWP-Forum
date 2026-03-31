@@ -1,10 +1,10 @@
-<!-- AdminReports.vue (FULLY UPDATED: Report Tags + Manage Reports via /api/admin/reports + Post Enrichment) -->
+<!-- AdminReports.vue -->
 <script setup>
 import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 
 import client from "@/api/client";
-import { resolveReport } from "@/api/reports";
+import { fetchReports, resolveReport } from "@/api/reports";
 
 /* =========================
    REPORT TAGS (OLD CODE)
@@ -159,36 +159,6 @@ const reportsError = ref("");
 
 const sortMode = ref("newest"); // newest | oldest
 
-// cache post lookups so we don’t spam the server
-const postCache = new Map(); // postId -> { title, authorId, authorName } | null
-
-async function fetchPostSafe(postId) {
-  if (!postId) return null;
-  if (postCache.has(postId)) return postCache.get(postId);
-
-  try {
-    // PostRoutes.php: GET /api/get-post/{id}
-    const res = await client.get(`/get-post/${postId}`);
-    const post = res?.data?.post;
-
-    if (res?.data?.ok && post) {
-      const mapped = {
-        title: post.title ?? "",
-        authorId: post.authorId ?? null,
-        authorName: post.authorName ?? "",
-      };
-      postCache.set(postId, mapped);
-      return mapped;
-    }
-  } catch (e) {
-    console.error("Failed to fetch post:", e);
-  }
-
-  postCache.set(postId, null);
-  return null;
-}
-
-/** Normalize report rows from /api/admin/reports */
 function normalizeReport(r) {
   return {
     ...r,
@@ -198,30 +168,12 @@ function normalizeReport(r) {
     reason: r.reason ?? r.Reason ?? "",
     createdAt: r.createdAt ?? r.CreatedAt ?? "",
     source: r.source ?? r.Source ?? "Post",
-
-    // New endpoint returns these already
-    reporterId: r.reporterId ?? r.ReporterId ?? r.ReportUserID ?? null,
-    reporterName: r.reporterName ?? r.ReporterName ?? "",
-
-    contentTitle: r.contentTitle ?? r.ContentTitle ?? "",
+    reporterId: r.reporterId ?? r.reporter?.id ?? r.ReporterId ?? r.ReportUserID ?? null,
+    reporterName: r.reporterName ?? r.reporter?.fullName ?? r.ReporterName ?? "",
+    contentTitle: r.contentTitle ?? r.postTitle ?? r.ContentTitle ?? "",
     contentAuthorId: r.contentAuthorId ?? r.ContentAuthorId ?? null,
-    contentAuthorName: r.contentAuthorName ?? r.ContentAuthorName ?? "",
+    contentAuthorName: r.contentAuthorName ?? r.postAuthor ?? r.ContentAuthorName ?? "",
   };
-}
-
-async function enrichReports(list) {
-  const uniquePostIds = [...new Set(list.filter((r) => r?.postId).map((r) => r.postId))];
-  await Promise.all(uniquePostIds.map((pid) => fetchPostSafe(pid)));
-
-  return list.map((r) => {
-    const post = r.postId ? postCache.get(r.postId) : null;
-    return {
-      ...r,
-      contentTitle: r.contentTitle || post?.title || "",
-      contentAuthorId: r.contentAuthorId ?? post?.authorId ?? null,
-      contentAuthorName: r.contentAuthorName || post?.authorName || "",
-    };
-  });
 }
 
 async function loadReports() {
@@ -229,18 +181,9 @@ async function loadReports() {
   reportsError.value = "";
 
   try {
-    // ✅ NEW SAFE ADMIN ENDPOINT
-    // client baseURL already includes /api, so this hits /api/admin/reports
-    const res = await client.get("/admin/reports");
-    const data = res?.data;
-
+    const data = await fetchReports();
     if (data?.ok && Array.isArray(data.reports)) {
-      const normalized = data.reports.map(normalizeReport);
-
-      // keep existing post enrichment so UI still shows titles/authors
-      const withPosts = await enrichReports(normalized);
-
-      reports.value = withPosts;
+      reports.value = data.reports.map(normalizeReport);
     } else {
       reports.value = [];
     }

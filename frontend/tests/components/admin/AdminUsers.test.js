@@ -25,7 +25,7 @@ const CURRENT_ADMIN_ID = 2;
 
 function setupMocks(users = mockUsers) {
   mockClient.get.mockImplementation((url) => {
-    if (url === '/admin/me') {
+    if (url === '/me') {
       return Promise.resolve({ data: { user: { userId: CURRENT_ADMIN_ID } } });
     }
     // /admin/users
@@ -114,7 +114,7 @@ describe("Assign Role (Admin)", () => {
 
   it("displays 'No users found' when searching for a non-existent user", async () => {
     mockClient.get.mockImplementation((url) => {
-      if (url === '/admin/me') {
+      if (url === '/me') {
         return Promise.resolve({ data: { user: { userId: CURRENT_ADMIN_ID } } });
       }
       return Promise.resolve({ data: { users: [] } });

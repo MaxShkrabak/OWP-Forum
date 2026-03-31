@@ -7,22 +7,14 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 
 use Throwable;
 use PDO;
-use Closure;
 
 use function Forum\Helpers\json;
 use function Forum\Helpers\resolveReportsForPost;
 use function Forum\Helpers\softDeleteCommentsForPost;
 use function Forum\Helpers\createNotification;
 
-class PostController
+class PostController extends BaseController
 {
-    private Closure $makePdo;
-
-    public function __construct(Closure $makePdo)
-    {
-        $this->makePdo = $makePdo;
-    }
-
     private function resolvePostAccess(PDO $pdo, int $postId, int $userId): array
     {
         $postStmt = $pdo->prepare("SELECT PostID, AuthorID, IsDeleted FROM dbo.Forum_Posts WHERE PostID = :id");

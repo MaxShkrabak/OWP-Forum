@@ -1,9 +1,9 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Forum\Controllers;
 
-use Closure;
 use PDO;
 use Throwable;
 use Psr\Http\Message\ResponseInterface as Response;
@@ -11,15 +11,8 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 
 use function Forum\Helpers\{json, setSessionCookie, clearSessionCookie};
 
-final class AuthController
+final class AuthController extends BaseController
 {
-    private Closure $makePdo;
-
-    public function __construct(Closure $makePdo)
-    {
-        $this->makePdo = $makePdo;
-    }
-
     public function me(Request $req, Response $res): Response
     {
         try {
@@ -54,7 +47,6 @@ final class AuthController
             $banType = isset($user['BanType']) && $user['BanType'] ? trim((string)$user['BanType']) : null;
             $bannedUntil = isset($user['BannedUntil']) && $user['BannedUntil'] ? $user['BannedUntil'] : null;
 
-            // Effective ban: treat expired temporary ban as not banned
             if ($isBanned && $banType === 'temporary' && $bannedUntil) {
                 $until = $bannedUntil instanceof \DateTimeInterface
                     ? $bannedUntil : new \DateTimeImmutable($bannedUntil, new \DateTimeZone('UTC'));

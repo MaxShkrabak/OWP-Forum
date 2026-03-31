@@ -6,46 +6,15 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Throwable;
 use PDO;
-use Closure;
 use function Forum\Helpers\json;
 
-class ReportController
+class ReportController extends BaseController
 {
-    private Closure $makePdo;
-
-    public function __construct(Closure $makePdo)
-    {
-        $this->makePdo = $makePdo;
-    }
-
-    private function requireModOrAdmin(Request $req, Response $res): array|Response
-    {
-        $userId = $req->getAttribute('user_id');
-        if ($userId === null) {
-            return json($res, ['ok' => false, 'error' => 'Not Authenticated'], 401);
-        }
-
-        $pdo = ($this->makePdo)();
-        $roleStmt = $pdo->prepare("SELECT r.Name FROM dbo.Forum_Users u LEFT JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID WHERE u.User_ID = :uid");
-        $roleStmt->execute([':uid' => $userId]);
-        $role = $roleStmt->fetchColumn();
-
-        if (!in_array($role, ['moderator', 'admin'], true)) {
-            return json($res, ['ok' => false, 'error' => 'Forbidden'], 403);
-        }
-
-        return ['userId' => (int)$userId, 'pdo' => $pdo];
-    }
-
     public function getReports(Request $req, Response $res): Response
     {
         try {
-            $auth = $this->requireModOrAdmin($req, $res);
-            if ($auth instanceof Response) {
-                return $auth;
-            }
-
-            $pdo = $auth['pdo'];
+            [$err, $pdo] = $this->requireRole(3, $req, $res);
+            if ($err !== null) return $err;
 
             $sql = "
                 SELECT
@@ -103,13 +72,9 @@ class ReportController
     public function resolveReport(Request $req, Response $res, array $args): Response
     {
         try {
-            $auth = $this->requireModOrAdmin($req, $res);
-            if ($auth instanceof Response) {
-                return $auth;
-            }
+            [$err, $pdo, $userId] = $this->requireRole(3, $req, $res);
+            if ($err !== null) return $err;
 
-            $pdo = $auth['pdo'];
-            $userId = $auth['userId'];
             $reportId = (int)$args['id'];
 
             $stmt = $pdo->prepare("UPDATE dbo.Forum_Reports SET Resolved = 1, ResolvedBy = :uid, ResolvedAt = SYSUTCDATETIME() WHERE ReportID = :id AND Resolved = 0");
@@ -128,11 +93,8 @@ class ReportController
     public function getReportTags(Request $req, Response $res): Response
     {
         try {
-            if (($userId = $req->getAttribute('user_id')) === null) {
-                return json($res, ['ok' => false, 'error' => 'Not Authenticated'], 401);
-            }
-
-            $pdo = ($this->makePdo)();
+            [$err, $pdo] = $this->requireAuth($req, $res);
+            if ($err !== null) return $err;
 
             $sql = "SELECT ReportTagID, TagName FROM dbo.Forum_ReportTags
                     ORDER BY CASE WHEN TagName = 'Other' THEN 1 ELSE 0 END, TagName ASC";
@@ -148,9 +110,8 @@ class ReportController
     public function submitReport(Request $req, Response $res): Response
     {
         try {
-            if (($userId = $req->getAttribute('user_id')) === null) {
-                return json($res, ['ok' => false, 'error' => 'Not Authenticated'], 401);
-            }
+            [$err, $pdo, $userId] = $this->requireAuth($req, $res);
+            if ($err !== null) return $err;
 
             $body = $req->getParsedBody();
             $targetId = $body['id'] ?? null;
@@ -163,8 +124,6 @@ class ReportController
 
             $postId    = ($type === 'post') ? $targetId : null;
             $commentId = ($type === 'comment') ? $targetId : null;
-
-            $pdo = ($this->makePdo)();
 
             $checkSql = "SELECT TOP 1 ReportID FROM dbo.Forum_Reports
                          WHERE ReportUserID = :userId
