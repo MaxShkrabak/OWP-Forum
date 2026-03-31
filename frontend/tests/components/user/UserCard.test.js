@@ -9,13 +9,16 @@ vi.mock("@/api/users", () => ({
   fetchUserStats: mockFetchUserStats,
 }));
 
-vi.mock("@/stores/userStore", () => ({
-  isLoggedIn: { value: true },
-  fullName: { value: "Test User" },
-  userAvatar: { value: "" },
-  userRole: { value: "User" },
-  uid: { value: 42 },
-}));
+vi.mock("@/stores/userStore", async () => {
+  const { ref } = await import("vue");
+  return {
+    isLoggedIn: ref(true),
+    fullName: ref("Test User"),
+    userAvatar: ref(""),
+    userRole: ref("User"),
+    uid: ref(42),
+  };
+});
 
 import UserCard from "@/components/user/UserCard.vue";
 
@@ -120,6 +123,7 @@ describe("UserCard.vue — user stats", () => {
 
   it("keeps stats at 0 when the API call fails", async () => {
     mockFetchUserStats.mockRejectedValueOnce(new Error("Network error"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
 
     const wrapper = mount(UserCard, {
       global: {

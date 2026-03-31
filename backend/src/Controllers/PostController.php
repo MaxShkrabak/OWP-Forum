@@ -7,22 +7,14 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 
 use Throwable;
 use PDO;
-use Closure;
 
 use function Forum\Helpers\json;
 use function Forum\Helpers\resolveReportsForPost;
 use function Forum\Helpers\softDeleteCommentsForPost;
 use function Forum\Helpers\createNotification;
 
-class PostController
+class PostController extends BaseController
 {
-    private Closure $makePdo;
-
-    public function __construct(Closure $makePdo)
-    {
-        $this->makePdo = $makePdo;
-    }
-
     private function resolvePostAccess(PDO $pdo, int $postId, int $userId): array
     {
         $postStmt = $pdo->prepare("SELECT PostID, AuthorID, IsDeleted FROM dbo.Forum_Posts WHERE PostID = :id");
@@ -126,7 +118,7 @@ class PostController
 
             $sql = "
                 SELECT p.PostID, p.Title, p.Content, p.CreatedAt, p.UpdatedAt, p.CategoryID, p.AuthorID, p.TotalScore,
-                        p.ViewCount,
+                        p.ViewCount, p.IsCommentsDisabled,
                         u.FirstName, u.LastName, u.Avatar,
                         r.Name AS RoleName,
                         c.Name AS CategoryName,
@@ -168,9 +160,10 @@ class PostController
                 'tags'         => $tags,
                 'tagNames'     => $tagNames,
                 'tagIds'       => $tagIds,
-                'totalScore'   => (int)($post['TotalScore'] ?? 0),
-                'viewCount'    => (int)($post['ViewCount'] ?? 0),
-                'myVote'       => (int)($post['myVote'] ?? 0),
+                'totalScore'          => (int)($post['TotalScore'] ?? 0),
+                'viewCount'           => (int)($post['ViewCount'] ?? 0),
+                'myVote'              => (int)($post['myVote'] ?? 0),
+                'isCommentsDisabled'  => (bool)($post['IsCommentsDisabled'] ?? false),
             ]]);
         } catch (Throwable $e) {
             return json($res, ['ok' => false, 'error' => 'Failed to load post.'], 500);
@@ -470,7 +463,6 @@ class PostController
                     LEFT JOIN dbo.Forum_Categories c ON p.CategoryID = c.CategoryID
                     LEFT JOIN dbo.Forum_PostVotes pv ON p.PostID = pv.PostID AND pv.User_ID = :userId
                     WHERE p.IsDeleted = 0
-                    AND p.PostID NOT IN (SELECT PostID FROM dbo.Forum_Pinned)
                 ),
                 RankedPosts AS (
                     SELECT *, ROW_NUMBER() OVER (PARTITION BY CategoryID ORDER BY $orderBy) AS rn
@@ -643,6 +635,8 @@ class PostController
             $tagsIn = array_values(array_unique(array_map('intval', $tagsIn)));
             $tagsIn = array_slice(array_filter($tagsIn, fn($v) => $v > 0), 0, 5);
 
+            $disableCommentsIn = !empty($data['disableComments']);
+
             // Simple spam protection: cooldown + duplicate check + hourly rate limit
             $postCooldownSeconds = 60;
             $postPerHourLimit = 10;
@@ -738,19 +732,22 @@ class PostController
 
             $categoryId = (int)$categoryData['CategoryID'];
 
+            $isCommentsDisabled = ($isCooldownExempt && $disableCommentsIn) ? 1 : 0;
+
             // Store post information section
             $storePost = "
-                INSERT INTO dbo.Forum_Posts (Title, CategoryID, AuthorID, Content)
+                INSERT INTO dbo.Forum_Posts (Title, CategoryID, AuthorID, Content, IsCommentsDisabled)
                 OUTPUT INSERTED.PostID, INSERTED.CreatedAt
-                VALUES (:title, :categoryId, :authorId, :content)
+                VALUES (:title, :categoryId, :authorId, :content, :isCommentsDisabled)
             ";
 
             $storeStmt = $pdo->prepare($storePost);
             $storeStmt->execute([
-                ':title'      => $title,
-                ':categoryId' => $categoryId,
-                ':authorId'   => $userId,
-                ':content'    => $content,
+                ':title'               => $title,
+                ':categoryId'          => $categoryId,
+                ':authorId'            => $userId,
+                ':content'             => $content,
+                ':isCommentsDisabled'  => $isCommentsDisabled,
             ]);
 
             $newPost = $storeStmt->fetch(PDO::FETCH_ASSOC);
@@ -1019,6 +1016,8 @@ class PostController
             $tagsIn = array_values(array_unique(array_map('intval', $tagsIn)));
             $tagsIn = array_slice(array_filter($tagsIn, fn($v) => $v > 0), 0, 5);
 
+            $disableCommentsIn = !empty($data['disableComments']);
+
             $pdo = ($this->makePdo)();
 
             if ($termsRes = \Forum\Helpers\requireTermsAccepted($req, $res, $pdo)) {
@@ -1042,19 +1041,24 @@ class PostController
                 return json($res, ['ok' => false, 'error' => 'Permission denied for this category.'], 403);
             }
 
+            // Only mods/admins (role >= 3) may toggle comment disabling
+            $isCommentsDisabled = ($userRoleId >= 3 && $disableCommentsIn) ? 1 : 0;
+
             $pdo->beginTransaction();
 
             $updatePostSql = $pdo->prepare("
-                UPDATE dbo.Forum_Posts 
-                SET Title = :title, Content = :content, CategoryID = :categoryId, UpdatedAt = SYSUTCDATETIME()
+                UPDATE dbo.Forum_Posts
+                SET Title = :title, Content = :content, CategoryID = :categoryId,
+                    IsCommentsDisabled = :isCommentsDisabled, UpdatedAt = SYSUTCDATETIME()
                 WHERE PostID = :postId AND IsDeleted = 0
             ");
 
             $updatePostSql->execute([
-                ':title'      => $title,
-                ':content'    => $content,
-                ':categoryId' => (int)$categoryData['CategoryID'],
-                ':postId'     => $postId
+                ':title'               => $title,
+                ':content'             => $content,
+                ':categoryId'          => (int)$categoryData['CategoryID'],
+                ':isCommentsDisabled'  => $isCommentsDisabled,
+                ':postId'              => $postId
             ]);
 
             if ($updatePostSql->rowCount() === 0) {

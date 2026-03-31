@@ -115,6 +115,9 @@ final class CommentControllerTest extends TestCase
         $postAuthorStmt = $this->createStub(\PDOStatement::class);
         $postAuthorStmt->method('fetch')->willReturn(false);
 
+        $postCheckStmt = $this->createStub(\PDOStatement::class);
+        $postCheckStmt->method('fetch')->willReturn(['IsCommentsDisabled' => 0]);
+
         $this->pdo->expects($this->once())->method('beginTransaction')->willReturn(true);
         $this->pdo->expects($this->once())->method('commit')->willReturn(true);
         $this->pdo->expects($this->never())->method('rollBack');
@@ -128,8 +131,12 @@ final class CommentControllerTest extends TestCase
             $selectStmt,
             $postOwnerStmt,
             $updateStmt,
-            $postAuthorStmt
+            $postAuthorStmt,
+            $postCheckStmt
             ) {
+            if (str_contains($sql, 'IsCommentsDisabled')) {
+                return $postCheckStmt;
+            }
             if (str_contains($sql, 'INSERT INTO dbo.Forum_Comments')) {
                 return $insertStmt;
             }
@@ -420,6 +427,9 @@ final class CommentControllerTest extends TestCase
         $postAuthorStmt = $this->createStub(\PDOStatement::class);
         $postAuthorStmt->method('fetch')->willReturn(false);
 
+        $postCheckStmt = $this->createStub(\PDOStatement::class);
+        $postCheckStmt->method('fetch')->willReturn(['IsCommentsDisabled' => 0]);
+
         $this->pdo->expects($this->once())->method('beginTransaction')->willReturn(true);
         $this->pdo->expects($this->once())->method('commit')->willReturn(true);
         $this->pdo->expects($this->never())->method('rollBack');
@@ -433,8 +443,12 @@ final class CommentControllerTest extends TestCase
                 $insertStmt,
                 $postOwnerStmt,
                 $selectStmt,
-                $postAuthorStmt
+                $postAuthorStmt,
+                $postCheckStmt
                 ) {
+                if (str_contains($sql, 'IsCommentsDisabled')) {
+                    return $postCheckStmt;
+                }
                 if (str_contains($sql, 'INSERT INTO dbo.Forum_Comments')) {
                     return $insertStmt;
                 }
@@ -553,6 +567,9 @@ final class CommentControllerTest extends TestCase
         $postAuthorStmt = $this->createStub(\PDOStatement::class);
         $postAuthorStmt->method('fetch')->willReturn(false);
 
+        $postCheckStmt = $this->createStub(\PDOStatement::class);
+        $postCheckStmt->method('fetch')->willReturn(['IsCommentsDisabled' => 0]);
+
         $this->pdo->expects($this->once())->method('beginTransaction')->willReturn(true);
         $this->pdo->expects($this->once())->method('commit')->willReturn(true);
         $this->pdo->expects($this->never())->method('rollBack');
@@ -565,8 +582,12 @@ final class CommentControllerTest extends TestCase
             $insertStmt,
             $postOwnerStmt,
             $selectStmt,
-            $postAuthorStmt
+            $postAuthorStmt,
+            $postCheckStmt
             ) {
+                if (str_contains($sql, 'IsCommentsDisabled')) {
+                    return $postCheckStmt;
+                }
                 if (str_contains($sql, 'INSERT INTO dbo.Forum_Comments')) {
                     return $insertStmt;
                 }
@@ -685,6 +706,9 @@ final class CommentControllerTest extends TestCase
         $postAuthorStmt = $this->createStub(\PDOStatement::class);
         $postAuthorStmt->method('fetch')->willReturn(false);
 
+        $postCheckStmt = $this->createStub(\PDOStatement::class);
+        $postCheckStmt->method('fetch')->willReturn(['IsCommentsDisabled' => 0]);
+
         $this->pdo->expects($this->once())->method('beginTransaction')->willReturn(true);
         $this->pdo->expects($this->once())->method('commit')->willReturn(true);
         $this->pdo->expects($this->never())->method('rollBack');
@@ -698,8 +722,12 @@ final class CommentControllerTest extends TestCase
                 $insertStmt,
                 $postOwnerStmt,
                 $selectStmt,
-                $postAuthorStmt
+                $postAuthorStmt,
+                $postCheckStmt
                 ) {
+                if (str_contains($sql, 'IsCommentsDisabled')) {
+                    return $postCheckStmt;
+                }
                 if (str_contains($sql, 'INSERT INTO dbo.Forum_Comments')) {
                     return $insertStmt;
                 }
@@ -810,6 +838,9 @@ final class CommentControllerTest extends TestCase
         $postAuthorStmt = $this->createStub(\PDOStatement::class);
         $postAuthorStmt->method('fetch')->willReturn(false);
 
+        $postCheckStmt = $this->createStub(\PDOStatement::class);
+        $postCheckStmt->method('fetch')->willReturn(['IsCommentsDisabled' => 0]);
+
         $this->pdo->expects($this->once())->method('beginTransaction')->willReturn(true);
         $this->pdo->expects($this->once())->method('commit')->willReturn(true);
         $this->pdo->expects($this->never())->method('rollBack');
@@ -821,8 +852,12 @@ final class CommentControllerTest extends TestCase
             $selectStmt,
             $postOwnerStmt,
             $postAuthorStmt,
+            $postCheckStmt,
             $roleName
         ) {
+            if (str_contains($sql, 'IsCommentsDisabled')) {
+                return $postCheckStmt;
+            }
             if (str_contains($sql, 'SELECT LOWER(r.NAME)')) {
                 return $roleStmt;
             }
@@ -902,13 +937,20 @@ final class CommentControllerTest extends TestCase
         $this->pdo->expects($this->never())->method('commit');
         $this->pdo->expects($this->once())->method('rollBack')->willReturn(true);
 
+        $postCheckStmt = $this->createStub(\PDOStatement::class);
+        $postCheckStmt->method('fetch')->willReturn(['IsCommentsDisabled' => 0]);
+
         $this->pdo->method('prepare')->willReturnCallback(function (string $sql) use (
             $banStmt,
             $roleStmt,
             $lockStmt,
             $recentCommentsStmt,
-            $hourlyResetTimeStmt
+            $hourlyResetTimeStmt,
+            $postCheckStmt
         ) {
+            if (str_contains($sql, 'IsCommentsDisabled')) {
+                return $postCheckStmt;
+            }
             if (str_contains($sql, 'SELECT LOWER(r.NAME)')) {
                 return $roleStmt;
             }
@@ -975,7 +1017,13 @@ final class CommentControllerTest extends TestCase
         $this->pdo->expects($this->once())->method('rollBack')->willReturn(true);
 
         
-        $this->pdo->method('prepare')->willReturnCallback(function (string $sql) use ($banStmt, $lockStmt, $recentCommentsStmt, $lastCommentTimeStmt) {
+        $postCheckStmt = $this->createStub(\PDOStatement::class);
+        $postCheckStmt->method('fetch')->willReturn(['IsCommentsDisabled' => 0]);
+
+        $this->pdo->method('prepare')->willReturnCallback(function (string $sql) use ($banStmt, $lockStmt, $recentCommentsStmt, $lastCommentTimeStmt, $postCheckStmt) {
+            if (str_contains($sql, 'IsCommentsDisabled')) {
+                return $postCheckStmt;
+            }
             if (str_contains($sql, 'sp_getapplock')) {
                 return $lockStmt;
             }

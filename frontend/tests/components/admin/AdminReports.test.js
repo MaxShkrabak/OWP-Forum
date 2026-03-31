@@ -2,12 +2,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount, flushPromises } from "@vue/test-utils";
 import { ref } from "vue";
 
-// tests/components/admin/AdminReports.test.js -> src/components/admin/*.vue
 import AdminReports from "../../../src/components/admin/AdminReports.vue";
 
-/* -------------------- mocks -------------------- */
-
-// Mock API client used by AdminReports.vue
 const { mockClient } = vi.hoisted(() => ({
   mockClient: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), delete: vi.fn() },
 }));
@@ -15,9 +11,8 @@ const { mockClient } = vi.hoisted(() => ({
 // Virtual mock so "@/api/client" doesn't need to resolve to a real path
 vi.mock("@/api/client", () => ({ default: mockClient }), { virtual: true });
 
-// Mock reports API used by AdminReports.vue (resolveReport)
 const { mockReportsApi } = vi.hoisted(() => ({
-  mockReportsApi: { resolveReport: vi.fn() },
+  mockReportsApi: { resolveReport: vi.fn(), fetchReports: vi.fn() },
 }));
 
 // Virtual mock so "@/api/reports" doesn't need alias resolution
@@ -25,11 +20,11 @@ vi.mock(
   "@/api/reports",
   () => ({
     resolveReport: mockReportsApi.resolveReport,
+    fetchReports: mockReportsApi.fetchReports,
   }),
   { virtual: true }
 );
 
-// Mock router used by AdminReports.vue
 const { mockRouter } = vi.hoisted(() => ({
   mockRouter: { push: vi.fn() },
 }));
@@ -46,8 +41,6 @@ vi.mock(
   }),
   { virtual: true }
 );
-
-/* -------------------- test data -------------------- */
 
 const mockReportTags = [
   { ReportTagID: 10, TagName: "Spam" },
@@ -76,8 +69,6 @@ const mockAdminReports = [
   },
 ];
 
-/* -------------------- shared helpers (tags) -------------------- */
-
 function normalizeName(s) {
   return String(s ?? "").trim().replace(/\s+/g, " ");
 }
@@ -90,8 +81,6 @@ function reportTagExists(tags, name, excludeId = null) {
     return same && notSelf;
   });
 }
-
-/* -------------------- endpoint contract helpers -------------------- */
 
 function getReportTagsListEndpoint() {
   return "/admin/report-tags";
@@ -107,15 +96,13 @@ function getReportTagsDeleteEndpoint(id) {
 }
 
 function getActiveReportsEndpoint() {
-  return "/admin/reports"; // client baseURL '/api' => /api/admin/reports
+  return "/reports"; // client baseURL '/api' => /api/reports
 }
 
 function getCreateReportModalTagsEndpoint() {
   // Provided in ReportRoutes.php: GET /api/reports/tags
   return "/reports/tags";
 }
-
-/* -------------------- tests -------------------- */
 
 describe("Report Tags (Admin) — duplicate prevention", () => {
   it("detects duplicates (case-insensitive, normalized)", () => {
@@ -148,7 +135,7 @@ describe("Report Tags (Admin) — API contract", () => {
   });
 
   it("reports endpoint matches AdminReports.vue", () => {
-    expect(getActiveReportsEndpoint()).toBe("/admin/reports");
+    expect(getActiveReportsEndpoint()).toBe("/reports");
   });
 
   it("create report modal tags endpoint matches ReportRoutes.php", () => {
@@ -161,25 +148,12 @@ describe("AdminReports.vue — DOM + CRUD behaviors", () => {
     vi.clearAllMocks();
     mockRouter.push.mockClear();
 
-    // AdminReports calls:
-    //  - GET /admin/report-tags on mount
-    //  - GET /admin/reports on mount
-    //  - optional GET /get-post/:id for enrichment
     mockClient.get.mockImplementation((url) => {
       if (url === "/admin/report-tags") return Promise.resolve({ data: { items: mockReportTags } });
-
-      if (url === "/admin/reports")
-        return Promise.resolve({ data: { ok: true, reports: mockAdminReports } });
-
-      // enrichment calls (harmless defaults)
-      if (String(url).startsWith("/get-post/")) {
-        return Promise.resolve({
-          data: { ok: true, post: { title: "Enriched", authorId: 1, authorName: "Author" } },
-        });
-      }
-
       return Promise.resolve({ data: {} });
     });
+
+    mockReportsApi.fetchReports.mockResolvedValue({ ok: true, reports: mockAdminReports });
   });
 
   it("1) All existing report tags load correctly", async () => {
@@ -214,11 +188,9 @@ describe("AdminReports.vue — DOM + CRUD behaviors", () => {
 
     mockClient.patch.mockResolvedValue({ data: { ok: true } });
 
-    // First click opens confirm modal
     await wrapper.find(".btn-confirm").trigger("click");
     expect(wrapper.text()).toContain("Confirm edit report tag?");
 
-    // Confirm
     const confirmButtons = wrapper.findAll(".btn-confirm");
     await confirmButtons[confirmButtons.length - 1].trigger("click");
     await flushPromises();
@@ -247,11 +219,11 @@ describe("AdminReports.vue — DOM + CRUD behaviors", () => {
     expect(wrapper.text()).toContain("Report tag deleted");
   });
 
-  it("5) Active reports load correctly (GET /admin/reports called and list renders)", async () => {
+  it("5) Active reports load correctly (fetchReports called and list renders)", async () => {
     const wrapper = mount(AdminReports);
     await flushPromises();
 
-    expect(mockClient.get).toHaveBeenCalledWith("/admin/reports");
+    expect(mockReportsApi.fetchReports).toHaveBeenCalled();
 
     const rows = wrapper.findAll(".reports-list .report-row");
     expect(rows.length).toBe(2);
@@ -261,8 +233,7 @@ describe("AdminReports.vue — DOM + CRUD behaviors", () => {
   });
 
   it("6) Reports are filtered to show only unresolved reports (UI shows what API returns)", async () => {
-    // AdminReports.vue itself does not filter by status;
-    // It shows whatever /admin/reports returns.
+    // AdminReports.vue itself does not filter by status; it shows whatever /admin/reports returns.
     mockClient.get.mockImplementation((url) => {
       if (url === "/admin/report-tags") return Promise.resolve({ data: { items: mockReportTags } });
       if (url === "/admin/reports")
@@ -287,7 +258,6 @@ describe("AdminReports.vue — DOM + CRUD behaviors", () => {
   const wrapper = mount(AdminReports);
   await flushPromises();
 
-  // Find the row that corresponds to Post #99 (order can be newest-first)
   const rows = wrapper.findAll(".reports-list .report-row");
   const targetRow = rows.find((row) => row.text().includes("Post #99"));
   expect(targetRow, "Expected a report row for Post #99").toBeTruthy();
@@ -297,7 +267,6 @@ describe("AdminReports.vue — DOM + CRUD behaviors", () => {
 
   expect(mockReportsApi.resolveReport).toHaveBeenCalledWith(1);
 
-  // Should remove that report from UI
   const remainingRows = wrapper.findAll(".reports-list .report-row");
   expect(remainingRows.length).toBe(1);
   expect(wrapper.text()).not.toContain("Post #99");
@@ -308,7 +277,6 @@ it('9) Clicking "Go to" routes to correct report content', async () => {
   const wrapper = mount(AdminReports);
   await flushPromises();
 
-  // Find the row that corresponds to Post #99
   const rows = wrapper.findAll(".reports-list .report-row");
   const targetRow = rows.find((row) => row.text().includes("Post #99"));
   expect(targetRow, "Expected a report row for Post #99").toBeTruthy();

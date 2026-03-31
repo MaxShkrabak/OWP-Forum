@@ -2,21 +2,20 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount, flushPromises } from "@vue/test-utils";
 import AdminReports from "@/components/admin/AdminReports.vue";
 
-// Used by "Go to" button
 vi.mock("vue-router", () => ({
   useRouter: () => ({ push: vi.fn() }),
 }));
 
-// Used by loadReportTags/loadReports/enrichReports
 const clientGet = vi.fn();
 vi.mock("@/api/client", () => ({
   default: { get: (...args) => clientGet(...args) },
 }));
 
-// Used by Resolve button
 const resolveReportMock = vi.fn();
+const fetchReportsMock = vi.fn();
 vi.mock("@/api/reports", () => ({
   resolveReport: (...args) => resolveReportMock(...args),
+  fetchReports: (...args) => fetchReportsMock(...args),
 }));
 
 function makeReport(overrides = {}) {
@@ -44,28 +43,15 @@ describe("AdminReports - acceptance checks", () => {
   it("shows reports and removes one after Resolve", async () => {
     clientGet.mockImplementation((url) => {
       if (url === "/admin/report-tags") return Promise.resolve({ data: { items: [] } });
-
-      if (url === "/admin/reports") {
-        return Promise.resolve({
-          data: {
-            ok: true,
-            reports: [
-              makeReport({ reportId: 1, postId: 10, contentTitle: "Post A" }),
-              makeReport({ reportId: 2, postId: 11, contentTitle: "Post B" }),
-            ],
-          },
-        });
-      }
-
-      // enrichReports() calls this
-      if (url.startsWith("/get-post/")) {
-        const postId = Number(url.split("/").pop());
-        return Promise.resolve({
-          data: { ok: true, post: { title: `Post ${postId}`, authorId: 500 + postId, authorName: `Author ${postId}` } },
-        });
-      }
-
       return Promise.reject(new Error(`Unexpected GET ${url}`));
+    });
+
+    fetchReportsMock.mockResolvedValue({
+      ok: true,
+      reports: [
+        makeReport({ reportId: 1, postId: 10, contentTitle: "Post A" }),
+        makeReport({ reportId: 2, postId: 11, contentTitle: "Post B" }),
+      ],
     });
 
     resolveReportMock.mockResolvedValue({ ok: true });
@@ -88,52 +74,24 @@ describe("AdminReports - acceptance checks", () => {
   });
 
   it("after Refresh, reports for a deleted post are gone", async () => {
-    let reportsCallCount = 0;
-
     clientGet.mockImplementation((url) => {
       if (url === "/admin/report-tags") return Promise.resolve({ data: { items: [] } });
-
-      if (url === "/admin/reports") {
-        reportsCallCount += 1;
-
-        if (reportsCallCount === 1) {
-          return Promise.resolve({
-            data: {
-              ok: true,
-              reports: [
-                makeReport({ reportId: 1, postId: 10, contentTitle: "Deleted Post" }),
-                makeReport({ reportId: 2, postId: 10, contentTitle: "Deleted Post" }),
-                makeReport({ reportId: 3, postId: 99, contentTitle: "Other Post" }),
-              ],
-            },
-          });
-        }
-
-        return Promise.resolve({
-          data: {
-            ok: true,
-            reports: [makeReport({ reportId: 3, postId: 99, contentTitle: "Other Post" })],
-          },
-        });
-      }
-
-      // enrichReports() calls this
-      if (url.startsWith("/get-post/")) {
-        const postId = Number(url.split("/").pop());
-        return Promise.resolve({
-          data: {
-            ok: true,
-            post: {
-              title: postId === 10 ? "Deleted Post" : "Other Post",
-              authorId: 500 + postId,
-              authorName: `Author ${postId}`,
-            },
-          },
-        });
-      }
-
       return Promise.reject(new Error(`Unexpected GET ${url}`));
     });
+
+    fetchReportsMock
+      .mockResolvedValueOnce({
+        ok: true,
+        reports: [
+          makeReport({ reportId: 1, postId: 10, contentTitle: "Deleted Post" }),
+          makeReport({ reportId: 2, postId: 10, contentTitle: "Deleted Post" }),
+          makeReport({ reportId: 3, postId: 99, contentTitle: "Other Post" }),
+        ],
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        reports: [makeReport({ reportId: 3, postId: 99, contentTitle: "Other Post" })],
+      });
 
     const wrapper = mount(AdminReports);
     await flushPromises();

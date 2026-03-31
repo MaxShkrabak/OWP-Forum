@@ -186,8 +186,9 @@ onMounted(async () => {
               </div>
               <div class="author-details d-flex flex-column">
                 <RouterLink
-                style="text-decoration: none;"
-                  :to="`/profile?id=${post.authorId}`">
+                  style="text-decoration: none"
+                  :to="`/profile?id=${post.authorId}`"
+                >
                   <div class="d-flex align-items-center gap-2">
                     <span class="author-name">{{ post.authorName }}</span>
                     <UserRole :role="post.authorRole" />
@@ -231,7 +232,10 @@ onMounted(async () => {
         <section
           class="post-card comments-section mt-3 rounded-4 overflow-hidden"
         >
-          <CommentSection :post-id="postId" />
+          <CommentSection
+            :post-id="postId"
+            :comments-disabled="post?.isCommentsDisabled ?? false"
+          />
         </section>
       </div>
     </div>

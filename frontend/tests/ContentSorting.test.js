@@ -8,6 +8,7 @@ vi.mock("@/api/posts.js", () => ({
     postsByCategory: [],
     totalPosts: 0,
   })),
+  fetchPinnedPosts: vi.fn(async () => ({ posts: [] })),
 }));
 
 vi.mock("@/api/auth.js", () => ({

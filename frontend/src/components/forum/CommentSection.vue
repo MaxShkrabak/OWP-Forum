@@ -9,12 +9,16 @@ import {
   submitComment as apiSubmitComment,
   formatCommentData,
 } from "@/api/comments";
-import { isLoggedIn } from "@/stores/userStore";
+import { isLoggedIn, userRoleId } from "@/stores/userStore";
 
 const props = defineProps({
   postId: {
     type: [Number, String],
     required: true,
+  },
+  commentsDisabled: {
+    type: Boolean,
+    default: false,
   },
 });
 
@@ -415,6 +419,22 @@ const handleDeletedComment = (deletedCommentId) => {
     <div class="p-3 p-md-4">
       <div class="main-input-wrapper mb-4">
         <div
+          v-if="commentsDisabled && userRoleId < 3"
+          class="comments-disabled-notice border rounded-3 px-4 py-3"
+        >
+          <i class="pi pi-lock me-2"></i>Comments have been disabled on this
+          post.
+        </div>
+
+        <div
+          v-if="commentsDisabled && userRoleId >= 3"
+          class="comments-disabled-mod-notice rounded-3 px-4 py-2 mb-2 justify-content-center d-flex align-items-center gap-2"
+        >
+          <i class="pi pi-lock me-2"></i>Comments are disabled for regular users on this post.
+        </div>
+
+        <div
+          v-if="!commentsDisabled || userRoleId >= 3"
           class="reply-box-container border rounded-3 overflow-hidden bg-white position-relative"
           :class="{ 'focused-border': isFocused }"
           @click="handleCommentBoxClick()"
@@ -453,7 +473,10 @@ const handleDeletedComment = (deletedCommentId) => {
         </div>
       </div>
       <div class="comments-container">
-        <div v-if="!commentsTree.length && !hasMore" class="text-center">
+        <div
+          v-if="!commentsTree.length && !hasMore && !commentsDisabled"
+          class="text-center"
+        >
           <span
             class="no-comments-text"
             style="font-style: italic; opacity: 0.6"
@@ -539,6 +562,21 @@ const handleDeletedComment = (deletedCommentId) => {
   border-bottom: 1px solid #cce3d6;
   font-weight: 800;
   color: #1e4d38;
+}
+
+.comments-disabled-notice {
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 0.9rem;
+  font-style: italic;
+  text-align: center;
+}
+
+.comments-disabled-mod-notice {
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  color: #92400e;
+  font-size: 0.85rem;
 }
 
 .guest-overlay {
@@ -645,7 +683,6 @@ const handleDeletedComment = (deletedCommentId) => {
   padding-right: 0.25rem;
 }
 
-/* Keeps the actual dropdown options legible */
 .sort-select option {
   color: #1f2937;
   text-transform: none;

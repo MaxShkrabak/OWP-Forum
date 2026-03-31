@@ -12,14 +12,13 @@ use function Forum\Helpers\json;
 use function Forum\Helpers\checkUserBan;
 use function Forum\Helpers\createNotification;
 
-class CommentController
+class CommentController extends BaseController
 {
-    private Closure $makePdo;
     private Closure $sendCommentEmail;
 
     public function __construct(Closure $makePdo, ?Closure $sendCommentEmail = null)
     {
-        $this->makePdo = $makePdo;
+        parent::__construct($makePdo);
         $this->sendCommentEmail = $sendCommentEmail ?? fn(array $message) => $this->dispatchCommentNotification($message);
     }
 
@@ -72,7 +71,7 @@ class CommentController
         $cooldownMinutes = (int)($_ENV['COMMENT_EMAIL_COOLDOWN_MINUTES'] ?? 10);
         $lastTime = strtotime($lastSentAt);
 
-        if ($lastTime === false) return true; // If parsing fails, allow sending
+        if ($lastTime === false) return true;
 
         return $lastTime <= time() - ($cooldownMinutes * 60);
     }
@@ -82,8 +81,8 @@ class CommentController
         $fromEmail = $_ENV['EMAIL_FROM_ADDRESS'] ?? '';
         $fromName = $_ENV['EMAIL_FROM_NAME'] ?? 'OWP Forum';
 
-        $safeName = htmlspecialchars($name !== '' ? $name : $email, ENT_QUOTES,'UTF-8');
-        $safeTitle = htmlspecialchars($postTitle, ENT_QUOTES,'UTF-8');
+        $safeName = htmlspecialchars($name !== '' ? $name : $email, ENT_QUOTES, 'UTF-8');
+        $safeTitle = htmlspecialchars($postTitle, ENT_QUOTES, 'UTF-8');
 
         return [
             'sender' => [
@@ -111,9 +110,9 @@ class CommentController
         }
 
         $headers = [
-                'accept: application/json',
-                'api-key: ' . $apiKey,
-                'content-type: application/json'
+            'accept: application/json',
+            'api-key: ' . $apiKey,
+            'content-type: application/json'
         ];
 
         if ($useSandbox) {
@@ -147,7 +146,8 @@ class CommentController
 
         return true;
     }
-    private function getCommentRateLimitRole(PDO $pdo, int $userId): ?string {
+    private function getCommentRateLimitRole(PDO $pdo, int $userId): ?string
+    {
         $roleStmt = $pdo->prepare("
             SELECT LOWER(r.NAME)
             FROM dbo.Forum_Users u
@@ -158,18 +158,20 @@ class CommentController
         $roleStmt->execute([':uid' => $userId]);
         $roleName = $roleStmt->fetchColumn();
 
-        return is_string($roleName)?trim($roleName):null;
+        return is_string($roleName) ? trim($roleName) : null;
     }
 
-    private function ApplyCommentRateLimit(?string $roleName):bool {
-        if($roleName === null || $roleName === ''){
+    private function ApplyCommentRateLimit(?string $roleName): bool
+    {
+        if ($roleName === null || $roleName === '') {
             return true;
         }
 
         return in_array($roleName, ['user', 'student'], true);
     }
 
-    private function getHourlyCommentResetSeconds(PDO $pdo, int $userId, int $commentsPerHourLimit): ?int {
+    private function getHourlyCommentResetSeconds(PDO $pdo, int $userId, int $commentsPerHourLimit): ?int
+    {
         $offset = max($commentsPerHourLimit - 1, 0);
 
         $hourlyResetTimeStmt = $pdo->prepare("
@@ -184,7 +186,7 @@ class CommentController
         $hourlyResetTimeStmt->execute([':uid' => $userId]);
         $createdAt = $hourlyResetTimeStmt->fetchColumn();
 
-        if(!$createdAt){
+        if (!$createdAt) {
             return null;
         }
 
@@ -197,13 +199,12 @@ class CommentController
 
     private function createCommentRateLimit(PDO $pdo, int $userId, Response $res): ?Response
     {
-        //Make thes into ENVs if desired
         $commentCooldownSeconds = 15;
-        $commentsPerHourLimit = 50; 
+        $commentsPerHourLimit = 50;
 
         $roleName = $this->getCommentRateLimitRole($pdo, $userId);
 
-        if(!$this->ApplyCommentRateLimit($roleName)){
+        if (!$this->ApplyCommentRateLimit($roleName)) {
             return null;
         }
 
@@ -284,19 +285,14 @@ class CommentController
             ], 429);
         }
 
-        return null; 
+        return null;
     }
 
     public function createComment(Request $req, Response $res, array $args): Response
     {
         try {
-            $userId = $req->getAttribute("user_id");
-
-            if (!$userId) {
-                return json($res, ['ok' => false, 'error' => 'Not Authenticated'], 401);
-            }
-
-            $pdo = ($this->makePdo)();
+            [$err, $pdo, $userId] = $this->requireAuth($req, $res);
+            if ($err !== null) return $err;
 
             $banResponse = checkUserBan($pdo, (int)$userId, $res);
             if ($banResponse) return $banResponse;
@@ -310,9 +306,23 @@ class CommentController
                 return json($res, ['ok' => false, 'error' => 'Missing post_id or content'], 400);
             }
 
+            $postCheckStmt = $pdo->prepare("
+                SELECT IsCommentsDisabled FROM dbo.Forum_Posts WHERE PostID = :pid AND IsDeleted = 0
+            ");
+            $postCheckStmt->execute([':pid' => $postId]);
+            $postCheck = $postCheckStmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$postCheck) {
+                return json($res, ['ok' => false, 'error' => 'Post not found.'], 404);
+            }
+
+            if ((int)$postCheck['IsCommentsDisabled'] === 1) {
+                return json($res, ['ok' => false, 'error' => 'Comments are disabled on this post.'], 403);
+            }
+
             $pdo->beginTransaction();
 
-            if($rateLimitResponse = $this->createCommentRateLimit($pdo, (int)$userId, $res)) {
+            if ($rateLimitResponse = $this->createCommentRateLimit($pdo, (int)$userId, $res)) {
                 return $rateLimitResponse;
             }
 
@@ -329,18 +339,18 @@ class CommentController
             ]);
             $inserted = $stmt->fetch(PDO::FETCH_ASSOC);
 
-$postOwnerStmt = $pdo->prepare("
+            $postOwnerStmt = $pdo->prepare("
     SELECT AuthorID FROM dbo.Forum_Posts WHERE PostID = :postId
 ");
-$postOwnerStmt->execute([':postId' => $postId]);
-$postOwner = $postOwnerStmt->fetch(PDO::FETCH_ASSOC);
+            $postOwnerStmt->execute([':postId' => $postId]);
+            $postOwner = $postOwnerStmt->fetch(PDO::FETCH_ASSOC);
 
-if ($postOwner) {
-    $postOwnerId = (int)($postOwner['AuthorID'] ?? 0);
-    if ($postOwnerId > 0 && $postOwnerId !== (int)$userId) {
-        createNotification($pdo, $postOwnerId, $postId, 'postReply');
-    }
-}
+            if ($postOwner) {
+                $postOwnerId = (int)($postOwner['AuthorID'] ?? 0);
+                if ($postOwnerId > 0 && $postOwnerId !== (int)$userId) {
+                    createNotification($pdo, $postOwnerId, $postId, 'postReply');
+                }
+            }
 
             $commentDetailsSql = $pdo->prepare("
                 SELECT c.CommentId, c.PostId, c.ParentCommentId, c.Content, c.CreatedAt, c.UpdatedAt, c.UserId, c.TotalScore,
@@ -355,7 +365,7 @@ if ($postOwner) {
             $commentDetailsSql->execute([':commentId' => (int)$inserted['CommentId']]);
             $row = $commentDetailsSql->fetch(PDO::FETCH_ASSOC);
 
-            if(!$row) {
+            if (!$row) {
                 $pdo->rollBack();
                 return json($res, ['ok' => false, 'error' => 'Failed to load created comment'], 500);
             }
@@ -469,11 +479,10 @@ if ($postOwner) {
     public function deleteComment(Request $req, Response $res, array $args): Response
     {
         try {
-            if (!($userId = $req->getAttribute("user_id"))) {
-                return json($res, ['ok' => false, 'error' => 'Not authenticated'], 401);
-            }
+            [$err, $pdo, $userId] = $this->requireAuth($req, $res);
+            if ($err !== null) return $err;
+
             $commentId = (int)$args['id'];
-            $pdo = ($this->makePdo)();
 
             $commentStmt = $pdo->prepare("
                 SELECT c.CommentId, c.UserId, c.IsDeleted, r.Name AS RequesterRole
@@ -491,11 +500,11 @@ if ($postOwner) {
                 ':uid' => (int)$userId
             ]);
             $row = $commentStmt->fetch(PDO::FETCH_ASSOC);
-            
+
             if (!$row || (int)$row['IsDeleted'] === 1) {
                 return json($res, ['ok' => false, 'error' => 'Comment not found'], 404);
             }
-            
+
             $isOwner = (int)$row['UserId'] === (int)$userId;
             $role = strtolower((string)($row['RequesterRole'] ?? ''));
             $isModeratorOrAdmin = in_array($role, ['moderator', 'admin'], true);
@@ -510,7 +519,7 @@ if ($postOwner) {
             if ($stmt->rowCount() === 0) {
                 return json($res, ['ok' => false, 'error' => 'Failed to delete comment'], 500);
             }
-            
+
             return json($res, ['ok' => true]);
         } catch (Throwable $e) {
             return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
@@ -568,10 +577,8 @@ if ($postOwner) {
     public function updateComment(Request $req, Response $res, array $args): Response
     {
         try {
-            $userId = $req->getAttribute("user_id");
-            if (!$userId) {
-                return json($res, ['ok' => false, 'error' => 'Not Authenticated'], 401);
-            }
+            [$err, $pdo, $userId] = $this->requireAuth($req, $res);
+            if ($err !== null) return $err;
 
             $commentId = (int)($args['id'] ?? 0);
             if ($commentId <= 0) {
@@ -583,9 +590,6 @@ if ($postOwner) {
             if ($content === '') {
                 return json($res, ['ok' => false, 'error' => 'Content cannot be empty'], 400);
             }
-
-            /** @var PDO $pdo */
-            $pdo = ($this->makePdo)();
 
             $banResponse = checkUserBan($pdo, (int)$userId, $res);
             if ($banResponse) return $banResponse;
@@ -660,16 +664,13 @@ if ($postOwner) {
     public function vote(Request $req, Response $res, array $args): Response
     {
         try {
-            if (($userId = $req->getAttribute('user_id')) === null) {
-                return json($res, ['ok' => false, 'error' => 'Not Authenticated'], 401);
-            }
+            [$err, $pdo, $userId] = $this->requireAuth($req, $res);
+            if ($err !== null) return $err;
 
             $commentId = (int)($args['id'] ?? 0);
             $data = $req->getParsedBody() ?? [];
 
             $action = strtolower((string)($data['dir'] ?? $data['action'] ?? ''));
-
-            $pdo = ($this->makePdo)();
 
             $banResponse = checkUserBan($pdo, (int)$userId, $res);
             if ($banResponse) return $banResponse;

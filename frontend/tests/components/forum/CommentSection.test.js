@@ -1,13 +1,19 @@
 import { mount, flushPromises, DOMWrapper } from "@vue/test-utils";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { ref } from "vue";
 import CommentSection from "@/components/forum/CommentSection.vue";
 import { fetchComments, submitComment, updateComment } from "@/api/comments";
 import TextEditor from "@/components/forum/TextEditor.vue";
 
 vi.mock("@/stores/userStore", () => ({
-  isLoggedIn: { value: true },
-  uid: { value: 1 }, // Matches the userId: 1 in the mocked comments below
-  userRole: { value: "user" },
+  isLoggedIn: ref(true),
+  uid: ref(1), // Matches the userId: 1 in the mocked comments below
+  userRole: ref("user"),
+}));
+
+vi.mock("vue-router", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  useRoute: () => ({ params: {}, query: {} }),
 }));
 
 vi.mock("@/api/auth", () => ({

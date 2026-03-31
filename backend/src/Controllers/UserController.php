@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Forum\Controllers;
 
-use Closure;
 use PDO;
 use Throwable;
 use Psr\Http\Message\ResponseInterface as Response;
@@ -13,16 +12,10 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 use function Forum\Helpers\json;
 use function Forum\Helpers\markNotificationsRead;
 use function Forum\Helpers\fetchCounts;
+use function Forum\Helpers\fetchTagNamesByPostIds;
 
-final class UserController
+final class UserController extends BaseController
 {
-    private Closure $makePdo;
-
-    public function __construct(Closure $makePdo)
-    {
-        $this->makePdo = $makePdo;
-    }
-
     public function updateAvatar(Request $req, Response $res): Response
     {
         try {
@@ -54,12 +47,8 @@ final class UserController
     public function getNotificationSettings(Request $req, Response $res): Response
     {
         try {
-            $userId = $req->getAttribute('user_id');
-            if (!$userId) {
-                return json($res, ['ok' => false, 'error' => 'Unauthorized'], 401);
-            }
-
-            $pdo = ($this->makePdo)();
+            [$err, $pdo, $userId] = $this->requireAuth($req, $res);
+            if ($err !== null) return $err;
             $stmt = $pdo->prepare("
                 SELECT ISNULL(EmailNotificationsEnabled, 1) as EmailNotificationsEnabled
                 FROM dbo.Forum_Users WHERE User_ID = :uid
@@ -85,10 +74,8 @@ final class UserController
     public function updateNotificationSettings(Request $req, Response $res): Response
     {
         try {
-            $userId = $req->getAttribute('user_id');
-            if (!$userId) {
-                return json($res, ['ok' => false, 'error' => 'Unauthorized'], 401);
-            }
+            [$err, $pdo, $userId] = $this->requireAuth($req, $res);
+            if ($err !== null) return $err;
 
             $data = $req->getParsedBody() ?? [];
             if (!array_key_exists('emailNotifications', $data)) {
@@ -100,7 +87,6 @@ final class UserController
                 return json($res, ['ok' => false, 'error' => 'Invalid emailNotifications value'], 400);
             }
 
-            $pdo = ($this->makePdo)();
             $pdo->prepare("
                 UPDATE dbo.Forum_Users SET EmailNotificationsEnabled = :enabled WHERE User_ID = :uid
             ")->execute([':enabled' => $emailNotifications ? 1 : 0, ':uid' => $userId]);
@@ -117,12 +103,8 @@ final class UserController
     public function getNotifications(Request $req, Response $res): Response
     {
         try {
-            $userId = (int)$req->getAttribute('user_id');
-            if (!$userId) {
-                return json($res, ['ok' => false, 'error' => 'Unauthorized'], 401);
-            }
-
-            $pdo = ($this->makePdo)();
+            [$err, $pdo, $userId] = $this->requireAuth($req, $res);
+            if ($err !== null) return $err;
 
             $sql = "
                 SELECT TOP 20
@@ -164,10 +146,8 @@ final class UserController
     public function markNotificationsRead(Request $req, Response $res): Response
     {
         try {
-            $userId = (int)$req->getAttribute('user_id');
-            if (!$userId) {
-                return json($res, ['ok' => false, 'error' => 'Unauthorized'], 401);
-            }
+            [$err, $pdo, $userId] = $this->requireAuth($req, $res);
+            if ($err !== null) return $err;
 
             $data = $req->getParsedBody() ?? [];
             $notificationIds = is_array($data['notificationIds'] ?? null) ? $data['notificationIds'] : [];
@@ -176,7 +156,6 @@ final class UserController
                 return json($res, ['ok' => false, 'error' => 'notificationIds is required'], 400);
             }
 
-            $pdo = ($this->makePdo)();
             $ok = markNotificationsRead($pdo, $userId, $notificationIds);
 
             return json($res, ['ok' => $ok]);
@@ -188,12 +167,9 @@ final class UserController
     public function acceptTerms(Request $req, Response $res): Response
     {
         try {
-            $userId = $req->getAttribute('user_id');
-            if ($userId === null) {
-                return json($res, ['ok' => false, 'error' => 'Unauthorized'], 401);
-            }
+            [$err, $pdo, $userId] = $this->requireAuth($req, $res);
+            if ($err !== null) return $err;
 
-            $pdo = ($this->makePdo)();
             $pdo->prepare("
                 UPDATE dbo.Forum_Users
                 SET termsAccepted = 1, termsAcceptedAt = GETDATE()
@@ -328,19 +304,7 @@ final class UserController
             $postIds = array_map(fn($r) => (int)$r['PostID'], $rows);
             $placeholders = implode(',', array_fill(0, count($postIds), '?'));
 
-            $tagsByPostId = [];
-            $tagStmt = $pdo->prepare("
-                SELECT pt.PostID, t.Name
-                FROM dbo.Forum_PostTags pt
-                JOIN dbo.Forum_Tags t ON t.TagID = pt.TagID
-                WHERE pt.PostID IN ($placeholders)
-                ORDER BY t.Name ASC
-            ");
-            $tagStmt->execute($postIds);
-            while ($tag = $tagStmt->fetch(PDO::FETCH_ASSOC)) {
-                $tagsByPostId[(int)$tag['PostID']][] = $tag['Name'];
-            }
-
+            $tagsByPostId = fetchTagNamesByPostIds($pdo, $postIds);
             $likeCounts = fetchCounts($pdo, 'dbo.PostLikes', $placeholders, $postIds, 'LikeCount');
 
             $posts = [];
@@ -474,19 +438,7 @@ final class UserController
             $postIds = array_map(fn($r) => (int)$r['PostID'], $rows);
             $placeholders = implode(',', array_fill(0, count($postIds), '?'));
 
-            $tagsByPostId = [];
-            $tagStmt = $pdo->prepare("
-                SELECT pt.PostID, t.Name
-                FROM dbo.Forum_PostTags pt
-                JOIN dbo.Forum_Tags t ON t.TagID = pt.TagID
-                WHERE pt.PostID IN ($placeholders)
-                ORDER BY t.Name ASC
-            ");
-            $tagStmt->execute($postIds);
-            while ($t = $tagStmt->fetch(PDO::FETCH_ASSOC)) {
-                $tagsByPostId[(int)$t['PostID']][] = $t['Name'];
-            }
-
+            $tagsByPostId = fetchTagNamesByPostIds($pdo, $postIds);
             $likeCounts = fetchCounts($pdo, 'dbo.PostLikes', $placeholders, $postIds, 'LikeCount');
 
             $posts = [];

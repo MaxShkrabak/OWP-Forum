@@ -249,7 +249,7 @@ async function confirmRoleChange() {
 
 onMounted(async () => {
   try {
-    const me = await client.get("/admin/me");
+    const me = await client.get("/me");
     currentUserId.value = Number(me.data.user.userId);
   } catch (e) {
     console.error("Failed to load current admin user", e);
