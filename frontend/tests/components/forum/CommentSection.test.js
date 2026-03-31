@@ -83,7 +83,7 @@ describe("CommentSection.vue", () => {
         postId: 12,
       },
       global: {
-        stubs: { SingleComment: false },
+        stubs: { SingleComment: false, RouterLink: true },
       },
     });
   });
@@ -170,10 +170,15 @@ describe("CommentSection.vue", () => {
   it("allows the author to edit their own comment and shows edited state", async () => {
     await flushPromises();
 
-    const editButtons = wrapper.findAll(".btn-options");
-    expect(editButtons.length).toBeGreaterThan(0);
+    const menuButtons = wrapper.findAll(".comment-menu-btn");
+    expect(menuButtons.length).toBeGreaterThan(0);
 
-    await editButtons[0].trigger("click");
+    await menuButtons[0].trigger("click");
+    await flushPromises();
+
+    const editItem = wrapper.find(".comment-menu-item");
+    expect(editItem.exists()).toBe(true);
+    await editItem.trigger("click");
     await flushPromises();
 
     const editors = wrapper.findAllComponents(TextEditor);
