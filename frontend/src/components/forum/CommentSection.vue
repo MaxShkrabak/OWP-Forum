@@ -372,16 +372,10 @@ onMounted(() => {
 });
 
 const handleDeletedComment = (deletedCommentId) => {
-  const before = flatCommentsList.value.length;
-
   flatCommentsList.value = flatCommentsList.value.filter(
-    (comment) =>
-      comment.id !== deletedCommentId &&
-      comment.parentCommentId !== deletedCommentId,
+    (comment) => comment.id !== deletedCommentId,
   );
-
-  const removedCount = before - flatCommentsList.value.length;
-  commentTotalCount.value = Math.max(0, commentTotalCount.value - removedCount);
+  commentTotalCount.value = Math.max(0, commentTotalCount.value - 1);
   commentsTree.value = buildCommentTree(flatCommentsList.value);
 };
 </script>

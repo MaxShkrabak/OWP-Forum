@@ -41,6 +41,8 @@ const isHoveringToggle = ref(false);
 const showReportModal = ref(false);
 const showDeleteConfirm = ref(false);
 const isDeleting = ref(false);
+const showOptionsMenu = ref(false);
+const optionsMenuRef = ref(null);
 
 const activeReplyId = inject("activeReplyId");
 const submitReply = inject("submitReply");
@@ -325,6 +327,28 @@ watch(isEditing, (active) => {
     editText.value = originalText.value;
   }
 });
+
+
+
+const hasOptions = computed(() => !props.comment.isDeleted && (isAuthor.value || canDelete.value || canReport.value));
+
+const toggleOptionsMenu = () => {
+  showOptionsMenu.value = !showOptionsMenu.value;
+};
+
+const handleClickOutsideOptions = (e) => {
+  if (optionsMenuRef.value && !optionsMenuRef.value.contains(e.target)) {
+    showOptionsMenu.value = false;
+  }
+};
+
+watch(showOptionsMenu, (val) => {
+  if (val) {
+    document.addEventListener("click", handleClickOutsideOptions, true);
+  } else {
+    document.removeEventListener("click", handleClickOutsideOptions, true);
+  }
+});
 </script>
 
 <template>
@@ -353,39 +377,66 @@ watch(isEditing, (active) => {
       </div>
 
       <div class="flex-grow-1 overflow-visible">
-        <div class="d-flex align-items-center mb-1 justify-content-between">
-          <div class="d-flex align-items-center gap-2 flex-wrap">
-            <span
-              v-if="comment.isDeleted"
-              class="author-name text-truncate small fw-bold pe-2 text-muted fst-italic"
-            >
-              [deleted]
-            </span>
-            <RouterLink
-              v-else
-              style="text-decoration: none; color: inherit"
-              :to="`/profile?id=${comment.user?.userId}`"
-            >
-              <span class="author-name text-truncate small fw-bold pe-2">{{
-                comment.author
-              }}</span>
-              <UserRole :role="comment.user?.role" />
-            </RouterLink>
-            <span class="timestamp text-muted">
-              {{ comment.time }}
-              <span v-if="comment.wasEdited" class="edited-label ms-1"
-                >(edited)</span
-              >
-            </span>
-          </div>
-          <button
-            v-if="isAuthor"
-            class="btn-options border-0 bg-transparent p-1 ms-2"
-            type="button"
-            @click="startEdit"
+        <div class="d-flex align-items-center mb-1 gap-2 flex-wrap">
+          <span
+            v-if="comment.isDeleted"
+            class="author-name text-truncate small fw-bold pe-2 text-muted fst-italic"
           >
-            <i class="pi pi-ellipsis-h"></i>
-          </button>
+            [deleted]
+          </span>
+          <RouterLink
+            v-else
+            style="text-decoration: none; color: inherit"
+            :to="`/profile?id=${comment.user?.userId}`"
+          >
+            <span class="author-name text-truncate small fw-bold pe-2">{{
+              comment.author
+            }}</span>
+            <UserRole :role="comment.user?.role" />
+          </RouterLink>
+          <span class="timestamp text-muted">
+            {{ comment.time }}
+            <span v-if="comment.wasEdited" class="edited-label ms-1"
+              >(edited)</span
+            >
+          </span>
+          <div v-if="hasOptions" class="position-relative" ref="optionsMenuRef">
+            <button
+              class="comment-menu-btn border-0 bg-transparent p-0"
+              type="button"
+              @click.stop="toggleOptionsMenu"
+            >
+              <i class="pi pi-ellipsis-v"></i>
+            </button>
+            <Transition name="comment-menu-fade">
+              <div v-if="showOptionsMenu" class="comment-menu-popup shadow-sm">
+                <button
+                  v-if="isAuthor"
+                  class="comment-menu-item d-flex align-items-center gap-2 w-100 border-0 bg-transparent px-3 py-2"
+                  @click="startEdit(); showOptionsMenu = false"
+                >
+                  <i class="pi pi-pencil comment-menu-icon"></i>
+                  <span>Edit</span>
+                </button>
+                <button
+                  v-if="canDelete"
+                  class="comment-menu-item comment-menu-item-delete d-flex align-items-center gap-2 w-100 border-0 bg-transparent px-3 py-2"
+                  @click="askDeleteComment(); showOptionsMenu = false"
+                >
+                  <i class="pi pi-trash comment-menu-icon"></i>
+                  <span>Delete</span>
+                </button>
+                <button
+                  v-if="canReport"
+                  class="comment-menu-item d-flex align-items-center gap-2 w-100 border-0 bg-transparent px-3 py-2"
+                  @click="openReportModal(); showOptionsMenu = false"
+                >
+                  <i class="pi pi-flag comment-menu-icon"></i>
+                  <span>Report</span>
+                </button>
+              </div>
+            </Transition>
+          </div>
         </div>
 
         <div v-if="isEditing" class="comment-body mb-2">
@@ -463,21 +514,6 @@ watch(isEditing, (active) => {
             <span>Reply</span>
           </button>
 
-          <button
-            v-if="canDelete"
-            class="action-btn border-0 bg-transparent fw-bold d-flex align-items-center gap-1 p-0"
-            @click="askDeleteComment"
-          >
-            <span>Delete</span>
-          </button>
-
-          <button
-            v-if="canReport"
-            class="action-btn border-0 bg-transparent fw-bold d-flex align-items-center gap-1 p-0"
-            @click="openReportModal"
-          >
-            <span>Report</span>
-          </button>
         </div>
 
         <div v-if="isReplying" class="mt-2">
@@ -692,12 +728,12 @@ watch(isEditing, (active) => {
 }
 
 /* Menu */
-.btn-options {
+.comment-menu-btn {
   color: #9ca3af;
   transition: color 0.2s;
 }
 
-.btn-options:hover {
+.comment-menu-btn:hover {
   color: #111827;
 }
 
@@ -898,5 +934,55 @@ watch(isEditing, (active) => {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+
+.comment-menu-popup {
+  position: absolute;
+  top: 100%;
+  margin-top: 8px;
+  right: 0;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  min-width: 140px;
+  z-index: 100;
+  overflow: hidden;
+}
+
+.comment-menu-item {
+  font-size: 0.875rem;
+  color: #374151;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  text-align: left;
+}
+
+.comment-menu-item:hover {
+  background-color: #f3f4f6;
+}
+
+.comment-menu-item-delete {
+  color: #b91c1c;
+}
+
+.comment-menu-item-delete:hover {
+  background-color: #fef2f2;
+}
+
+.comment-menu-icon {
+  font-size: 0.8rem;
+  width: 14px;
+  text-align: center;
+}
+
+.comment-menu-fade-enter-active,
+.comment-menu-fade-leave-active {
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.comment-menu-fade-enter-from,
+.comment-menu-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
 }
 </style>
