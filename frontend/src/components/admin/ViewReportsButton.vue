@@ -94,6 +94,7 @@ async function handleResolve(reportId) {
 }
 
 function onModalShown() {
+  loadReports();
 }
 
 function stripHTML(html) {

@@ -2,12 +2,13 @@
 import { ref, onMounted, computed, watch } from "vue";
 import client from "@/api/client";
 import { formatBannedUntilDateTime } from "@/utils/banDate";
+import { uid } from "@/stores/userStore";
 
 const q = ref("");
 const users = ref([]);
 const loading = ref(false);
 const error = ref("");
-const currentUserId = ref(null);
+const currentUserId = uid;
 
 const showBanModal = ref(false);
 const banTarget = ref(null);
@@ -248,12 +249,6 @@ async function confirmRoleChange() {
 }
 
 onMounted(async () => {
-  try {
-    const me = await client.get("/me");
-    currentUserId.value = Number(me.data.user.userId);
-  } catch (e) {
-    console.error("Failed to load current admin user", e);
-  }
   await loadUsers();
 });
 </script>
