@@ -398,6 +398,7 @@ const handleDeletedComment = (deletedCommentId) => {
           v-model="selectedSort"
           @change="handleSortChange"
           class="sort-select"
+          :disabled="commentTotalCount <= 1"
         >
           <option
             v-for="option in sortOptions"
@@ -675,6 +676,10 @@ const handleDeletedComment = (deletedCommentId) => {
   cursor: pointer;
   text-transform: uppercase;
   padding-right: 0.25rem;
+}
+.sort-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .sort-select option {
