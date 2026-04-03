@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from "vue";
+import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { userRole } from "@/stores/userStore";
 import { fetchReports, resolveReport } from "@/api/reports";
@@ -28,6 +28,9 @@ const sources = ref([
 ])
 
 const totalReports = ref(0);
+const maxVisible = 5;
+
+const visibleReports = computed(() => reports.value.slice(0, maxVisible));
 
 async function loadReports() {
 
@@ -193,7 +196,7 @@ onUnmounted(() => {
               </div>
               <ul v-else class="list-group list-group-flush report-list">
                 <li
-                  v-for="r in reports"
+                  v-for="r in visibleReports"
                   :key="r.reportId"
                   class="list-group-item d-flex flex-wrap align-items-center justify-content-between gap-2 pb-3"
                 >
