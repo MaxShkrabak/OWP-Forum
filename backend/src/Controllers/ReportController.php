@@ -19,7 +19,7 @@ class ReportController extends BaseController
             $sql = "
                 SELECT
                     r.ReportID,
-                    r.PostID,
+                    COALESCE(r.PostID, c.PostId) AS PostID,
                     p.Title AS PostTitle,
                     CONCAT(up.FirstName, ' ', up.LastName) AS PostAuthor,
                     r.CommentID,
@@ -31,8 +31,8 @@ class ReportController extends BaseController
                     CONCAT(ur.FirstName, ' ', ur.LastName) AS ReporterName
                 FROM dbo.Forum_Reports r
                 INNER JOIN dbo.Forum_ReportTags rt ON r.ReportTagID = rt.ReportTagID
-                LEFT JOIN dbo.Forum_Posts p ON r.PostID = p.PostID
                 LEFT JOIN dbo.Forum_Comments c ON r.CommentID = c.CommentId
+                LEFT JOIN dbo.Forum_Posts p ON p.PostID = COALESCE(r.PostID, c.PostId)
                 LEFT JOIN dbo.Forum_Users up ON up.User_ID = p.AuthorID
                 LEFT JOIN dbo.Forum_Users uc ON uc.User_ID = c.UserId
                 LEFT JOIN dbo.Forum_Users ur ON ur.User_ID = r.ReportUserID

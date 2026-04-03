@@ -67,6 +67,17 @@ const mockAdminReports = [
     createdAt: "2026-02-26T01:00:00Z",
     contentTitle: "Post 100 Title",
   },
+  {
+    reportId: 3,
+    postId: 55,
+    commentId: 12,
+    source: "Comment",
+    reason: "Harassment",
+    createdAt: "2026-02-26T02:00:00Z",
+    commentText: "<p>This is an <strong>offensive</strong> comment</p>",
+    commentAuthor: "Bad Commenter",
+    reporter: { id: 5, fullName: "Jane Reporter" },
+  },
 ];
 
 function normalizeName(s) {
@@ -226,7 +237,7 @@ describe("AdminReports.vue — DOM + CRUD behaviors", () => {
     expect(mockReportsApi.fetchReports).toHaveBeenCalled();
 
     const rows = wrapper.findAll(".reports-list .report-row");
-    expect(rows.length).toBe(2);
+    expect(rows.length).toBe(3);
 
     expect(wrapper.text()).toContain("Post 99 Title");
     expect(wrapper.text()).toContain("Post 100 Title");
@@ -245,7 +256,7 @@ describe("AdminReports.vue — DOM + CRUD behaviors", () => {
     await flushPromises();
 
     const rows = wrapper.findAll(".reports-list .report-row");
-    expect(rows.length).toBe(2);
+    expect(rows.length).toBe(3);
 
     expect(wrapper.text()).toContain("Spam");
     expect(wrapper.text()).toContain("Other");
@@ -268,7 +279,7 @@ describe("AdminReports.vue — DOM + CRUD behaviors", () => {
   expect(mockReportsApi.resolveReport).toHaveBeenCalledWith(1);
 
   const remainingRows = wrapper.findAll(".reports-list .report-row");
-  expect(remainingRows.length).toBe(1);
+  expect(remainingRows.length).toBe(2);
   expect(wrapper.text()).not.toContain("Post #99");
   expect(wrapper.text()).toContain("Post #100");
 });
@@ -285,5 +296,52 @@ it('9) Clicking "Go to" routes to correct report content', async () => {
   await flushPromises();
 
   expect(mockRouter.push).toHaveBeenCalledWith("/posts/99");
+});
+
+it("10) Comment report displays stripped comment text as title", async () => {
+  const wrapper = mount(AdminReports);
+  await flushPromises();
+
+  const rows = wrapper.findAll(".reports-list .report-row");
+  const commentRow = rows.find((row) => row.text().includes("Comment #12"));
+  expect(commentRow, "Expected a report row for Comment #12").toBeTruthy();
+
+  // HTML tags should be stripped from commentText
+  expect(commentRow.text()).toContain("This is an offensive comment");
+  expect(commentRow.text()).not.toContain("<p>");
+  expect(commentRow.text()).not.toContain("<strong>");
+
+  // Should show Comment badge
+  expect(commentRow.text()).toContain("Comment");
+});
+
+it("11) Comment report shows reporter info correctly", async () => {
+  const wrapper = mount(AdminReports);
+  await flushPromises();
+
+  const rows = wrapper.findAll(".reports-list .report-row");
+  const commentRow = rows.find((row) => row.text().includes("Comment #12"));
+  expect(commentRow, "Expected a report row for Comment #12").toBeTruthy();
+
+  // Reporter name should be displayed
+  expect(commentRow.text()).toContain("Jane Reporter");
+  // Should show the reason
+  expect(commentRow.text()).toContain("Harassment");
+  // Should reference both the comment and its parent post
+  expect(commentRow.text()).toContain("Post #55");
+});
+
+it('12) Clicking "Go to" on a comment report routes to its parent post', async () => {
+  const wrapper = mount(AdminReports);
+  await flushPromises();
+
+  const rows = wrapper.findAll(".reports-list .report-row");
+  const commentRow = rows.find((row) => row.text().includes("Comment #12"));
+  expect(commentRow, "Expected a report row for Comment #12").toBeTruthy();
+
+  await commentRow.find("button.btn-outline").trigger("click");
+  await flushPromises();
+
+  expect(mockRouter.push).toHaveBeenCalledWith("/posts/55");
 });
 });
