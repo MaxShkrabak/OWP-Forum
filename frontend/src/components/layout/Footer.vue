@@ -37,7 +37,7 @@ import linkedin from "@/assets/img/svg/linked-logo-wht.svg"
           <img :src="instagram" alt="Instagram" />
         </a>
         <p class="copyright">
-          © Office of Water Programs | 2025 All Rights Reserved.
+          © Office of Water Programs | 2026 All Rights Reserved.
         </p>
       </div>
 

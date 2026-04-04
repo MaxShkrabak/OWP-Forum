@@ -46,7 +46,10 @@ async function handleVote(dir) {
   const currentVote = Number(props.post.myVote ?? 0);
 
   let action = dir;
-  if ((dir === "up" && currentVote === 1) || (dir === "down" && currentVote === -1)) {
+  if (
+    (dir === "up" && currentVote === 1) ||
+    (dir === "down" && currentVote === -1)
+  ) {
     action = "clear";
   }
 
@@ -78,7 +81,9 @@ async function handlePinToggle() {
       props.post.isPinned = data.isPinned;
 
       emit("post-refresh", {
-        pinMessage: data.isPinned ? "Pinned successfully" : "Unpinned successfully",
+        pinMessage: data.isPinned
+          ? "Pinned successfully"
+          : "Unpinned successfully",
         pinMessageType: "success",
       });
     } else {
@@ -93,7 +98,8 @@ async function handlePinToggle() {
 }
 
 function getAvatarSrc(file) {
-  return new URL(`../../assets/img/user-pfps-premade/${file}`, import.meta.url).href;
+  return new URL(`../../assets/img/user-pfps-premade/${file}`, import.meta.url)
+    .href;
 }
 
 function openReportModal() {
@@ -124,7 +130,10 @@ function canViewReportButton() {
 </script>
 
 <template>
-  <div class="post-card shadow-sm mb-3" :class="{ 'pinned-post': !!post.isPinned }">
+  <div
+    class="post-card shadow-sm mb-3"
+    :class="{ 'pinned-post': !!post.isPinned }"
+  >
     <div
       v-if="pinMessage"
       class="pin-toast"
@@ -138,21 +147,31 @@ function canViewReportButton() {
         <div class="vote-container">
           <button
             class="vote-btn-up pi pi-chevron-up mb-1"
-            :class="{ active: Number(post.myVote) === 1, 'is-voting': isVoting }"
-            @click="isLoggedIn ? handleVote('up') : router.push('/login')">
-          </button>
+            :class="{
+              active: Number(post.myVote) === 1,
+              'is-voting': isVoting,
+            }"
+            @click="isLoggedIn ? handleVote('up') : router.push('/login')"
+          ></button>
 
           <!-- Vote count -->
-          <span class="vote-count"
-                :class="{
-                        'upvoted': Number(post.myVote) === 1,
-                        'downvoted': Number(post.myVote) === -1, 'voting-bounce': isVoting }">
+          <span
+            class="vote-count"
+            :class="{
+              upvoted: Number(post.myVote) === 1,
+              downvoted: Number(post.myVote) === -1,
+              'voting-bounce': isVoting,
+            }"
+          >
             {{ post.totalScore ?? 0 }}
           </span>
 
           <button
             class="vote-btn-down pi pi-chevron-down mt-1"
-            :class="{ active: Number(post.myVote) === -1, 'is-voting': isVoting }"
+            :class="{
+              active: Number(post.myVote) === -1,
+              'is-voting': isVoting,
+            }"
             @click="isLoggedIn ? handleVote('down') : router.push('/login')"
           ></button>
         </div>
@@ -214,7 +233,11 @@ function canViewReportButton() {
               <i class="pi pi-comment me-1"></i>
               {{ post.commentCount }} comments
             </div>
-            <button class="report-btn" @click="openReportModal" v-show="canViewReportButton()">
+            <button
+              class="report-btn"
+              @click="openReportModal"
+              v-show="canViewReportButton()"
+            >
               <i class="pi pi-flag me-1"></i> Report
             </button>
           </div>
@@ -236,7 +259,10 @@ function canViewReportButton() {
         <div class="v-divider"></div>
         <div class="author-info-wrap">
           <div class="text-end d-flex flex-column align-items-end">
-            <RouterLink :to="`/profile?id=${post.authorId}`" class="author-name text-truncate">
+            <RouterLink
+              :to="`/profile?id=${post.authorId}`"
+              class="author-name text-truncate"
+            >
               {{ post.authorName }}
             </RouterLink>
             <UserRole :role="post.authorRole" />
@@ -365,7 +391,9 @@ function canViewReportButton() {
   color: #c2680a;
   font-size: 0.9rem;
   flex-shrink: 0;
-  transition: transform 0.2s ease-in-out, opacity 0.2s ease-in-out;
+  transition:
+    transform 0.2s ease-in-out,
+    opacity 0.2s ease-in-out;
 }
 
 .pin-icon.pinned {

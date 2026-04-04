@@ -328,9 +328,11 @@ watch(isEditing, (active) => {
   }
 });
 
-
-
-const hasOptions = computed(() => !props.comment.isDeleted && (isAuthor.value || canDelete.value || canReport.value));
+const hasOptions = computed(
+  () =>
+    !props.comment.isDeleted &&
+    (isAuthor.value || canDelete.value || canReport.value),
+);
 
 const toggleOptionsMenu = () => {
   showOptionsMenu.value = !showOptionsMenu.value;
@@ -413,7 +415,10 @@ watch(showOptionsMenu, (val) => {
                 <button
                   v-if="isAuthor"
                   class="comment-menu-item d-flex align-items-center gap-2 w-100 border-0 bg-transparent px-3 py-2"
-                  @click="startEdit(); showOptionsMenu = false"
+                  @click="
+                    startEdit();
+                    showOptionsMenu = false;
+                  "
                 >
                   <i class="pi pi-pencil comment-menu-icon"></i>
                   <span>Edit</span>
@@ -421,7 +426,10 @@ watch(showOptionsMenu, (val) => {
                 <button
                   v-if="canDelete"
                   class="comment-menu-item comment-menu-item-delete d-flex align-items-center gap-2 w-100 border-0 bg-transparent px-3 py-2"
-                  @click="askDeleteComment(); showOptionsMenu = false"
+                  @click="
+                    askDeleteComment();
+                    showOptionsMenu = false;
+                  "
                 >
                   <i class="pi pi-trash comment-menu-icon"></i>
                   <span>Delete</span>
@@ -429,7 +437,10 @@ watch(showOptionsMenu, (val) => {
                 <button
                   v-if="canReport"
                   class="comment-menu-item d-flex align-items-center gap-2 w-100 border-0 bg-transparent px-3 py-2"
-                  @click="openReportModal(); showOptionsMenu = false"
+                  @click="
+                    openReportModal();
+                    showOptionsMenu = false;
+                  "
                 >
                   <i class="pi pi-flag comment-menu-icon"></i>
                   <span>Report</span>
@@ -513,7 +524,6 @@ watch(showOptionsMenu, (val) => {
           >
             <span>Reply</span>
           </button>
-
         </div>
 
         <div v-if="isReplying" class="mt-2">
@@ -977,7 +987,9 @@ watch(showOptionsMenu, (val) => {
 
 .comment-menu-fade-enter-active,
 .comment-menu-fade-leave-active {
-  transition: opacity 0.15s ease, transform 0.15s ease;
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease;
 }
 
 .comment-menu-fade-enter-from,

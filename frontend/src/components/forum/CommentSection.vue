@@ -425,7 +425,8 @@ const handleDeletedComment = (deletedCommentId) => {
           v-if="commentsDisabled && userRoleId >= 3"
           class="comments-disabled-mod-notice rounded-3 px-4 py-2 mb-2 justify-content-center d-flex align-items-center gap-2"
         >
-          <i class="pi pi-lock me-2"></i>Comments are disabled for regular users on this post.
+          <i class="pi pi-lock me-2"></i>Comments are disabled for regular users
+          on this post.
         </div>
 
         <div
