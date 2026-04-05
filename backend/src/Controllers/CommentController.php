@@ -317,7 +317,12 @@ class CommentController extends BaseController
             }
 
             if ((int)$postCheck['IsCommentsDisabled'] === 1) {
-                return json($res, ['ok' => false, 'error' => 'Comments are disabled on this post.'], 403);
+                $roleStmt = $pdo->prepare("SELECT ISNULL(RoleID, 1) FROM dbo.Forum_Users WHERE User_ID = :uid");
+                $roleStmt->execute([':uid' => $userId]);
+                $userRoleId = (int)($roleStmt->fetchColumn() ?? 1);
+                if ($userRoleId < 3) {
+                    return json($res, ['ok' => false, 'error' => 'Comments are disabled on this post.'], 403);
+                }
             }
 
             $pdo->beginTransaction();
@@ -433,13 +438,13 @@ class CommentController extends BaseController
             $sql = "SELECT c.CommentId, c.PostId, c.ParentCommentId, c.Content, c.CreatedAt, c.UpdatedAt, c.UserId, c.TotalScore, c.IsDeleted,
                            u.FirstName, u.LastName, u.Avatar, r.Name AS RoleName,
                            ISNULL(cv.VoteValue, 0) AS MyVote,
-                           (SELECT COUNT(*) FROM dbo.Forum_Comments cr WHERE cr.ParentCommentId = c.CommentId AND cr.IsDeleted = 0) AS ReplyCount
+                           (SELECT COUNT(*) FROM dbo.Forum_Comments cr WHERE cr.ParentCommentId = c.CommentId AND (cr.IsDeleted = 0 OR (SELECT COUNT(*) FROM dbo.Forum_Comments sub WHERE sub.ParentCommentId = cr.CommentId AND sub.IsDeleted = 0) > 0)) AS ReplyCount
                     FROM dbo.Forum_Comments c
                     JOIN dbo.Forum_Users u ON u.User_ID = c.UserId
                     JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
                     LEFT JOIN dbo.Forum_CommentVotes cv ON cv.CommentId = c.CommentId AND cv.UserId = :currentUserId
                     WHERE c.PostId = :postId AND c.ParentCommentId IS NULL
-                      AND (c.IsDeleted = 0 OR (SELECT COUNT(*) FROM dbo.Forum_Comments cr WHERE cr.ParentCommentId = c.CommentId AND cr.IsDeleted = 0) > 0)
+                      AND (c.IsDeleted = 0 OR (SELECT COUNT(*) FROM dbo.Forum_Comments cr WHERE cr.ParentCommentId = c.CommentId AND (cr.IsDeleted = 0 OR (SELECT COUNT(*) FROM dbo.Forum_Comments sub WHERE sub.ParentCommentId = cr.CommentId AND sub.IsDeleted = 0) > 0)) > 0)
                     ORDER BY {$orderBy}
                     OFFSET :offset ROWS FETCH NEXT :limit ROWS ONLY";
 
@@ -536,7 +541,7 @@ class CommentController extends BaseController
             $sql = "SELECT c.CommentId, c.PostId, c.ParentCommentId, c.Content, c.CreatedAt, c.UpdatedAt, c.UserId, c.TotalScore, c.IsDeleted,
                            u.FirstName, u.LastName, u.Avatar, r.Name AS RoleName,
                            ISNULL(cv.VoteValue, 0) AS MyVote,
-                           (SELECT COUNT(*) FROM dbo.Forum_Comments cr WHERE cr.ParentCommentId = c.CommentId AND cr.IsDeleted = 0) AS ReplyCount
+                           (SELECT COUNT(*) FROM dbo.Forum_Comments cr WHERE cr.ParentCommentId = c.CommentId AND (cr.IsDeleted = 0 OR (SELECT COUNT(*) FROM dbo.Forum_Comments sub WHERE sub.ParentCommentId = cr.CommentId AND sub.IsDeleted = 0) > 0)) AS ReplyCount
                     FROM dbo.Forum_Comments c
                     JOIN dbo.Forum_Users u ON u.User_ID = c.UserId
                     JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID

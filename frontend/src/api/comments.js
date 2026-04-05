@@ -1,34 +1,45 @@
 import client from "./client";
-import { timeAgo } from '@/utils/timeAgo';
-import { isLoggedIn } from '@/stores/userStore';
-import router from '@/router';
+import { timeAgo } from "@/utils/timeAgo";
+import { isLoggedIn } from "@/stores/userStore";
+import router from "@/router";
 
 export const formatCommentData = (comment) => {
   const createdAt = comment.createdAt;
   const updatedAt = comment.updatedAt ?? null;
+  const isDeleted = comment.isDeleted ?? false;
 
   return {
     ...comment,
     id: comment.commentId,
-    author: `${comment.user.firstName} ${comment.user.lastName}`,
-    role: comment.user?.role || 'user',
+    author: isDeleted
+      ? "[deleted]"
+      : `${comment.user.firstName} ${comment.user.lastName}`,
+    role: comment.user?.role || "user",
     time: timeAgo((updatedAt ?? createdAt) * 1000),
     text: comment.content,
     replyCount: comment.replyCount || 0,
     replies: [],
     updatedAt,
-    wasEdited: updatedAt !== null && updatedAt !== createdAt
+    wasEdited: !isDeleted && updatedAt !== null && updatedAt !== createdAt,
   };
 };
 
-export const fetchComments = async (postId, page = 1, limit = 10, sort = 'latest') => {
+export const fetchComments = async (
+  postId,
+  page = 1,
+  limit = 10,
+  sort = "latest",
+) => {
   try {
     const response = await client.get(
       `/posts/${postId}/comments?page=${page}&limit=${limit}&sort=${encodeURIComponent(sort)}`,
     );
-    return response.data; 
+    return response.data;
   } catch (error) {
-    console.error("Error fetching comments:", error.response?.data?.error || error.message);
+    console.error(
+      "Error fetching comments:",
+      error.response?.data?.error || error.message,
+    );
     throw error;
   }
 };
@@ -39,7 +50,7 @@ export const submitComment = async (
   parentCommentId = null,
 ) => {
   if (!isLoggedIn.value) {
-    router.push('/login');
+    router.push("/login");
     return;
   }
 
@@ -77,7 +88,7 @@ export const updateComment = async (commentId, content) => {
 
 export const voteComment = async (commentId, dir) => {
   if (!isLoggedIn.value) {
-    router.push('/login');
+    router.push("/login");
     return;
   }
 
@@ -97,9 +108,12 @@ export const voteComment = async (commentId, dir) => {
 export const fetchCommentReplies = async (parentId) => {
   try {
     const response = await client.get(`/comments/${parentId}/replies`);
-    return response.data; 
+    return response.data;
   } catch (error) {
-    console.error("Error fetching replies:", error.response?.data?.error || error.message);
+    console.error(
+      "Error fetching replies:",
+      error.response?.data?.error || error.message,
+    );
     throw error;
   }
 };

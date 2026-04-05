@@ -21,6 +21,7 @@ export const userRoleId = ref(localStorage.getItem('userRoleId') || 0);
 export const isBanned = ref(localStorage.getItem('isBanned') === 'true');
 export const banType = ref(localStorage.getItem('banType') || null); // 'permanent' | 'temporary'
 export const bannedUntil = ref(localStorage.getItem('bannedUntil') || null); // ISO date string
+export const termsAccepted = ref(false);
 
 export const syncProfileOnLoad = async () => {
   try {
@@ -37,6 +38,7 @@ export const syncProfileOnLoad = async () => {
       isBanned.value = Boolean(Number(user.isBanned ?? 0));
       banType.value = user.banType && (user.banType === 'permanent' || user.banType === 'temporary') ? user.banType : null;
       bannedUntil.value = user.bannedUntil ? String(user.bannedUntil) : null;
+      termsAccepted.value = Number(user.termsAccepted) === 1;
 
       // User avatar
       const avatarPath = resolveAvatarPath(user.avatar);
@@ -72,6 +74,7 @@ const resetStore = () => {
   isBanned.value = false;
   banType.value = null;
   bannedUntil.value = null;
+  termsAccepted.value = false;
 
   localStorage.removeItem('fullName');
   localStorage.removeItem('userRole');
@@ -93,4 +96,4 @@ export async function logoutUser() {
   }
 }
 
-syncProfileOnLoad(); // run when app starts
+export const profileLoaded = syncProfileOnLoad(); // run when app starts

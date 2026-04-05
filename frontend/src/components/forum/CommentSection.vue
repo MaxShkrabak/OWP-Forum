@@ -372,16 +372,10 @@ onMounted(() => {
 });
 
 const handleDeletedComment = (deletedCommentId) => {
-  const before = flatCommentsList.value.length;
-
   flatCommentsList.value = flatCommentsList.value.filter(
-    (comment) =>
-      comment.id !== deletedCommentId &&
-      comment.parentCommentId !== deletedCommentId,
+    (comment) => comment.id !== deletedCommentId,
   );
-
-  const removedCount = before - flatCommentsList.value.length;
-  commentTotalCount.value = Math.max(0, commentTotalCount.value - removedCount);
+  commentTotalCount.value = Math.max(0, commentTotalCount.value - 1);
   commentsTree.value = buildCommentTree(flatCommentsList.value);
 };
 </script>
@@ -404,6 +398,7 @@ const handleDeletedComment = (deletedCommentId) => {
           v-model="selectedSort"
           @change="handleSortChange"
           class="sort-select"
+          :disabled="commentTotalCount <= 1"
         >
           <option
             v-for="option in sortOptions"
@@ -430,7 +425,8 @@ const handleDeletedComment = (deletedCommentId) => {
           v-if="commentsDisabled && userRoleId >= 3"
           class="comments-disabled-mod-notice rounded-3 px-4 py-2 mb-2 justify-content-center d-flex align-items-center gap-2"
         >
-          <i class="pi pi-lock me-2"></i>Comments are disabled for regular users on this post.
+          <i class="pi pi-lock me-2"></i>Comments are disabled for regular users
+          on this post.
         </div>
 
         <div
@@ -681,6 +677,10 @@ const handleDeletedComment = (deletedCommentId) => {
   cursor: pointer;
   text-transform: uppercase;
   padding-right: 0.25rem;
+}
+.sort-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .sort-select option {

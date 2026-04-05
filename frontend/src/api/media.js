@@ -6,5 +6,7 @@ export async function uploadImage(file) {
 
   const { data } = await client.post("/upload-image", imgForm);
 
-  return data; 
+  if (!data.ok) throw new Error(data.error || 'Image upload failed.');
+
+  return data;
 }
