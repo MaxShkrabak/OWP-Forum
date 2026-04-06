@@ -34,9 +34,8 @@ const canReport = computed(() => {
 });
 
 const canDelete = computed(() => isAuthor.value || isAdminOrMod.value);
-const showMetadataButton = computed(
-  () => isAdminOrMod.value && !isAuthor.value,
-);
+const canFullEdit = computed(
+  () => isAuthor.value || isAdminOrMod.value);
 
 const toggleFollow = () => {
   if (!isLoggedIn.value) {
@@ -84,8 +83,9 @@ async function handleVote(dir) {
   }
 }
 
-function openRestrictedModal(modalType) {
-  isRestricted.value = modalType === "metadata";
+function openEditModal() {
+  if (!canFullEdit.value) return;
+  isRestricted.value = false;
   showEditModal.value = true;
 }
 
@@ -168,21 +168,12 @@ watch(isLoggedIn, (loggedIn) => {
       <div v-if="!isAuthor && isAdminOrMod" class="action-divider mx-1"></div>
 
       <button
-        v-if="isAuthor"
+        v-if="canFullEdit"
         class="text-action-btn edit-btn d-inline-flex align-items-center gap-2 px-2 py-1 rounded-2"
-        @click="openRestrictedModal('edit')"
+        @click="openEditModal"
       >
         <i class="pi pi-pencil"></i>
         <span>Edit Post</span>
-      </button>
-
-      <button
-        v-if="showMetadataButton"
-        class="text-action-btn edit-btn d-inline-flex align-items-center gap-2 px-2 py-1 rounded-2"
-        @click="openRestrictedModal('metadata')"
-      >
-        <i class="pi pi-pencil"></i>
-        <span>Edit</span>
       </button>
 
       <button
