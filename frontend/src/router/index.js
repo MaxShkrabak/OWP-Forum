@@ -103,4 +103,10 @@ router.beforeEach(async (to, from, next) => {
   next();
 });
 
+router.afterEach((to, from) => {
+  if (to.path !== from.path) {
+    scrollTo(0, 0);
+  }
+});
+
 export default router;

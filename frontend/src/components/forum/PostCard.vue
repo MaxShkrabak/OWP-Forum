@@ -180,14 +180,21 @@ function canViewReportButton() {
           <div class="mobile-author-header">
             <div class="author-info-wrap-v2">
               <div class="avatar-box-v2">
-                <img
-                  :src="getAvatarSrc(post.authorAvatar)"
-                  class="avatar-img"
-                  alt="user"
-                />
+                <RouterLink :to="`/profile?id=${post.authorId}`">
+                  <img
+                    :src="getAvatarSrc(post.authorAvatar)"
+                    class="avatar-img"
+                    alt="user"
+                  />
+                </RouterLink>
               </div>
               <div class="d-flex flex-column">
-                <span class="author-name-v2">{{ post.authorName }}</span>
+                <RouterLink
+                  :to="`/profile?id=${post.authorId}`"
+                  class="author-name text-truncate"
+                >
+                  {{ post.authorName }}
+                </RouterLink>
                 <UserRole :role="post.authorRole" />
               </div>
             </div>
