@@ -49,7 +49,7 @@ const editor = useEditor({
       openOnClick: false,
       HTMLAttributes: { class: "my-custom-link" },
     }),
-    Placeholder.configure({ placeholder: "Write your post here..." }),
+    Placeholder.configure({ placeholder: props.placeholder ?? "Write your post here..." }),
   ],
   editorProps: {
     handleKeyDown: (view, event) => {

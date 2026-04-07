@@ -28,6 +28,7 @@ const router = useRouter();
 
 const localReplies = ref([]);
 const isLoadingReplies = ref(false);
+const isSubmittingReply = ref(false);
 const hasFetched = ref(false);
 
 const isVoting = ref(false);
@@ -218,12 +219,16 @@ const toggleRepliesDropdown = async () => {
 };
 
 const handleReply = async () => {
+  if (isSubmittingReply.value) return;
+
   const targetParentId =
     props.depth >= 2 && maxDepthContext
       ? maxDepthContext.parentId
       : props.comment.id;
 
+  isSubmittingReply.value = true;
   const newCommentData = await submitReply(replyText.value, targetParentId);
+  isSubmittingReply.value = false;
 
   if (newCommentData) {
     replyText.value = "";
@@ -545,11 +550,11 @@ watch(showOptionsMenu, (val) => {
               <button
                 class="btn-submit border-0 rounded-2 fw-bold px-3 py-1 small"
                 :disabled="
-                  !replyText || replyText === '<p></p>' || replyIsUploading
+                  !replyText || replyText === '<p></p>' || replyIsUploading || isSubmittingReply
                 "
                 @click="handleReply"
               >
-                {{ replyIsUploading ? "Uploading..." : "Reply" }}
+                {{ replyIsUploading ? "Uploading..." : isSubmittingReply ? "Posting..." : "Reply" }}
               </button>
             </div>
           </div>
