@@ -21,6 +21,7 @@ vi.mock(
   () => ({
     resolveReport: mockReportsApi.resolveReport,
     fetchReports: mockReportsApi.fetchReports,
+    normalizeReport: (r) => r,
   }),
   { virtual: true }
 );

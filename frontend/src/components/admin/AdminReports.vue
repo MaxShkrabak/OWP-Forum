@@ -3,19 +3,25 @@
 import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 
-import client from "@/api/client";
-import { fetchReports, resolveReport } from "@/api/reports";
+import { fetchReports, resolveReport, normalizeReport } from "@/api/reports";
+import {
+  getAdminReportTags,
+  createReportTag,
+  updateReportTag,
+  deleteReportTag,
+} from "@/api/admin";
 
-/* =========================
-   REPORT TAGS (OLD CODE)
-   ========================= */
 const q = ref("");
-const items = ref([]); // report tags
+const items = ref([]);
 const loading = ref(false);
 const error = ref("");
-
-/** Info + confirm modal */
-const modal = ref({ open: false, type: "info", title: "", message: "", onConfirm: null });
+const modal = ref({
+  open: false,
+  type: "info",
+  title: "",
+  message: "",
+  onConfirm: null,
+});
 function showInfo(title, message) {
   modal.value = { open: true, type: "info", title, message, onConfirm: null };
 }
@@ -27,7 +33,6 @@ function closeModal() {
   modal.value.onConfirm = null;
 }
 
-/** Add/Edit modal */
 const form = ref({ open: false, mode: "add", id: null, tagName: "" });
 function openAdd() {
   form.value = { open: true, mode: "add", id: null, tagName: "" };
@@ -54,20 +59,26 @@ function isDuplicate(name, excludeId = null) {
   if (!n) return false;
   return items.value.some((t) => {
     const same = normalizeName(t.TagName).toLowerCase() === n;
-    const notSelf = excludeId == null ? true : Number(t.ReportTagID) !== Number(excludeId);
+    const notSelf =
+      excludeId == null ? true : Number(t.ReportTagID) !== Number(excludeId);
     return same && notSelf;
   });
 }
 
-/** Filter + alphabetical sort (case-insensitive) */
 const filtered = computed(() => {
   const needle = q.value.trim().toLowerCase();
   const base = needle
-    ? items.value.filter((t) => String(t.TagName ?? "").toLowerCase().includes(needle))
+    ? items.value.filter((t) =>
+        String(t.TagName ?? "")
+          .toLowerCase()
+          .includes(needle),
+      )
     : items.value;
 
   return [...base].sort((a, b) =>
-    String(a.TagName ?? "").localeCompare(String(b.TagName ?? ""), undefined, { sensitivity: "base" })
+    String(a.TagName ?? "").localeCompare(String(b.TagName ?? ""), undefined, {
+      sensitivity: "base",
+    }),
   );
 });
 
@@ -75,15 +86,10 @@ async function loadReportTags() {
   loading.value = true;
   error.value = "";
   try {
-    // client baseURL already includes /api
-    const res = await client.get("/admin/report-tags");
-    const rows = res.data.items || [];
-    items.value = rows.map((r) => ({
-      ReportTagID: Number(r.ReportTagID),
-      TagName: String(r.TagName ?? ""),
-    }));
+    items.value = await getAdminReportTags();
   } catch (e) {
-    error.value = e?.response?.data?.error || e.message || "Failed to load report tags";
+    error.value =
+      e?.response?.data?.error || e.message || "Failed to load report tags";
     items.value = [];
   } finally {
     loading.value = false;
@@ -96,85 +102,89 @@ function requestSave() {
 
   const excludeId = form.value.mode === "edit" ? form.value.id : null;
   if (isDuplicate(name, excludeId)) {
-    return showInfo("Duplicate report tag", "That report tag already exists. Please choose a different name.");
+    return showInfo(
+      "Duplicate report tag",
+      "That report tag already exists. Please choose a different name.",
+    );
   }
 
   if (form.value.mode === "add") {
-    showConfirm("Confirm add report tag?", `Add report tag "${name}"?`, async () => {
-      closeModal();
-      try {
-        await client.post("/admin/report-tags", { tagName: name });
-        closeForm();
-        await loadReportTags();
-        showInfo("Report tag added", `"${name}" was added successfully.`);
-      } catch (e) {
-        showInfo("Failed to add", e?.response?.data?.error || e.message || "Server error");
-      }
-    });
+    showConfirm(
+      "Confirm add report tag?",
+      `Add report tag "${name}"?`,
+      async () => {
+        closeModal();
+        try {
+          await createReportTag(name);
+          closeForm();
+          await loadReportTags();
+          showInfo("Report tag added", `"${name}" was added successfully.`);
+        } catch (e) {
+          showInfo(
+            "Failed to add",
+            e?.response?.data?.error || e.message || "Server error",
+          );
+        }
+      },
+    );
     return;
   }
 
-  const original = items.value.find((t) => Number(t.ReportTagID) === Number(form.value.id));
+  const original = items.value.find(
+    (t) => Number(t.ReportTagID) === Number(form.value.id),
+  );
   const from = normalizeName(original?.TagName);
 
-  showConfirm("Confirm edit report tag?", `Change "${from}" to "${name}"?`, async () => {
-    closeModal();
-    try {
-      await client.patch(`/admin/report-tags/${form.value.id}`, { tagName: name });
-      closeForm();
-      await loadReportTags();
-      showInfo("Report tag updated", `"${from}" was updated to "${name}".`);
-    } catch (e) {
-      showInfo("Failed to update", e?.response?.data?.error || e.message || "Server error");
-    }
-  });
+  showConfirm(
+    "Confirm edit report tag?",
+    `Change "${from}" to "${name}"?`,
+    async () => {
+      closeModal();
+      try {
+        await updateReportTag(form.value.id, name);
+        closeForm();
+        await loadReportTags();
+        showInfo("Report tag updated", `"${from}" was updated to "${name}".`);
+      } catch (e) {
+        showInfo(
+          "Failed to update",
+          e?.response?.data?.error || e.message || "Server error",
+        );
+      }
+    },
+  );
 }
 
 function requestDelete(t) {
   const id = Number(t.ReportTagID);
   const name = normalizeName(t.TagName);
 
-  showConfirm("Confirm delete report tag?", `Delete "${name}"? This cannot be undone.`, async () => {
-    closeModal();
-    try {
-      await client.delete(`/admin/report-tags/${id}`);
-      await loadReportTags();
-      showInfo("Report tag deleted", `"${name}" was deleted successfully.`);
-    } catch (e) {
-      showInfo("Failed to delete", e?.response?.data?.error || e.message || "Server error");
-    }
-  });
+  showConfirm(
+    "Confirm delete report tag?",
+    `Delete "${name}"? This cannot be undone.`,
+    async () => {
+      closeModal();
+      try {
+        await deleteReportTag(id);
+        await loadReportTags();
+        showInfo("Report tag deleted", `"${name}" was deleted successfully.`);
+      } catch (e) {
+        showInfo(
+          "Failed to delete",
+          e?.response?.data?.error || e.message || "Server error",
+        );
+      }
+    },
+  );
 }
 
-/* =========================
-   ACTIVE REPORTS (UPDATED)
-   Uses NEW backend endpoint:
-   GET /api/admin/reports
-   ========================= */
 const router = useRouter();
 
 const reports = ref([]);
 const loadingReports = ref(false);
 const reportsError = ref("");
 
-const sortMode = ref("newest"); // newest | oldest
-
-function normalizeReport(r) {
-  return {
-    ...r,
-    reportId: r.reportId ?? r.ReportID ?? r.ReportId,
-    postId: r.postId,
-    commentId: r.commentId ?? r.CommentID ?? r.CommentId,
-    reason: r.reason ?? r.Reason ?? "",
-    createdAt: r.createdAt ?? r.CreatedAt ?? "",
-    source: r.source ?? r.Source ?? "Post",
-    reporterId: r.reporterId ?? r.reporter?.id ?? r.ReporterId ?? r.ReportUserID ?? null,
-    reporterName: r.reporterName ?? r.reporter?.fullName ?? r.ReporterName ?? "",
-    contentTitle: r.contentTitle ?? r.postTitle ?? r.ContentTitle ?? "",
-    contentAuthorId: r.contentAuthorId ?? r.ContentAuthorId ?? null,
-    contentAuthorName: r.contentAuthorName ?? r.postAuthor ?? r.ContentAuthorName ?? "",
-  };
-}
+const sortMode = ref("newest");
 
 async function loadReports() {
   loadingReports.value = true;
@@ -188,7 +198,8 @@ async function loadReports() {
       reports.value = [];
     }
   } catch (e) {
-    reportsError.value = e?.response?.data?.error || e?.message || "Failed to load reports";
+    reportsError.value =
+      e?.response?.data?.error || e?.message || "Failed to load reports";
     reports.value = [];
   } finally {
     loadingReports.value = false;
@@ -224,9 +235,6 @@ async function handleResolve(reportId) {
   }
 }
 
-/* =========================
-   MOUNT
-   ========================= */
 onMounted(() => {
   loadReportTags();
   loadReports();
@@ -265,36 +273,41 @@ onMounted(() => {
 
       <div class="table-wrapper">
         <div class="table-wrapper">
-        <table v-if="!loading && filtered.length" class="admin-table mt-3">
-        <thead>
-          <tr>
-            <th style="width: 90px">#</th>
-            <th>Tag</th>
-            <th style="width: 220px">Actions</th>
-          </tr>
-        </thead>
+          <table v-if="!loading && filtered.length" class="admin-table mt-3">
+            <thead>
+              <tr>
+                <th style="width: 90px">#</th>
+                <th>Tag</th>
+                <th style="width: 220px">Actions</th>
+              </tr>
+            </thead>
 
-        <tbody>
-          <tr v-for="(t, idx) in filtered" :key="t.ReportTagID">
-            <td class="admin-id">{{ idx + 1 }}</td>
-            <td class="admin-name">{{ t.TagName }}</td>
-            <td>
-              <div class="actions">
-                <button class="btn-action" @click="openEdit(t)">
-                  <i class="bi bi-pencil-square"></i> <span class="desktop-only">Edit</span>
-                </button>
-                <button class="btn-action danger" @click="requestDelete(t)">
-                  <i class="bi bi-trash"></i> <span class="desktop-only">Delete</span>
-                </button>
-              </div>
-            </td>
-          </tr>
-        </tbody>
+            <tbody>
+              <tr v-for="(t, idx) in filtered" :key="t.ReportTagID">
+                <td class="admin-id">{{ idx + 1 }}</td>
+                <td class="admin-name">{{ t.TagName }}</td>
+                <td>
+                  <div class="actions">
+                    <button class="btn-action" @click="openEdit(t)">
+                      <i class="bi bi-pencil-square"></i>
+                      <span class="desktop-only">Edit</span>
+                    </button>
+                    <button class="btn-action danger" @click="requestDelete(t)">
+                      <i class="bi bi-trash"></i>
+                      <span class="desktop-only">Delete</span>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
           </table>
-      </div>
+        </div>
       </div>
 
-      <div v-if="!loading && filtered.length === 0" class="state mt-4 text-center">
+      <div
+        v-if="!loading && filtered.length === 0"
+        class="state mt-4 text-center"
+      >
         No report tags found.
       </div>
     </div>
@@ -313,7 +326,12 @@ onMounted(() => {
             <option value="oldest">Oldest</option>
           </select>
 
-          <button class="btn-refresh" type="button" @click="loadReports" :disabled="loadingReports">
+          <button
+            class="btn-refresh"
+            type="button"
+            @click="loadReports"
+            :disabled="loadingReports"
+          >
             {{ loadingReports ? "Loading..." : "Refresh" }}
           </button>
         </div>
@@ -336,7 +354,10 @@ onMounted(() => {
           <div v-for="r in sortedReports" :key="r.reportId" class="report-row">
             <div class="report-main">
               <div class="report-topline">
-                <span class="badge-source" :class="r.source === 'Comment' ? 'comment' : 'post'">
+                <span
+                  class="badge-source"
+                  :class="r.source === 'Comment' ? 'comment' : 'post'"
+                >
                   {{ r.source }}
                 </span>
 
@@ -380,7 +401,9 @@ onMounted(() => {
                   <span class="meta-val">
                     <template v-if="r.contentAuthorId">
                       #{{ r.contentAuthorId }}
-                      <template v-if="r.contentAuthorName"> — {{ r.contentAuthorName }}</template>
+                      <template v-if="r.contentAuthorName">
+                        — {{ r.contentAuthorName }}</template
+                      >
                     </template>
                     <template v-else>Unknown</template>
                   </span>
@@ -391,7 +414,9 @@ onMounted(() => {
                   <span class="meta-val">
                     <template v-if="r.reporterId">
                       #{{ r.reporterId }}
-                      <template v-if="r.reporterName"> — {{ r.reporterName }}</template>
+                      <template v-if="r.reporterName">
+                        — {{ r.reporterName }}</template
+                      >
                       <template v-else> — (no name)</template>
                     </template>
                     <template v-else>Unknown</template>
@@ -401,10 +426,19 @@ onMounted(() => {
             </div>
 
             <div class="report-actions">
-              <button class="btn-outline" type="button" @click="goToContent(r)" :disabled="!r.postId">
+              <button
+                class="btn-outline"
+                type="button"
+                @click="goToContent(r)"
+                :disabled="!r.postId"
+              >
                 Go to
               </button>
-              <button class="btn-solid" type="button" @click="handleResolve(r.reportId)">
+              <button
+                class="btn-solid"
+                type="button"
+                @click="handleResolve(r.reportId)"
+              >
                 Resolve
               </button>
             </div>
@@ -414,11 +448,21 @@ onMounted(() => {
     </div>
 
     <!-- Add/Edit Modal -->
-    <div v-if="form.open" class="inner-warning-overlay" @mousedown.self="closeForm">
+    <div
+      v-if="form.open"
+      class="inner-warning-overlay"
+      @mousedown.self="closeForm"
+    >
       <div class="confirm-card">
-        <h3 class="confirm-title">{{ form.mode === "add" ? "Add Report Tag" : "Edit Report Tag" }}</h3>
+        <h3 class="confirm-title">
+          {{ form.mode === "add" ? "Add Report Tag" : "Edit Report Tag" }}
+        </h3>
         <p class="confirm-subtitle">
-          {{ form.mode === "add" ? "Create a new report tag." : "Update the report tag name." }}
+          {{
+            form.mode === "add"
+              ? "Create a new report tag."
+              : "Update the report tag name."
+          }}
         </p>
 
         <div class="form-field">
@@ -441,13 +485,28 @@ onMounted(() => {
     </div>
 
     <!-- Info/Confirm Modal -->
-    <div v-if="modal.open" class="inner-warning-overlay" @mousedown.self="closeModal">
+    <div
+      v-if="modal.open"
+      class="inner-warning-overlay"
+      @mousedown.self="closeModal"
+    >
       <div class="confirm-card">
         <h3 class="confirm-title">{{ modal.title }}</h3>
         <p class="confirm-subtitle">{{ modal.message }}</p>
         <div class="confirm-actions">
-          <button v-if="modal.type === 'confirm'" class="btn-back" @click="closeModal">Back</button>
-          <button class="btn-confirm" @click="modal.type === 'confirm' ? modal.onConfirm?.() : closeModal()">
+          <button
+            v-if="modal.type === 'confirm'"
+            class="btn-back"
+            @click="closeModal"
+          >
+            Back
+          </button>
+          <button
+            class="btn-confirm"
+            @click="
+              modal.type === 'confirm' ? modal.onConfirm?.() : closeModal()
+            "
+          >
             {{ modal.type === "confirm" ? "Confirm" : "OK" }}
           </button>
         </div>
@@ -570,7 +629,9 @@ onMounted(() => {
 .admin-table tbody tr {
   background: #fff;
   border-radius: 12px;
-  transition: background 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    background 0.15s ease,
+    box-shadow 0.15s ease;
 }
 .admin-table tbody td {
   padding: 12px 10px;

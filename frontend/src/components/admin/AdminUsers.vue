@@ -1,6 +1,11 @@
 <script setup>
 import { ref, onMounted, computed, watch } from "vue";
-import client from "@/api/client";
+import {
+  getAdminUsers,
+  updateUserBan,
+  updateUserRole,
+  getAdminRoles,
+} from "@/api/admin";
 import { formatBannedUntilDateTime } from "@/utils/banDate";
 import { uid } from "@/stores/userStore";
 
@@ -12,24 +17,18 @@ const currentUserId = uid;
 
 const showBanModal = ref(false);
 const banTarget = ref(null);
-const banKind = ref("permanent"); // 'permanent' | 'temporary'
+const banKind = ref("permanent");
 const banUntilDate = ref("");
 
 const showWarning = ref(false);
 const warningMessage = ref("");
 
-// Role management state
 const roleDraft = ref({});
 const showRoleConfirm = ref(false);
 const pendingRole = ref({ user: null, newRoleId: null, oldRoleId: null });
 const roleInfoModal = ref({ open: false, title: "", message: "" });
 
-const roles = [
-  { id: 1, label: "User" },
-  { id: 2, label: "Student" },
-  { id: 3, label: "Moderator" },
-  { id: 4, label: "Admin" },
-];
+const roles = ref([]);
 
 // Tomorrow in local time (YYYY-MM-DD) so date picker min is correct in user's timezone
 const minBanDate = computed(() => {
@@ -51,19 +50,7 @@ async function loadUsers() {
   loading.value = true;
   error.value = "";
   try {
-    const params = q.value.trim() ? { q: q.value.trim() } : {};
-    const res = await client.get("/admin/users", { params });
-    users.value = (res.data.users || []).map((u) => ({
-      ...u,
-      isBanned: Boolean(Number(u.isBanned ?? 0)),
-      banType:
-        u.banType && (u.banType === "permanent" || u.banType === "temporary")
-          ? u.banType
-          : null,
-      bannedUntil: u.bannedUntil ? String(u.bannedUntil) : null,
-    }));
-
-    // Populate roleDraft map
+    users.value = await getAdminUsers(q.value);
     const map = {};
     for (const u of users.value) map[u.userId] = Number(u.roleId);
     roleDraft.value = map;
@@ -122,7 +109,7 @@ async function confirmBan() {
     payload.banType = "permanent";
   }
   try {
-    await client.patch(`/admin/users/${banTarget.value.userId}/ban`, payload);
+    await updateUserBan(banTarget.value.userId, payload);
     banTarget.value.isBanned = true;
     banTarget.value.banType = payload.banType;
     banTarget.value.bannedUntil = payload.bannedUntil || null;
@@ -134,7 +121,7 @@ async function confirmBan() {
 
 async function unban(user) {
   try {
-    await client.patch(`/admin/users/${user.userId}/ban`, { banned: false });
+    await updateUserBan(user.userId, { banned: false });
     user.isBanned = false;
     user.banType = null;
     user.bannedUntil = null;
@@ -174,15 +161,8 @@ function isAdminUser(u) {
   return (u.roleName || "").toLowerCase() === "admin";
 }
 
-// Role management functions
 function roleLabel(id) {
-  return id === 1
-    ? "User"
-    : id === 2
-      ? "Student"
-      : id === 3
-        ? "Moderator"
-        : "Admin";
+  return roles.value.find((r) => r.id === Number(id))?.label || "";
 }
 
 function showRoleInfo(title, message) {
@@ -216,7 +196,7 @@ function onRoleSelected(user) {
 
 async function applyRoleChange(user, newRole) {
   try {
-    await client.patch(`/admin/users/${user.userId}/role`, { roleId: newRole });
+    await updateUserRole(user.userId, newRole);
     user.roleId = String(newRole);
     user.roleName =
       newRole === 1
@@ -249,7 +229,10 @@ async function confirmRoleChange() {
 }
 
 onMounted(async () => {
-  await loadUsers();
+  await Promise.all([
+    loadUsers(),
+    getAdminRoles().then((r) => (roles.value = r)),
+  ]);
 });
 </script>
 

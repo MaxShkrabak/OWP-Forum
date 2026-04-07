@@ -1,26 +1,54 @@
-import { ref } from 'vue';
-import { checkAuth, logout } from '@/api/auth';
+import { ref } from "vue";
+import { checkAuth, logout } from "@/api/auth";
 
-// Import all images to get default avatar
-const allImages = import.meta.glob('/src/assets/img/user-pfps-premade/*.(png|jpeg|jpg|svg)', { eager: true });
+const POST_COOLDOWN_KEY = "createPostBlockedUntil";
+
+function getStoredBlockedUntil() {
+  const stored = Number(localStorage.getItem(POST_COOLDOWN_KEY) ?? 0);
+  if (!Number.isFinite(stored) || stored <= Date.now()) {
+    localStorage.removeItem(POST_COOLDOWN_KEY);
+    return 0;
+  }
+  return stored;
+}
+
+export const createPostBlockedUntil = ref(getStoredBlockedUntil());
+
+export function blockPostCreationFor(seconds) {
+  const safeSeconds = Math.max(0, Number(seconds) || 0);
+  const blockedUntil = safeSeconds > 0 ? Date.now() + safeSeconds * 1000 : 0;
+  createPostBlockedUntil.value = blockedUntil;
+  if (blockedUntil > Date.now()) {
+    localStorage.setItem(POST_COOLDOWN_KEY, String(blockedUntil));
+  } else {
+    localStorage.removeItem(POST_COOLDOWN_KEY);
+  }
+}
+
+const allImages = import.meta.glob(
+  "/src/assets/img/user-pfps-premade/*.(png|jpeg|jpg|svg)",
+  { eager: true },
+);
 
 const resolveAvatarPath = (filename) => {
   if (!filename) return null;
-  const match = Object.keys(allImages).find(path => path.endsWith(filename));
+  const match = Object.keys(allImages).find((path) => path.endsWith(filename));
   return match ? allImages[match].default : null;
 };
 
-const defaultAvatar = resolveAvatarPath('default-pfp.png') || '';
+const defaultAvatar = resolveAvatarPath("default-pfp.png") || "";
 
 export const isLoggedIn = ref(false);
-export const uid = ref(localStorage.getItem('uid') || 0);
-export const fullName = ref(localStorage.getItem('fullName') || '');
-export const userAvatar = ref(localStorage.getItem('userAvatar') || defaultAvatar);
-export const userRole = ref(localStorage.getItem('userRole') || 'Guest');
-export const userRoleId = ref(localStorage.getItem('userRoleId') || 0);
-export const isBanned = ref(localStorage.getItem('isBanned') === 'true');
-export const banType = ref(localStorage.getItem('banType') || null); // 'permanent' | 'temporary'
-export const bannedUntil = ref(localStorage.getItem('bannedUntil') || null); // ISO date string
+export const uid = ref(localStorage.getItem("uid") || 0);
+export const fullName = ref(localStorage.getItem("fullName") || "");
+export const userAvatar = ref(
+  localStorage.getItem("userAvatar") || defaultAvatar,
+);
+export const userRole = ref(localStorage.getItem("userRole") || "Guest");
+export const userRoleId = ref(localStorage.getItem("userRoleId") || 0);
+export const isBanned = ref(localStorage.getItem("isBanned") === "true");
+export const banType = ref(localStorage.getItem("banType") || null);
+export const bannedUntil = ref(localStorage.getItem("bannedUntil") || null);
 export const termsAccepted = ref(false);
 
 export const syncProfileOnLoad = async () => {
@@ -33,32 +61,34 @@ export const syncProfileOnLoad = async () => {
 
       uid.value = user.userId;
       fullName.value = `${user.firstName} ${user.lastName}`;
-      userRole.value = user.roleName || 'User';
+      userRole.value = user.roleName || "User";
       userRoleId.value = user.roleId;
       isBanned.value = Boolean(Number(user.isBanned ?? 0));
-      banType.value = user.banType && (user.banType === 'permanent' || user.banType === 'temporary') ? user.banType : null;
+      banType.value =
+        user.banType &&
+        (user.banType === "permanent" || user.banType === "temporary")
+          ? user.banType
+          : null;
       bannedUntil.value = user.bannedUntil ? String(user.bannedUntil) : null;
       termsAccepted.value = Number(user.termsAccepted) === 1;
 
-      // User avatar
       const avatarPath = resolveAvatarPath(user.avatar);
       userAvatar.value = avatarPath || defaultAvatar;
 
-      localStorage.setItem('uid', uid.value);
-      localStorage.setItem('fullName', fullName.value);
-      localStorage.setItem('userRole', userRole.value);
-      localStorage.setItem('userAvatar', userAvatar.value);
-      localStorage.setItem('userRoleId', userRoleId.value);
-      localStorage.setItem('isBanned', isBanned.value ? 'true' : 'false');
-      localStorage.setItem('banType', banType.value || '');
-      localStorage.setItem('bannedUntil', bannedUntil.value || '');
+      localStorage.setItem("uid", uid.value);
+      localStorage.setItem("fullName", fullName.value);
+      localStorage.setItem("userRole", userRole.value);
+      localStorage.setItem("userAvatar", userAvatar.value);
+      localStorage.setItem("userRoleId", userRoleId.value);
+      localStorage.setItem("isBanned", isBanned.value ? "true" : "false");
+      localStorage.setItem("banType", banType.value || "");
+      localStorage.setItem("bannedUntil", bannedUntil.value || "");
     } else {
-      // User isn't signed in
       resetStore();
     }
   } catch (error) {
     if (error.response?.status !== 401) {
-      console.error('Profile sync failed:', error);
+      console.error("Profile sync failed:", error);
     }
     resetStore();
   }
@@ -66,8 +96,8 @@ export const syncProfileOnLoad = async () => {
 
 const resetStore = () => {
   isLoggedIn.value = false;
-  fullName.value = '';
-  userRole.value = 'Guest';
+  fullName.value = "";
+  userRole.value = "Guest";
   userAvatar.value = defaultAvatar;
   uid.value = 0;
   userRoleId.value = 0;
@@ -76,21 +106,21 @@ const resetStore = () => {
   bannedUntil.value = null;
   termsAccepted.value = false;
 
-  localStorage.removeItem('fullName');
-  localStorage.removeItem('userRole');
-  localStorage.removeItem('userAvatar');
-  localStorage.removeItem('uid');
-  localStorage.removeItem('userRoleId');
-  localStorage.removeItem('isBanned');
-  localStorage.removeItem('banType');
-  localStorage.removeItem('bannedUntil');
+  localStorage.removeItem("fullName");
+  localStorage.removeItem("userRole");
+  localStorage.removeItem("userAvatar");
+  localStorage.removeItem("uid");
+  localStorage.removeItem("userRoleId");
+  localStorage.removeItem("isBanned");
+  localStorage.removeItem("banType");
+  localStorage.removeItem("bannedUntil");
 };
 
 export async function logoutUser() {
   try {
     await logout();
   } catch (e) {
-    console.error('Logout API error:', e);
+    console.error("Logout API error:", e);
   } finally {
     resetStore();
   }
