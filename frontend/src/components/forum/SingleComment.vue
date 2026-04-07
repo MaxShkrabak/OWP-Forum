@@ -335,7 +335,7 @@ watch(isEditing, (active) => {
 </script>
 
 <template>
-  <div class="comment-node mb-3 position-relative">
+  <div class="comment-node mb-3 position-relative" :id="'comment-' + comment.id">
     <div
       v-if="localReplies.length || comment.replyCount > 0"
       class="thread-line"

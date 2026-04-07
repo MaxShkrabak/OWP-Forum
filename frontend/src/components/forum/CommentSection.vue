@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, provide, onMounted, onBeforeUnmount } from "vue";
+import { ref, computed, provide, onMounted, onBeforeUnmount, nextTick } from "vue";
 import { useRouter } from "vue-router";
 import SingleComment from "./SingleComment.vue";
 import CommentEditor from "./TextEditor.vue";
@@ -367,8 +367,31 @@ const cancelComment = () => {
   isFocused.value = false;
 };
 
-onMounted(() => {
-  loadComments();
+onMounted(async () => {
+  await loadComments();
+
+  const hash = window.location.hash;
+  if (!hash || !hash.startsWith("#comment-")) return;
+
+  // Load more batches until the comment is in the DOM
+  const targetId = hash.slice(1);
+  let el = null;
+  while (!el) {
+    await nextTick();
+    el = document.getElementById(targetId);
+    if (el) break;
+    if (!hasMore.value) break;
+    currentBatch.value++;
+    await loadComments(false);
+  }
+
+  await nextTick();
+  el = el || document.getElementById(targetId);
+  if (el) {
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.classList.add("comment-highlight");
+    setTimeout(() => el.classList.remove("comment-highlight"), 3000);
+  }
 });
 
 const handleDeletedComment = (deletedCommentId) => {
@@ -687,5 +710,14 @@ const handleDeletedComment = (deletedCommentId) => {
   color: #1f2937;
   text-transform: none;
   font-weight: normal;
+}
+
+:deep(.comment-highlight) {
+  animation: highlightFade 3s ease-out;
+}
+
+@keyframes highlightFade {
+  0%, 30% { background-color: rgba(0, 71, 80, 0.12); border-radius: 12px; }
+  100% { background-color: transparent; }
 }
 </style>

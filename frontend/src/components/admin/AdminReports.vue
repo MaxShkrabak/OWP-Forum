@@ -219,7 +219,13 @@ const sortedReports = computed(() => {
 });
 
 function goToContent(r) {
-  if (r?.postId) router.push(`/posts/${r.postId}`);
+  if (!r?.postId) return;
+  const path = `/posts/${r.postId}`;
+  if (r.source === "Comment" && r.commentId) {
+    router.push({ path, hash: `#comment-${r.commentId}` });
+  } else {
+    router.push(path);
+  }
 }
 
 async function handleResolve(reportId) {

@@ -520,6 +520,10 @@ class CommentController extends BaseController
                 return json($res, ['ok' => false, 'error' => 'Failed to delete comment'], 500);
             }
 
+            // Auto-resolve any unresolved reports for this comment
+            $resolveStmt = $pdo->prepare("UPDATE dbo.Forum_Reports SET Resolved = 1, ResolvedBy = :uid, ResolvedAt = SYSUTCDATETIME() WHERE CommentID = :commentId AND Resolved = 0");
+            $resolveStmt->execute([':uid' => $userId, ':commentId' => $commentId]);
+
             return json($res, ['ok' => true]);
         } catch (Throwable $e) {
             return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);

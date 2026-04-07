@@ -21,9 +21,11 @@ class ReportController extends BaseController
                     r.ReportID,
                     COALESCE(r.PostID, c.PostId) AS PostID,
                     p.Title AS PostTitle,
+                    p.AuthorID AS PostAuthorId,
                     CONCAT(up.FirstName, ' ', up.LastName) AS PostAuthor,
                     r.CommentID,
                     c.Content AS CommentText,
+                    c.UserId AS CommentAuthorId,
                     NULLIF(CONCAT(uc.FirstName, ' ', uc.LastName),'') AS CommentAuthor,
                     r.CreatedAt,
                     rt.TagName AS Reason,
@@ -54,6 +56,9 @@ class ReportController extends BaseController
                     'commentText'   => $row['CommentText'] ?? null,
                     'commentAuthor' => $row['CommentAuthor'] ?? null,
                     'source'        => (int)($row['CommentID'] ?? 0) > 0 ? 'Comment' : 'Post',
+                    'contentAuthorId' => (int)($row['CommentID'] ?? 0) > 0
+                        ? ((int)($row['CommentAuthorId'] ?? 0) ?: null)
+                        : ((int)($row['PostAuthorId'] ?? 0) ?: null),
                     'reason'        => $row['Reason'] ?? 'Other',
                     'createdAt'     => $row['CreatedAt'],
                     'reporter'      => [
