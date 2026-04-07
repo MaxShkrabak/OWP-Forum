@@ -342,6 +342,6 @@ it('12) Clicking "Go to" on a comment report routes to its parent post', async (
   await commentRow.find("button.btn-outline").trigger("click");
   await flushPromises();
 
-  expect(mockRouter.push).toHaveBeenCalledWith("/posts/55");
+  expect(mockRouter.push).toHaveBeenCalledWith({ path: "/posts/55", hash: "#comment-12" });
 });
 });
