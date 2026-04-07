@@ -253,7 +253,8 @@ final class UserController extends BaseController
     public function getProfilePosts(Request $req, Response $res, array $args): Response
     {
         try {
-            $authorId = (int)$args['uid'];
+            $authorId     = (int)$args['uid'];
+            $viewerUserId = (int)($req->getAttribute('user_id') ?? 0);
             $pdo = ($this->makePdo)();
 
             $params = $req->getQueryParams();
@@ -282,11 +283,13 @@ final class UserController extends BaseController
                        (SELECT COUNT(*) FROM dbo.Forum_Comments cm WHERE cm.PostID = p.PostID AND cm.IsDeleted = 0) AS commentCount,
                        u.FirstName, u.LastName, u.Avatar, u.User_ID,
                        r.Name AS RoleName, c.Name AS CategoryName,
+                       ISNULL(pv.VoteValue, 0) AS myVote,
                        CASE WHEN pin.PostID IS NOT NULL THEN 1 ELSE 0 END AS isPinned
                 FROM dbo.Forum_Posts p
                 LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.User_ID
                 LEFT JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
                 LEFT JOIN dbo.Forum_Categories c ON p.CategoryID = c.CategoryID
+                LEFT JOIN dbo.Forum_PostVotes pv ON p.PostID = pv.PostID AND pv.User_ID = :viewerId
                 LEFT JOIN dbo.Forum_Pinned pin ON p.PostID = pin.PostID
                 WHERE p.AuthorID = :uid AND p.IsDeleted = 0
                 ORDER BY $orderBy
@@ -294,7 +297,7 @@ final class UserController extends BaseController
             ";
 
             $rowstmt = $pdo->prepare($getPostsSql);
-            $rowstmt->execute([':uid' => $authorId]);
+            $rowstmt->execute([':uid' => $authorId, ':viewerId' => $viewerUserId]);
             $rows = $rowstmt->fetchAll(PDO::FETCH_ASSOC);
 
             if (empty($rows)) {
@@ -327,6 +330,7 @@ final class UserController extends BaseController
                     'commentCount' => (int)($row['commentCount'] ?? 0),
                     'likeCount'    => $likeCounts[$pid] ?? 0,
                     'totalScore'   => (int)($row['TotalScore'] ?? 0),
+                    'myVote'       => (int)($row['myVote'] ?? 0),
                     'isPinned'     => (bool)($row['isPinned'] ?? false),
                 ];
 
