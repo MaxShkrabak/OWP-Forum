@@ -398,9 +398,7 @@ watch(showOptionsMenu, (val) => {
           </RouterLink>
           <span class="timestamp text-muted">
             {{ comment.time }}
-            <span v-if="comment.wasEdited" class="edited-label ms-1"
-              >(edited)</span
-            >
+            <span v-if="comment.wasEdited" class="edited-label ms-1">(edited)</span>
           </span>
           <div v-if="hasOptions" class="position-relative" ref="optionsMenuRef">
             <button
@@ -735,6 +733,12 @@ watch(showOptionsMenu, (val) => {
 
 .timestamp {
   font-size: 12px;
+}
+
+.edited-label {
+  font-style: italic;
+  opacity: 0.75;
+  font-size: 11px;
 }
 
 /* Menu */
