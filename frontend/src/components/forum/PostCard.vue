@@ -429,6 +429,15 @@ function canViewReportButton() {
   line-height: 1;
 }
 
+.role-pill {
+  font-size: 0.5rem;
+  font-weight: 800;
+  padding: 1px 4px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  width: max-content;
+}
+
 .desktop-only-author {
   display: none;
 }
