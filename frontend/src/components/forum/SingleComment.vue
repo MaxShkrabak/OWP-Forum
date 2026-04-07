@@ -87,10 +87,8 @@ const linkedImage = computed(() => {
   return (
     props.comment.text?.replace(
       /<img[^>]+src="([^"]+)"[^>]*\/?>/gi,
-      (_, src) => {
-        const name =
-          decodeURIComponent(src.split("/").pop().split("?")[0]) || "image";
-        return `<a href="${src}" target="_blank" rel="noopener noreferrer">${name}</a>`;
+      (match, src) => {
+        return `<a href="${src}" target="_blank" rel="noopener noreferrer">${match}</a>`;
       },
     ) ?? ""
   );
@@ -729,6 +727,16 @@ watch(showOptionsMenu, (val) => {
 .comment-body {
   overflow-wrap: break-word;
   word-break: break-word;
+}
+
+.comment-body :deep(img) {
+  max-width: 100%;
+  max-height: 400px;
+  border-radius: 6px;
+  display: block;
+  margin-top: 4px;
+  object-fit: contain;
+  cursor: pointer;
 }
 
 .timestamp {

@@ -159,25 +159,7 @@ const triggerImageUpload = async () => {
       emit("update:isUploading", true);
       try {
         const data = await uploadImage(file);
-        if (props.compact) {
-          const filename = file.name || "image";
-          editor.value
-            .chain()
-            .focus()
-            .insertContent([
-              {
-                type: "text",
-                marks: [
-                  { type: "link", attrs: { href: data.url, target: "_blank" } },
-                ],
-                text: filename,
-              },
-              { type: "text", text: " " },
-            ])
-            .run();
-        } else {
-          editor.value.chain().focus().setImage({ src: data.url }).run();
-        }
+        editor.value.chain().focus().setImage({ src: data.url }).run();
       } catch (err) {
         uploadError.value =
           "Image could not be uploaded. Try a smaller image (under 5 MB) in JPEG, PNG, or WebP format.";
