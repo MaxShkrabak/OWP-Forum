@@ -46,36 +46,36 @@ abstract class BaseController
 
         return [null, $pdo, $userId];
     }
-}
-protected function getUserRoleId(PDO $pdo, ?int $userId): int
+    protected function getUserRoleId(PDO $pdo, ?int $userId): int
 {
     if (!$userId || $userId <= 0) {
-        return 1;
+        return 0;
     }
 
     $stmt = $pdo->prepare("
-        SELECT ISNULL(RoleID, 1)
+        SELECT ISNULL(RoleID, 0)
         FROM dbo.Forum_Users
         WHERE User_ID = :uid
     ");
     $stmt->execute([':uid' => $userId]);
 
-    $roleId = (int)($stmt->fetchColumn() ?? 1);
-    return $roleId > 0 ? $roleId : 1;
+    $roleId = (int)($stmt->fetchColumn() ?? 0);
+    return $roleId >= 0 ? $roleId : 0;
 }
 
 protected function getCategoryVisibilityRoleId(PDO $pdo, int $categoryId): int
 {
     $stmt = $pdo->prepare("
-        SELECT ISNULL(v.VisibleFromRoleID, 1)
+        SELECT ISNULL(v.VisibleFromRoleID, 0)
         FROM dbo.Forum_Categories c
-        LEFT JOIN dbo.Forum_CategoryVisibility v ON v.CategoryID = c.CategoryID
-        WHERE c.CategoryID = :cid
+        LEFT JOIN dbo.Forum_CategoryVisibility v
+            ON v.CategoryID = c.CategoryID
+        WHERE c.CategoryID = :categoryId
     ");
-    $stmt->execute([':cid' => $categoryId]);
+    $stmt->execute([':categoryId' => $categoryId]);
 
-    $visibleFromRoleId = (int)($stmt->fetchColumn() ?? 1);
-    return $visibleFromRoleId > 0 ? $visibleFromRoleId : 1;
+    $roleId = (int)($stmt->fetchColumn() ?? 0);
+    return $roleId >= 0 ? $roleId : 0;
 }
 
 protected function canViewCategory(PDO $pdo, int $categoryId, ?int $userId): bool
@@ -89,8 +89,4 @@ protected function canViewCategory(PDO $pdo, int $categoryId, ?int $userId): boo
     $visibleFromRoleId = $this->getCategoryVisibilityRoleId($pdo, $categoryId);
     return $userRoleId >= $visibleFromRoleId;
 }
-
-protected function denyHiddenCategory(Response $res): Response
-{
-    return json($res, ['ok' => false, 'error' => 'Category not found.'], 404);
 }

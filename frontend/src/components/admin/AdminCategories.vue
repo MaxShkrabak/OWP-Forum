@@ -5,8 +5,8 @@ import client from '@/api/client';
 const categories = ref([]);
 const loading = ref(false);
 const error = ref('');
-const addForm = ref({ open: false, name: '', usableByRoleID: 1 });
-const editForm = ref({ open: false, categoryId: null, name: '', usableByRoleID: 1 });
+const addForm = ref({ open: false, name: '', usableByRoleID: 1, visibleFromRoleID: 'public' });
+const editForm = ref({ open: false, categoryId: null, name: '', usableByRoleID: 1, visibleFromRoleID: 'public' });
 const deleteConfirm = ref({ open: false, category: null });
 const submitError = ref('');
 
@@ -17,16 +17,29 @@ const roles = [
   { id: 4, label: 'Admin' },
 ];
 
+const visibilityOptions = [
+  { id: 'public', label: 'Public' },
+  { id: '1', label: 'User+' },
+  { id: '2', label: 'Student+' },
+  { id: '3', label: 'Moderator+' },
+  { id: '4', label: 'Admin only' },
+];
+
+function normalizeVisibilityForApi(value) {
+  return value === 'public' ? null : Number(value);
+}
+
 async function loadCategories() {
   loading.value = true;
   error.value = '';
   try {
     const res = await client.get('/admin/categories');
     categories.value = (res.data.items || []).map((c) => ({
-      categoryId: Number(c.categoryId),
-      name: c.name,
-      usableByRoleID: Number(c.usableByRoleID),
-    }));
+    categoryId: Number(c.categoryId),
+    name: c.name,
+    usableByRoleID: Number(c.usableByRoleID),
+    visibleFromRoleID: c.visibleFromRoleID == null ? null : Number(c.visibleFromRoleID),
+  }));
   } catch (e) {
     error.value = e?.response?.data?.error || e.message || 'Failed to load categories';
     categories.value = [];
@@ -37,7 +50,7 @@ async function loadCategories() {
 
 function openAdd() {
   submitError.value = '';
-  addForm.value = { open: true, name: '', usableByRoleID: 1 };
+  addForm.value = { open: true, name: '', usableByRoleID: 1, visibleFromRoleID: 'public' };
 }
 
 function closeAdd() {
@@ -46,7 +59,13 @@ function closeAdd() {
 
 function openEdit(cat) {
   submitError.value = '';
-  editForm.value = { open: true, categoryId: cat.categoryId, name: cat.name, usableByRoleID: cat.usableByRoleID };
+  editForm.value = {
+  open: true,
+  categoryId: cat.categoryId,
+  name: cat.name,
+  usableByRoleID: cat.usableByRoleID,
+  visibleFromRoleID: cat.visibleFromRoleID == null ? 'public' : String(cat.visibleFromRoleID),
+};
 }
 
 function closeEdit() {
@@ -85,6 +104,7 @@ async function submitAdd() {
     await client.post('/admin/categories', {
       name,
       usableByRoleID: addForm.value.usableByRoleID,
+      visibleFromRoleID: normalizeVisibilityForApi(addForm.value.visibleFromRoleID),
     });
     closeAdd();
     await loadCategories();
@@ -111,6 +131,7 @@ async function submitEdit() {
     await client.patch(`/admin/categories/${editForm.value.categoryId}`, {
       name,
       usableByRoleID: editForm.value.usableByRoleID,
+      visibleFromRoleID: normalizeVisibilityForApi(editForm.value.visibleFromRoleID),
     });
     closeEdit();
     await loadCategories();
@@ -138,6 +159,11 @@ function roleLabel(roleId) {
   return roles.find((r) => r.id === roleId)?.label || 'User';
 }
 
+function visibilityLabel(roleId) {
+  if (roleId == null) return 'Public';
+  return visibilityOptions.find((v) => String(v.id) === String(roleId))?.label || 'Public';
+}
+
 onMounted(loadCategories);
 </script>
 
@@ -149,7 +175,7 @@ onMounted(loadCategories);
       <div class="toolbar mb-4 d-flex justify-content-between align-items-center">
         <span class="text-muted">* Deleted category posts move to General.</span>
         <button type="button" class="btn-add" @click="openAdd">
-          <i class="bi bi-plus-lg"></i> Add 
+          <i class="bi bi-plus-lg"></i> Add
           <span class="d-none d-sm-inline">category</span>
         </button>
       </div>
@@ -159,41 +185,46 @@ onMounted(loadCategories);
 
       <div class="table-wrapper">
         <table v-if="!loading && categories.length" class="admin-table mt-3">
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>Name</th>
-            <th>Min role</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="cat in categories" :key="cat.categoryId">
-            <td class="admin-id">{{ cat.categoryId }}</td>
-            <td class="admin-name">{{ cat.name }}</td>
-            <td>
-              <span class="role-full">{{ roleLabel(cat.usableByRoleID) }}</span>
-              <span class="role-short">{{ roleLabel(cat.usableByRoleID).charAt(0) }}</span>
-            </td>
-            <td>
-              <div class="actions">
-                <button type="button" class="btn-action" @click="openEdit(cat)" title="Edit">
-                  <i class="bi bi-pencil-square"></i> <span class="btn-text">Edit</span>
-                </button>
-                <button
-                  type="button"
-                  class="btn-action danger btn-delete"
-                  :disabled="cat.name === 'General'"
-                  :title="cat.name === 'General' ? 'Cannot delete General' : 'Delete'"
-                  @click="openDeleteConfirm(cat)"
-                >
-                  <i class="bi bi-trash"></i>
-                  <span class="btn-text">Delete</span>
-                </button>
-              </div>
-            </td>
-          </tr>
-        </tbody>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Name</th>
+              <th>Min role</th>
+              <th>Visibility</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="cat in categories" :key="cat.categoryId">
+              <td class="admin-id">{{ cat.categoryId }}</td>
+              <td class="admin-name">{{ cat.name }}</td>
+              <td>
+                <span class="role-full">{{ roleLabel(cat.usableByRoleID) }}</span>
+                <span class="role-short">{{ roleLabel(cat.usableByRoleID).charAt(0) }}</span>
+              </td>
+              <td>
+                <span class="role-full">{{ visibilityLabel(cat.visibleFromRoleID) }}</span>
+                <span class="role-short">{{ visibilityLabel(cat.visibleFromRoleID).charAt(0) }}</span>
+              </td>
+              <td>
+                <div class="actions">
+                  <button type="button" class="btn-action" @click="openEdit(cat)" title="Edit">
+                    <i class="bi bi-pencil-square"></i> <span class="btn-text">Edit</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="btn-action danger btn-delete"
+                    :disabled="cat.name === 'General'"
+                    :title="cat.name === 'General' ? 'Cannot delete General' : 'Delete'"
+                    @click="openDeleteConfirm(cat)"
+                  >
+                    <i class="bi bi-trash"></i>
+                    <span class="btn-text">Delete</span>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
         </table>
       </div>
 
@@ -202,7 +233,6 @@ onMounted(loadCategories);
       </div>
     </div>
 
-    <!-- Add category form (inline) -->
     <div v-if="addForm.open" class="form-overlay" @mousedown.self="closeAdd">
       <div class="form-card">
         <h3 class="form-title">Add category</h3>
@@ -216,6 +246,12 @@ onMounted(loadCategories);
             <option v-for="r in roles" :key="r.id" :value="r.id">{{ r.label }}</option>
           </select>
         </div>
+        <div class="form-group">
+          <label>Visibility</label>
+          <select v-model="addForm.visibleFromRoleID" class="form-select">
+            <option v-for="v in visibilityOptions" :key="v.id" :value="v.id">{{ v.label }}</option>
+          </select>
+        </div>
         <p v-if="submitError" class="err mb-2">{{ submitError }}</p>
         <div class="form-actions">
           <button type="button" class="btn-back" @click="closeAdd">Cancel</button>
@@ -224,7 +260,6 @@ onMounted(loadCategories);
       </div>
     </div>
 
-    <!-- Edit category form -->
     <div v-if="editForm.open" class="form-overlay" @mousedown.self="closeEdit">
       <div class="form-card">
         <h3 class="form-title">Edit category</h3>
@@ -238,6 +273,12 @@ onMounted(loadCategories);
             <option v-for="r in roles" :key="r.id" :value="r.id">{{ r.label }}</option>
           </select>
         </div>
+        <div class="form-group">
+          <label>Visibility</label>
+          <select v-model="editForm.visibleFromRoleID" class="form-select">
+            <option v-for="v in visibilityOptions" :key="v.id" :value="v.id">{{ v.label }}</option>
+          </select>
+        </div>
         <p v-if="submitError" class="err mb-2">{{ submitError }}</p>
         <div class="form-actions">
           <button type="button" class="btn-back" @click="closeEdit">Cancel</button>
@@ -246,7 +287,6 @@ onMounted(loadCategories);
       </div>
     </div>
 
-    <!-- Delete confirm -->
     <div v-if="deleteConfirm.open" class="inner-warning-overlay" @mousedown.self="closeDeleteConfirm">
       <div class="confirm-card">
         <h3 class="confirm-title">Delete category?</h3>
@@ -327,7 +367,6 @@ onMounted(loadCategories);
 
 .role-short { display: none; }
 
-
 .admin-id {
   color: #888;
   font-size: 0.85rem;
@@ -339,9 +378,17 @@ onMounted(loadCategories);
 }
 
 .btn-action {
-  display: inline-flex; align-items: center; gap: 8px;
-  background: #fff; border: 1px solid #cbd5e1; color: #374151;
-  padding: 8px 12px; border-radius: 12px; cursor: pointer; font-weight: 700; font-size: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  color: #374151;
+  padding: 8px 12px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.9rem;
 }
 .btn-action:hover { background: #f1f5f9; }
 .btn-action.danger { border-color: #f3c6c6; color: #b91c1c; }
@@ -374,7 +421,6 @@ onMounted(loadCategories);
   color: #64748b;
 }
 
-/* Form overlay (add/edit) */
 .form-overlay {
   position: fixed;
   inset: 0;
@@ -438,7 +484,6 @@ onMounted(loadCategories);
   margin-top: 20px;
 }
 
-/* Confirm overlay (delete) */
 .inner-warning-overlay {
   position: fixed;
   inset: 0;
@@ -516,7 +561,6 @@ onMounted(loadCategories);
   overflow-x: auto;
 }
 
-
 @media (max-width: 576px) {
   .admin-table thead th:nth-child(1) {
     display: none;
@@ -532,7 +576,7 @@ onMounted(loadCategories);
   }
 
   .role-full { display: none !important; }
-  .role-short { display: inline !important;}
+  .role-short { display: inline !important; }
   .btn-text { display: none; }
 }
 </style>
