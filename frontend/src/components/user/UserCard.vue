@@ -329,6 +329,7 @@ function getAvatarSrc(file) {
   background-color: #007a4b17;
   border-radius: 8px;
   padding: 10px 0;
+  gap: 5px;
 }
 .stat-value {
   font-weight: 800;
