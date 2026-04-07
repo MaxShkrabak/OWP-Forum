@@ -210,12 +210,12 @@ function canViewReportButton() {
               :title="post.isPinned ? 'Unpin announcement' : 'Pin announcement'"
             >
               <i
-                class="pi pi-thumbtack pin-icon"
-                :class="{ pinned: !!post.isPinned, 'is-pinning': isPinning }"
+                class="pin-icon bi"
+                :class="post.isPinned ? 'bi-pin-angle-fill' : 'bi-pin-angle'"
               ></i>
             </button>
 
-            <span v-if="post.isPinned" class="pinned-badge">Pinned</span>
+            <span v-else-if="post.isPinned" class="bi bi-pin-angle-fill pin-icon"></span>
           </div>
 
           <div class="d-flex flex-wrap gap-2 mb-2">
@@ -389,29 +389,12 @@ function canViewReportButton() {
 
 .pin-icon {
   color: #c2680a;
-  font-size: 0.9rem;
+  margin-left: 4px;
+  font-size: 1rem;
   flex-shrink: 0;
   transition:
     transform 0.2s ease-in-out,
     opacity 0.2s ease-in-out;
-}
-
-.pin-icon.pinned {
-  transform: rotate(25deg);
-}
-
-.pin-icon.is-pinning {
-  opacity: 0.6;
-}
-
-.pinned-badge {
-  font-size: 0.65rem;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: #c2680a;
-  color: #fff4e8;
-  white-space: nowrap;
 }
 
 .mobile-author-header {
@@ -444,15 +427,6 @@ function canViewReportButton() {
   font-size: 0.8rem;
   color: #1a1a1b;
   line-height: 1;
-}
-
-.role-pill {
-  font-size: 0.5rem;
-  font-weight: 800;
-  padding: 1px 4px;
-  border-radius: 3px;
-  text-transform: uppercase;
-  width: max-content;
 }
 
 .desktop-only-author {

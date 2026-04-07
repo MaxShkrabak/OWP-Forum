@@ -53,6 +53,7 @@ async function submit() {
     error.value = "Failed to save agreement.";
   } finally {
     saving.value = false;
+    window.location.reload();
   }
 }
 </script>

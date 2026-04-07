@@ -920,7 +920,7 @@ class PostController extends BaseController
             ");
             $limitStmt->execute([':categoryId' => $post['CategoryID']]);
             if ((int)$limitStmt->fetchColumn() >= 2) {
-                return json($res, ['ok' => false, 'error' => 'Maximum of 2 pinned posts per category reached.'], 400);
+                return json($res, ['ok' => false, 'error' => 'Maximum of 2 pinned posts per category reached.']);
             }
 
             $insertStmt = $pdo->prepare("INSERT INTO dbo.Forum_Pinned (PostID) VALUES (:pid)");
