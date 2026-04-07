@@ -1,10 +1,11 @@
 <!-- AdminReports.vue -->
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
 
 import client from "@/api/client";
 import { fetchReports, resolveReport } from "@/api/reports";
+import { getPaginationRange } from "@/utils/pagination";
 
 /* =========================
    REPORT TAGS (OLD CODE)
@@ -157,7 +158,10 @@ const reports = ref([]);
 const loadingReports = ref(false);
 const reportsError = ref("");
 
-const sortMode = ref("newest"); // newest | oldest
+const sortMode = ref("latest"); // latest | oldest | posts | comments
+
+const currentPage = ref(1);
+const limit = ref(Number(localStorage.getItem("reports_limit")) || 10);
 
 function normalizeReport(r) {
   return {
@@ -201,12 +205,44 @@ function toTime(v) {
 }
 
 const sortedReports = computed(() => {
-  const copy = [...reports.value];
-  copy.sort((a, b) => {
+  const mode = sortMode.value;
+  let filtered = [...reports.value];
+
+  if (mode === "posts") filtered = filtered.filter((r) => r.source === "Post");
+  else if (mode === "comments") filtered = filtered.filter((r) => r.source === "Comment");
+
+  filtered.sort((a, b) => {
     const diff = toTime(a.createdAt) - toTime(b.createdAt);
-    return sortMode.value === "oldest" ? diff : -diff;
+    return mode === "oldest" ? diff : -diff;
   });
-  return copy;
+
+  return filtered;
+});
+
+const postCount = computed(() => reports.value.filter((r) => r.source === "Post").length);
+const commentCount = computed(() => reports.value.filter((r) => r.source === "Comment").length);
+
+const totalPages = computed(() =>
+  Math.max(1, Math.ceil(sortedReports.value.length / limit.value))
+);
+
+const paginatedReports = computed(() => {
+  const start = (currentPage.value - 1) * limit.value;
+  return sortedReports.value.slice(start, start + limit.value);
+});
+
+const displayedPages = computed(() =>
+  getPaginationRange(currentPage.value, totalPages.value, 2)
+);
+
+watch([sortMode, limit], () => {
+  currentPage.value = 1;
+  localStorage.setItem("reports_limit", limit.value);
+});
+
+// Clamp page if resolving reports shrinks the list
+watch(totalPages, (tp) => {
+  if (currentPage.value > tp) currentPage.value = Math.max(1, tp);
 });
 
 function goToContent(r) {
@@ -303,21 +339,40 @@ onMounted(() => {
          SECTION 2: ACTIVE REPORTS
          ========================= -->
     <div class="reports-section">
-      <div class="reports-header">
-        <h3 class="section-title">Manage Reports</h3>
+      <header class="reports-header">
+        <div class="header-main-content">
+          <div>
+            <span class="reports-badge">Active Reports</span>
+            <h4 class="reports-title">Manage Reports</h4>
+            <span class="reports-count">{{ reports.length }} report{{ reports.length !== 1 ? 's' : '' }} — {{ postCount }} post{{ postCount !== 1 ? 's' : '' }}, {{ commentCount }} comment{{ commentCount !== 1 ? 's' : '' }}</span>
+          </div>
+        </div>
 
         <div class="reports-controls">
-          <label class="sort-label">Sort</label>
-          <select v-model="sortMode" class="sort-select">
-            <option value="newest">Newest</option>
-            <option value="oldest">Oldest</option>
-          </select>
+          <div class="sort-pill">
+            <span class="sort-label">Limit</span>
+            <select v-model="limit" class="sort-select">
+              <option v-for="n in [5, 10, 15, 20]" :key="n" :value="n">
+                {{ n }}
+              </option>
+            </select>
+          </div>
+
+          <div class="sort-pill">
+            <span class="sort-label">Sort</span>
+            <select v-model="sortMode" class="sort-select">
+              <option value="latest">Latest</option>
+              <option value="oldest">Oldest</option>
+              <option value="posts">Posts</option>
+              <option value="comments">Comments</option>
+            </select>
+          </div>
 
           <button class="btn-refresh" type="button" @click="loadReports" :disabled="loadingReports">
             {{ loadingReports ? "Loading..." : "Refresh" }}
           </button>
         </div>
-      </div>
+      </header>
 
       <div class="reports-card">
         <div v-if="reportsError" class="alert-error">
@@ -329,11 +384,11 @@ onMounted(() => {
         </div>
 
         <div v-else-if="sortedReports.length === 0" class="empty-state">
-          No active reports (unresolved).
+          {{ sortMode === 'posts' ? 'No post reports.' : sortMode === 'comments' ? 'No comment reports.' : 'No active reports.' }}
         </div>
 
         <div v-else class="reports-list">
-          <div v-for="r in sortedReports" :key="r.reportId" class="report-row">
+          <div v-for="r in paginatedReports" :key="r.reportId" class="report-row">
             <div class="report-main">
               <div class="report-topline">
                 <span class="badge-source" :class="r.source === 'Comment' ? 'comment' : 'post'">
@@ -410,6 +465,43 @@ onMounted(() => {
             </div>
           </div>
         </div>
+
+        <!-- Page navigation -->
+        <nav v-if="totalPages > 1" class="page-nav-wraper mt-4">
+          <button
+            class="page-nav-btn"
+            :disabled="currentPage === 1"
+            @click="currentPage--"
+          >
+            <i class="pi pi-chevron-left"></i>
+          </button>
+
+          <div class="page-pages d-none d-sm-flex">
+            <template v-for="p in displayedPages" :key="p">
+              <button
+                v-if="typeof p === 'number'"
+                class="page-num"
+                :class="{ active: p === currentPage }"
+                @click="currentPage = p"
+              >
+                {{ p }}
+              </button>
+              <span v-else class="page-dots">{{ p }}</span>
+            </template>
+          </div>
+
+          <div class="d-sm-none text-muted small fw-bold">
+            {{ currentPage }} / {{ totalPages }}
+          </div>
+
+          <button
+            class="page-nav-btn"
+            :disabled="currentPage === totalPages"
+            @click="currentPage++"
+          >
+            <i class="pi pi-chevron-right"></i>
+          </button>
+        </nav>
       </div>
     </div>
 
@@ -723,43 +815,98 @@ onMounted(() => {
   gap: 10px;
 }
 .reports-header {
+  background: linear-gradient(135deg, #004b33 0%, #003d4c 100%);
+  padding: 1.25rem 1.75rem;
+  border-radius: 16px;
+  box-shadow: 0 10px 25px -5px rgba(0, 75, 51, 0.3);
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 0.75rem 1.25rem;
 }
-.section-title {
-  margin: 0;
-  font-size: 20px;
+.header-main-content {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.reports-badge {
+  font-size: 0.65rem;
+  text-transform: uppercase;
   font-weight: 800;
-  color: #0f172a;
+  color: #f1be48;
+  letter-spacing: 1.5px;
+}
+.reports-title {
+  margin: 0;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.2;
+}
+.reports-count {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+  margin-top: 0.25rem;
 }
 .reports-controls {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 0.75rem;
+}
+.sort-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 6px 6px 6px 14px;
+  border-radius: 10px;
+  transition: all 0.2s ease;
 }
 .sort-label {
-  font-size: 12px;
+  font-size: 0.6rem;
   font-weight: 800;
-  color: #64748b;
   text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: 0.8px;
 }
 .sort-select {
-  border: 1px solid #cbd5e1;
-  border-radius: 10px;
-  padding: 8px 10px;
-  background: white;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid transparent;
+  color: #ffffff;
+  font-size: 0.85rem;
   font-weight: 700;
+  outline: none;
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+.sort-select:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+.sort-select option {
+  background-color: #004b33;
+  color: #ffffff;
+  font-weight: 600;
+  padding: 10px;
 }
 .btn-refresh {
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 10px;
   padding: 9px 14px;
   font-weight: 800;
   cursor: pointer;
-  background: #004750;
-  color: white;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.85);
+  transition: all 0.2s ease;
+}
+.btn-refresh:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.2);
 }
 .btn-refresh:disabled {
   opacity: 0.6;
@@ -901,13 +1048,76 @@ onMounted(() => {
   display: inline;
 }
 
+/* Pagination */
+.page-nav-wraper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  padding: 1rem 0 0;
+}
+
+.page-dots {
+  color: rgba(255, 255, 255, 0.85);
+  align-self: center;
+}
+
+.page-pages {
+  display: flex;
+  gap: 8px;
+  background: #7e9291;
+  padding: 6px;
+  border-radius: 14px;
+}
+
+.page-num {
+  width: 42px;
+  height: 42px;
+  border: none;
+  background: transparent;
+  border-radius: 10px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.page-num:hover {
+  background: rgba(255, 255, 255, 0.226);
+  color: #ffffff;
+}
+
+.page-num.active {
+  background: #035157;
+  color: #ffffff;
+  box-shadow: 0 6px 16px rgba(3, 81, 87, 0.35);
+}
+
+.page-nav-btn {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 2px solid #7e9291;
+  background: #ffffff;
+  color: #004b33;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.page-nav-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  filter: grayscale(1);
+}
+
 /* Mobile */
 @media (max-width: 576px) {
   .desktop-only {
     display: none;
   }
-  .header-row,
-  .reports-header {
+  .header-row {
     flex-direction: column;
     align-items: flex-start;
   }
@@ -915,14 +1125,20 @@ onMounted(() => {
     font-size: 0.9rem;
   }
 
-  .reports-controls {
-    width: 100%;
-    flex-wrap: nowrap;
+  .reports-header {
+    padding: 1rem;
+    border-radius: 12px;
+    gap: 0.5rem 1.25rem;
   }
 
-  .sort-select,
-  .btn-refresh {
+  .reports-controls {
     width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .sort-pill {
+    padding: 4px 4px 4px 6px;
+    gap: 3px;
   }
 
   .report-row {
@@ -942,6 +1158,10 @@ onMounted(() => {
 
   .report-title {
     white-space: normal;
+  }
+
+  .page-nav-wraper {
+    gap: 10px;
   }
 }
 </style>

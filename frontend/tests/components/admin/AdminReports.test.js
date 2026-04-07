@@ -287,3 +287,98 @@ it('9) Clicking "Go to" routes to correct report content', async () => {
   expect(mockRouter.push).toHaveBeenCalledWith("/posts/99");
 });
 });
+
+// 7 reports for pagination tests (limit=5 gives 2 pages)
+const mockManyReports = Array.from({ length: 7 }, (_, i) => ({
+  reportId: i + 1,
+  postId: 200 + i,
+  source: "Post",
+  reason: "Spam",
+  createdAt: `2026-03-0${i + 1}T00:00:00Z`,
+  contentTitle: `Report Title ${i + 1}`,
+}));
+
+describe("AdminReports.vue — Pagination", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockRouter.push.mockClear();
+    localStorage.clear();
+
+    mockClient.get.mockImplementation((url) => {
+      if (url === "/admin/report-tags")
+        return Promise.resolve({ data: { items: mockReportTags } });
+      return Promise.resolve({ data: {} });
+    });
+
+    mockReportsApi.fetchReports.mockResolvedValue({
+      ok: true,
+      reports: mockManyReports,
+    });
+  });
+
+  it("shows pagination when reports exceed limit", async () => {
+    localStorage.setItem("reports_limit", "5");
+    const wrapper = mount(AdminReports);
+    await flushPromises();
+
+    const rows = wrapper.findAll(".reports-list .report-row");
+    expect(rows.length).toBe(5);
+
+    expect(wrapper.find(".page-nav-wraper").exists()).toBe(true);
+  });
+
+  it("hides pagination when reports fit within limit", async () => {
+    localStorage.setItem("reports_limit", "10");
+    const wrapper = mount(AdminReports);
+    await flushPromises();
+
+    const rows = wrapper.findAll(".reports-list .report-row");
+    expect(rows.length).toBe(7);
+
+    expect(wrapper.find(".page-nav-wraper").exists()).toBe(false);
+  });
+
+  it("clicking next page shows the remaining reports", async () => {
+    localStorage.setItem("reports_limit", "5");
+    const wrapper = mount(AdminReports);
+    await flushPromises();
+
+    expect(wrapper.findAll(".reports-list .report-row").length).toBe(5);
+
+    const nextBtn = wrapper.findAll(".page-nav-btn")[1];
+    await nextBtn.trigger("click");
+    await flushPromises();
+
+    const rows = wrapper.findAll(".reports-list .report-row");
+    expect(rows.length).toBe(2);
+  });
+
+  it("changing limit resets to page 1", async () => {
+    localStorage.setItem("reports_limit", "5");
+    const wrapper = mount(AdminReports);
+    await flushPromises();
+
+    // Go to page 2
+    const nextBtn = wrapper.findAll(".page-nav-btn")[1];
+    await nextBtn.trigger("click");
+    await flushPromises();
+    expect(wrapper.findAll(".reports-list .report-row").length).toBe(2);
+
+    // Change limit to 10 — should reset to page 1 and show all 7
+    const limitSelect = wrapper.findAll(".reports-controls select.sort-select")[0];
+    await limitSelect.setValue(10);
+    await flushPromises();
+
+    expect(wrapper.findAll(".reports-list .report-row").length).toBe(7);
+  });
+
+  it("limit dropdown renders with correct options", async () => {
+    const wrapper = mount(AdminReports);
+    await flushPromises();
+
+    const selects = wrapper.findAll(".reports-controls select.sort-select");
+    // First select is limit, second is sort
+    const limitOptions = selects[0].findAll("option");
+    expect(limitOptions.map((o) => Number(o.element.value))).toEqual([5, 10, 15, 20]);
+  });
+});
