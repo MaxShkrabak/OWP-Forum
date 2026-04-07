@@ -3,7 +3,7 @@ import { ref, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 import { fetchNotifications, markNotificationsRead } from '@/api/users';
 import { isLoggedIn } from '@/stores/userStore';
-import { isNotificationEnabled } from '@/utils/notificationPreferences';
+import { isNotificationEnabled, getNotificationPreferences } from '@/utils/notificationPreferences';
 
 const router = useRouter();
 
@@ -16,6 +16,9 @@ const AUTO_DISMISS_MS = 5000;
 const MAX_VISIBLE = 3;
 const MAX_PER_MINUTE = 3;
 const RATE_WINDOW_MS = 60_000;
+const FETCH_COOLDOWN_MS = 30_000;
+
+let lastFetchedAt = 0;
 
 function getMessage(item) {
   if (item.type === 'postLike') {
@@ -111,8 +114,11 @@ function tryDisplayNotification(item) {
 
 async function loadNotifications() {
   if (!isLoggedIn.value || isFetching) return;
+  if (!getNotificationPreferences().pushNotifications) return;
+  if (Date.now() - lastFetchedAt < FETCH_COOLDOWN_MS) return;
 
   isFetching = true;
+  lastFetchedAt = Date.now();
 
   try {
     const result = await fetchNotifications();
@@ -149,10 +155,6 @@ async function loadNotifications() {
   }
 }
 
-function onWindowFocus() {
-  loadNotifications();
-}
-
 function onVisibilityChange() {
   if (document.visibilityState === 'visible') {
     loadNotifications();
@@ -161,12 +163,10 @@ function onVisibilityChange() {
 
 onMounted(() => {
   loadNotifications();
-  window.addEventListener('focus', onWindowFocus);
   document.addEventListener('visibilitychange', onVisibilityChange);
 });
 
 onBeforeUnmount(() => {
-  window.removeEventListener('focus', onWindowFocus);
   document.removeEventListener('visibilitychange', onVisibilityChange);
 });
 </script>

@@ -27,9 +27,9 @@ const limit = ref(Number(localStorage.getItem('category_limit')) || 5);
 const sort = ref(localStorage.getItem('category_sort') || 'latest');
 
 // Used for user card if it's not the current user
-const setAvatar = ref(null);
-const setFullName = ref(null);
-const setRole = ref(null);
+const setAvatar = ref('pfp-0.png');
+const setFullName = ref('Loading...');
+const setRole = ref('Guest');
 
 function getUrlParams() {
   const id = route.query.id || uid.value || false;
@@ -262,7 +262,7 @@ onMounted(() => {
           <div v-else class="post-feed">
             <div v-if="posts.length === 0" class="empty-state text-center py-5">
               <div class="fw-medium text-secondary">
-                <p v-show="activeTab === 'yourPosts'">You have no Posts yet!</p>
+                <p v-show="activeTab === 'yourPosts'">{{ checkIfCurrUser() ? 'You' : 'They' }} have no Posts yet!</p>
                 <p v-show="activeTab === 'followedPosts'">You don't follow any Posts yet!</p>
                 <p v-show="activeTab === 'likedPosts'">You haven't liked any Posts yet!</p>
               </div>

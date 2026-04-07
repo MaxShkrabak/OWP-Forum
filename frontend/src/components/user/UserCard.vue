@@ -60,10 +60,10 @@ function getAvatarSrc(file) {
                 <img v-if="userAvatar" :src="userAvatar" class="img-fluid profile-img" alt="User avatar">
                 <img v-else src="@\assets\img\user-pfps-premade\pfp-0.png" class="img-fluid profile-img" alt="Default avatar">
           </button>
-          <div class="pfp-wrapper-profile shadow-sm" v-else-if="isProfile && !isCurrUser">
+          <div class="pfp-wrapper-profile shadow-sm" style="cursor: initial;" v-else-if="isProfile && !isCurrUser">
                 <img v-if="avatar" :src="getAvatarSrc(avatar)" class="profile-img" alt="User avatar">
           </div>
-          <h5 class="user-name mt-2 mb-1">{{ isCurrUser ? fullName : newFullName || fullName}}</h5>
+          <h5 class="user-name mt-2 mb-1">{{ isCurrUser ? fullName : newFullName || fullName }}</h5>
           <UserRole :role="isCurrUser ? userRole : newRole || userRole" />
         </div>
         <!-- User Stats Section -->
@@ -72,7 +72,7 @@ function getAvatarSrc(file) {
           <!-- Posts count-->
           <div class="stat-item">
             <span class="stat-value">{{ postCount }}</span>
-            <span class="stat-label text-uppercase">Posts</span>
+            <span class="stat-label text-uppercase">Post{{ postCount !== 1 ? 's' : '' }}</span>
           </div>
           <!-- Reputation score -->
           <div class="stat-item">
@@ -82,7 +82,7 @@ function getAvatarSrc(file) {
           <!-- Comment count -->
           <div class="stat-item">
             <span class="stat-value">{{ commentCount }}</span>
-            <span class="stat-label text-uppercase">Comments</span>
+            <span class="stat-label text-uppercase">Comment{{ commentCount !== 1 ? 's' : '' }}</span>
           </div>
         </div>
       </div>
@@ -99,7 +99,7 @@ function getAvatarSrc(file) {
       <div class="card-header-gradient"></div>
       <div class="card-body-content px-3 pb-3">
         <div class="profile-section text-center" >
-          <div class="pfp-wrapper-profile shadow-sm">
+          <div class="pfp-wrapper-profile shadow-sm" style="cursor: initial;">
                 <img v-if="avatar" :src="getAvatarSrc(avatar)" class="profile-img" alt="User avatar">
           </div>
           <h5 class="user-name mt-2 mb-1">{{ newFullName }}</h5>
@@ -111,7 +111,7 @@ function getAvatarSrc(file) {
           <!-- Posts count-->
           <div class="stat-item">
             <span class="stat-value">{{ postCount }}</span>
-            <span class="stat-label text-uppercase">Posts</span>
+            <span class="stat-label text-uppercase">Post{{ postCount !== 1 ? 's' : '' }}</span>
           </div>
           <!-- Reputation score -->
           <div class="stat-item">
@@ -121,7 +121,7 @@ function getAvatarSrc(file) {
           <!-- Comment count -->
           <div class="stat-item">
             <span class="stat-value">{{ commentCount }}</span>
-            <span class="stat-label text-uppercase">Comments</span>
+            <span class="stat-label text-uppercase">Comment{{ commentCount !== 1 ? 's' : '' }}</span>
           </div>
         </div>
       </div>

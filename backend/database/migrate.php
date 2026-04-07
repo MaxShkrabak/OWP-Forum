@@ -4,37 +4,25 @@ declare(strict_types=1);
 
 require __DIR__ . '/../vendor/autoload.php';
 
-// Load the .env data
-$dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/../');
-$dotenv->load();
+Dotenv\Dotenv::createImmutable(__DIR__ . '/../')->load();
 
-// ---------- CONFIG ----------
-$server   = $_ENV['DB_SERVER'];           // Docker-mapped or local
-$database = $_ENV['DB_DATABASE'];         // name of the database
-$user     = $_ENV['DB_USER'];             // db username
-$pass     = $_ENV['DB_PASS'];             // db password
+$server        = $_ENV['DB_SERVER'];
+$database      = $_ENV['DB_DATABASE'];
 $migrationsDir = __DIR__ . '/migrations';
 
-// ---------- CONNECT ----------
-$dsn = "sqlsrv:Server=$server;Database=$database;TrustServerCertificate=1";
-$pdo = new PDO($dsn, $user, $pass, [
-  PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-  PDO::SQLSRV_ATTR_ENCODING => PDO::SQLSRV_ENCODING_UTF8,
-]);
+$pdo = (require __DIR__ . '/../src/Database.php')()();
 
-// ---------- HELPERS ----------
 function ensureSchemaVersions(PDO $pdo): void {
-  $sql = <<<SQL
-IF OBJECT_ID('dbo.Forum_SchemaVersions', 'U') IS NULL
-BEGIN
-  CREATE TABLE dbo.Forum_SchemaVersions (
-      Id INT IDENTITY(1,1) PRIMARY KEY,
-      ScriptName NVARCHAR(255) NOT NULL UNIQUE,
-      AppliedAt  DATETIME2(0) NOT NULL DEFAULT SYSDATETIME()
-  );
-END
-SQL;
-  $pdo->exec($sql);
+  $pdo->exec(<<<SQL
+    IF OBJECT_ID('dbo.Forum_SchemaVersions', 'U') IS NULL
+    BEGIN
+      CREATE TABLE dbo.Forum_SchemaVersions (
+          Id INT IDENTITY(1,1) PRIMARY KEY,
+          ScriptName NVARCHAR(255) NOT NULL UNIQUE,
+          AppliedAt  DATETIME2(0) NOT NULL DEFAULT SYSDATETIME()
+      );
+    END
+    SQL);
 }
 
 function appliedScripts(PDO $pdo): array {
@@ -44,27 +32,22 @@ function appliedScripts(PDO $pdo): array {
 
 /**
  * Split a SQL Server script on GO batch separators.
- * - Matches lines that are ONLY 'GO' (case-insensitive, allow leading/trailing spaces).
+ * Matches lines that are ONLY 'GO' (case-insensitive, optional surrounding whitespace).
  */
 function splitOnGo(string $sql): array {
-  // Normalize line endings, ensure trailing newline
   $sql = str_replace("\r\n", "\n", $sql);
   if (!str_ends_with($sql, "\n")) $sql .= "\n";
 
   $parts = preg_split('/^[ \t]*GO[ \t]*$\n/mi', $sql);
-  // Trim whitespace-only parts
   return array_values(array_filter(array_map('trim', $parts), fn($p) => $p !== ''));
 }
 
 function runSqlBatches(PDO $pdo, string $sql): void {
-  $batches = splitOnGo($sql);
-  foreach ($batches as $i => $batch) {
-    if ($batch === '') continue;
+  foreach (splitOnGo($sql) as $batch) {
     $pdo->exec($batch);
   }
 }
 
-// ---------- MAIN ----------
 echo "== Database migrations ==\n";
 echo "Server: $server | DB: $database\n";
 echo "Scanning: $migrationsDir\n\n";
@@ -77,7 +60,7 @@ if (!is_dir($migrationsDir)) {
 ensureSchemaVersions($pdo);
 $applied = appliedScripts($pdo);
 
-// Gather .sql files and natural sort (001_..., 002_..., etc.)
+// natsort ensures 001_..., 002_... ordering
 $files = array_filter(scandir($migrationsDir), fn($f) => preg_match('/\.sql$/i', $f));
 natsort($files);
 $files = array_values($files);
@@ -97,8 +80,7 @@ foreach ($files as $file) {
     continue;
   }
 
-  $path = $migrationsDir . DIRECTORY_SEPARATOR . $file;
-  $sql  = file_get_contents($path);
+  $sql = file_get_contents($migrationsDir . '/' . $file);
   if ($sql === false) {
     fwrite(STDERR, "ERROR reading $file\n");
     exit(1);
@@ -106,11 +88,9 @@ foreach ($files as $file) {
 
   echo "APPLY $file ... ";
   try {
-    // Per-file transaction
     $pdo->beginTransaction();
     runSqlBatches($pdo, $sql);
-    $stmt = $pdo->prepare("INSERT INTO dbo.Forum_SchemaVersions (ScriptName) VALUES (:s)");
-    $stmt->execute([':s' => $file]);
+    $pdo->prepare("INSERT INTO dbo.Forum_SchemaVersions (ScriptName) VALUES (:s)")->execute([':s' => $file]);
     $pdo->commit();
     echo "OK\n";
     $appliedCount++;
@@ -118,8 +98,7 @@ foreach ($files as $file) {
     $pdo->rollBack();
     echo "FAILED\n";
     fwrite(STDERR, "  -> " . $e->getMessage() . "\n");
-    // Stop on first failure to keep DB consistent
-    exit(1);
+    exit(1); // stop on first failure to keep DB consistent
   }
 }
 

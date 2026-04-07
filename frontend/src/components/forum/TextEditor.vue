@@ -8,8 +8,12 @@ import { Color } from '@tiptap/extension-color';
 import { TextStyle } from '@tiptap/extension-text-style';
 import { Highlight } from '@tiptap/extension-highlight';
 import { uploadImage } from "@/api/media";
+import Placeholder from '@tiptap/extension-placeholder';
 import { TextAlign } from '@tiptap/extension-text-align';
 import { Link } from '@tiptap/extension-link';
+
+const uploadError = ref('');
+let uploadErrorTimer = null;
 
 const props = defineProps({
   modelValue: String,
@@ -42,6 +46,7 @@ const editor = useEditor({
         Highlight.configure({ multicolor: true }),
         Image.configure({ inline: true }),
         Link.configure({ openOnClick: false, HTMLAttributes: { class: 'my-custom-link' } }),
+        Placeholder.configure({ placeholder: 'Write your post here...' }),
     ],
     editorProps: {
         handleKeyDown: (view, event) => {
@@ -146,8 +151,10 @@ const triggerImageUpload = async () => {
                 } else {
                     editor.value.chain().focus().setImage({ src: data.url }).run();
                 }
-            } catch (err) { 
-                console.error(err); 
+            } catch (err) {
+                uploadError.value = 'Image could not be uploaded. Try a smaller image (under 5 MB) in JPEG, PNG, or WebP format.';
+                clearTimeout(uploadErrorTimer);
+                uploadErrorTimer = setTimeout(() => { uploadError.value = ''; }, 5000);
             } finally {
                 emit('update:isUploading', false); 
             }
@@ -286,11 +293,9 @@ defineExpose({
             </button>
         </div>
 
+        <div v-if="uploadError" class="upload-error">{{ uploadError }}</div>
+
         <div class="editor-body-wrapper">
-            <div
-                v-if="compact && (!modelValue || modelValue === '<p></p>')"
-                class="compact-placeholder"
-            >{{ placeholder }}</div>
             <editor-content :editor="editor" class="tiptap-content" />
         </div>
     </div>
@@ -325,15 +330,6 @@ defineExpose({
     overflow: hidden;
 }
 
-.compact-placeholder {
-    position: absolute;
-    top: 1rem;
-    left: 1.2rem;
-    color: #94a3b8;
-    pointer-events: none;
-    font-size: 0.95rem;
-    z-index: 1;
-}
 
 .compact-mode :deep(.tiptap-content) {
     min-height: unset;
@@ -425,6 +421,14 @@ defineExpose({
     pointer-events: none;
 }
 
+.upload-error {
+    background: #fef2f2;
+    color: #b91c1c;
+    font-size: 0.8rem;
+    padding: 6px 12px;
+    border-bottom: 1px solid #fecaca;
+}
+
 .divider {
     width: 1px;
     height: 18px;
@@ -464,7 +468,7 @@ defineExpose({
     height: 28px !important;
 }
 
-/* Dropdown */
+/* Heading Dropdown */
 .toolbar-dropdown-group {
     position: relative;
     display: flex;
@@ -505,5 +509,13 @@ defineExpose({
     outline: none;
     min-height: 100%;
     box-sizing: border-box;
+}
+
+:deep(.tiptap p.is-editor-empty:first-child::before) {
+    color: #94a3b8a8;
+    content: attr(data-placeholder);
+    float: left;
+    height: 0;
+    pointer-events: none;
 }
 </style>

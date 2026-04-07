@@ -1,4 +1,3 @@
-/** @vitest-environment jsdom */
 import { mount, flushPromises } from "@vue/test-utils";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
@@ -14,35 +13,33 @@ vi.mock("vue-router", () => ({
   })),
 }));
 
-vi.mock("@/stores/userStore", async () => {
-  const vue = await import("vue");
+const { mockIsLoggedIn, mockTermsAccepted } = vi.hoisted(() => {
+  const vue = require("vue");
   return {
-    isLoggedIn: vue.ref(false),
-    isBanned: vue.ref(false),
-    banType: vue.ref(null),
-    bannedUntil: vue.ref(null),
+    mockIsLoggedIn: vue.ref(false),
+    mockTermsAccepted: vue.ref(false),
   };
 });
 
-vi.mock("@/api/client", () => ({
-  default: {
-    get: vi.fn(),
-    post: vi.fn(),
-  },
+vi.mock("@/stores/userStore", () => ({
+  isLoggedIn: mockIsLoggedIn,
+  isBanned: { value: false },
+  banType: { value: null },
+  bannedUntil: { value: null },
+  termsAccepted: mockTermsAccepted,
+  profileLoaded: Promise.resolve(),
 }));
-import client from "@/api/client";
 
 import App from "@/App.vue";
 
 describe("Terms Gate (App.vue)", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    mockIsLoggedIn.value = false;
+    mockTermsAccepted.value = false;
   });
 
-  it("shows TermsModal when /me says termsAccepted = 0", async () => {
-    client.get.mockResolvedValueOnce({
-      data: { ok: true, user: { termsAccepted: 0 } },
-    });
+  it("shows TermsModal when termsAccepted = 0", async () => {
+    mockIsLoggedIn.value = true;
 
     const wrapper = mount(App, {
       global: {
@@ -51,6 +48,7 @@ describe("Terms Gate (App.vue)", () => {
           CSUSHeader: { template: "<div />" },
           OWPHeader: { template: "<div />" },
           Footer: { template: "<div />" },
+          GlobalNotificationCenter: { template: "<div />" },
         },
       },
     });
@@ -60,10 +58,9 @@ describe("Terms Gate (App.vue)", () => {
     expect(wrapper.html()).toContain("Terms");
   });
 
-  it("does NOT show TermsModal when /me says termsAccepted = 1", async () => {
-    client.get.mockResolvedValueOnce({
-      data: { ok: true, user: { termsAccepted: 1 } },
-    });
+  it("does NOT show TermsModal when termsAccepted = 1", async () => {
+    mockIsLoggedIn.value = true;
+    mockTermsAccepted.value = true;
 
     const wrapper = mount(App, {
       global: {
@@ -72,6 +69,7 @@ describe("Terms Gate (App.vue)", () => {
           CSUSHeader: { template: "<div />" },
           OWPHeader: { template: "<div />" },
           Footer: { template: "<div />" },
+          GlobalNotificationCenter: { template: "<div />" },
         },
       },
     });

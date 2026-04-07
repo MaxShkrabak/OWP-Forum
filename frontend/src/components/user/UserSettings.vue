@@ -46,9 +46,6 @@ const loadSettings = async () => {
       notificationPrefs.value = {
         ...notificationPrefs.value,
         emailNotifications: !!result.settings.emailNotifications,
-        pushNotifications: !!result.settings.pushNotifications,
-        postLikes: !!result.settings.postLikes,
-        postReplies: !!result.settings.postReplies,
       };
       syncPrefsToLocalStorage();
     }
