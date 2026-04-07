@@ -99,7 +99,10 @@ class ReportController extends BaseController
             $sql = "SELECT ReportTagID, TagName FROM dbo.Forum_ReportTags
                     ORDER BY CASE WHEN TagName = 'Other' THEN 1 ELSE 0 END, TagName ASC";
 
-            $tags = $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+            $tags = array_map(
+                fn($r) => ['tagId' => (int)$r['ReportTagID'], 'name' => $r['TagName']],
+                $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC)
+            );
 
             return json($res, ['ok' => true, 'tags' => $tags]);
         } catch (Throwable $e) {

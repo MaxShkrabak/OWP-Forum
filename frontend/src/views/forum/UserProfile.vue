@@ -159,7 +159,7 @@ onMounted(() => {
   <body>
     <ForumHeader />
     <pfpModal/>
-    <UserSettings/>
+    <UserSettings v-if="checkIfCurrUser()"/>
       <div class="container-fluid text-center">
         
         <div v-if="!getUrlParams()" class="empty-state text-center py-5">

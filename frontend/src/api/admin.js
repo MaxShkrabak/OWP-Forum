@@ -63,10 +63,7 @@ export async function deleteTag(id) {
 
 export async function getAdminReportTags() {
   const res = await client.get("/admin/report-tags");
-  return (res.data.items || []).map((r) => ({
-    ReportTagID: Number(r.ReportTagID),
-    TagName: String(r.TagName ?? ""),
-  }));
+  return res.data.items || [];
 }
 
 export async function createReportTag(tagName) {

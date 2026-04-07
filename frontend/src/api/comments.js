@@ -13,7 +13,7 @@ export const formatCommentData = (comment) => {
       ? "[deleted]"
       : `${comment.user.firstName} ${comment.user.lastName}`,
     role: comment.user?.role || "user",
-    time: timeAgo((updatedAt ?? createdAt) * 1000),
+    time: timeAgo(updatedAt ?? createdAt),
     text: comment.content,
     replyCount: comment.replyCount || 0,
     replies: [],

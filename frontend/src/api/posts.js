@@ -17,29 +17,17 @@ export async function createPost(payload) {
 
 export async function getTags() {
   const { data } = await client.get("/tags");
-
-  return (data.items || []).map((tag) => ({
-    tagId: Number(tag.TagID),
-    name: tag.Name,
-  }));
+  return data.items || [];
 }
 
 export async function getFilterTags() {
   const { data } = await client.get("/tags/filter");
-
-  return (data.items || []).map((tag) => ({
-    tagId: Number(tag.TagID),
-    name: tag.Name,
-  }));
+  return data.items || [];
 }
 
 export async function getCategories() {
   const { data } = await client.get("/verify/categories");
-
-  return (data.items || []).map((cat) => ({
-    categoryId: Number(cat.CategoryID),
-    name: cat.Name,
-  }));
+  return data.items || [];
 }
 
 export async function fetchPosts({

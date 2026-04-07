@@ -32,10 +32,7 @@ export async function resolveReport(reportId) {
 
 export async function getReportTags() {
   const { data } = await client.get("/reports/tags");
-  return (data.tags || []).map((reportTag) => ({
-    tagID: Number(reportTag.ReportTagID),
-    name: reportTag.TagName,
-  }));
+  return data.tags || [];
 }
 
 export async function submitReport(reportData) {

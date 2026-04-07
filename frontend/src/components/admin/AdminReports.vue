@@ -41,8 +41,8 @@ function openEdit(t) {
   form.value = {
     open: true,
     mode: "edit",
-    id: Number(t.ReportTagID),
-    tagName: String(t.TagName ?? ""),
+    id: t.tagId,
+    tagName: t.name,
   };
 }
 function closeForm() {
@@ -58,9 +58,8 @@ function isDuplicate(name, excludeId = null) {
   const n = normalizeName(name).toLowerCase();
   if (!n) return false;
   return items.value.some((t) => {
-    const same = normalizeName(t.TagName).toLowerCase() === n;
-    const notSelf =
-      excludeId == null ? true : Number(t.ReportTagID) !== Number(excludeId);
+    const same = normalizeName(t.name).toLowerCase() === n;
+    const notSelf = excludeId == null ? true : t.tagId !== excludeId;
     return same && notSelf;
   });
 }
@@ -68,17 +67,11 @@ function isDuplicate(name, excludeId = null) {
 const filtered = computed(() => {
   const needle = q.value.trim().toLowerCase();
   const base = needle
-    ? items.value.filter((t) =>
-        String(t.TagName ?? "")
-          .toLowerCase()
-          .includes(needle),
-      )
+    ? items.value.filter((t) => t.name.toLowerCase().includes(needle))
     : items.value;
 
   return [...base].sort((a, b) =>
-    String(a.TagName ?? "").localeCompare(String(b.TagName ?? ""), undefined, {
-      sensitivity: "base",
-    }),
+    a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
   );
 });
 
@@ -130,10 +123,8 @@ function requestSave() {
     return;
   }
 
-  const original = items.value.find(
-    (t) => Number(t.ReportTagID) === Number(form.value.id),
-  );
-  const from = normalizeName(original?.TagName);
+  const original = items.value.find((t) => t.tagId === form.value.id);
+  const from = normalizeName(original?.name);
 
   showConfirm(
     "Confirm edit report tag?",
@@ -156,8 +147,8 @@ function requestSave() {
 }
 
 function requestDelete(t) {
-  const id = Number(t.ReportTagID);
-  const name = normalizeName(t.TagName);
+  const id = t.tagId;
+  const name = normalizeName(t.name);
 
   showConfirm(
     "Confirm delete report tag?",
@@ -283,9 +274,9 @@ onMounted(() => {
             </thead>
 
             <tbody>
-              <tr v-for="(t, idx) in filtered" :key="t.ReportTagID">
+              <tr v-for="(t, idx) in filtered" :key="t.tagId">
                 <td class="admin-id">{{ idx + 1 }}</td>
-                <td class="admin-name">{{ t.TagName }}</td>
+                <td class="admin-name">{{ t.name }}</td>
                 <td>
                   <div class="actions">
                     <button class="btn-action" @click="openEdit(t)">

@@ -198,10 +198,10 @@ watch(
                 <div class="reason-list d-flex flex-column gap-3">
                   <button
                     v-for="tag in reportTags"
-                    :key="tag.tagID"
+                    :key="tag.tagId"
                     class="reason-card d-flex align-items-center justify-content-left justify-content-between p-3 rounded-3"
-                    :class="{ 'is-selected': selectedTagID === tag.tagID }"
-                    @click="toggleTagSelection(tag.tagID)"
+                    :class="{ 'is-selected': selectedTagID === tag.tagId }"
+                    @click="toggleTagSelection(tag.tagId)"
                   >
                     <span class="reason-label">{{ tag.name }}</span>
                     <div
