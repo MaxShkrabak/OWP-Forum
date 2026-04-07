@@ -258,12 +258,12 @@ const selectAvatar = (imagePath) => {
         <div class="modal-footer">
           <button
             type="button"
-            class="btn btn-secondary"
+            class="cancel-btn"
             data-bs-dismiss="modal"
           >
             Cancel
           </button>
-          <button type="button" class="btn btn-primary" @click="saveSettings">
+          <button type="button" class="save-btn" @click="saveSettings">
             Save Changes
           </button>
         </div>
@@ -393,6 +393,54 @@ const selectAvatar = (imagePath) => {
 .modal-footer .btn-primary:hover {
   background-color: #3a6130;
   border-color: #3a6130;
+}
+
+.cancel-btn,
+.save-btn {
+  padding: 0.75em 1.6em;
+  border-radius: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  font-family: inherit;
+  font-size: 0.95rem;
+  border: 2px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  outline: none;
+}
+
+.save-btn {
+  background: #2e6c44;
+  color: white;
+  border: none;
+}
+
+.save-btn:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+.save-btn:hover:not(:disabled) {
+  background: #3d8a59;
+  box-shadow: 0 4px 12px rgba(46, 108, 68, 0.25);
+  transform: translateY(-1px);
+}
+
+.cancel-btn {
+  background: white;
+  color: #475569;
+  border: 2px solid #cbd5e1;
+}
+
+.cancel-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+  border-color: #94a3b8;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 @media (max-width: 768px) {
