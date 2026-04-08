@@ -20,8 +20,18 @@ export function normalizeReport(r) {
   };
 }
 
-export async function fetchReports() {
-  const { data } = await client.get("/reports");
+/**
+ * @param {object} [opts]
+ * @param {number} [opts.page] — When set with perPage (or either alone), server paginates and returns total.
+ * @param {number} [opts.perPage]
+ * @param {'newest'|'oldest'} [opts.sort]
+ */
+export async function fetchReports(opts = {}) {
+  const params = {};
+  if (opts.page != null) params.page = opts.page;
+  if (opts.perPage != null) params.perPage = opts.perPage;
+  if (opts.sort) params.sort = opts.sort;
+  const { data } = await client.get("/reports", { params });
   return data;
 }
 

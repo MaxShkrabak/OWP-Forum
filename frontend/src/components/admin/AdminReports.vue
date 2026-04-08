@@ -1,9 +1,10 @@
 <!-- AdminReports.vue -->
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
 
 import { fetchReports, resolveReport, normalizeReport } from "@/api/reports";
+import AdminPaginationControls from "@/components/admin/AdminPaginationControls.vue";
 import {
   getAdminReportTags,
   createReportTag,
@@ -174,42 +175,70 @@ const router = useRouter();
 const reports = ref([]);
 const loadingReports = ref(false);
 const reportsError = ref("");
+const reportPage = ref(1);
+const reportPerPage = ref(25);
+const reportTotal = ref(0);
 
 const sortMode = ref("newest");
+
+watch(sortMode, () => {
+  reportPage.value = 1;
+  loadReports();
+});
 
 async function loadReports() {
   loadingReports.value = true;
   reportsError.value = "";
 
   try {
-    const data = await fetchReports();
+    const data = await fetchReports({
+      page: reportPage.value,
+      perPage: reportPerPage.value,
+      sort: sortMode.value,
+    });
     if (data?.ok && Array.isArray(data.reports)) {
       reports.value = data.reports.map(normalizeReport);
+      reportTotal.value =
+        typeof data.total === "number" ? data.total : reports.value.length;
+      if (typeof data.page === "number") reportPage.value = data.page;
+      if (typeof data.perPage === "number") reportPerPage.value = data.perPage;
+      if (
+        reports.value.length === 0 &&
+        reportTotal.value > 0 &&
+        reportPage.value > 1
+      ) {
+        const maxPage = Math.max(
+          1,
+          Math.ceil(reportTotal.value / reportPerPage.value),
+        );
+        reportPage.value = maxPage;
+        await loadReports();
+        return;
+      }
     } else {
       reports.value = [];
+      reportTotal.value = 0;
     }
   } catch (e) {
     reportsError.value =
       e?.response?.data?.error || e?.message || "Failed to load reports";
     reports.value = [];
+    reportTotal.value = 0;
   } finally {
     loadingReports.value = false;
   }
 }
 
-function toTime(v) {
-  const t = Date.parse(v);
-  return Number.isFinite(t) ? t : 0;
+function onReportPage(p) {
+  reportPage.value = p;
+  loadReports();
 }
 
-const sortedReports = computed(() => {
-  const copy = [...reports.value];
-  copy.sort((a, b) => {
-    const diff = toTime(a.createdAt) - toTime(b.createdAt);
-    return sortMode.value === "oldest" ? diff : -diff;
-  });
-  return copy;
-});
+function onReportPerPage(n) {
+  reportPerPage.value = n;
+  reportPage.value = 1;
+  loadReports();
+}
 
 function goToContent(r) {
   if (r?.postId) router.push(`/posts/${r.postId}`);
@@ -219,7 +248,7 @@ async function handleResolve(reportId) {
   try {
     const data = await resolveReport(reportId);
     if (data?.ok) {
-      reports.value = reports.value.filter((x) => x.reportId !== reportId);
+      await loadReports();
     }
   } catch (e) {
     console.error("Resolve failed:", e);
@@ -337,12 +366,13 @@ onMounted(() => {
           <div class="spinner-border"></div>
         </div>
 
-        <div v-else-if="sortedReports.length === 0" class="empty-state">
+        <div v-else-if="reports.length === 0" class="empty-state">
           No active reports (unresolved).
         </div>
 
-        <div v-else class="reports-list">
-          <div v-for="r in sortedReports" :key="r.reportId" class="report-row">
+        <template v-else>
+        <div class="reports-list">
+          <div v-for="r in reports" :key="r.reportId" class="report-row">
             <div class="report-main">
               <div class="report-topline">
                 <span
@@ -435,6 +465,18 @@ onMounted(() => {
             </div>
           </div>
         </div>
+
+        <AdminPaginationControls
+          v-if="reportTotal > 0"
+          :page="reportPage"
+          :per-page="reportPerPage"
+          :total="reportTotal"
+          :loading="loadingReports"
+          per-page-label="Reports per page"
+          @update:page="onReportPage"
+          @update:per-page="onReportPerPage"
+        />
+        </template>
       </div>
     </div>
 

@@ -47,13 +47,26 @@ describe("AdminReports - acceptance checks", () => {
       return Promise.reject(new Error(`Unexpected GET ${url}`));
     });
 
-    fetchReportsMock.mockResolvedValue({
-      ok: true,
-      reports: [
-        makeReport({ reportId: 1, postId: 10, contentTitle: "Post A" }),
-        makeReport({ reportId: 2, postId: 11, contentTitle: "Post B" }),
-      ],
-    });
+    fetchReportsMock
+      .mockResolvedValueOnce({
+        ok: true,
+        reports: [
+          makeReport({ reportId: 1, postId: 10, contentTitle: "Post A" }),
+          makeReport({ reportId: 2, postId: 11, contentTitle: "Post B" }),
+        ],
+        total: 2,
+        page: 1,
+        perPage: 25,
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        reports: [
+          makeReport({ reportId: 2, postId: 11, contentTitle: "Post B" }),
+        ],
+        total: 1,
+        page: 1,
+        perPage: 25,
+      });
 
     resolveReportMock.mockResolvedValue({ ok: true });
 
