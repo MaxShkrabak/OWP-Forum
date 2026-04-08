@@ -386,26 +386,40 @@ class PostController extends BaseController
             $sql = "
                 SELECT c.CategoryID, c.Name
                 FROM dbo.Forum_Categories c
-                WHERE c.UsableByRoleID <= :roleId
+                WHERE c.UsableByRoleID <= :usableRoleId
                 ORDER BY c.Name ASC
             ";
+
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([
+                ':usableRoleId' => $userRoleId,
+            ]);
         } else {
             $sql = "
                 SELECT c.CategoryID, c.Name
                 FROM dbo.Forum_Categories c
-                WHERE c.UsableByRoleID <= :roleId
-                  AND ISNULL(c.VisibleFromRoleID, 0) <= :roleId
+                WHERE c.UsableByRoleID <= :usableRoleId
+                  AND ISNULL(c.VisibleFromRoleID, 0) <= :visibleRoleId
                 ORDER BY c.Name ASC
             ";
+
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([
+                ':usableRoleId' => $userRoleId,
+                ':visibleRoleId' => $userRoleId,
+            ]);
         }
 
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute([':roleId' => $userRoleId]);
         $categories = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         return json($res, ['ok' => true, 'items' => $categories]);
     } catch (Throwable $e) {
-        return json($res, ['ok' => false, 'error' => 'Failed to load categories.'], 500);
+        return json($res, [
+            'ok' => false,
+            'error' => $e->getMessage(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine(),
+        ], 500);
     }
 }
 
