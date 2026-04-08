@@ -13,7 +13,6 @@ const props = defineProps({
 const router = useRouter();
 
 const isVoting = ref(false);
-const isFollowing = ref(false);
 const showDeleteConfirm = ref(false);
 const isDeleting = ref(false);
 const showEditModal = ref(false);
@@ -36,14 +35,6 @@ const canDelete = computed(() => isAuthor.value || isAdminOrMod.value);
 const showMetadataButton = computed(
   () => isAdminOrMod.value && !isAuthor.value,
 );
-
-const toggleFollow = () => {
-  if (!isLoggedIn.value) {
-    router.push("/login");
-    return;
-  }
-  isFollowing.value = !isFollowing.value;
-};
 
 const handleReport = () => {
   if (!isLoggedIn.value) {
@@ -144,16 +135,6 @@ watch(isLoggedIn, (loggedIn) => {
       class="action-group user-actions d-flex align-items-center flex-wrap gap-2"
     >
       <button
-        v-if="!isAuthor"
-        class="text-action-btn d-inline-flex align-items-center gap-2 px-2 py-1 rounded-2"
-        :class="{ following: isFollowing }"
-        @click="toggleFollow"
-      >
-        <i :class="isFollowing ? 'pi pi-heart-fill' : 'pi pi-heart'"></i>
-        <span>{{ isFollowing ? "Following" : "Follow" }}</span>
-      </button>
-
-      <button
         v-if="canReport"
         class="text-action-btn report-btn d-inline-flex align-items-center gap-2 px-2 py-1 rounded-2"
         @click="handleReport"
@@ -161,8 +142,6 @@ watch(isLoggedIn, (loggedIn) => {
         <i class="pi pi-flag"></i>
         <span>Report</span>
       </button>
-
-      <div v-if="!isAuthor && isAdminOrMod" class="action-divider mx-1"></div>
 
       <button
         v-if="isAuthor"
@@ -252,12 +231,6 @@ watch(isLoggedIn, (loggedIn) => {
 </template>
 
 <style scoped>
-.action-divider {
-  width: 1px;
-  height: 20px;
-  background: #cbd5e1;
-}
-
 .vote-btn-up,
 .vote-btn-down {
   background: transparent;
@@ -368,21 +341,6 @@ watch(isLoggedIn, (loggedIn) => {
 .text-action-btn i {
   font-size: 0.88rem;
   transition: transform 0.2s ease;
-}
-
-/* Follow */
-.text-action-btn:not(.report-btn):not(.edit-btn):not(.delete-btn):hover {
-  color: #b91657;
-}
-.text-action-btn:not(.report-btn):not(.edit-btn):not(.delete-btn):hover i {
-  transform: scale(1.2);
-}
-.text-action-btn.following {
-  color: #b91657;
-}
-.text-action-btn.following::after {
-  transform: scaleX(1);
-  opacity: 0.5;
 }
 
 /* Report */

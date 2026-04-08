@@ -1,3 +1,5 @@
+-- 003_categories_and_tags.sql
+
 IF OBJECT_ID('dbo.Forum_Categories', 'U') IS NULL
 BEGIN
     CREATE TABLE dbo.Forum_Categories
