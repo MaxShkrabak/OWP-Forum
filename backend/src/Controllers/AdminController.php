@@ -276,13 +276,21 @@ class AdminController extends BaseController
         if ($err !== null) return $err;
 
         try {
-            $rows = $pdo->query("SELECT CategoryID, Name, UsableByRoleID FROM dbo.Forum_Categories ORDER BY Name ASC")
-                ->fetchAll(PDO::FETCH_ASSOC);
+            $rows = $pdo->query("
+            SELECT
+                CategoryID,
+                Name,
+                UsableByRoleID,
+                VisibleFromRoleID
+            FROM dbo.Forum_Categories
+            ORDER BY Name ASC
+        ")->fetchAll(PDO::FETCH_ASSOC);
 
             $items = array_map(fn($r) => [
-                'categoryId'     => (int)$r['CategoryID'],
-                'name'           => $r['Name'],
-                'usableByRoleID' => (int)$r['UsableByRoleID'],
+                'categoryId' => (int)$r['CategoryID'],
+                'name' => $r['Name'],
+                'usableByRoleId' => (int)$r['UsableByRoleID'],
+                'visibleFromRoleId' => $r['VisibleFromRoleID'] === null ? null : (int)$r['VisibleFromRoleID'],
             ], $rows);
 
             return json($res, ['ok' => true, 'items' => $items]);
@@ -298,13 +306,22 @@ class AdminController extends BaseController
 
         $data = $req->getParsedBody() ?? [];
         $name = trim((string)($data['name'] ?? ''));
-        $usableByRoleID = (int)($data['usableByRoleID'] ?? 1);
+        $usableByRoleId = (int)($data['usableByRoleId'] ?? 1);
+
+        $visibleFromRoleId = array_key_exists('visibleFromRoleId', $data)
+            ? ($data['visibleFromRoleId'] === null || $data['visibleFromRoleId'] === '' ? null : (int)$data['visibleFromRoleId'])
+            : null;
 
         if ($name === '') {
             return json($res, ['ok' => false, 'error' => 'Category name is required.'], 400);
         }
-        if ($usableByRoleID < 1 || $usableByRoleID > 4) {
-            return json($res, ['ok' => false, 'error' => 'usableByRoleID must be between 1 and 4.'], 400);
+
+        if ($usableByRoleId < 1 || $usableByRoleId > 4) {
+            return json($res, ['ok' => false, 'error' => 'usableByRoleId must be between 1 and 4.'], 400);
+        }
+
+        if ($visibleFromRoleId !== null && ($visibleFromRoleId < 1 || $visibleFromRoleId > 4)) {
+            return json($res, ['ok' => false, 'error' => 'visibleFromRoleId must be null or between 1 and 4.'], 400);
         }
 
         try {
@@ -314,15 +331,28 @@ class AdminController extends BaseController
                 return json($res, ['ok' => false, 'error' => 'A category with this name already exists.'], 409);
             }
 
-            $pdo->prepare("INSERT INTO dbo.Forum_Categories (Name, UsableByRoleID) VALUES (:name, :rid)")
-                ->execute([':name' => $name, ':rid' => $usableByRoleID]);
+            $pdo->prepare("
+            INSERT INTO dbo.Forum_Categories (Name, UsableByRoleID, VisibleFromRoleID)
+            VALUES (:name, :rid, :visibleFromRoleId)
+        ")->execute([
+                ':name' => $name,
+                ':rid' => $usableByRoleId,
+                ':visibleFromRoleId' => $visibleFromRoleId
+            ]);
 
             $newId = (int)($pdo->query("SELECT SCOPE_IDENTITY() AS id")->fetch(PDO::FETCH_ASSOC)['id'] ?? 0);
-            return json($res, ['ok' => true, 'categoryId' => $newId, 'name' => $name]);
+
+            return json($res, [
+                'ok' => true,
+                'categoryId' => $newId,
+                'name' => $name,
+                'visibleFromRoleId' => $visibleFromRoleId
+            ]);
         } catch (Throwable $e) {
             return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
         }
     }
+
 
     public function updateCategory(Request $req, Response $res, array $args): Response
     {
@@ -330,32 +360,66 @@ class AdminController extends BaseController
         if ($err !== null) return $err;
 
         $id = (int)($args['id'] ?? 0);
-        if ($id <= 0) return json($res, ['ok' => false, 'error' => 'Invalid category id.'], 400);
+        if ($id <= 0) {
+            return json($res, ['ok' => false, 'error' => 'Invalid category id.'], 400);
+        }
 
         $data = $req->getParsedBody() ?? [];
         $name = trim((string)($data['name'] ?? ''));
+
+        $usableByRoleId = isset($data['usableByRoleId']) ? (int)$data['usableByRoleId'] : null;
+
+        $visibleFromRoleId = array_key_exists('visibleFromRoleId', $data)
+            ? ($data['visibleFromRoleId'] === null || $data['visibleFromRoleId'] === '' ? null : (int)$data['visibleFromRoleId'])
+            : null;
+
         if ($name === '') {
             return json($res, ['ok' => false, 'error' => 'Category name is required.'], 400);
         }
 
-        $usableByRoleID = isset($data['usableByRoleID']) ? (int)$data['usableByRoleID'] : null;
-        if ($usableByRoleID !== null && ($usableByRoleID < 1 || $usableByRoleID > 4)) {
-            return json($res, ['ok' => false, 'error' => 'usableByRoleID must be between 1 and 4.'], 400);
+        if ($usableByRoleId !== null && ($usableByRoleId < 1 || $usableByRoleId > 4)) {
+            return json($res, ['ok' => false, 'error' => 'usableByRoleId must be between 1 and 4.'], 400);
+        }
+
+        if ($visibleFromRoleId !== null && ($visibleFromRoleId < 1 || $visibleFromRoleId > 4)) {
+            return json($res, ['ok' => false, 'error' => 'visibleFromRoleId must be null or between 1 and 4.'], 400);
         }
 
         try {
-            $check = $pdo->prepare("SELECT CategoryID FROM dbo.Forum_Categories WHERE Name = :name AND CategoryID != :id");
+            $check = $pdo->prepare("
+            SELECT CategoryID
+            FROM dbo.Forum_Categories
+            WHERE Name = :name AND CategoryID != :id
+        ");
             $check->execute([':name' => $name, ':id' => $id]);
             if ($check->fetch()) {
                 return json($res, ['ok' => false, 'error' => 'A category with this name already exists.'], 409);
             }
 
-            if ($usableByRoleID !== null) {
-                $pdo->prepare("UPDATE dbo.Forum_Categories SET Name = :name, UsableByRoleID = :rid WHERE CategoryID = :id")
-                    ->execute([':name' => $name, ':rid' => $usableByRoleID, ':id' => $id]);
+            if ($usableByRoleId !== null) {
+                $pdo->prepare("
+                UPDATE dbo.Forum_Categories
+                SET Name = :name,
+                    UsableByRoleID = :rid,
+                    VisibleFromRoleID = :visibleFromRoleId
+                WHERE CategoryID = :id
+            ")->execute([
+                    ':name' => $name,
+                    ':rid' => $usableByRoleId,
+                    ':visibleFromRoleId' => $visibleFromRoleId,
+                    ':id' => $id
+                ]);
             } else {
-                $pdo->prepare("UPDATE dbo.Forum_Categories SET Name = :name WHERE CategoryID = :id")
-                    ->execute([':name' => $name, ':id' => $id]);
+                $pdo->prepare("
+                UPDATE dbo.Forum_Categories
+                SET Name = :name,
+                    VisibleFromRoleID = :visibleFromRoleId
+                WHERE CategoryID = :id
+            ")->execute([
+                    ':name' => $name,
+                    ':visibleFromRoleId' => $visibleFromRoleId,
+                    ':id' => $id
+                ]);
             }
 
             return json($res, ['ok' => true]);

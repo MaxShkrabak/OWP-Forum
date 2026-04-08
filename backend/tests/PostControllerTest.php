@@ -8,7 +8,6 @@ use Slim\Psr7\Response;
 use Slim\Psr7\Factory\ServerRequestFactory;
 use PDO;
 use PDOStatement;
-use Throwable;
 
 final class PostControllerTest extends TestCase
 {
@@ -76,6 +75,7 @@ final class PostControllerTest extends TestCase
         $categoryStmt->method('fetch')->willReturn([
             'CategoryID' => $categoryId,
             'UsableByRoleID' => 1,
+            'VisibleFromRoleID' => 0,
         ]);
 
         $insertStmt = $this->createMock(PDOStatement::class);
@@ -94,31 +94,40 @@ final class PostControllerTest extends TestCase
         $this->pdo->method('beginTransaction')->willReturn(true);
         $this->pdo->method('commit')->willReturn(true);
 
-        $this->pdo->method('prepare')->willReturnCallback(function (string $sql) use ($termsStmt, $banStmt, $roleStmt, $lockStmt, $recentPostsStmt, $lastPostStmt, $categoryStmt, $insertStmt) {
-            $sql_lower = strtolower($sql);
+        $this->pdo->method('prepare')->willReturnCallback(function (string $sql) use (
+            $termsStmt,
+            $banStmt,
+            $roleStmt,
+            $lockStmt,
+            $recentPostsStmt,
+            $lastPostStmt,
+            $categoryStmt,
+            $insertStmt
+        ) {
+            $sqlLower = strtolower($sql);
 
-            if (str_contains($sql_lower, 'termsaccepted')) {
+            if (str_contains($sqlLower, 'termsaccepted')) {
                 return $termsStmt;
             }
-            if (str_contains($sql_lower, 'select') && str_contains($sql_lower, 'isbanned')) {
+            if (str_contains($sqlLower, 'select') && str_contains($sqlLower, 'isbanned')) {
                 return $banStmt;
             }
-            if (str_contains($sql_lower, 'select isnull(roleid, 1)')) {
+            if (str_contains($sqlLower, 'select isnull(roleid, 1)')) {
                 return $roleStmt;
             }
-            if (str_contains($sql_lower, 'sp_getapplock')) {
+            if (str_contains($sqlLower, 'sp_getapplock')) {
                 return $lockStmt;
             }
-            if (str_contains($sql_lower, 'select count(*) from dbo.forum_posts')) {
+            if (str_contains($sqlLower, 'select count(*) from dbo.forum_posts')) {
                 return $recentPostsStmt;
             }
-            if (str_contains($sql_lower, 'select top 1')) {
+            if (str_contains($sqlLower, 'select top 1')) {
                 return $lastPostStmt;
             }
-            if (str_contains($sql_lower, 'from dbo.forum_categories')) {
+            if (str_contains($sqlLower, 'from dbo.forum_categories')) {
                 return $categoryStmt;
             }
-            if (str_contains($sql_lower, 'insert into dbo.forum_posts')) {
+            if (str_contains($sqlLower, 'insert into dbo.forum_posts')) {
                 return $insertStmt;
             }
 
@@ -145,7 +154,6 @@ final class PostControllerTest extends TestCase
 
         $postStmt = $this->createStub(PDOStatement::class);
         $postStmt->method('execute')->willReturn(true);
-        $postStmt->method('fetchColumn')->willReturn(1);
         $postStmt->method('fetch')->willReturn([
             'PostID'       => $postId,
             'Title'        => 'Hello World',
@@ -177,9 +185,15 @@ final class PostControllerTest extends TestCase
             'LastViewedAt' => gmdate('Y-m-d H:i:s'),
         ]);
 
-        $this->pdo->method('prepare')->willReturnCallback(function (string $sql) use ($postStmt, $tagStmt, $dedupStmt) {
-            if (str_contains(strtolower($sql), 'postviewdedup')) return $dedupStmt;
-            if (str_contains(strtolower($sql), 'posttags')) return $tagStmt;
+        $visibilityStmt = $this->createStub(PDOStatement::class);
+        $visibilityStmt->method('execute')->willReturn(true);
+        $visibilityStmt->method('fetchColumn')->willReturn(0);
+
+        $this->pdo->method('prepare')->willReturnCallback(function (string $sql) use ($postStmt, $tagStmt, $dedupStmt, $visibilityStmt) {
+            $lower = strtolower($sql);
+            if (str_contains($lower, 'postviewdedup')) return $dedupStmt;
+            if (str_contains($lower, 'posttags')) return $tagStmt;
+            if (str_contains($lower, 'select isnull(visiblefromroleid, 0)')) return $visibilityStmt;
             return $postStmt;
         });
 
@@ -218,15 +232,19 @@ final class PostControllerTest extends TestCase
     {
         $request = (new ServerRequestFactory())->createServerRequest('GET', '/api/posts');
 
-        $countQueryStmt = $this->createStub(PDOStatement::class);
-        $countQueryStmt->method('fetch')->willReturn(false);
+        $countStmt = $this->createStub(PDOStatement::class);
+        $countStmt->method('execute')->willReturn(true);
+        $countStmt->method('fetch')->willReturn(false);
 
         $postStmt = $this->createStub(PDOStatement::class);
         $postStmt->method('execute')->willReturn(true);
         $postStmt->method('fetchAll')->willReturn([]);
 
-        $this->pdo->method('query')->willReturn($countQueryStmt);
-        $this->pdo->method('prepare')->willReturn($postStmt);
+        $this->pdo->method('prepare')->willReturnCallback(function (string $sql) use ($countStmt, $postStmt) {
+            $lower = strtolower($sql);
+            if (str_contains($lower, 'count(*) as postcount')) return $countStmt;
+            return $postStmt;
+        });
 
         $response = $this->controller->getPosts($request, new Response());
 
@@ -245,18 +263,21 @@ final class PostControllerTest extends TestCase
                 'PostID' => 1, 'Title' => 'Post A', 'CreatedAt' => '2026-01-01',
                 'CategoryID' => 10, 'TotalScore' => 3, 'commentCount' => 2,
                 'User_ID' => 5, 'FirstName' => 'Alice', 'LastName' => 'Smith',
-                'Avatar' => 'a.png', 'RoleName' => 'User', 'CategoryName' => 'Wastewater Collection', 'myVote' => 0,
+                'Avatar' => 'a.png', 'RoleName' => 'User', 'CategoryName' => 'Wastewater Collection',
+                'VisibleFromRoleID' => 0, 'myVote' => 0,
             ],
             [
                 'PostID' => 2, 'Title' => 'Post B', 'CreatedAt' => '2026-01-02',
                 'CategoryID' => 10, 'TotalScore' => 1, 'commentCount' => 0,
                 'User_ID' => 6, 'FirstName' => 'Bob', 'LastName' => 'Jones',
-                'Avatar' => 'b.png', 'RoleName' => 'User', 'CategoryName' => 'Wastewater Collection', 'myVote' => 0,
+                'Avatar' => 'b.png', 'RoleName' => 'User', 'CategoryName' => 'Wastewater Collection',
+                'VisibleFromRoleID' => 0, 'myVote' => 0,
             ],
         ];
 
-        $countQueryStmt = $this->createStub(PDOStatement::class);
-        $countQueryStmt->method('fetch')->willReturnOnConsecutiveCalls(
+        $countStmt = $this->createStub(PDOStatement::class);
+        $countStmt->method('execute')->willReturn(true);
+        $countStmt->method('fetch')->willReturnOnConsecutiveCalls(
             ['CategoryID' => 10, 'postCount' => 2],
             false
         );
@@ -269,9 +290,10 @@ final class PostControllerTest extends TestCase
         $tagStmt->method('execute')->willReturn(true);
         $tagStmt->method('fetch')->willReturn(false);
 
-        $this->pdo->method('query')->willReturn($countQueryStmt);
-        $this->pdo->method('prepare')->willReturnCallback(function (string $sql) use ($postStmt, $tagStmt) {
-            if (str_contains(strtolower($sql), 'posttags')) return $tagStmt;
+        $this->pdo->method('prepare')->willReturnCallback(function (string $sql) use ($countStmt, $postStmt, $tagStmt) {
+            $lower = strtolower($sql);
+            if (str_contains($lower, 'posttags')) return $tagStmt;
+            if (str_contains($lower, 'count(*) as postcount')) return $countStmt;
             return $postStmt;
         });
 
@@ -312,7 +334,8 @@ final class PostControllerTest extends TestCase
             'PostID' => 5, 'Title' => 'Pinned Post', 'CreatedAt' => '2026-01-01',
             'CategoryID' => 1, 'TotalScore' => 10, 'commentCount' => 4,
             'User_ID' => 2, 'FirstName' => 'Admin', 'LastName' => 'User',
-            'Avatar' => 'admin.png', 'RoleName' => 'Admin', 'CategoryName' => 'News', 'myVote' => 0,
+            'Avatar' => 'admin.png', 'RoleName' => 'Admin', 'CategoryName' => 'News',
+            'VisibleFromRoleID' => 0, 'myVote' => 0,
         ]];
 
         $postStmt = $this->createStub(PDOStatement::class);
@@ -365,6 +388,10 @@ final class PostControllerTest extends TestCase
         $catStmt->method('execute')->willReturn(true);
         $catStmt->method('fetch')->willReturn(['CategoryID' => $categoryId, 'Name' => 'Support']);
 
+        $visibilityStmt = $this->createStub(PDOStatement::class);
+        $visibilityStmt->method('execute')->willReturn(true);
+        $visibilityStmt->method('fetchColumn')->willReturn(0);
+
         $countStmt = $this->createStub(PDOStatement::class);
         $countStmt->method('bindValue')->willReturn(true);
         $countStmt->method('execute')->willReturn(true);
@@ -386,10 +413,11 @@ final class PostControllerTest extends TestCase
         $tagStmt->method('execute')->willReturn(true);
         $tagStmt->method('fetch')->willReturn(false);
 
-        $this->pdo->method('prepare')->willReturnCallback(function (string $sql) use ($catStmt, $countStmt, $postStmt, $tagStmt) {
+        $this->pdo->method('prepare')->willReturnCallback(function (string $sql) use ($catStmt, $visibilityStmt, $countStmt, $postStmt, $tagStmt) {
             $lower = strtolower($sql);
-            if (str_contains($lower, 'posttags'))    return $tagStmt;
-            if (str_contains($lower, 'offset'))      return $postStmt;
+            if (str_contains($lower, 'select isnull(visiblefromroleid, 0)')) return $visibilityStmt;
+            if (str_contains($lower, 'posttags')) return $tagStmt;
+            if (str_contains($lower, 'offset')) return $postStmt;
             if (str_contains($lower, 'select count')) return $countStmt;
             return $catStmt;
         });
@@ -410,14 +438,24 @@ final class PostControllerTest extends TestCase
         $request = (new ServerRequestFactory())->createServerRequest('GET', '/api/verify/categories')
             ->withAttribute('user_id', 1);
 
-        $stmt = $this->createStub(PDOStatement::class);
-        $stmt->method('execute')->willReturn(true);
-        $stmt->method('fetchAll')->willReturn([
+        $roleStmt = $this->createStub(PDOStatement::class);
+        $roleStmt->method('execute')->willReturn(true);
+        $roleStmt->method('fetchColumn')->willReturn(1);
+
+        $categoriesStmt = $this->createStub(PDOStatement::class);
+        $categoriesStmt->method('execute')->willReturn(true);
+        $categoriesStmt->method('fetchAll')->willReturn([
             ['CategoryID' => 1, 'Name' => 'Wastewater Collection'],
             ['CategoryID' => 2, 'Name' => 'Support'],
         ]);
 
-        $this->pdo->method('prepare')->willReturn($stmt);
+        $this->pdo->method('prepare')->willReturnCallback(function (string $sql) use ($roleStmt, $categoriesStmt) {
+            $lower = strtolower($sql);
+            if (str_contains($lower, 'select isnull(roleid, 0)') || str_contains($lower, 'select isnull(roleid, 1)')) {
+                return $roleStmt;
+            }
+            return $categoriesStmt;
+        });
 
         $response = $this->controller->getVerifyCategories($request, new Response());
 
@@ -496,12 +534,12 @@ final class PostControllerTest extends TestCase
         ]);
 
         $this->pdo->method('prepare')->willReturnCallback(function (string $sql) use ($termsStmt, $banStmt) {
-            $sql_lower = strtolower($sql);
+            $sqlLower = strtolower($sql);
 
-            if (str_contains($sql_lower, 'termsaccepted')) {
+            if (str_contains($sqlLower, 'termsaccepted')) {
                 return $termsStmt;
             }
-            if (str_contains($sql_lower, 'select') && str_contains($sql_lower, 'isbanned')) {
+            if (str_contains($sqlLower, 'select') && str_contains($sqlLower, 'isbanned')) {
                 return $banStmt;
             }
             throw new \Exception("Unexpected SQL: $sql");

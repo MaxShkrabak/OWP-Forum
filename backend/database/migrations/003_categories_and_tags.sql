@@ -6,6 +6,9 @@ BEGIN
         Name NVARCHAR(100) NOT NULL CONSTRAINT UX_Categories_Name UNIQUE,
         UsableByRoleID INT NOT NULL
             CONSTRAINT FK_Categories_Roles
+            FOREIGN KEY REFERENCES dbo.Forum_Roles(RoleID),
+        VisibleFromRoleID INT NULL
+            CONSTRAINT FK_Categories_VisibleFromRole
             FOREIGN KEY REFERENCES dbo.Forum_Roles(RoleID)
     );
 END;
