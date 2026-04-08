@@ -1,4 +1,4 @@
--- 009_notifications.sql
+-- 008_notifications.sql
 
 -- Create notifications table
 IF OBJECT_ID('dbo.Forum_Notifications', 'U') IS NULL

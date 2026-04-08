@@ -95,21 +95,7 @@ async function getPosts() {
         totalPages.value = data.meta.totalPages || 1;
       }
 
-    } else {
-      const data = await apiGetPosts({ 
-        limit: limit.value,
-        sort: sort.value,
-        page: currentPage.value,
-        userId: 2
-      });
-
-      posts.value = data.posts || [];
-      
-      if (data.meta) {
-        totalPages.value = data.meta.totalPages || 1;
-      }
     }
-      
   } catch (e) {
     console.error("Fetch error:", e);
     error.value = e.message;
@@ -156,79 +142,66 @@ onMounted(() => {
 </script>
 
 <template>
+
   <body>
     <ForumHeader />
-    <pfpModal/>
-    <UserSettings v-if="checkIfCurrUser()"/>
-      <div class="container-fluid text-center">
-        
-        <div v-if="!getUrlParams()" class="empty-state text-center py-5">
-          Guest users do not have profiles. Please sign in to view your profile.
-        </div>
+    <pfpModal />
+    <UserSettings v-if="checkIfCurrUser()" />
+    <div class="container-fluid text-center">
 
-        <div v-else-if="!isExistingUser" class="empty-state text-center py-5">
-          User does not exist.
-        </div>
+      <div v-if="!getUrlParams()" class="empty-state text-center py-5">
+        Guest users do not have profiles. Please sign in to view your profile.
+      </div>
 
-        <div v-else-if="!isPageResolved" class="text-center py-5"><div class="spinner-border text-success"></div></div>
+      <div v-else-if="!isExistingUser" class="empty-state text-center py-5">
+        User does not exist.
+      </div>
 
-        <div class="row" v-else>
+      <div v-else-if="!isPageResolved" class="text-center py-5">
+        <div class="spinner-border text-success"></div>
+      </div>
 
-          <UserCard
-          is-profile
-          :is-curr-user="checkIfCurrUser()"
-          :avatar="setAvatar"
-          :new-full-name="setFullName"
-          :new-role="setRole"
-          :user-id="getUrlParams()"
-          class="col-md-4 col-xl-3"></UserCard>
+      <div class="row" v-else>
 
-          <!--Filter header-->
-          <div class="col-md-8 col-xl-9 text-center">
-            <header class="filter-header mb-4">
+        <UserCard is-profile :is-curr-user="checkIfCurrUser()" :avatar="setAvatar" :new-full-name="setFullName"
+          :new-role="setRole" :user-id="getUrlParams()" class="col-md-4 col-xl-3"></UserCard>
+
+        <!--Filter header-->
+        <div class="col-md-8 col-xl-9 text-center">
+          <header class="filter-header mb-4">
             <div class="header-main-content">
               <button class="back-btn" @click="router.back()" aria-label="Go Back">
                 <i class="pi pi-arrow-left"></i>
               </button>
-              
+
               <div class="v-divider"></div>
-              
+
               <div>
                 <div class="row justify-content-evenly pr-3 fs-4 gap-4" v-if="!checkIfCurrUser()">
-                
-                <!-- Filter Options -->  
-                <button class="col-12 col-sm-12 col-lg-auto filter-options"
-                :class="{ 'activeBox' : activeTab === 'yourPosts' }"
-                @click="activeTab = 'yourPosts'">
-                  <span class="activeText">{{ setFullName + "'s" }} Posts</span>
-                  <div class="activeLine"></div>
-                </button>
-                
+
+                  <!-- Filter Options -->
+                  <button class="col-12 col-sm-12 col-lg-auto filter-options"
+                    :class="{ 'activeBox': activeTab === 'yourPosts' }" @click="activeTab = 'yourPosts'">
+                    <span class="activeText">{{ setFullName + "'s" }} Posts</span>
+                    <div class="activeLine"></div>
+                  </button>
+
                 </div>
 
                 <div class="row justify-content-evenly pr-3 fs-4 gap-4" v-else>
-                
-                <!-- Filter Options -->  
-                <button class="col-12 col-sm-12 col-lg-auto filter-options"
-                :class="{ 'activeBox' : activeTab === 'yourPosts' }"
-                @click="activeTab = 'yourPosts'">
-                  <span class="activeText">Your Posts</span>
-                  <div class="activeLine"></div>
-                </button>
 
-                <button class="col-12 col-sm-12 col-lg-auto filter-options"
-                :class="{ 'activeBox' : activeTab === 'followedPosts' }"
-                @click="activeTab = 'followedPosts'">
-                  <span class="activeText">Followed Posts</span>
-                  <div class="activeLine"></div>
-                </button>
+                  <!-- Filter Options -->
+                  <button class="col-12 col-sm-12 col-lg-auto filter-options"
+                    :class="{ 'activeBox': activeTab === 'yourPosts' }" @click="activeTab = 'yourPosts'">
+                    <span class="activeText">Your Posts</span>
+                    <div class="activeLine"></div>
+                  </button>
 
-                <button class="col-12 col-sm-12 col-lg-auto filter-options"
-                :class="{ 'activeBox' : activeTab === 'likedPosts' }"
-                @click="activeTab = 'likedPosts'">
-                  <span class="activeText">Liked Posts</span>
-                  <div class="activeLine"></div>
-                </button>
+                  <button class="col-12 col-sm-12 col-lg-auto filter-options"
+                    :class="{ 'activeBox': activeTab === 'likedPosts' }" @click="activeTab = 'likedPosts'">
+                    <span class="activeText">Liked Posts</span>
+                    <div class="activeLine"></div>
+                  </button>
 
                 </div>
               </div>
@@ -243,7 +216,7 @@ onMounted(() => {
                   <option v-for="n in [5, 10, 15, 20]" :key="n" :value="n">{{ n }}</option>
                 </select>
               </div>
-            
+
               <div class="sort-pill">
                 <span class="sort-label">Sort</span>
                 <span class="sort-label sort-label-long">Sort the posts by</span>
@@ -256,35 +229,32 @@ onMounted(() => {
               </div>
             </div>
           </header>
-          <div v-if="loading" class="text-center py-5"><div class="spinner-border text-success"></div></div>
-          
+          <div v-if="loading" class="text-center py-5">
+            <div class="spinner-border text-success"></div>
+          </div>
+
           <!-- If filter option doesn't have any posts-->
           <div v-else class="post-feed">
             <div v-if="posts.length === 0" class="empty-state text-center py-5">
               <div class="fw-medium text-secondary">
                 <p v-show="activeTab === 'yourPosts'">{{ checkIfCurrUser() ? 'You' : 'They' }} have no Posts yet!</p>
-                <p v-show="activeTab === 'followedPosts'">You don't follow any Posts yet!</p>
                 <p v-show="activeTab === 'likedPosts'">You haven't liked any Posts yet!</p>
               </div>
             </div>
             <PostCard v-for="post in posts" :key="post.postId" :post="post" class="mb-3" />
-            
+
             <nav v-if="totalPages > 1" class="page-nav-wraper mt-5">
               <button class="page-nav-btn" :disabled="currentPage === 1" @click="currentPage--">
                 <i class="pi pi-chevron-left"></i>
               </button>
-              
+
               <div class="page-pages d-none d-sm-flex">
                 <template v-for="p in displayedPages" :key="p">
-                  <button 
-                    v-if="typeof p === 'number'"
-                    class="page-num" 
-                    :class="{ active: p === currentPage }" 
-                    @click="currentPage = p"
-                  >
+                  <button v-if="typeof p === 'number'" class="page-num" :class="{ active: p === currentPage }"
+                    @click="currentPage = p">
                     {{ p }}
                   </button>
-                  
+
                   <span v-else class="page-dots">
                     {{ p }}
                   </span>
@@ -300,10 +270,10 @@ onMounted(() => {
               </button>
             </nav>
           </div>
-          
-          </div>
+
         </div>
       </div>
+    </div>
   </body>
 </template>
 

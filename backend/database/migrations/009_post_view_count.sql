@@ -1,3 +1,5 @@
+-- 009_post_view_count.sql
+
 IF COL_LENGTH('dbo.Forum_Posts', 'ViewCount') IS NULL
 BEGIN
     ALTER TABLE dbo.Forum_Posts ADD ViewCount INT NOT NULL
