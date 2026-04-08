@@ -1,7 +1,7 @@
 /**
  * Manage Categories Visibility (Admin) — unit tests.
  * Covers:
- * - loading visibleFromRoleID from API
+ * - loading visibleFromRoleId from API
  * - rendering visibility labels
  * - opening edit modal with correct visibility
  * - sending null for Public
@@ -19,11 +19,11 @@ const { mockClient } = vi.hoisted(() => ({
 vi.mock("@/api/client", () => ({ default: mockClient }));
 
 const mockCategories = [
-  { categoryId: 1, name: "General", usableByRoleID: 1, visibleFromRoleID: null },
-  { categoryId: 2, name: "Help", usableByRoleID: 1, visibleFromRoleID: 1 },
-  { categoryId: 3, name: "Student Space", usableByRoleID: 1, visibleFromRoleID: 2 },
-  { categoryId: 4, name: "Mods", usableByRoleID: 3, visibleFromRoleID: 3 },
-  { categoryId: 5, name: "Admins", usableByRoleID: 4, visibleFromRoleID: 4 },
+  { categoryId: 1, name: "General", usableByRoleID: 1, visibleFromRoleId: null },
+  { categoryId: 2, name: "Help", usableByRoleID: 1, visibleFromRoleId: 1 },
+  { categoryId: 3, name: "Student Space", usableByRoleID: 1, visibleFromRoleId: 2 },
+  { categoryId: 4, name: "Mods", usableByRoleID: 3, visibleFromRoleId: 3 },
+  { categoryId: 5, name: "Admins", usableByRoleID: 4, visibleFromRoleId: 4 },
 ];
 
 describe("Manage Categories Visibility (Admin) — AdminCategories.vue", () => {
@@ -50,7 +50,7 @@ describe("Manage Categories Visibility (Admin) — AdminCategories.vue", () => {
     expect(wrapper.text()).toContain("Admin only");
   });
 
-  it("opens edit modal with Public when visibleFromRoleID is null", async () => {
+  it("opens edit modal with Public when visibleFromRoleId is null", async () => {
     const wrapper = mount(AdminCategories);
     await flushPromises();
 
@@ -95,7 +95,7 @@ describe("Manage Categories Visibility (Admin) — AdminCategories.vue", () => {
     expect(mockClient.patch).toHaveBeenCalledWith("/admin/categories/2", {
       name: "Help",
       usableByRoleID: 1,
-      visibleFromRoleID: null,
+      visibleFromRoleId: null,
     });
   });
 
@@ -120,7 +120,7 @@ describe("Manage Categories Visibility (Admin) — AdminCategories.vue", () => {
     expect(mockClient.patch).toHaveBeenCalledWith("/admin/categories/1", {
       name: "General",
       usableByRoleID: 1,
-      visibleFromRoleID: 2,
+      visibleFromRoleId: 2,
     });
   });
 
@@ -144,7 +144,7 @@ describe("Manage Categories Visibility (Admin) — AdminCategories.vue", () => {
     expect(mockClient.post).toHaveBeenCalledWith("/admin/categories", {
       name: "Public Category",
       usableByRoleID: 1,
-      visibleFromRoleID: null,
+      visibleFromRoleId: null,
     });
   });
 

@@ -3,7 +3,7 @@ BEGIN
     CREATE TABLE dbo.Forum_PostFollows (
         PostID    INT NOT NULL,
         User_ID   INT NOT NULL,
-        CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        CreatedAt DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME(),
 
         CONSTRAINT PK_PostFollows PRIMARY KEY (PostID, User_ID),
         CONSTRAINT FK_PostFollows_Posts

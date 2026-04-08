@@ -10,25 +10,24 @@ import {
 } from "@/utils/banDate";
 import AdminUsers from "@/components/admin/AdminUsers.vue";
 
-const { mockClient } = vi.hoisted(() => ({
-  mockClient: { get: vi.fn(), patch: vi.fn() },
-}));
+const { mockClient, mockUid } = vi.hoisted(() => {
+  const vue = require("vue");
+  return {
+    mockClient: { get: vi.fn(), patch: vi.fn() },
+    mockUid: vue.ref(2),
+  };
+});
 vi.mock("@/api/client", () => ({ default: mockClient }));
+vi.mock("@/stores/userStore", () => ({ uid: mockUid }));
 
 const mockUsers = [
   { userId: 1, firstName: "Jane", lastName: "Doe", email: "jane@example.com", roleName: "User", roleId: 1, isBanned: 0, banType: null, bannedUntil: null },
   { userId: 2, firstName: "John", lastName: "Smith", email: "john@example.com", roleName: "Admin", roleId: 4, isBanned: 0, banType: null, bannedUntil: null },
 ];
 
-// Current admin user ID used in /admin/me mock
-const CURRENT_ADMIN_ID = 2;
 
 function setupMocks(users = mockUsers) {
-  mockClient.get.mockImplementation((url) => {
-    if (url === '/me') {
-      return Promise.resolve({ data: { user: { userId: CURRENT_ADMIN_ID } } });
-    }
-    // /admin/users
+  mockClient.get.mockImplementation(() => {
     return Promise.resolve({ data: { users: users.map(u => ({ ...u })) } });
   });
   mockClient.patch.mockResolvedValue({});
@@ -113,12 +112,7 @@ describe("Assign Role (Admin)", () => {
   });
 
   it("displays 'No users found' when searching for a non-existent user", async () => {
-    mockClient.get.mockImplementation((url) => {
-      if (url === '/me') {
-        return Promise.resolve({ data: { user: { userId: CURRENT_ADMIN_ID } } });
-      }
-      return Promise.resolve({ data: { users: [] } });
-    });
+    mockClient.get.mockResolvedValue({ data: { users: [] } });
 
     const wrapper = mount(AdminUsers);
     await flushPromises();

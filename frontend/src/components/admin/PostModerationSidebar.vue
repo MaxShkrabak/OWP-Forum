@@ -1,11 +1,10 @@
 <script setup>
 import { ref, computed, watch } from "vue";
 import { useRouter } from "vue-router";
-import client from "@/api/client";
-import { votePost } from "@/api/posts";
+import { votePost, deletePost } from "@/api/posts";
 import { isLoggedIn, userRole, userRoleId, uid } from "@/stores/userStore";
 import CreatePostModal from "@/components/forum/CreatePostModal.vue";
-import ReportingModal from "@/components/user/ReportingModal.vue"
+import ReportingModal from "@/components/user/ReportingModal.vue";
 
 const props = defineProps({
   post: { type: Object, required: true },
@@ -93,7 +92,7 @@ const confirmDelete = async () => {
   if (!props.post?.postId || !canDelete.value) return;
   isDeleting.value = true;
   try {
-    await client.delete(`posts/${props.post.postId}`);
+    await deletePost(props.post.postId);
     window.location.href = "/";
   } catch (err) {
     console.error("Delete failed:", err);
@@ -111,9 +110,7 @@ watch(isLoggedIn, (loggedIn) => {
 </script>
 
 <template>
-  <div
-    class="d-flex flex-wrap align-items-center gap-2 flex-grow-1 min-w-0"
-  >
+  <div class="d-flex flex-wrap align-items-center gap-2 flex-grow-1 min-w-0">
     <!-- Vote Buttons -->
     <div class="action-group vote-group d-flex align-items-center gap-1">
       <button

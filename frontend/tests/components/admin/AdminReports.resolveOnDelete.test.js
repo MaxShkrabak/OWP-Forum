@@ -16,6 +16,7 @@ const fetchReportsMock = vi.fn();
 vi.mock("@/api/reports", () => ({
   resolveReport: (...args) => resolveReportMock(...args),
   fetchReports: (...args) => fetchReportsMock(...args),
+  normalizeReport: (r) => r,
 }));
 
 function makeReport(overrides = {}) {

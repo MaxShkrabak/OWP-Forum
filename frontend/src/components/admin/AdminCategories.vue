@@ -1,6 +1,15 @@
 <script setup>
 import { ref, onMounted } from "vue";
-import client from "@/api/client";
+import {
+  getAdminCategories,
+  createCategory,
+  updateCategory,
+  deleteCategory,
+} from "@/api/admin";
+import { useAdminRoles } from "@/composables/useAdminRoles";
+import { isDuplicateName } from "@/utils/string";
+
+const { roles, loadRoles, roleLabel } = useAdminRoles();
 
 const categories = ref([]);
 const loading = ref(false);
@@ -9,24 +18,17 @@ const addForm = ref({
   open: false,
   name: "",
   usableByRoleID: 1,
-  visibleFromRoleID: "public",
+  visibleFromRoleId: "public",
 });
 const editForm = ref({
   open: false,
   categoryId: null,
   name: "",
   usableByRoleID: 1,
-  visibleFromRoleID: "public",
+  visibleFromRoleId: "public",
 });
 const deleteConfirm = ref({ open: false, category: null });
 const submitError = ref("");
-
-const roles = [
-  { id: 1, label: "User" },
-  { id: 2, label: "Student" },
-  { id: 3, label: "Moderator" },
-  { id: 4, label: "Admin" },
-];
 
 const visibilityOptions = [
   { id: "public", label: "Public" },
@@ -44,14 +46,7 @@ async function loadCategories() {
   loading.value = true;
   error.value = "";
   try {
-    const res = await client.get("/admin/categories");
-    categories.value = (res.data.items || []).map((c) => ({
-      categoryId: Number(c.categoryId),
-      name: c.name,
-      usableByRoleID: Number(c.usableByRoleID),
-      visibleFromRoleID:
-        c.visibleFromRoleID == null ? null : Number(c.visibleFromRoleID),
-    }));
+    categories.value = await getAdminCategories();
   } catch (e) {
     error.value =
       e?.response?.data?.error || e.message || "Failed to load categories";
@@ -67,7 +62,7 @@ function openAdd() {
     open: true,
     name: "",
     usableByRoleID: 1,
-    visibleFromRoleID: "public",
+    visibleFromRoleId: "public",
   };
 }
 
@@ -82,8 +77,8 @@ function openEdit(cat) {
     categoryId: cat.categoryId,
     name: cat.name,
     usableByRoleID: cat.usableByRoleID,
-    visibleFromRoleID:
-      cat.visibleFromRoleID == null ? "public" : String(cat.visibleFromRoleID),
+    visibleFromRoleId:
+      cat.visibleFromRoleId == null ? "public" : String(cat.visibleFromRoleId),
   };
 }
 
@@ -99,15 +94,6 @@ function closeDeleteConfirm() {
   deleteConfirm.value = { open: false, category: null };
 }
 
-// Prevent duplicate names (client-side hint; server enforces)
-function nameExists(name, excludeId = null) {
-  const n = (name || "").trim().toLowerCase();
-  if (!n) return false;
-  return categories.value.some(
-    (c) => c.name.trim().toLowerCase() === n && c.categoryId !== excludeId,
-  );
-}
-
 async function submitAdd() {
   submitError.value = "";
   const name = addForm.value.name.trim();
@@ -115,18 +101,16 @@ async function submitAdd() {
     submitError.value = "Category name is required.";
     return;
   }
-  if (nameExists(name)) {
+  if (isDuplicateName(name, categories.value, "name", "categoryId")) {
     submitError.value = "A category with this name already exists.";
     return;
   }
   try {
-    await client.post("/admin/categories", {
+    await createCategory(
       name,
-      usableByRoleID: addForm.value.usableByRoleID,
-      visibleFromRoleID: normalizeVisibilityForApi(
-        addForm.value.visibleFromRoleID,
-      ),
-    });
+      addForm.value.usableByRoleID,
+      normalizeVisibilityForApi(addForm.value.visibleFromRoleId),
+    );
     closeAdd();
     await loadCategories();
   } catch (e) {
@@ -145,18 +129,25 @@ async function submitEdit() {
     submitError.value = "Category name is required.";
     return;
   }
-  if (nameExists(name, editForm.value.categoryId)) {
+  if (
+    isDuplicateName(
+      name,
+      categories.value,
+      "name",
+      "categoryId",
+      editForm.value.categoryId,
+    )
+  ) {
     submitError.value = "A category with this name already exists.";
     return;
   }
   try {
-    await client.patch(`/admin/categories/${editForm.value.categoryId}`, {
+    await updateCategory(
+      editForm.value.categoryId,
       name,
-      usableByRoleID: editForm.value.usableByRoleID,
-      visibleFromRoleID: normalizeVisibilityForApi(
-        editForm.value.visibleFromRoleID,
-      ),
-    });
+      editForm.value.usableByRoleID,
+      normalizeVisibilityForApi(editForm.value.visibleFromRoleId),
+    );
     closeEdit();
     await loadCategories();
   } catch (e) {
@@ -172,17 +163,13 @@ async function confirmDelete() {
   const cat = deleteConfirm.value.category;
   if (!cat) return;
   try {
-    await client.delete(`/admin/categories/${cat.categoryId}`);
+    await deleteCategory(cat.categoryId);
     closeDeleteConfirm();
     await loadCategories();
   } catch (e) {
     error.value =
       e?.response?.data?.error || e.message || "Failed to delete category";
   }
-}
-
-function roleLabel(roleId) {
-  return roles.find((r) => r.id === roleId)?.label || "User";
 }
 
 function visibilityLabel(roleId) {
@@ -193,7 +180,9 @@ function visibilityLabel(roleId) {
   );
 }
 
-onMounted(loadCategories);
+onMounted(async () => {
+  await Promise.all([loadCategories(), loadRoles()]);
+});
 </script>
 
 <template>
@@ -241,10 +230,10 @@ onMounted(loadCategories);
               </td>
               <td>
                 <span class="role-full">{{
-                  visibilityLabel(cat.visibleFromRoleID)
+                  visibilityLabel(cat.visibleFromRoleId)
                 }}</span>
                 <span class="role-short">{{
-                  visibilityLabel(cat.visibleFromRoleID).charAt(0)
+                  visibilityLabel(cat.visibleFromRoleId).charAt(0)
                 }}</span>
               </td>
               <td>
@@ -309,7 +298,7 @@ onMounted(loadCategories);
         </div>
         <div class="form-group">
           <label>Visibility</label>
-          <select v-model="addForm.visibleFromRoleID" class="form-select">
+          <select v-model="addForm.visibleFromRoleId" class="form-select">
             <option v-for="v in visibilityOptions" :key="v.id" :value="v.id">
               {{ v.label }}
             </option>
@@ -349,7 +338,7 @@ onMounted(loadCategories);
         </div>
         <div class="form-group">
           <label>Visibility</label>
-          <select v-model="editForm.visibleFromRoleID" class="form-select">
+          <select v-model="editForm.visibleFromRoleId" class="form-select">
             <option v-for="v in visibilityOptions" :key="v.id" :value="v.id">
               {{ v.label }}
             </option>

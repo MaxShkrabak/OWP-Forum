@@ -53,7 +53,7 @@ class PostController extends BaseController
 
         $tagsByPostId = [];
         while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            $tagsByPostId[(int)$row['PostID']][] = ['TagID' => (int)$row['TagID'], 'Name' => $row['Name']];
+            $tagsByPostId[(int)$row['PostID']][] = ['tagId' => (int)$row['TagID'], 'name' => $row['Name']];
         }
         return $tagsByPostId;
     }
@@ -145,9 +145,7 @@ class PostController extends BaseController
             }
 
             $tagsByPostId = $this->fetchTagsByPostIds($pdo, [$postID]);
-            $tags     = $tagsByPostId[$postID] ?? [];
-            $tagNames = array_column($tags, 'Name');
-            $tagIds   = array_column($tags, 'TagID');
+            $tags = $tagsByPostId[$postID] ?? [];
 
             return json($res, ['ok' => true, 'post' => [
                 'postId'       => (int)$post['PostID'],
@@ -155,17 +153,14 @@ class PostController extends BaseController
                 'content'      => $post['Content'],
                 'createdAt'    => $post['CreatedAt'],
                 'updatedAt'    => $post['UpdatedAt'] ?? null,
-                'category'     => (int)$post['CategoryID'],
                 'categoryId'   => (int)$post['CategoryID'],
                 'categoryName' => $post['CategoryName'],
-                'visibleFromRoleID' => $this->getCategoryVisibilityRoleId($pdo, $categoryId),
+                'visibleFromRoleId' => $this->getCategoryVisibilityRoleId($pdo, $categoryId),
                 'authorId'     => (int)$post['AuthorID'],
                 'authorName'   => trim(($post['FirstName'] ?? '') . ' ' . ($post['LastName'] ?? '')),
                 'authorAvatar' => $post['Avatar'],
                 'authorRole'   => $post['RoleName'] ?? 'User',
                 'tags'         => $tags,
-                'tagNames'     => $tagNames,
-                'tagIds'       => $tagIds,
                 'totalScore'          => (int)($post['TotalScore'] ?? 0),
                 'viewCount'           => (int)($post['ViewCount'] ?? 0),
                 'myVote'              => (int)($post['myVote'] ?? 0),
@@ -190,9 +185,7 @@ class PostController extends BaseController
             if (!$cat) {
                 return json($res, ['error' => 'Category not found'], 404);
             }
-            if (!$this->canViewCategory($pdo, $categoryId, (int)$userId)) {
-                return json($res, ['ok' => false, 'error' => 'Category not found.'], 404);
-            }
+
             $params = $req->getQueryParams();
             $limit  = min(max((int)($params['limit'] ?? 5), 1), 50);
             $page   = max((int)($params['page'] ?? 1), 1);
@@ -205,18 +198,12 @@ class PostController extends BaseController
             $qLike     = '%' . $qRaw . '%';
 
             $sort    = strtolower($params['sort'] ?? 'latest');
-            $orderByInner = match ($sort) {
+            $orderBy = match ($sort) {
                 'oldest'   => 'p.CreatedAt ASC',
+                'title'    => 'p.Title ASC',
                 'upvotes'  => 'p.TotalScore DESC, p.CreatedAt DESC',
                 'comments' => 'commentCount DESC, p.CreatedAt DESC',
                 default    => 'p.CreatedAt DESC',
-            };
-
-            $orderByOuter = match ($sort) {
-                'oldest'   => 'CreatedAt ASC',
-                'upvotes'  => 'TotalScore DESC, CreatedAt DESC',
-                'comments' => 'commentCount DESC, CreatedAt DESC',
-                default    => 'CreatedAt DESC',
             };
 
             $tagBinds    = [];
@@ -347,7 +334,7 @@ class PostController extends BaseController
                         'authorName'   => trim(($row['FirstName'] ?? '') . ' ' . ($row['LastName'] ?? '')),
                         'authorRole'   => $row['RoleName'] ?? 'User',
                         'authorAvatar' => $row['Avatar'] ?? null,
-                        'tags'         => array_column($tagsByPostId[$pid] ?? [], 'Name'),
+                        'tags'         => array_column($tagsByPostId[$pid] ?? [], 'name'),
                         'commentCount' => (int)($row['commentCount'] ?? 0),
                         'totalScore'   => (int)($row['TotalScore'] ?? 0),
                         'myVote'       => (int)($row['myVote'] ?? 0),
@@ -355,19 +342,15 @@ class PostController extends BaseController
                 }
             }
 
+
             return json($res, [
-                'categoryId' => $categoryId,
-                'categoryName' => $cat['Name'],
-                'visibleFromRoleID' => $this->getCategoryVisibilityRoleId($pdo, $categoryId),
-                'posts' => $posts,
-                'meta' => [
-                    'limit' => $limit,
-                    'sort' => $sort,
-                    'page' => $page,
+                'categoryId'        => $categoryId,
+                'categoryName'      => $cat['Name'],
+                'visibleFromRoleId' => $this->getCategoryVisibilityRoleId($pdo, $categoryId),
+                'posts'             => $posts,
+                'meta'              => [
                     'totalPosts' => $totalAll,
                     'totalPages' => $totalPages,
-                    'q' => $qRaw,
-                    'mode' => $mode,
                 ],
             ]);
         } catch (Throwable $e) {
@@ -410,16 +393,14 @@ class PostController extends BaseController
                 ]);
             }
 
-            $categories = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $categories = array_map(fn($c) => [
+                'categoryId' => (int)$c['CategoryID'],
+                'name'       => $c['Name'],
+            ], $stmt->fetchAll(PDO::FETCH_ASSOC));
 
             return json($res, ['ok' => true, 'items' => $categories]);
         } catch (Throwable $e) {
-            return json($res, [
-                'ok' => false,
-                'error' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-            ], 500);
+            return json($res, ['ok' => false, 'error' => 'Failed to load categories.'], 500);
         }
     }
 
@@ -438,7 +419,7 @@ class PostController extends BaseController
 
             $stmt = $pdo->prepare($sql);
             $stmt->execute([':userId' => $userId]);
-            $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $items = array_map(fn($r) => ['tagId' => (int)$r['TagID'], 'name' => $r['Name']], $stmt->fetchAll(PDO::FETCH_ASSOC));
 
             return json($res, ['ok' => true, 'items' => $items]);
         } catch (Throwable $e) {
@@ -451,7 +432,7 @@ class PostController extends BaseController
         try {
             $pdo  = ($this->makePdo)();
             $stmt = $pdo->query("SELECT TagID, Name FROM dbo.Forum_Tags ORDER BY Name ASC");
-            $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $items = array_map(fn($r) => ['tagId' => (int)$r['TagID'], 'name' => $r['Name']], $stmt->fetchAll(PDO::FETCH_ASSOC));
 
             return json($res, ['ok' => true, 'items' => $items]);
         } catch (Throwable $e) {
@@ -611,7 +592,7 @@ class PostController extends BaseController
                     'authorName' => trim(($row['FirstName'] ?? '') . ' ' . ($row['LastName'] ?? '')),
                     'authorRole' => $row['RoleName'] ?? 'User',
                     'authorAvatar' => $row['Avatar'] ?? null,
-                    'tags' => array_column($tagsByPostId[$pid] ?? [], 'Name'),
+                    'tags' => array_column($tagsByPostId[$pid] ?? [], 'name'),
                     'commentCount' => (int)($row['commentCount'] ?? 0),
                     'totalScore' => (int)($row['TotalScore'] ?? 0),
                     'myVote' => (int)($row['myVote'] ?? 0),
@@ -621,7 +602,7 @@ class PostController extends BaseController
                     $categoriesMap[$catId] = [
                         'categoryId' => $catId,
                         'categoryName' => $row['CategoryName'] ?? 'Uncategorized',
-                        'visibleFromRoleID' => (int)($row['VisibleFromRoleID'] ?? 0),
+                        'visibleFromRoleId' => (int)($row['VisibleFromRoleID'] ?? 0),
                         'posts' => []
                     ];
                 }
@@ -643,14 +624,10 @@ class PostController extends BaseController
                 'totalPosts' => array_sum($categoryCounts),
             ]);
         } catch (Throwable $e) {
-            return json($res, [
-                'ok' => false,
-                'error' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-            ], 500);
+            return json($res, ['ok' => false, 'error' => 'Failed to load posts.'], 500);
         }
     }
+
     public function getPinnedPosts(Request $req, Response $res): Response
     {
         try {
@@ -741,14 +718,14 @@ class PostController extends BaseController
                     'postId' => $pid,
                     'categoryId' => (int)($row['CategoryID'] ?? 0),
                     'categoryName' => $row['CategoryName'] ?? '',
-                    'visibleFromRoleID' => (int)($row['VisibleFromRoleID'] ?? 0),
+                    'visibleFromRoleId' => (int)($row['VisibleFromRoleID'] ?? 0),
                     'title' => $row['Title'],
                     'createdAt' => $row['CreatedAt'],
                     'authorId' => (int)($row['User_ID'] ?? 0),
                     'authorName' => trim(($row['FirstName'] ?? '') . ' ' . ($row['LastName'] ?? '')),
                     'authorRole' => $row['RoleName'] ?? 'User',
                     'authorAvatar' => $row['Avatar'] ?? null,
-                    'tags' => array_column($tagsByPostId[$pid] ?? [], 'Name'),
+                    'tags' => array_column($tagsByPostId[$pid] ?? [], 'name'),
                     'commentCount' => (int)($row['commentCount'] ?? 0),
                     'totalScore' => (int)($row['TotalScore'] ?? 0),
                     'myVote' => (int)($row['myVote'] ?? 0),
@@ -761,14 +738,10 @@ class PostController extends BaseController
                 'posts' => $posts,
             ]);
         } catch (Throwable $e) {
-            return json($res, [
-                'ok' => false,
-                'error' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-            ], 500);
+            return json($res, ['ok' => false, 'error' => 'Failed to load pinned posts.'], 500);
         }
     }
+
     // WRITE/MUTATION ENDPOINTS
 
     public function createPost(Request $req, Response $res): Response
@@ -954,14 +927,10 @@ class PostController extends BaseController
 
             $pdo->commit();
 
-            // Format date
-            $createdAtIso = (new \DateTimeImmutable($newPost['CreatedAt'], new \DateTimeZone('UTC')))
-                ->format(\DateTime::ATOM);
-
             return json($res, [
                 'ok'        => true,
                 'postId'    => $postId,
-                'createdAt' => $createdAtIso,
+                'createdAt' => $newPost['CreatedAt'],
                 'cooldownSeconds' => $isCooldownExempt ? 0 : $postCooldownSeconds,
             ]);
         } catch (Throwable $e) {
@@ -1097,7 +1066,7 @@ class PostController extends BaseController
             ");
             $limitStmt->execute([':categoryId' => $post['CategoryID']]);
             if ((int)$limitStmt->fetchColumn() >= 2) {
-                return json($res, ['ok' => false, 'error' => 'Maximum of 2 pinned posts per category reached.'], 400);
+                return json($res, ['ok' => false, 'error' => 'Maximum of 2 pinned posts per category reached.']);
             }
 
             $insertStmt = $pdo->prepare("INSERT INTO dbo.Forum_Pinned (PostID) VALUES (:pid)");

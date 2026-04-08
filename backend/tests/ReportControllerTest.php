@@ -199,9 +199,9 @@ class ReportControllerTest extends TestCase
         $body = json_decode((string)$response->getBody(), true);
         $this->assertTrue($body['ok']);
         $this->assertCount(5, $body['tags']);
-        $this->assertEquals('Spam', $body['tags'][0]['TagName']);
-        $this->assertEquals('Inappropriate', $body['tags'][2]['TagName']);
-        $this->assertEquals('Other', $body['tags'][4]['TagName']);
+        $this->assertEquals('Spam', $body['tags'][0]['name']);
+        $this->assertEquals('Inappropriate', $body['tags'][2]['name']);
+        $this->assertEquals('Other', $body['tags'][4]['name']);
     }
 
     #[AllowMockObjectsWithoutExpectations]

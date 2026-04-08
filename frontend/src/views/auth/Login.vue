@@ -2,7 +2,7 @@
 import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { verifyEmail } from "@/api/auth";
-import '/src/assets/style.css'
+import '/src/assets/forumAuth.css'
 
 const router = useRouter();
 

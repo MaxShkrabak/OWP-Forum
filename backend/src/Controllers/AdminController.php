@@ -253,6 +253,23 @@ class AdminController extends BaseController
         }
     }
 
+    public function listRoles(Request $req, Response $res): Response
+    {
+        try {
+            [$err, $pdo] = $this->requireRole(4, $req, $res);
+            if ($err !== null) return $err;
+
+            $rows = $pdo->query("SELECT RoleID as id, Name as name FROM dbo.Forum_Roles ORDER BY RoleID ASC")
+                ->fetchAll(PDO::FETCH_ASSOC);
+
+            $roles = array_map(fn($r) => ['id' => (int)$r['id'], 'name' => $r['name']], $rows);
+
+            return json($res, ['ok' => true, 'roles' => $roles]);
+        } catch (Throwable $e) {
+            return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
     public function listCategories(Request $req, Response $res): Response
     {
         [$err, $pdo] = $this->requireRole(4, $req, $res);
@@ -273,7 +290,7 @@ class AdminController extends BaseController
                 'categoryId' => (int)$r['CategoryID'],
                 'name' => $r['Name'],
                 'usableByRoleID' => (int)$r['UsableByRoleID'],
-                'visibleFromRoleID' => $r['VisibleFromRoleID'] === null ? null : (int)$r['VisibleFromRoleID'],
+                'visibleFromRoleId' => $r['VisibleFromRoleID'] === null ? null : (int)$r['VisibleFromRoleID'],
             ], $rows);
 
             return json($res, ['ok' => true, 'items' => $items]);
@@ -291,8 +308,8 @@ class AdminController extends BaseController
         $name = trim((string)($data['name'] ?? ''));
         $usableByRoleID = (int)($data['usableByRoleID'] ?? 1);
 
-        $visibleFromRoleID = array_key_exists('visibleFromRoleID', $data)
-            ? ($data['visibleFromRoleID'] === null || $data['visibleFromRoleID'] === '' ? null : (int)$data['visibleFromRoleID'])
+        $visibleFromRoleId = array_key_exists('visibleFromRoleId', $data)
+            ? ($data['visibleFromRoleId'] === null || $data['visibleFromRoleId'] === '' ? null : (int)$data['visibleFromRoleId'])
             : null;
 
         if ($name === '') {
@@ -303,8 +320,8 @@ class AdminController extends BaseController
             return json($res, ['ok' => false, 'error' => 'usableByRoleID must be between 1 and 4.'], 400);
         }
 
-        if ($visibleFromRoleID !== null && ($visibleFromRoleID < 1 || $visibleFromRoleID > 4)) {
-            return json($res, ['ok' => false, 'error' => 'visibleFromRoleID must be null or between 1 and 4.'], 400);
+        if ($visibleFromRoleId !== null && ($visibleFromRoleId < 1 || $visibleFromRoleId > 4)) {
+            return json($res, ['ok' => false, 'error' => 'visibleFromRoleId must be null or between 1 and 4.'], 400);
         }
 
         try {
@@ -316,11 +333,11 @@ class AdminController extends BaseController
 
             $pdo->prepare("
             INSERT INTO dbo.Forum_Categories (Name, UsableByRoleID, VisibleFromRoleID)
-            VALUES (:name, :rid, :visibleFromRoleID)
+            VALUES (:name, :rid, :visibleFromRoleId)
         ")->execute([
                 ':name' => $name,
                 ':rid' => $usableByRoleID,
-                ':visibleFromRoleID' => $visibleFromRoleID
+                ':visibleFromRoleId' => $visibleFromRoleId
             ]);
 
             $newId = (int)($pdo->query("SELECT SCOPE_IDENTITY() AS id")->fetch(PDO::FETCH_ASSOC)['id'] ?? 0);
@@ -329,7 +346,7 @@ class AdminController extends BaseController
                 'ok' => true,
                 'categoryId' => $newId,
                 'name' => $name,
-                'visibleFromRoleID' => $visibleFromRoleID
+                'visibleFromRoleId' => $visibleFromRoleId
             ]);
         } catch (Throwable $e) {
             return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
@@ -352,8 +369,8 @@ class AdminController extends BaseController
 
         $usableByRoleID = isset($data['usableByRoleID']) ? (int)$data['usableByRoleID'] : null;
 
-        $visibleFromRoleID = array_key_exists('visibleFromRoleID', $data)
-            ? ($data['visibleFromRoleID'] === null || $data['visibleFromRoleID'] === '' ? null : (int)$data['visibleFromRoleID'])
+        $visibleFromRoleId = array_key_exists('visibleFromRoleId', $data)
+            ? ($data['visibleFromRoleId'] === null || $data['visibleFromRoleId'] === '' ? null : (int)$data['visibleFromRoleId'])
             : null;
 
         if ($name === '') {
@@ -364,8 +381,8 @@ class AdminController extends BaseController
             return json($res, ['ok' => false, 'error' => 'usableByRoleID must be between 1 and 4.'], 400);
         }
 
-        if ($visibleFromRoleID !== null && ($visibleFromRoleID < 1 || $visibleFromRoleID > 4)) {
-            return json($res, ['ok' => false, 'error' => 'visibleFromRoleID must be null or between 1 and 4.'], 400);
+        if ($visibleFromRoleId !== null && ($visibleFromRoleId < 1 || $visibleFromRoleId > 4)) {
+            return json($res, ['ok' => false, 'error' => 'visibleFromRoleId must be null or between 1 and 4.'], 400);
         }
 
         try {
@@ -384,23 +401,23 @@ class AdminController extends BaseController
                 UPDATE dbo.Forum_Categories
                 SET Name = :name,
                     UsableByRoleID = :rid,
-                    VisibleFromRoleID = :visibleFromRoleID
+                    VisibleFromRoleID = :visibleFromRoleId
                 WHERE CategoryID = :id
             ")->execute([
                     ':name' => $name,
                     ':rid' => $usableByRoleID,
-                    ':visibleFromRoleID' => $visibleFromRoleID,
+                    ':visibleFromRoleId' => $visibleFromRoleId,
                     ':id' => $id
                 ]);
             } else {
                 $pdo->prepare("
                 UPDATE dbo.Forum_Categories
                 SET Name = :name,
-                    VisibleFromRoleID = :visibleFromRoleID
+                    VisibleFromRoleID = :visibleFromRoleId
                 WHERE CategoryID = :id
             ")->execute([
                     ':name' => $name,
-                    ':visibleFromRoleID' => $visibleFromRoleID,
+                    ':visibleFromRoleId' => $visibleFromRoleId,
                     ':id' => $id
                 ]);
             }
@@ -565,8 +582,10 @@ class AdminController extends BaseController
         try {
             [$err, $pdo] = $this->requireRole(4, $req, $res);
             if ($err !== null) return $err;
-            $rows = $pdo->query("SELECT ReportTagID, TagName FROM dbo.Forum_ReportTags ORDER BY TagName ASC")
-                ->fetchAll(PDO::FETCH_ASSOC);
+            $rows = array_map(
+                fn($r) => ['tagId' => (int)$r['ReportTagID'], 'name' => $r['TagName']],
+                $pdo->query("SELECT ReportTagID, TagName FROM dbo.Forum_ReportTags ORDER BY TagName ASC")->fetchAll(PDO::FETCH_ASSOC)
+            );
             return json($res, ['ok' => true, 'items' => $rows]);
         } catch (Throwable $e) {
             return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);

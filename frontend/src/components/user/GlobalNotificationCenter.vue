@@ -1,9 +1,12 @@
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue';
-import { useRouter } from 'vue-router';
-import { fetchNotifications, markNotificationsRead } from '@/api/users';
-import { isLoggedIn } from '@/stores/userStore';
-import { isNotificationEnabled } from '@/utils/notificationPreferences';
+import { ref, onMounted, onBeforeUnmount } from "vue";
+import { useRouter } from "vue-router";
+import { fetchNotifications, markNotificationsRead } from "@/api/users";
+import { isLoggedIn } from "@/stores/userStore";
+import {
+  isNotificationEnabled,
+  getNotificationPreferences,
+} from "@/utils/notificationPreferences";
 
 const router = useRouter();
 
@@ -16,23 +19,26 @@ const AUTO_DISMISS_MS = 5000;
 const MAX_VISIBLE = 3;
 const MAX_PER_MINUTE = 3;
 const RATE_WINDOW_MS = 60_000;
+const FETCH_COOLDOWN_MS = 30_000;
+
+let lastFetchedAt = 0;
 
 function getMessage(item) {
-  if (item.type === 'postLike') {
+  if (item.type === "postLike") {
     return `Your post "${item.title}" received a like.`;
   }
 
-  if (item.type === 'postReply') {
+  if (item.type === "postReply") {
     return `Your post "${item.title}" received a reply.`;
   }
 
-  return 'You have a new notification.';
+  return "You have a new notification.";
 }
 
 function pruneRateWindow() {
   const now = Date.now();
   shownTimestamps.value = shownTimestamps.value.filter(
-    (ts) => now - ts < RATE_WINDOW_MS
+    (ts) => now - ts < RATE_WINDOW_MS,
   );
 }
 
@@ -49,7 +55,7 @@ async function markRead(notificationId) {
   try {
     await markNotificationsRead([notificationId]);
   } catch (e) {
-    console.error('Failed to mark notification as read', e);
+    console.error("Failed to mark notification as read", e);
   }
 }
 
@@ -59,13 +65,13 @@ async function markManyRead(notificationIds) {
   try {
     await markNotificationsRead(notificationIds);
   } catch (e) {
-    console.error('Failed to mark notifications as read', e);
+    console.error("Failed to mark notifications as read", e);
   }
 }
 
 async function removeNotification(notificationId, shouldMarkRead = true) {
   notifications.value = notifications.value.filter(
-    (n) => n.notificationId !== notificationId
+    (n) => n.notificationId !== notificationId,
   );
 
   if (shouldMarkRead) {
@@ -87,7 +93,9 @@ async function closeNotification(notificationId) {
 
 function scheduleAutoDismiss(notificationId) {
   window.setTimeout(() => {
-    const exists = notifications.value.some((n) => n.notificationId === notificationId);
+    const exists = notifications.value.some(
+      (n) => n.notificationId === notificationId,
+    );
     if (exists) {
       removeNotification(notificationId, true);
     }
@@ -111,8 +119,11 @@ function tryDisplayNotification(item) {
 
 async function loadNotifications() {
   if (!isLoggedIn.value || isFetching) return;
+  if (!getNotificationPreferences().pushNotifications) return;
+  if (Date.now() - lastFetchedAt < FETCH_COOLDOWN_MS) return;
 
   isFetching = true;
+  lastFetchedAt = Date.now();
 
   try {
     const result = await fetchNotifications();
@@ -143,31 +154,25 @@ async function loadNotifications() {
       await markManyRead(discardIds);
     }
   } catch (e) {
-    console.error('Failed to fetch notifications', e);
+    console.error("Failed to fetch notifications", e);
   } finally {
     isFetching = false;
   }
 }
 
-function onWindowFocus() {
-  loadNotifications();
-}
-
 function onVisibilityChange() {
-  if (document.visibilityState === 'visible') {
+  if (document.visibilityState === "visible") {
     loadNotifications();
   }
 }
 
 onMounted(() => {
   loadNotifications();
-  window.addEventListener('focus', onWindowFocus);
-  document.addEventListener('visibilitychange', onVisibilityChange);
+  document.addEventListener("visibilitychange", onVisibilityChange);
 });
 
 onBeforeUnmount(() => {
-  window.removeEventListener('focus', onWindowFocus);
-  document.removeEventListener('visibilitychange', onVisibilityChange);
+  document.removeEventListener("visibilitychange", onVisibilityChange);
 });
 </script>
 
@@ -181,7 +186,7 @@ onBeforeUnmount(() => {
       >
         <div class="notification-content">
           <div class="notification-title">
-            {{ item.type === 'postLike' ? 'Post liked' : 'Post replied to' }}
+            {{ item.type === "postLike" ? "Post liked" : "Post replied to" }}
           </div>
 
           <button
@@ -290,7 +295,7 @@ onBeforeUnmount(() => {
 }
 
 .notification-btn-primary {
-  background-color: #48773C;
+  background-color: #48773c;
   color: white;
 }
 
