@@ -101,6 +101,9 @@ const saveSettings = async () => {
       }
 
       if (modal) {
+        if (document.activeElement && modalElement.contains(document.activeElement)) {
+          document.activeElement.blur();
+        }
         modal.hide();
       } else {
         modalElement.classList.remove("show");
