@@ -767,14 +767,10 @@ class PostController extends BaseController
 
             $pdo->commit();
 
-            // Format date
-            $createdAtIso = (new \DateTimeImmutable($newPost['CreatedAt'], new \DateTimeZone('UTC')))
-                ->format(\DateTime::ATOM);
-
             return json($res, [
                 'ok'        => true,
                 'postId'    => $postId,
-                'createdAt' => $createdAtIso,
+                'createdAt' => $newPost['CreatedAt'],
                 'cooldownSeconds' => $isCooldownExempt ? 0 : $postCooldownSeconds,
             ]);
         } catch (Throwable $e) {
