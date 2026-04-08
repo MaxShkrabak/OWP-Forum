@@ -86,22 +86,22 @@ async function loadCategories() {
 const filteredTags = computed(() => {
   const q = tagSearch.value.trim().toLowerCase();
   return allTags.value
-    .filter((t) => !form.value.tags.includes(t.TagID || t.tagId))
+    .filter((t) => !form.value.tags.includes(t.tagId))
     .filter((t) => {
-      const n = t.Name || t.name || "";
+      const n = t.name || "";
       return q ? n.toLowerCase().includes(q) : true;
     })
     .slice(0, 20);
 });
 
 function tagNameById(id) {
-  const found = allTags.value.find((t) => (t.TagID || t.tagId) == id);
-  return found ? found.Name || found.name : `#${id}`;
+  const found = allTags.value.find((t) => t.tagId == id);
+  return found ? found.name : `#${id}`;
 }
 
 function isOfficialTag(id) {
-  const found = allTags.value.find((t) => (t.TagID || t.tagId) == id);
-  return found && (found.Name || found.name) == "Official";
+  const found = allTags.value.find((t) => t.tagId == id);
+  return found && found.name === "Official";
 }
 
 const removeTag = (id) => {
@@ -120,17 +120,17 @@ function populateForm() {
     const title = props.postData.Title || props.postData.title || "";
     const content = props.postData.Content || props.postData.content || "";
     const cat =
-      props.postData.CategoryID ||
       props.postData.categoryId ||
-      props.postData.category ||
       "";
     const dc = !!(
-      props.postData.is_comments_disabled || props.postData.disableComments || props.postData.isCommentsDisabled
+      props.postData.is_comments_disabled ||
+      props.postData.disableComments ||
+      props.postData.isCommentsDisabled
     );
 
     const tgs =
       props.postData.tags && Array.isArray(props.postData.tags)
-        ? props.postData.tags.map((t) => Number(t.TagID || t.tagId || t))
+        ? props.postData.tags.map((t) => Number(t.tagId || t.TagID || t))
         : [];
 
     // Set current form values
@@ -445,17 +445,17 @@ const primaryButtonText = computed(() => {
                           <div class="tag-options-list">
                             <button
                               v-for="t in filteredTags"
-                              :key="t.TagID || t.tagId"
+                              :key="t.tagId"
                               class="tag-opt"
                               @click="
                                 () => {
-                                  form.tags.push(t.TagID || t.tagId);
+                                  form.tags.push(t.tagId);
                                   tagSearch = '';
                                   showTagPopup = false;
                                 }
                               "
                             >
-                              {{ t.Name || t.name }}
+                              {{ t.name }}
                             </button>
                           </div>
                         </div>

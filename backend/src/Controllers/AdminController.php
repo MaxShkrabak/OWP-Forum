@@ -565,8 +565,10 @@ public function listCategories(Request $req, Response $res): Response
         try {
             [$err, $pdo] = $this->requireRole(4, $req, $res);
             if ($err !== null) return $err;
-            $rows = $pdo->query("SELECT ReportTagID, TagName FROM dbo.Forum_ReportTags ORDER BY TagName ASC")
-                ->fetchAll(PDO::FETCH_ASSOC);
+            $rows = array_map(
+                fn($r) => ['tagId' => (int)$r['ReportTagID'], 'name' => $r['TagName']],
+                $pdo->query("SELECT ReportTagID, TagName FROM dbo.Forum_ReportTags ORDER BY TagName ASC")->fetchAll(PDO::FETCH_ASSOC)
+            );
             return json($res, ['ok' => true, 'items' => $rows]);
         } catch (Throwable $e) {
             return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);

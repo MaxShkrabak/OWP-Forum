@@ -1,6 +1,6 @@
 export function getNotificationPreferences() {
   try {
-    const raw = localStorage.getItem('notificationPreferences');
+    const raw = localStorage.getItem("notificationPreferences");
     if (!raw) {
       return {
         emailNotifications: true,
@@ -32,8 +32,8 @@ export function isNotificationEnabled(type) {
   const prefs = getNotificationPreferences();
 
   if (!prefs.pushNotifications) return false;
-  if (type === 'postLike') return !!prefs.postLikes;
-  if (type === 'postReply') return !!prefs.postReplies;
+  if (type === "postLike") return !!prefs.postLikes;
+  if (type === "postReply") return !!prefs.postReplies;
 
   return false;
 }

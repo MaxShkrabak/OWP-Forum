@@ -23,14 +23,13 @@ const showToast = () => {
 const mostRecentTicket = ref(null);
 
 const sources = ref([
-    { name: 'Posts', icon: 'bi-file-earmark-post-fill' },
-    { name: 'Comments', icon: 'bi-chat-left-dots-fill' }
-])
+  { name: "Posts", icon: "bi-file-earmark-post-fill" },
+  { name: "Comments", icon: "bi-chat-left-dots-fill" },
+]);
 
 const totalReports = ref(0);
 
 async function loadReports() {
-
   loading.value = true;
   error.value = null;
   try {
@@ -93,8 +92,7 @@ async function handleResolve(reportId) {
   showToast();
 }
 
-function onModalShown() {
-}
+function onModalShown() {}
 
 function stripHTML(html) {
   return html.replace(/<[^>]*>/g, "");
@@ -119,15 +117,16 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="action-container" v-show="userRole === 'moderator' || userRole === 'admin'">
-    
+  <div
+    class="action-container"
+    v-show="userRole === 'moderator' || userRole === 'admin'"
+  >
     <button
       class="btn-reports shadow-sm"
       data-bs-toggle="modal"
       data-bs-target="#viewReports"
       :disabled="totalReports == 0"
     >
-    
       <div class="btn-content">
         <div class="label-group">
           <div class="icon-wrap">
@@ -144,12 +143,26 @@ onUnmounted(() => {
 
     <Teleport to="body">
       <div class="toast-container position-fixed bottom-0 end-0 p-3">
-        <div ref="toastEl" id="myToast" class="toast align-items-center border-0" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="4000">
+        <div
+          ref="toastEl"
+          id="myToast"
+          class="toast align-items-center border-0"
+          role="alert"
+          aria-live="assertive"
+          aria-atomic="true"
+          data-bs-autohide="true"
+          data-bs-delay="4000"
+        >
           <div class="d-flex">
             <div class="toast-body">
-            Resolved Ticket: #{{ mostRecentTicket }}
+              Resolved Ticket: #{{ mostRecentTicket }}
             </div>
-            <button type="button" class="btn-close btn-close-black me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            <button
+              type="button"
+              class="btn-close btn-close-black me-2 m-auto"
+              data-bs-dismiss="toast"
+              aria-label="Close"
+            ></button>
           </div>
         </div>
       </div>
@@ -164,17 +177,32 @@ onUnmounted(() => {
         <div class="modal-dialog modal-dialog-centered modal-xl">
           <div class="modal-content">
             <div class="modal-header">
-              <span class="modal-title text-center fs-3 text-white" id="viewReportsModal">
-                <span class="modal-title-report-count fs-2">{{ totalReports }}</span> Submitted Report{{ totalReports > 1 ? 's' : '' }}
+              <span
+                class="modal-title text-center fs-3 text-white"
+                id="viewReportsModal"
+              >
+                <span class="modal-title-report-count fs-2">{{
+                  totalReports
+                }}</span>
+                Submitted Report{{ totalReports > 1 ? "s" : "" }}
               </span>
               <button
                 class="btn-refresh"
                 @click="refreshReports"
                 :disabled="refreshCooldown"
-              >Refresh
-              <i class="spinner-border fs-6 ms-2" style="width: 18px; height: 18px;" v-if="refreshCooldownSpinner"></i>
-              <i class="bi-arrow-clockwise fs-6 ms-2" style="width: 18px; height: 18px;" v-else></i>
-            </button>
+              >
+                Refresh
+                <i
+                  class="spinner-border fs-6 ms-2"
+                  style="width: 18px; height: 18px"
+                  v-if="refreshCooldownSpinner"
+                ></i>
+                <i
+                  class="bi-arrow-clockwise fs-6 ms-2"
+                  style="width: 18px; height: 18px"
+                  v-else
+                ></i>
+              </button>
 
               <button
                 type="button"
@@ -187,8 +215,13 @@ onUnmounted(() => {
               <div v-if="loading" class="text-center py-4">
                 <div class="spinner-border text-danger"></div>
               </div>
-              <div v-else-if="error" class="alert alert-danger">{{ error }}</div>
-              <div v-else-if="reports.length === 0" class="text-muted text-center py-4">
+              <div v-else-if="error" class="alert alert-danger">
+                {{ error }}
+              </div>
+              <div
+                v-else-if="reports.length === 0"
+                class="text-muted text-center py-4"
+              >
                 No reports at this time.
               </div>
               <ul v-else class="list-group list-group-flush report-list">
@@ -200,27 +233,51 @@ onUnmounted(() => {
                   <div class="report-details">
                     <span class="report-id text-muted small text-center">
                       <span class="report-source-by">
-                        <i class="mx-1 report-source-icon" :class="r.source === 'Comment' ? sources[1].icon : sources[0].icon"></i>
-                        Ticket: </span>#{{ r.reportId }}
+                        <i
+                          class="mx-1 report-source-icon"
+                          :class="
+                            r.source === 'Comment'
+                              ? sources[1].icon
+                              : sources[0].icon
+                          "
+                        ></i>
+                        Ticket: </span
+                      >#{{ r.reportId }}
                     </span>
-                      <div class="col-12">
-                        <span class="report-title col-12 my-2 mb-3 text-truncate">"{{ r.source === 'Comment' ? stripHTML(r.commentText) : r.postTitle }}"</span>
-                        <span class="report-source col-12">
-                          <span class="me-2">{{ r.source === 'Comment' ? 'Comment' : 'Post' }}</span>
-                          <span class="report-source-by me-2">by</span> 
-                          <span class="report-source-author">{{ r.source === 'Comment' ? r.commentAuthor : r.postAuthor }}</span>
+                    <div class="col-12">
+                      <span class="report-title col-12 my-2 mb-3 text-truncate"
+                        >"{{
+                          r.source === "Comment"
+                            ? stripHTML(r.commentText)
+                            : r.postTitle
+                        }}"</span
+                      >
+                      <span class="report-source col-12">
+                        <span class="me-2">{{
+                          r.source === "Comment" ? "Comment" : "Post"
+                        }}</span>
+                        <span class="report-source-by me-2">by</span>
+                        <span class="report-source-author">{{
+                          r.source === "Comment"
+                            ? r.commentAuthor
+                            : r.postAuthor
+                        }}</span>
+                      </span>
+                      <div
+                        class="col-12 gap-3 d-flex flex-wrap align-items-center"
+                      >
+                        <span class="report-reporter text-muted small col-auto">
+                          <span class="report-source-by">Reported by: </span>
+                          {{ r.reporter.fullName }}
                         </span>
-                        <div class="col-12 gap-3 d-flex flex-wrap align-items-center">
-                          <span class="report-reporter text-muted small col-auto">
-                            <span class="report-source-by">Reported by: </span>
-                            {{ r.reporter.fullName }}
-                          </span>
-                          <span class="report-date text-muted small col-auto">{{ timeAgo(r.createdAt) }}</span>
-                          <span class="report-reason col-auto col-xl-auto">
-                            <span class="report-source-by">Reason: </span>
-                            {{ r.reason }}
-                          </span>
-                        </div>
+                        <span class="report-date text-muted small col-auto">{{
+                          timeAgo(r.createdAt)
+                        }}</span>
+                        <span class="report-reason col-auto col-xl-auto">
+                          <span class="report-source-by">Reason: </span>
+                          {{ r.reason }}
+                        </span>
+                      </div>
                     </div>
                   </div>
                   <div class="cta-btns d-flex gap-2 flex-shrink-0">
@@ -230,7 +287,14 @@ onUnmounted(() => {
                       @click="goToPost(r.postId)"
                     >
                       Go To
-                      <i class="ms-2" :class="r.source === 'Comment' ? sources[1].icon : sources[0].icon"></i>
+                      <i
+                        class="ms-2"
+                        :class="
+                          r.source === 'Comment'
+                            ? sources[1].icon
+                            : sources[0].icon
+                        "
+                      ></i>
                     </button>
                     <button
                       type="button"
@@ -264,7 +328,7 @@ onUnmounted(() => {
 .action-container {
   width: 100%;
 }
-.toast{
+.toast {
   background-color: #6dbe4b;
   font-weight: 600;
 }
@@ -292,13 +356,18 @@ onUnmounted(() => {
   font-size: 1.3rem;
 }
 .btn-reports::after {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.1),
+    transparent
+  );
   transition: 0.6s;
 }
 .btn-reports:hover:not(:disabled) {
@@ -337,7 +406,7 @@ onUnmounted(() => {
 
 .btn-text {
   font-weight: 700;
-  font-family: 'Roboto', sans-serif;
+  font-family: "Roboto", sans-serif;
   text-transform: uppercase;
   font-size: 1rem;
   letter-spacing: 0.5px;
@@ -357,7 +426,7 @@ onUnmounted(() => {
   font-weight: 800;
   border-radius: 50px;
   border: 1.5px solid rgba(255, 255, 255, 0.4);
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .modal-header {
@@ -378,7 +447,7 @@ onUnmounted(() => {
   background: #006649;
   border-radius: 10px;
   color: #ffffff;
-  font-size: 1.0rem;
+  font-size: 1rem;
   font-weight: 500;
   cursor: pointer;
   transition: color 0.15s ease;
@@ -386,10 +455,10 @@ onUnmounted(() => {
   text-wrap: nowrap;
 }
 .btn-refresh:disabled {
-    background-color: rgba(64, 175, 138, 0.89)important;
-    color: gray;
-    cursor: not-allowed;
-    border: gray solid 1px;
+  background-color: rgba(64, 175, 138, 0.89) important;
+  color: gray;
+  cursor: not-allowed;
+  border: gray solid 1px;
 }
 .btn-refresh:hover:not(:disabled) {
   color: #6dbe4b;
@@ -402,7 +471,7 @@ onUnmounted(() => {
 .report-list {
   border-radius: 0;
 }
-.list-group-item{
+.list-group-item {
   transition: background-color 0.15s ease;
 }
 .list-group-item:hover {
@@ -422,8 +491,12 @@ onUnmounted(() => {
   min-width: 60px;
   font-weight: 700;
   color: #6d6d6d;
-  background: linear-gradient(270deg, #007a4b33 0%, rgba(211, 211, 211, 0.603) 65%);
-  padding: .7rem 0.5rem;
+  background: linear-gradient(
+    270deg,
+    #007a4b33 0%,
+    rgba(211, 211, 211, 0.603) 65%
+  );
+  padding: 0.7rem 0.5rem;
   border-top-left-radius: 8px;
   border-bottom-left-radius: 8px;
   border-right: #007a4c solid 5px;
@@ -431,17 +504,17 @@ onUnmounted(() => {
 }
 .report-source {
   font-weight: 700;
-  font-size: .9rem;
+  font-size: 0.9rem;
   .report-source-author {
     text-transform: capitalize;
   }
 }
 .report-source-by {
-    font-weight: 400;
-    font-size: .8rem;
-    margin: 0 4px 0 0;
-    color: #838383;
-  }
+  font-weight: 400;
+  font-size: 0.8rem;
+  margin: 0 4px 0 0;
+  color: #838383;
+}
 .report-source-icon {
   font-size: 0.9rem;
   color: #007a4c;
@@ -482,7 +555,7 @@ onUnmounted(() => {
   background: linear-gradient(170deg, #01b470 0%, #007a4c 100%);
   transition: background 0.45s ease;
 }
-.report-cta-btn:active{
+.report-cta-btn:active {
   background: linear-gradient(170deg, #00cc7e 0%, #018552 100%);
   transition: background 0.45s ease;
 }
@@ -497,7 +570,7 @@ onUnmounted(() => {
     gap: 10px;
   }
   .report-title {
-  max-width: 20rem;
+    max-width: 20rem;
   }
 }
 @media (min-width: 576px) {

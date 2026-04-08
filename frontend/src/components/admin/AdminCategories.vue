@@ -1,6 +1,15 @@
 <script setup>
-import { ref, onMounted } from 'vue';
-import client from '@/api/client';
+import { ref, onMounted } from "vue";
+import {
+  getAdminCategories,
+  createCategory,
+  updateCategory,
+  deleteCategory,
+} from "@/api/admin";
+import { useAdminRoles } from "@/composables/useAdminRoles";
+import { isDuplicateName } from "@/utils/string";
+
+const { roles, loadRoles, roleLabel } = useAdminRoles();
 
 const categories = ref([]);
 const loading = ref(false);
@@ -8,14 +17,7 @@ const error = ref('');
 const addForm = ref({ open: false, name: '', usableByRoleID: 1, visibleFromRoleID: 'public' });
 const editForm = ref({ open: false, categoryId: null, name: '', usableByRoleID: 1, visibleFromRoleID: 'public' });
 const deleteConfirm = ref({ open: false, category: null });
-const submitError = ref('');
-
-const roles = [
-  { id: 1, label: 'User' },
-  { id: 2, label: 'Student' },
-  { id: 3, label: 'Moderator' },
-  { id: 4, label: 'Admin' },
-];
+const submitError = ref("");
 
 const visibilityOptions = [
   { id: 'public', label: 'Public' },
@@ -31,7 +33,7 @@ function normalizeVisibilityForApi(value) {
 
 async function loadCategories() {
   loading.value = true;
-  error.value = '';
+  error.value = "";
   try {
     const res = await client.get('/admin/categories');
     categories.value = (res.data.items || []).map((c) => ({
@@ -41,7 +43,8 @@ async function loadCategories() {
     visibleFromRoleID: c.visibleFromRoleID == null ? null : Number(c.visibleFromRoleID),
   }));
   } catch (e) {
-    error.value = e?.response?.data?.error || e.message || 'Failed to load categories';
+    error.value =
+      e?.response?.data?.error || e.message || "Failed to load categories";
     categories.value = [];
   } finally {
     loading.value = false;
@@ -80,24 +83,15 @@ function closeDeleteConfirm() {
   deleteConfirm.value = { open: false, category: null };
 }
 
-// Prevent duplicate names (client-side hint; server enforces)
-function nameExists(name, excludeId = null) {
-  const n = (name || '').trim().toLowerCase();
-  if (!n) return false;
-  return categories.value.some(
-    (c) => c.name.trim().toLowerCase() === n && c.categoryId !== excludeId
-  );
-}
-
 async function submitAdd() {
-  submitError.value = '';
+  submitError.value = "";
   const name = addForm.value.name.trim();
   if (!name) {
-    submitError.value = 'Category name is required.';
+    submitError.value = "Category name is required.";
     return;
   }
-  if (nameExists(name)) {
-    submitError.value = 'A category with this name already exists.';
+  if (isDuplicateName(name, categories.value, "name", "categoryId")) {
+    submitError.value = "A category with this name already exists.";
     return;
   }
   try {
@@ -109,26 +103,36 @@ async function submitAdd() {
     closeAdd();
     await loadCategories();
   } catch (e) {
-    submitError.value = e?.response?.data?.error || e.message || 'Failed to create category';
+    submitError.value =
+      e?.response?.data?.error || e.message || "Failed to create category";
     if (e?.response?.status === 409) {
-      submitError.value = 'A category with this name already exists.';
+      submitError.value = "A category with this name already exists.";
     }
   }
 }
 
 async function submitEdit() {
-  submitError.value = '';
+  submitError.value = "";
   const name = editForm.value.name.trim();
   if (!name) {
-    submitError.value = 'Category name is required.';
+    submitError.value = "Category name is required.";
     return;
   }
-  if (nameExists(name, editForm.value.categoryId)) {
-    submitError.value = 'A category with this name already exists.';
+  if (
+    isDuplicateName(
+      name,
+      categories.value,
+      "name",
+      "categoryId",
+      editForm.value.categoryId,
+    )
+  ) {
+    submitError.value = "A category with this name already exists.";
     return;
   }
   try {
-    await client.patch(`/admin/categories/${editForm.value.categoryId}`, {
+    await updateCategory(
+      editForm.value.categoryId,
       name,
       usableByRoleID: editForm.value.usableByRoleID,
       visibleFromRoleID: normalizeVisibilityForApi(editForm.value.visibleFromRoleID),
@@ -136,9 +140,10 @@ async function submitEdit() {
     closeEdit();
     await loadCategories();
   } catch (e) {
-    submitError.value = e?.response?.data?.error || e.message || 'Failed to update category';
+    submitError.value =
+      e?.response?.data?.error || e.message || "Failed to update category";
     if (e?.response?.status === 409) {
-      submitError.value = 'A category with this name already exists.';
+      submitError.value = "A category with this name already exists.";
     }
   }
 }
@@ -147,11 +152,12 @@ async function confirmDelete() {
   const cat = deleteConfirm.value.category;
   if (!cat) return;
   try {
-    await client.delete(`/admin/categories/${cat.categoryId}`);
+    await deleteCategory(cat.categoryId);
     closeDeleteConfirm();
     await loadCategories();
   } catch (e) {
-    error.value = e?.response?.data?.error || e.message || 'Failed to delete category';
+    error.value =
+      e?.response?.data?.error || e.message || "Failed to delete category";
   }
 }
 
@@ -172,8 +178,12 @@ onMounted(loadCategories);
     <h2 class="page-title mb-4">Manage Categories</h2>
 
     <div class="admin-card">
-      <div class="toolbar mb-4 d-flex justify-content-between align-items-center">
-        <span class="text-muted">* Deleted category posts move to General.</span>
+      <div
+        class="toolbar mb-4 d-flex justify-content-between align-items-center"
+      >
+        <span class="text-muted"
+          >* Deleted category posts move to General.</span
+        >
         <button type="button" class="btn-add" @click="openAdd">
           <i class="bi bi-plus-lg"></i> Add
           <span class="d-none d-sm-inline">category</span>
@@ -228,7 +238,10 @@ onMounted(loadCategories);
         </table>
       </div>
 
-      <div v-if="!loading && categories.length === 0" class="state mt-4 text-center">
+      <div
+        v-if="!loading && categories.length === 0"
+        class="state mt-4 text-center"
+      >
         No categories yet. Add one above.
       </div>
     </div>
@@ -238,12 +251,19 @@ onMounted(loadCategories);
         <h3 class="form-title">Add category</h3>
         <div class="form-group">
           <label>Name</label>
-          <input v-model="addForm.name" type="text" class="form-input" placeholder="Category name" />
+          <input
+            v-model="addForm.name"
+            type="text"
+            class="form-input"
+            placeholder="Category name"
+          />
         </div>
         <div class="form-group">
           <label>Minimum role</label>
           <select v-model.number="addForm.usableByRoleID" class="form-select">
-            <option v-for="r in roles" :key="r.id" :value="r.id">{{ r.label }}</option>
+            <option v-for="r in roles" :key="r.id" :value="r.id">
+              {{ r.label }}
+            </option>
           </select>
         </div>
         <div class="form-group">
@@ -254,8 +274,12 @@ onMounted(loadCategories);
         </div>
         <p v-if="submitError" class="err mb-2">{{ submitError }}</p>
         <div class="form-actions">
-          <button type="button" class="btn-back" @click="closeAdd">Cancel</button>
-          <button type="button" class="btn-confirm" @click="submitAdd">Add</button>
+          <button type="button" class="btn-back" @click="closeAdd">
+            Cancel
+          </button>
+          <button type="button" class="btn-confirm" @click="submitAdd">
+            Add
+          </button>
         </div>
       </div>
     </div>
@@ -265,12 +289,19 @@ onMounted(loadCategories);
         <h3 class="form-title">Edit category</h3>
         <div class="form-group">
           <label>Name</label>
-          <input v-model="editForm.name" type="text" class="form-input" placeholder="Category name" />
+          <input
+            v-model="editForm.name"
+            type="text"
+            class="form-input"
+            placeholder="Category name"
+          />
         </div>
         <div class="form-group">
           <label>Minimum role</label>
           <select v-model.number="editForm.usableByRoleID" class="form-select">
-            <option v-for="r in roles" :key="r.id" :value="r.id">{{ r.label }}</option>
+            <option v-for="r in roles" :key="r.id" :value="r.id">
+              {{ r.label }}
+            </option>
           </select>
         </div>
         <div class="form-group">
@@ -281,8 +312,12 @@ onMounted(loadCategories);
         </div>
         <p v-if="submitError" class="err mb-2">{{ submitError }}</p>
         <div class="form-actions">
-          <button type="button" class="btn-back" @click="closeEdit">Cancel</button>
-          <button type="button" class="btn-confirm" @click="submitEdit">Save</button>
+          <button type="button" class="btn-back" @click="closeEdit">
+            Cancel
+          </button>
+          <button type="button" class="btn-confirm" @click="submitEdit">
+            Save
+          </button>
         </div>
       </div>
     </div>
@@ -291,11 +326,20 @@ onMounted(loadCategories);
       <div class="confirm-card">
         <h3 class="confirm-title">Delete category?</h3>
         <p class="confirm-subtitle">
-          Delete <strong>{{ deleteConfirm.category?.name }}</strong>? Posts in this category will be moved to <strong>General</strong>.
+          Delete <strong>{{ deleteConfirm.category?.name }}</strong
+          >? Posts in this category will be moved to <strong>General</strong>.
         </p>
         <div class="confirm-actions">
-          <button type="button" class="btn-back" @click="closeDeleteConfirm">Cancel</button>
-          <button type="button" class="btn-confirm btn-danger" @click="confirmDelete">Delete</button>
+          <button type="button" class="btn-back" @click="closeDeleteConfirm">
+            Cancel
+          </button>
+          <button
+            type="button"
+            class="btn-confirm btn-danger"
+            @click="confirmDelete"
+          >
+            Delete
+          </button>
         </div>
       </div>
     </div>
@@ -357,7 +401,9 @@ onMounted(loadCategories);
 .admin-table tbody tr {
   background: #fff;
   border-radius: 12px;
-  transition: background 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    background 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .admin-table tbody td {
@@ -390,9 +436,6 @@ onMounted(loadCategories);
   font-weight: 700;
   font-size: 0.9rem;
 }
-.btn-action:hover { background: #f1f5f9; }
-.btn-action.danger { border-color: #f3c6c6; color: #b91c1c; }
-.btn-action.danger:hover:not(:disabled) { background: #fff1f1; }
 
 .btn-action:disabled {
   opacity: 0.5;
@@ -572,7 +615,7 @@ onMounted(loadCategories);
     padding: 8px 6px;
   }
   .admin-name {
-    font-size: 0.80rem;
+    font-size: 0.8rem;
   }
 
   .role-full { display: none !important; }

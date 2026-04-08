@@ -24,7 +24,7 @@ abstract class BaseController
         if ($userId === null) {
             return [json($res, ['ok' => false, 'error' => 'Not Authenticated'], 401), null, null];
         }
-        return [null, ($this->makePdo)(), $userId];
+        return [null, ($this->makePdo)(), (int)$userId];
     }
 
     protected function requireRole(int $minRole, Request $req, Response $res): array
@@ -44,7 +44,7 @@ abstract class BaseController
             return [json($res, ['ok' => false, 'error' => $msg], 403), null, null];
         }
 
-        return [null, $pdo, $userId];
+        return [null, $pdo, (int)$userId];
     }
     protected function getUserRoleId(PDO $pdo, ?int $userId): int
 {

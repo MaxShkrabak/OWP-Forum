@@ -46,7 +46,10 @@ async function handleVote(dir) {
   const currentVote = Number(props.post.myVote ?? 0);
 
   let action = dir;
-  if ((dir === "up" && currentVote === 1) || (dir === "down" && currentVote === -1)) {
+  if (
+    (dir === "up" && currentVote === 1) ||
+    (dir === "down" && currentVote === -1)
+  ) {
     action = "clear";
   }
 
@@ -78,7 +81,9 @@ async function handlePinToggle() {
       props.post.isPinned = data.isPinned;
 
       emit("post-refresh", {
-        pinMessage: data.isPinned ? "Pinned successfully" : "Unpinned successfully",
+        pinMessage: data.isPinned
+          ? "Pinned successfully"
+          : "Unpinned successfully",
         pinMessageType: "success",
       });
     } else {
@@ -93,7 +98,8 @@ async function handlePinToggle() {
 }
 
 function getAvatarSrc(file) {
-  return new URL(`../../assets/img/user-pfps-premade/${file}`, import.meta.url).href;
+  return new URL(`../../assets/img/user-pfps-premade/${file}`, import.meta.url)
+    .href;
 }
 
 function openReportModal() {
@@ -124,7 +130,10 @@ function canViewReportButton() {
 </script>
 
 <template>
-  <div class="post-card shadow-sm mb-3" :class="{ 'pinned-post': !!post.isPinned }">
+  <div
+    class="post-card shadow-sm mb-3"
+    :class="{ 'pinned-post': !!post.isPinned }"
+  >
     <div
       v-if="pinMessage"
       class="pin-toast"
@@ -138,21 +147,31 @@ function canViewReportButton() {
         <div class="vote-container">
           <button
             class="vote-btn-up pi pi-chevron-up mb-1"
-            :class="{ active: Number(post.myVote) === 1, 'is-voting': isVoting }"
-            @click="isLoggedIn ? handleVote('up') : router.push('/login')">
-          </button>
+            :class="{
+              active: Number(post.myVote) === 1,
+              'is-voting': isVoting,
+            }"
+            @click="isLoggedIn ? handleVote('up') : router.push('/login')"
+          ></button>
 
           <!-- Vote count -->
-          <span class="vote-count"
-                :class="{
-                        'upvoted': Number(post.myVote) === 1,
-                        'downvoted': Number(post.myVote) === -1, 'voting-bounce': isVoting }">
+          <span
+            class="vote-count"
+            :class="{
+              upvoted: Number(post.myVote) === 1,
+              downvoted: Number(post.myVote) === -1,
+              'voting-bounce': isVoting,
+            }"
+          >
             {{ post.totalScore ?? 0 }}
           </span>
 
           <button
             class="vote-btn-down pi pi-chevron-down mt-1"
-            :class="{ active: Number(post.myVote) === -1, 'is-voting': isVoting }"
+            :class="{
+              active: Number(post.myVote) === -1,
+              'is-voting': isVoting,
+            }"
             @click="isLoggedIn ? handleVote('down') : router.push('/login')"
           ></button>
         </div>
@@ -161,14 +180,21 @@ function canViewReportButton() {
           <div class="mobile-author-header">
             <div class="author-info-wrap-v2">
               <div class="avatar-box-v2">
-                <img
-                  :src="getAvatarSrc(post.authorAvatar)"
-                  class="avatar-img"
-                  alt="user"
-                />
+                <RouterLink :to="`/profile?id=${post.authorId}`">
+                  <img
+                    :src="getAvatarSrc(post.authorAvatar)"
+                    class="avatar-img"
+                    alt="user"
+                  />
+                </RouterLink>
               </div>
               <div class="d-flex flex-column">
-                <span class="author-name-v2">{{ post.authorName }}</span>
+                <RouterLink
+                  :to="`/profile?id=${post.authorId}`"
+                  class="author-name text-truncate"
+                >
+                  {{ post.authorName }}
+                </RouterLink>
                 <UserRole :role="post.authorRole" />
               </div>
             </div>
@@ -191,12 +217,12 @@ function canViewReportButton() {
               :title="post.isPinned ? 'Unpin announcement' : 'Pin announcement'"
             >
               <i
-                class="pi pi-thumbtack pin-icon"
-                :class="{ pinned: !!post.isPinned, 'is-pinning': isPinning }"
+                class="pin-icon bi"
+                :class="post.isPinned ? 'bi-pin-angle-fill' : 'bi-pin-angle'"
               ></i>
             </button>
 
-            <span v-if="post.isPinned" class="pinned-badge">Pinned</span>
+            <span v-else-if="post.isPinned" class="bi bi-pin-angle-fill pin-icon"></span>
           </div>
 
           <div class="d-flex flex-wrap gap-2 mb-2">
@@ -214,7 +240,11 @@ function canViewReportButton() {
               <i class="pi pi-comment me-1"></i>
               {{ post.commentCount }} comments
             </div>
-            <button class="report-btn" @click="openReportModal" v-show="canViewReportButton()">
+            <button
+              class="report-btn"
+              @click="openReportModal"
+              v-show="canViewReportButton()"
+            >
               <i class="pi pi-flag me-1"></i> Report
             </button>
           </div>
@@ -236,7 +266,12 @@ function canViewReportButton() {
         <div class="v-divider"></div>
         <div class="author-info-wrap">
           <div class="text-end d-flex flex-column align-items-end">
-            <span class="author-name text-truncate">{{ post.authorName }}</span>
+            <RouterLink
+              :to="`/profile?id=${post.authorId}`"
+              class="author-name text-truncate"
+            >
+              {{ post.authorName }}
+            </RouterLink>
             <UserRole :role="post.authorRole" />
           </div>
           <div class="avatar-box shadow-sm">
@@ -361,27 +396,12 @@ function canViewReportButton() {
 
 .pin-icon {
   color: #c2680a;
-  font-size: 0.9rem;
+  margin-left: 4px;
+  font-size: 1rem;
   flex-shrink: 0;
-  transition: transform 0.2s ease-in-out, opacity 0.2s ease-in-out;
-}
-
-.pin-icon.pinned {
-  transform: rotate(25deg);
-}
-
-.pin-icon.is-pinning {
-  opacity: 0.6;
-}
-
-.pinned-badge {
-  font-size: 0.65rem;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: #c2680a;
-  color: #fff4e8;
-  white-space: nowrap;
+  transition:
+    transform 0.2s ease-in-out,
+    opacity 0.2s ease-in-out;
 }
 
 .mobile-author-header {
@@ -595,6 +615,11 @@ function canViewReportButton() {
   font-size: 0.75rem;
   color: #1a1a1b;
   max-width: 120px;
+  text-decoration: none;
+}
+.author-name:hover {
+  color: #2e6c44;
+  text-decoration: underline;
 }
 
 .avatar-box {
@@ -610,6 +635,10 @@ function canViewReportButton() {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+.avatar-img:hover {
+  border: 2px solid #7e9291;
+  border-radius: 50%;
 }
 
 .author-info-wrap {

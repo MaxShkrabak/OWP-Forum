@@ -232,7 +232,8 @@ final class CommentControllerTest extends TestCase
                 'Avatar' => 'pfp-0.png',
                 'RoleName' => 'student',
                 'MyVote' => 1,
-                'ReplyCount' => 1
+                'ReplyCount' => 1,
+                'IsDeleted' => 0
             ],
             [
                 'CommentId' => 2,
@@ -247,7 +248,8 @@ final class CommentControllerTest extends TestCase
                 'Avatar' => 'pfp-1.png',
                 'RoleName' => 'user',
                 'MyVote' => -1,
-                'ReplyCount' => 0
+                'ReplyCount' => 0,
+                'IsDeleted' => 0
             ]
         ];
 
@@ -277,8 +279,8 @@ final class CommentControllerTest extends TestCase
         $this->assertEquals(1, $json['items'][1]['parentCommentId']);
         $this->assertEquals(-3, $json['items'][1]['score']);
 
-        $this->assertIsInt($json['items'][0]['createdAt']);
-        $this->assertIsInt($json['items'][1]['createdAt']);
+        $this->assertIsString($json['items'][0]['createdAt']);
+        $this->assertIsString($json['items'][1]['createdAt']);
     }
 
     #[AllowMockObjectsWithoutExpectations]

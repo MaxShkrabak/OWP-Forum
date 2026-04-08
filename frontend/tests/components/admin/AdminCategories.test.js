@@ -1,10 +1,9 @@
 /**
  * Manage Categories (Admin) — unit tests.
- * Duplicate prevention + slugify (no DOM) + AdminCategories.vue DOM tests.
+ * Duplicate prevention (no DOM) + AdminCategories.vue DOM tests.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount, flushPromises } from "@vue/test-utils";
-import { slugifyCategoryName } from "@/utils/slugify";
 import AdminCategories from "@/components/admin/AdminCategories.vue";
 
 const { mockClient } = vi.hoisted(() => ({
@@ -63,27 +62,6 @@ describe("Manage Categories (Admin) — duplicate prevention", () => {
 
   it("handles empty category list", () => {
     expect(categoryNameExists([], "Help")).toBe(false);
-  });
-});
-
-describe("Manage Categories (Admin) — category slugify", () => {
-  it("slugifies category name for URLs", () => {
-    expect(slugifyCategoryName("Help")).toBe("help");
-    expect(slugifyCategoryName("Random")).toBe("random");
-    expect(slugifyCategoryName("General")).toBe("general");
-  });
-
-  it("replaces spaces and special chars with dashes", () => {
-    expect(slugifyCategoryName("Announcements & News")).toBe(
-      "announcements-and-news"
-    );
-    // & is replaced with "and", then non-alphanumerics become dashes → "qanda"
-    expect(slugifyCategoryName("Q&A")).toBe("qanda");
-  });
-
-  it("trims leading and trailing dashes", () => {
-    expect(slugifyCategoryName("  Help  ")).toBe("help");
-    expect(slugifyCategoryName("---test---")).toBe("test");
   });
 });
 
