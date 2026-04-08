@@ -1,6 +1,5 @@
 <script setup>
 import ForumHeader from '@/components/layout/ForumHeader.vue';
-import pfpModal from '@/components/user/UserPfpModal.vue';
 import UserSettings from '@/components/user/UserSettings.vue';
 import { useRouter, useRoute } from 'vue-router';
 import { getPaginationRange } from '@/utils/pagination';
@@ -158,7 +157,6 @@ onMounted(() => {
 <template>
   <body>
     <ForumHeader />
-    <pfpModal/>
     <UserSettings v-if="checkIfCurrUser()"/>
       <div class="container-fluid text-center">
         

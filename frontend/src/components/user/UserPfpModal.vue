@@ -78,22 +78,22 @@ const saveAvatar = async () => {
     aria-labelledby="pfpChangeModal"
     aria-hidden="true"
   >
-    <div class="modal-dialog modal-dialog-centered modal-xl">
-      <div class="modal-content">
-        <div class="modal-header">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content profile-modal-content">
+        <div class="modal-header profile-modal-header">
           <h1 class="modal-title fs-5" id="pfpChangeModal">
             Change your Profile Picture
           </h1>
           <button
             type="button"
-            class="btn-close"
+            class="btn-close btn-close-white"
             data-bs-dismiss="modal"
             aria-label="Close"
           ></button>
         </div>
-        <div class="modal-body">
-          <div class="current-avatar-container mb-3">
-            <p class="text-muted small mb-2">Current selection:</p>
+        <div class="modal-body profile-modal-body">
+          <div class="current-avatar-container">
+            <p class="current-selection-label">Current selection</p>
             <img
               v-if="selectedAvatar"
               :src="selectedAvatar"
@@ -101,7 +101,7 @@ const saveAvatar = async () => {
               alt="Selected avatar"
             />
           </div>
-          <div class="row">
+          <div class="avatar-grid" role="radiogroup" aria-label="Choose avatar">
             <img
               v-for="(image, index) in images"
               :key="index"
@@ -109,20 +109,22 @@ const saveAvatar = async () => {
               class="pfp"
               :class="{ 'pfp-selected': selectedAvatar === image }"
               @click="selectAvatar(image)"
+              role="radio"
+              :aria-checked="selectedAvatar === image"
               alt="Avatar option"
             />
           </div>
         </div>
-        <div class="modal-footer">
+        <div class="modal-footer profile-modal-footer">
           <button
             type="button"
             class="cancel-btn"
             data-bs-dismiss="modal"
           >
-            Close
+            Cancel
           </button>
           <button type="button" class="save-btn" @click="saveAvatar">
-            Save changes
+            Save Changes
           </button>
         </div>
       </div>
@@ -130,37 +132,81 @@ const saveAvatar = async () => {
   </div>
 </template>
 <style scoped>
+.profile-modal-content {
+  border: 0;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
+}
+
+.profile-modal-header {
+  background: #004750;
+  color: #ffffff;
+  border-bottom: none;
+  padding: 1rem 1.25rem;
+}
+
+.profile-modal-body {
+  padding: 1.25rem;
+  background: #ffffff;
+}
+
+.profile-modal-footer {
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+  padding: 1rem 1.25rem;
+}
+
 .current-avatar-container {
+  background: #f8fafc;
+  border: 1px solid #dbe3ef;
+  border-radius: 12px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
   text-align: center;
 }
 
+.current-selection-label {
+  color: #64748b;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+}
+
 .current-avatar-preview {
-  width: 100px;
-  height: 100px;
+  width: 92px;
+  height: 92px;
   border-radius: 50%;
-  border: 3px solid #48773c;
+  border: 3px solid #007a4c;
   object-fit: cover;
 }
 
+.avatar-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  gap: 0.9rem;
+}
+
 img.pfp {
-  padding: 0;
-  width: 128px;
-  margin: 1em;
+  width: 100%;
+  max-width: 96px;
+  justify-self: center;
+  aspect-ratio: 1 / 1;
   border-radius: 20%;
   cursor: pointer;
+  object-fit: cover;
   transition: all 0.2s ease-in-out;
   border: 3px solid transparent;
 }
 img.pfp:hover {
-  border: 3px solid rgb(45, 149, 209);
+  border: 3px solid #00a5b5;
   transform: scale(1.05);
 }
 img.pfp.pfp-selected {
-  border: 4px solid #48773c;
-  box-shadow: 0 0 0 2px rgba(72, 119, 60, 0.3);
-}
-.row {
-  padding: 1em;
+  border: 4px solid #007a4c;
+  box-shadow: 0 0 0 2px rgba(0, 122, 76, 0.25);
 }
 
 .cancel-btn,
@@ -180,7 +226,7 @@ img.pfp.pfp-selected {
 }
 
 .save-btn {
-  background: #2e6c44;
+  background: #007a4c;
   color: white;
   border: none;
 }
@@ -193,8 +239,8 @@ img.pfp.pfp-selected {
 }
 
 .save-btn:hover:not(:disabled) {
-  background: #3d8a59;
-  box-shadow: 0 4px 12px rgba(46, 108, 68, 0.25);
+  background: #008f57;
+  box-shadow: 0 4px 12px rgba(0, 122, 76, 0.25);
   transform: translateY(-1px);
 }
 
@@ -209,5 +255,21 @@ img.pfp.pfp-selected {
   color: #0f172a;
   border-color: #94a3b8;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+@media (max-width: 768px) {
+  .avatar-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+
+  img.pfp {
+    max-width: 82px;
+  }
+
+  .current-avatar-preview {
+    width: 80px;
+    height: 80px;
+  }
 }
 </style>
