@@ -261,22 +261,20 @@ public function listCategories(Request $req, Response $res): Response
     try {
         $rows = $pdo->query("
             SELECT
-                c.CategoryID,
-                c.Name,
-                c.UsableByRoleID,
-                v.VisibleFromRoleID AS VisibleFromRoleID
-            FROM dbo.Forum_Categories c
-            LEFT JOIN dbo.Forum_CategoryVisibility v
-                ON v.CategoryID = c.CategoryID
-            ORDER BY c.Name ASC
+                CategoryID,
+                Name,
+                UsableByRoleID,
+                VisibleFromRoleID
+            FROM dbo.Forum_Categories
+            ORDER BY Name ASC
         ")->fetchAll(PDO::FETCH_ASSOC);
 
         $items = array_map(fn($r) => [
-        'categoryId' => (int)$r['CategoryID'],
-        'name' => $r['Name'],
-        'usableByRoleID' => (int)$r['UsableByRoleID'],
-        'visibleFromRoleID' => $r['VisibleFromRoleID'] === null ? null : (int)$r['VisibleFromRoleID'],
-    ], $rows);
+            'categoryId' => (int)$r['CategoryID'],
+            'name' => $r['Name'],
+            'usableByRoleID' => (int)$r['UsableByRoleID'],
+            'visibleFromRoleID' => $r['VisibleFromRoleID'] === null ? null : (int)$r['VisibleFromRoleID'],
+        ], $rows);
 
         return json($res, ['ok' => true, 'items' => $items]);
     } catch (Throwable $e) {
@@ -292,17 +290,21 @@ public function listCategories(Request $req, Response $res): Response
     $data = $req->getParsedBody() ?? [];
     $name = trim((string)($data['name'] ?? ''));
     $usableByRoleID = (int)($data['usableByRoleID'] ?? 1);
-    $visibleFromRoleID = array_key_exists('visibleFromRoleID', $data)? ($data['visibleFromRoleID'] === null || $data['visibleFromRoleID'] === '' ? null : (int)$data['visibleFromRoleID']): null;
 
-    if ($visibleFromRoleID !== null && ($visibleFromRoleID < 1 || $visibleFromRoleID > 4)) {
-    return json($res, ['ok' => false, 'error' => 'visibleFromRoleID must be null or between 1 and 4.'], 400);
-    }
+    $visibleFromRoleID = array_key_exists('visibleFromRoleID', $data)
+        ? ($data['visibleFromRoleID'] === null || $data['visibleFromRoleID'] === '' ? null : (int)$data['visibleFromRoleID'])
+        : null;
 
     if ($name === '') {
         return json($res, ['ok' => false, 'error' => 'Category name is required.'], 400);
     }
+
     if ($usableByRoleID < 1 || $usableByRoleID > 4) {
         return json($res, ['ok' => false, 'error' => 'usableByRoleID must be between 1 and 4.'], 400);
+    }
+
+    if ($visibleFromRoleID !== null && ($visibleFromRoleID < 1 || $visibleFromRoleID > 4)) {
+        return json($res, ['ok' => false, 'error' => 'visibleFromRoleID must be null or between 1 and 4.'], 400);
     }
 
     try {
@@ -312,27 +314,16 @@ public function listCategories(Request $req, Response $res): Response
             return json($res, ['ok' => false, 'error' => 'A category with this name already exists.'], 409);
         }
 
-        $pdo->beginTransaction();
-
         $pdo->prepare("
-            INSERT INTO dbo.Forum_Categories (Name, UsableByRoleID)
-            VALUES (:name, :rid)
+            INSERT INTO dbo.Forum_Categories (Name, UsableByRoleID, VisibleFromRoleID)
+            VALUES (:name, :rid, :visibleFromRoleID)
         ")->execute([
             ':name' => $name,
-            ':rid' => $usableByRoleID
-        ]);
-
-        $newId = (int)($pdo->query("SELECT SCOPE_IDENTITY() AS id")->fetch(PDO::FETCH_ASSOC)['id'] ?? 0);
-
-        $pdo->prepare("
-            INSERT INTO dbo.Forum_CategoryVisibility (CategoryID, VisibleFromRoleID)
-            VALUES (:categoryId, :visibleFromRoleID)
-        ")->execute([
-            ':categoryId' => $newId,
+            ':rid' => $usableByRoleID,
             ':visibleFromRoleID' => $visibleFromRoleID
         ]);
 
-        $pdo->commit();
+        $newId = (int)($pdo->query("SELECT SCOPE_IDENTITY() AS id")->fetch(PDO::FETCH_ASSOC)['id'] ?? 0);
 
         return json($res, [
             'ok' => true,
@@ -341,9 +332,6 @@ public function listCategories(Request $req, Response $res): Response
             'visibleFromRoleID' => $visibleFromRoleID
         ]);
     } catch (Throwable $e) {
-        if ($pdo->inTransaction()) {
-            $pdo->rollBack();
-        }
         return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
     }
 }
@@ -361,18 +349,24 @@ public function listCategories(Request $req, Response $res): Response
 
     $data = $req->getParsedBody() ?? [];
     $name = trim((string)($data['name'] ?? ''));
+
     $usableByRoleID = isset($data['usableByRoleID']) ? (int)$data['usableByRoleID'] : null;
-    $visibleFromRoleID = array_key_exists('visibleFromRoleID', $data)? ($data['visibleFromRoleID'] === null || $data['visibleFromRoleID'] === '' ? null : (int)$data['visibleFromRoleID']): null;
+
+    $visibleFromRoleID = array_key_exists('visibleFromRoleID', $data)
+        ? ($data['visibleFromRoleID'] === null || $data['visibleFromRoleID'] === '' ? null : (int)$data['visibleFromRoleID'])
+        : null;
 
     if ($name === '') {
         return json($res, ['ok' => false, 'error' => 'Category name is required.'], 400);
     }
+
     if ($usableByRoleID !== null && ($usableByRoleID < 1 || $usableByRoleID > 4)) {
         return json($res, ['ok' => false, 'error' => 'usableByRoleID must be between 1 and 4.'], 400);
     }
+
     if ($visibleFromRoleID !== null && ($visibleFromRoleID < 1 || $visibleFromRoleID > 4)) {
-    return json($res, ['ok' => false, 'error' => 'visibleFromRoleID must be null or between 1 and 4.'], 400);
-}
+        return json($res, ['ok' => false, 'error' => 'visibleFromRoleID must be null or between 1 and 4.'], 400);
+    }
 
     try {
         $check = $pdo->prepare("
@@ -385,55 +379,34 @@ public function listCategories(Request $req, Response $res): Response
             return json($res, ['ok' => false, 'error' => 'A category with this name already exists.'], 409);
         }
 
-        $pdo->beginTransaction();
-
         if ($usableByRoleID !== null) {
             $pdo->prepare("
                 UPDATE dbo.Forum_Categories
-                SET Name = :name, UsableByRoleID = :rid
+                SET Name = :name,
+                    UsableByRoleID = :rid,
+                    VisibleFromRoleID = :visibleFromRoleID
                 WHERE CategoryID = :id
             ")->execute([
                 ':name' => $name,
                 ':rid' => $usableByRoleID,
+                ':visibleFromRoleID' => $visibleFromRoleID,
                 ':id' => $id
             ]);
         } else {
             $pdo->prepare("
                 UPDATE dbo.Forum_Categories
-                SET Name = :name
+                SET Name = :name,
+                    VisibleFromRoleID = :visibleFromRoleID
                 WHERE CategoryID = :id
             ")->execute([
                 ':name' => $name,
+                ':visibleFromRoleID' => $visibleFromRoleID,
                 ':id' => $id
             ]);
         }
 
-        if (array_key_exists('visibleFromRoleID', $data)) {
-            $pdo->prepare("
-                MERGE dbo.Forum_CategoryVisibility AS target
-                USING (
-                    SELECT :categoryId AS CategoryID, :visibleFromRoleID AS VisibleFromRoleID
-                ) AS source
-                ON target.CategoryID = source.CategoryID
-                WHEN MATCHED THEN
-                    UPDATE SET
-                        VisibleFromRoleID = source.VisibleFromRoleID,
-                        UpdatedAt = SYSUTCDATETIME()
-                WHEN NOT MATCHED THEN
-                    INSERT (CategoryID, VisibleFromRoleID)
-                    VALUES (source.CategoryID, source.VisibleFromRoleID);
-            ")->execute([
-                ':categoryId' => $id,
-                ':visibleFromRoleID' => $visibleFromRoleID
-            ]);
-        }
-
-        $pdo->commit();
         return json($res, ['ok' => true]);
     } catch (Throwable $e) {
-        if ($pdo->inTransaction()) {
-            $pdo->rollBack();
-        }
         return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
     }
 }

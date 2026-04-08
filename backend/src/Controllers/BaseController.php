@@ -66,11 +66,9 @@ abstract class BaseController
 protected function getCategoryVisibilityRoleId(PDO $pdo, int $categoryId): int
 {
     $stmt = $pdo->prepare("
-        SELECT ISNULL(v.VisibleFromRoleID, 0)
-        FROM dbo.Forum_Categories c
-        LEFT JOIN dbo.Forum_CategoryVisibility v
-            ON v.CategoryID = c.CategoryID
-        WHERE c.CategoryID = :categoryId
+        SELECT ISNULL(VisibleFromRoleID, 0)
+        FROM dbo.Forum_Categories
+        WHERE CategoryID = :categoryId
     ");
     $stmt->execute([':categoryId' => $categoryId]);
 
