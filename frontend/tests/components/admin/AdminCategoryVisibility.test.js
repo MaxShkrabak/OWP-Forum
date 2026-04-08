@@ -19,20 +19,30 @@ const { mockClient } = vi.hoisted(() => ({
 vi.mock("@/api/client", () => ({ default: mockClient }));
 
 const mockCategories = [
-  { categoryId: 1, name: "General", usableByRoleID: 1, visibleFromRoleId: null },
-  { categoryId: 2, name: "Help", usableByRoleID: 1, visibleFromRoleId: 1 },
-  { categoryId: 3, name: "Student Space", usableByRoleID: 1, visibleFromRoleId: 2 },
-  { categoryId: 4, name: "Mods", usableByRoleID: 3, visibleFromRoleId: 3 },
-  { categoryId: 5, name: "Admins", usableByRoleID: 4, visibleFromRoleId: 4 },
+  { categoryId: 1, name: "General", usableByRoleId: 1, visibleFromRoleId: null },
+  { categoryId: 2, name: "Help", usableByRoleId: 1, visibleFromRoleId: 1 },
+  { categoryId: 3, name: "Student Space", usableByRoleId: 1, visibleFromRoleId: 2 },
+  { categoryId: 4, name: "Mods", usableByRoleId: 3, visibleFromRoleId: 3 },
+  { categoryId: 5, name: "Admins", usableByRoleId: 4, visibleFromRoleId: 4 },
 ];
 
 describe("Manage Categories Visibility (Admin) — AdminCategories.vue", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockClient.get.mockResolvedValue({
-      data: {
-        items: mockCategories,
-      },
+    mockClient.get.mockImplementation((url) => {
+      if (url === "/admin/roles") {
+        return Promise.resolve({
+          data: {
+            roles: [
+              { id: 1, name: "user" },
+              { id: 2, name: "student" },
+              { id: 3, name: "moderator" },
+              { id: 4, name: "admin" },
+            ],
+          },
+        });
+      }
+      return Promise.resolve({ data: { items: mockCategories } });
     });
     mockClient.patch.mockResolvedValue({ data: { ok: true } });
     mockClient.post.mockResolvedValue({ data: { ok: true } });
@@ -84,7 +94,7 @@ describe("Manage Categories Visibility (Admin) — AdminCategories.vue", () => {
     await inputs[0].setValue("Help");
 
     const selects = wrapper.findAll("select");
-    await selects[0].setValue("1"); // usableByRoleID
+    await selects[0].setValue("1"); // usableByRoleId
     await selects[1].setValue("public"); // visibility
 
     const saveButton = wrapper.find(".btn-confirm");
@@ -94,7 +104,7 @@ describe("Manage Categories Visibility (Admin) — AdminCategories.vue", () => {
     expect(mockClient.patch).toHaveBeenCalledTimes(1);
     expect(mockClient.patch).toHaveBeenCalledWith("/admin/categories/2", {
       name: "Help",
-      usableByRoleID: 1,
+      usableByRoleId: 1,
       visibleFromRoleId: null,
     });
   });
@@ -119,7 +129,7 @@ describe("Manage Categories Visibility (Admin) — AdminCategories.vue", () => {
 
     expect(mockClient.patch).toHaveBeenCalledWith("/admin/categories/1", {
       name: "General",
-      usableByRoleID: 1,
+      usableByRoleId: 1,
       visibleFromRoleId: 2,
     });
   });
@@ -143,7 +153,7 @@ describe("Manage Categories Visibility (Admin) — AdminCategories.vue", () => {
 
     expect(mockClient.post).toHaveBeenCalledWith("/admin/categories", {
       name: "Public Category",
-      usableByRoleID: 1,
+      usableByRoleId: 1,
       visibleFromRoleId: null,
     });
   });

@@ -17,14 +17,14 @@ const error = ref("");
 const addForm = ref({
   open: false,
   name: "",
-  usableByRoleID: 1,
+  usableByRoleId: 1,
   visibleFromRoleId: "public",
 });
 const editForm = ref({
   open: false,
   categoryId: null,
   name: "",
-  usableByRoleID: 1,
+  usableByRoleId: 1,
   visibleFromRoleId: "public",
 });
 const deleteConfirm = ref({ open: false, category: null });
@@ -61,7 +61,7 @@ function openAdd() {
   addForm.value = {
     open: true,
     name: "",
-    usableByRoleID: 1,
+    usableByRoleId: 1,
     visibleFromRoleId: "public",
   };
 }
@@ -76,7 +76,7 @@ function openEdit(cat) {
     open: true,
     categoryId: cat.categoryId,
     name: cat.name,
-    usableByRoleID: cat.usableByRoleID,
+    usableByRoleId: cat.usableByRoleId,
     visibleFromRoleId:
       cat.visibleFromRoleId == null ? "public" : String(cat.visibleFromRoleId),
   };
@@ -108,7 +108,7 @@ async function submitAdd() {
   try {
     await createCategory(
       name,
-      addForm.value.usableByRoleID,
+      addForm.value.usableByRoleId,
       normalizeVisibilityForApi(addForm.value.visibleFromRoleId),
     );
     closeAdd();
@@ -145,7 +145,7 @@ async function submitEdit() {
     await updateCategory(
       editForm.value.categoryId,
       name,
-      editForm.value.usableByRoleID,
+      editForm.value.usableByRoleId,
       normalizeVisibilityForApi(editForm.value.visibleFromRoleId),
     );
     closeEdit();
@@ -222,10 +222,10 @@ onMounted(async () => {
               <td class="admin-name">{{ cat.name }}</td>
               <td>
                 <span class="role-full">{{
-                  roleLabel(cat.usableByRoleID)
+                  roleLabel(cat.usableByRoleId)
                 }}</span>
                 <span class="role-short">{{
-                  roleLabel(cat.usableByRoleID).charAt(0)
+                  roleLabel(cat.usableByRoleId).charAt(0)
                 }}</span>
               </td>
               <td>
@@ -290,7 +290,7 @@ onMounted(async () => {
         </div>
         <div class="form-group">
           <label>Minimum role</label>
-          <select v-model.number="addForm.usableByRoleID" class="form-select">
+          <select v-model.number="addForm.usableByRoleId" class="form-select">
             <option v-for="r in roles" :key="r.id" :value="r.id">
               {{ r.label }}
             </option>
@@ -330,7 +330,7 @@ onMounted(async () => {
         </div>
         <div class="form-group">
           <label>Minimum role</label>
-          <select v-model.number="editForm.usableByRoleID" class="form-select">
+          <select v-model.number="editForm.usableByRoleId" class="form-select">
             <option v-for="r in roles" :key="r.id" :value="r.id">
               {{ r.label }}
             </option>

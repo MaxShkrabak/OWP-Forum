@@ -289,7 +289,7 @@ class AdminController extends BaseController
             $items = array_map(fn($r) => [
                 'categoryId' => (int)$r['CategoryID'],
                 'name' => $r['Name'],
-                'usableByRoleID' => (int)$r['UsableByRoleID'],
+                'usableByRoleId' => (int)$r['UsableByRoleID'],
                 'visibleFromRoleId' => $r['VisibleFromRoleID'] === null ? null : (int)$r['VisibleFromRoleID'],
             ], $rows);
 
@@ -306,7 +306,7 @@ class AdminController extends BaseController
 
         $data = $req->getParsedBody() ?? [];
         $name = trim((string)($data['name'] ?? ''));
-        $usableByRoleID = (int)($data['usableByRoleID'] ?? 1);
+        $usableByRoleId = (int)($data['usableByRoleId'] ?? 1);
 
         $visibleFromRoleId = array_key_exists('visibleFromRoleId', $data)
             ? ($data['visibleFromRoleId'] === null || $data['visibleFromRoleId'] === '' ? null : (int)$data['visibleFromRoleId'])
@@ -316,8 +316,8 @@ class AdminController extends BaseController
             return json($res, ['ok' => false, 'error' => 'Category name is required.'], 400);
         }
 
-        if ($usableByRoleID < 1 || $usableByRoleID > 4) {
-            return json($res, ['ok' => false, 'error' => 'usableByRoleID must be between 1 and 4.'], 400);
+        if ($usableByRoleId < 1 || $usableByRoleId > 4) {
+            return json($res, ['ok' => false, 'error' => 'usableByRoleId must be between 1 and 4.'], 400);
         }
 
         if ($visibleFromRoleId !== null && ($visibleFromRoleId < 1 || $visibleFromRoleId > 4)) {
@@ -336,7 +336,7 @@ class AdminController extends BaseController
             VALUES (:name, :rid, :visibleFromRoleId)
         ")->execute([
                 ':name' => $name,
-                ':rid' => $usableByRoleID,
+                ':rid' => $usableByRoleId,
                 ':visibleFromRoleId' => $visibleFromRoleId
             ]);
 
@@ -367,7 +367,7 @@ class AdminController extends BaseController
         $data = $req->getParsedBody() ?? [];
         $name = trim((string)($data['name'] ?? ''));
 
-        $usableByRoleID = isset($data['usableByRoleID']) ? (int)$data['usableByRoleID'] : null;
+        $usableByRoleId = isset($data['usableByRoleId']) ? (int)$data['usableByRoleId'] : null;
 
         $visibleFromRoleId = array_key_exists('visibleFromRoleId', $data)
             ? ($data['visibleFromRoleId'] === null || $data['visibleFromRoleId'] === '' ? null : (int)$data['visibleFromRoleId'])
@@ -377,8 +377,8 @@ class AdminController extends BaseController
             return json($res, ['ok' => false, 'error' => 'Category name is required.'], 400);
         }
 
-        if ($usableByRoleID !== null && ($usableByRoleID < 1 || $usableByRoleID > 4)) {
-            return json($res, ['ok' => false, 'error' => 'usableByRoleID must be between 1 and 4.'], 400);
+        if ($usableByRoleId !== null && ($usableByRoleId < 1 || $usableByRoleId > 4)) {
+            return json($res, ['ok' => false, 'error' => 'usableByRoleId must be between 1 and 4.'], 400);
         }
 
         if ($visibleFromRoleId !== null && ($visibleFromRoleId < 1 || $visibleFromRoleId > 4)) {
@@ -396,7 +396,7 @@ class AdminController extends BaseController
                 return json($res, ['ok' => false, 'error' => 'A category with this name already exists.'], 409);
             }
 
-            if ($usableByRoleID !== null) {
+            if ($usableByRoleId !== null) {
                 $pdo->prepare("
                 UPDATE dbo.Forum_Categories
                 SET Name = :name,
@@ -405,7 +405,7 @@ class AdminController extends BaseController
                 WHERE CategoryID = :id
             ")->execute([
                     ':name' => $name,
-                    ':rid' => $usableByRoleID,
+                    ':rid' => $usableByRoleId,
                     ':visibleFromRoleId' => $visibleFromRoleId,
                     ':id' => $id
                 ]);

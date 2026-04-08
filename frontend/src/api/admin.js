@@ -13,24 +13,24 @@ export async function getAdminCategories() {
   return (res.data.items || []).map((c) => ({
     categoryId: Number(c.categoryId),
     name: c.name,
-    usableByRoleID: Number(c.usableByRoleID),
+    usableByRoleId: Number(c.usableByRoleId),
     visibleFromRoleId: c.visibleFromRoleId == null ? null : Number(c.visibleFromRoleId),
   }));
 }
 
-export async function createCategory(name, usableByRoleID, visibleFromRoleId) {
+export async function createCategory(name, usableByRoleId, visibleFromRoleId) {
   const { data } = await client.post("/admin/categories", {
     name,
-    usableByRoleID,
+    usableByRoleId,
     visibleFromRoleId,
   });
   return data;
 }
 
-export async function updateCategory(id, name, usableByRoleID, visibleFromRoleId) {
+export async function updateCategory(id, name, usableByRoleId, visibleFromRoleId) {
   const { data } = await client.patch(`/admin/categories/${id}`, {
     name,
-    usableByRoleID,
+    usableByRoleId,
     visibleFromRoleId,
   });
   return data;
