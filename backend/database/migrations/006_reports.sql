@@ -1,3 +1,5 @@
+-- 006_reports.sql
+
 IF OBJECT_ID('dbo.Forum_ReportTags', 'U') IS NULL
 BEGIN
   CREATE TABLE dbo.Forum_ReportTags (

@@ -598,7 +598,19 @@ class CommentController extends BaseController
                 return json($res, ['ok' => false, 'error' => 'Comment not found'], 404);
             }
 
-            if ((int)$row['UserId'] !== (int)$userId) {
+            $roleStmt = $pdo->prepare("
+                SELECT ISNULL(RoleID, 1)
+                FROM dbo.Forum_Users
+                WHERE User_ID = :uid
+            ");
+            $roleStmt->execute([':uid' => $userId]);
+            $userRoleId = (int)($roleStmt->fetchColumn() ?? 1);
+
+            if ($userRoleId <= 0) {
+                $userRoleId = 1;
+            }
+
+            if ((int)$row['UserId'] !== (int)$userId && $userRoleId < 4) {
                 return json($res, ['ok' => false, 'error' => 'You cannot edit this comment'], 403);
             }
 
@@ -619,9 +631,9 @@ class CommentController extends BaseController
 
             $detailsStmt = $pdo->prepare("
                 SELECT c.CommentId, c.PostId, c.ParentCommentId, c.Content, c.CreatedAt, c.UpdatedAt, c.UserId, c.TotalScore,
-                       u.FirstName, u.LastName, u.Avatar, r.Name AS RoleName,
-                       0 AS MyVote,
-                       (SELECT COUNT(*) FROM dbo.Forum_Comments r WHERE r.ParentCommentId = c.CommentId AND r.IsDeleted = 0) AS ReplyCount
+                    u.FirstName, u.LastName, u.Avatar, r.Name AS RoleName,
+                    0 AS MyVote,
+                    (SELECT COUNT(*) FROM dbo.Forum_Comments r WHERE r.ParentCommentId = c.CommentId AND r.IsDeleted = 0) AS ReplyCount
                 FROM dbo.Forum_Comments c
                 JOIN dbo.Forum_Users u ON u.User_ID = c.UserId
                 JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID

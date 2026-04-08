@@ -12,8 +12,8 @@ const { mockClient } = vi.hoisted(() => ({
 vi.mock("@/api/client", () => ({ default: mockClient }));
 
 const mockCategories = [
-  { categoryId: 1, name: "General", usableByRoleID: 1 },
-  { categoryId: 2, name: "Help", usableByRoleID: 1 },
+  { categoryId: 1, name: "General", usableByRoleId: 1 },
+  { categoryId: 2, name: "Help", usableByRoleId: 1 },
 ];
 
 // Same duplicate-check logic as AdminCategories.vue nameExists (for "Prevent duplicates" / BB-151)
@@ -28,9 +28,9 @@ function categoryNameExists(categories, name, excludeId = null) {
 
 describe("Manage Categories (Admin) — duplicate prevention", () => {
   const categories = [
-    { categoryId: 1, name: "General", usableByRoleID: 1 },
-    { categoryId: 2, name: "Help", usableByRoleID: 1 },
-    { categoryId: 3, name: "Random", usableByRoleID: 2 },
+    { categoryId: 1, name: "General", usableByRoleId: 1 },
+    { categoryId: 2, name: "Help", usableByRoleId: 1 },
+    { categoryId: 3, name: "Random", usableByRoleId: 2 },
   ];
 
   it("returns true when another category has the same name (add case)", () => {
@@ -68,7 +68,7 @@ describe("Manage Categories (Admin) — duplicate prevention", () => {
 describe("Manage Categories (Admin) — AdminCategories.vue DOM", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockClient.get.mockResolvedValue({ data: { items: mockCategories.map((c) => ({ ...c, categoryId: c.categoryId, name: c.name, usableByRoleID: c.usableByRoleID })) } });
+    mockClient.get.mockResolvedValue({ data: { items: mockCategories.map((c) => ({ ...c, categoryId: c.categoryId, name: c.name, usableByRoleId: c.usableByRoleId })) } });
   });
 
   it("displays categories from the database and delete opens confirmation with name and General", async () => {

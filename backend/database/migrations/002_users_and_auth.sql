@@ -1,3 +1,5 @@
+-- 002_users_and_auth.sql
+
 -- Users
 IF OBJECT_ID('dbo.Forum_Users', 'U') IS NULL
 BEGIN

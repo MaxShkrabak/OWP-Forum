@@ -1,3 +1,5 @@
+-- 005_comments.sql
+
 IF OBJECT_ID ('dbo.Forum_Comments', 'U') IS NULL
 BEGIN
     CREATE TABLE dbo.Forum_Comments (

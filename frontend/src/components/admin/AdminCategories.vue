@@ -14,15 +14,33 @@ const { roles, loadRoles, roleLabel } = useAdminRoles();
 const categories = ref([]);
 const loading = ref(false);
 const error = ref("");
-const addForm = ref({ open: false, name: "", usableByRoleID: 1 });
+const addForm = ref({
+  open: false,
+  name: "",
+  usableByRoleId: 1,
+  visibleFromRoleId: "public",
+});
 const editForm = ref({
   open: false,
   categoryId: null,
   name: "",
-  usableByRoleID: 1,
+  usableByRoleId: 1,
+  visibleFromRoleId: "public",
 });
 const deleteConfirm = ref({ open: false, category: null });
 const submitError = ref("");
+
+const visibilityOptions = [
+  { id: "public", label: "Public" },
+  { id: "1", label: "User+" },
+  { id: "2", label: "Student+" },
+  { id: "3", label: "Moderator+" },
+  { id: "4", label: "Admin only" },
+];
+
+function normalizeVisibilityForApi(value) {
+  return value === "public" ? null : Number(value);
+}
 
 async function loadCategories() {
   loading.value = true;
@@ -40,7 +58,12 @@ async function loadCategories() {
 
 function openAdd() {
   submitError.value = "";
-  addForm.value = { open: true, name: "", usableByRoleID: 1 };
+  addForm.value = {
+    open: true,
+    name: "",
+    usableByRoleId: 1,
+    visibleFromRoleId: "public",
+  };
 }
 
 function closeAdd() {
@@ -53,7 +76,9 @@ function openEdit(cat) {
     open: true,
     categoryId: cat.categoryId,
     name: cat.name,
-    usableByRoleID: cat.usableByRoleID,
+    usableByRoleId: cat.usableByRoleId,
+    visibleFromRoleId:
+      cat.visibleFromRoleId == null ? "public" : String(cat.visibleFromRoleId),
   };
 }
 
@@ -81,7 +106,11 @@ async function submitAdd() {
     return;
   }
   try {
-    await createCategory(name, addForm.value.usableByRoleID);
+    await createCategory(
+      name,
+      addForm.value.usableByRoleId,
+      normalizeVisibilityForApi(addForm.value.visibleFromRoleId),
+    );
     closeAdd();
     await loadCategories();
   } catch (e) {
@@ -116,7 +145,8 @@ async function submitEdit() {
     await updateCategory(
       editForm.value.categoryId,
       name,
-      editForm.value.usableByRoleID,
+      editForm.value.usableByRoleId,
+      normalizeVisibilityForApi(editForm.value.visibleFromRoleId),
     );
     closeEdit();
     await loadCategories();
@@ -140,6 +170,14 @@ async function confirmDelete() {
     error.value =
       e?.response?.data?.error || e.message || "Failed to delete category";
   }
+}
+
+function visibilityLabel(roleId) {
+  if (roleId == null) return "Public";
+  return (
+    visibilityOptions.find((v) => String(v.id) === String(roleId))?.label ||
+    "Public"
+  );
 }
 
 onMounted(async () => {
@@ -174,6 +212,7 @@ onMounted(async () => {
               <th>ID</th>
               <th>Name</th>
               <th>Min role</th>
+              <th>Visibility</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -183,10 +222,18 @@ onMounted(async () => {
               <td class="admin-name">{{ cat.name }}</td>
               <td>
                 <span class="role-full">{{
-                  roleLabel(cat.usableByRoleID)
+                  roleLabel(cat.usableByRoleId)
                 }}</span>
                 <span class="role-short">{{
-                  roleLabel(cat.usableByRoleID).charAt(0)
+                  roleLabel(cat.usableByRoleId).charAt(0)
+                }}</span>
+              </td>
+              <td>
+                <span class="role-full">{{
+                  visibilityLabel(cat.visibleFromRoleId)
+                }}</span>
+                <span class="role-short">{{
+                  visibilityLabel(cat.visibleFromRoleId).charAt(0)
                 }}</span>
               </td>
               <td>
@@ -229,7 +276,6 @@ onMounted(async () => {
       </div>
     </div>
 
-    <!-- Add category form (inline) -->
     <div v-if="addForm.open" class="form-overlay" @mousedown.self="closeAdd">
       <div class="form-card">
         <h3 class="form-title">Add category</h3>
@@ -244,9 +290,17 @@ onMounted(async () => {
         </div>
         <div class="form-group">
           <label>Minimum role</label>
-          <select v-model.number="addForm.usableByRoleID" class="form-select">
+          <select v-model.number="addForm.usableByRoleId" class="form-select">
             <option v-for="r in roles" :key="r.id" :value="r.id">
               {{ r.label }}
+            </option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Visibility</label>
+          <select v-model="addForm.visibleFromRoleId" class="form-select">
+            <option v-for="v in visibilityOptions" :key="v.id" :value="v.id">
+              {{ v.label }}
             </option>
           </select>
         </div>
@@ -262,7 +316,6 @@ onMounted(async () => {
       </div>
     </div>
 
-    <!-- Edit category form -->
     <div v-if="editForm.open" class="form-overlay" @mousedown.self="closeEdit">
       <div class="form-card">
         <h3 class="form-title">Edit category</h3>
@@ -277,9 +330,17 @@ onMounted(async () => {
         </div>
         <div class="form-group">
           <label>Minimum role</label>
-          <select v-model.number="editForm.usableByRoleID" class="form-select">
+          <select v-model.number="editForm.usableByRoleId" class="form-select">
             <option v-for="r in roles" :key="r.id" :value="r.id">
               {{ r.label }}
+            </option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Visibility</label>
+          <select v-model="editForm.visibleFromRoleId" class="form-select">
+            <option v-for="v in visibilityOptions" :key="v.id" :value="v.id">
+              {{ v.label }}
             </option>
           </select>
         </div>
@@ -295,7 +356,6 @@ onMounted(async () => {
       </div>
     </div>
 
-    <!-- Delete confirm -->
     <div
       v-if="deleteConfirm.open"
       class="inner-warning-overlay"
@@ -454,7 +514,6 @@ onMounted(async () => {
   color: #64748b;
 }
 
-/* Form overlay (add/edit) */
 .form-overlay {
   position: fixed;
   inset: 0;
@@ -518,7 +577,6 @@ onMounted(async () => {
   margin-top: 20px;
 }
 
-/* Confirm overlay (delete) */
 .inner-warning-overlay {
   position: fixed;
   inset: 0;
