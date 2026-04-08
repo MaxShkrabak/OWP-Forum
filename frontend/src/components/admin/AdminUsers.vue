@@ -565,9 +565,9 @@ onMounted(async () => {
 
 /* Role Select */
 .role-select {
-  padding: 4px 2px;
-  border-radius: 10px;
-  font-weight: 500;
+  padding: 5px 2px;
+  border-radius: 8px;
+  font-weight: 600;
   border: 1px solid #ccc;
   outline: none;
   cursor: pointer;
@@ -580,30 +580,34 @@ onMounted(async () => {
 }
 
 .role-select.admin {
-  background: #f2cece;
-  color: #ff0000;
-  border-color: #f2cece;
+  background: #fee2e2;
+  color: #c91919;
+  border-color: #fecaca;
+  border-width: 2px;
 }
 .role-select.moderator {
-  background: #fdf4d9;
-  color: #d29e00;
-  border-color: #fdf4d9;
-}
-.role-select.user {
-  background: #d5f5d7;
-  color: #0a3800;
-  border-color: #d5f5d7;
+  background: #fef3c7;
+  color: #c56c06;
+  border-color: #fde68a;
+  border-width: 2px;
 }
 .role-select.student {
-  background: #b9d0e8;
-  color: #0015ff;
-  border-color: #b9d0e8;
+  background: #e0f2fe;
+  color: #0376af;
+  border-color: #bae6fd;
+  border-width: 2px;
+}
+.role-select.user {
+  background: #e8f5e9;
+  color: #2a633e;
+  border-color: #c8e6c9;
+  border-width: 2px;
 }
 
 .badge {
   display: inline-block;
   padding: 6px 6px;
-  border-radius: 20px;
+  border-radius: 8px;
   font-size: 12px;
   font-weight: 600;
 }
@@ -622,9 +626,9 @@ onMounted(async () => {
 
 .btn-ban {
   padding: 1px 8px;
-  border-radius: 10px;
+  border-radius: 8px;
   font-weight: 600;
-  font-size: 13px;
+  font-size: 12px;
   border: 1px solid #dc2626;
   background: #fef2f2;
   color: #dc2626;
