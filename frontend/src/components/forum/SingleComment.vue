@@ -9,7 +9,7 @@ import {
   deleteComment as apiDeleteComment,
   formatCommentData,
 } from "@/api/comments";
-import { isLoggedIn, uid, userRole } from "@/stores/userStore";
+import { isLoggedIn, uid, userRole, userRoleId } from "@/stores/userStore";
 import { timeAgo } from "@/utils/timeAgo";
 import TextEditor from "./TextEditor.vue";
 import ReportingModal from "../user/ReportingModal.vue";
@@ -111,6 +111,10 @@ const isModeratorOrAdmin = computed(() => {
   return (
     currentUserRole.value === "moderator" || currentUserRole.value === "admin"
   );
+});
+
+const canEdit = computed(() => {
+  return isAuthor.value || Number(userRoleId?.value ?? 0) >= 3;
 });
 
 const canDelete = computed(() => {
@@ -414,7 +418,7 @@ watch(showOptionsMenu, (val) => {
             <Transition name="comment-menu-fade">
               <div v-if="showOptionsMenu" class="comment-menu-popup shadow-sm">
                 <button
-                  v-if="isAuthor"
+                  v-if="canEdit"
                   class="comment-menu-item d-flex align-items-center gap-2 w-100 border-0 bg-transparent px-3 py-2"
                   @click="
                     startEdit();

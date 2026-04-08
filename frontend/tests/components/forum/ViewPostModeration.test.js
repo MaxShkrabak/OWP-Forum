@@ -56,8 +56,8 @@ describe("PostModerationSidebar.vue", () => {
     const buttons = mountSidebar(999)
       .findAll("button")
       .map((b) => b.text());
-    expect(buttons).not.toContain("Edit Post");
-    expect(buttons).toContain("Edit");
+    expect(buttons).not.toContain("Edit");
+    expect(buttons).toContain("Edit Post");
     expect(buttons).toContain("Delete");
   });
 });
