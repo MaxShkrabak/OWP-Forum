@@ -73,18 +73,26 @@ function onPerPageChange(e) {
         <button
           type="button"
           class="admin-pag-btn"
+          aria-label="Previous page"
           :disabled="loading || page <= 1"
           @click="goPrev"
         >
           <i class="bi bi-chevron-left" aria-hidden="true"></i>
           <span class="admin-pag-btn-text">Prev</span>
         </button>
-        <span class="admin-pag-page">
-          Page {{ page }} / {{ totalPages }}
+        <span
+          class="admin-pag-page"
+          :aria-label="`Page ${page} of ${totalPages}`"
+        >
+          <span class="admin-pag-page-long">Page {{ page }} / {{ totalPages }}</span>
+          <span class="admin-pag-page-short" aria-hidden="true">
+            {{ page }} / {{ totalPages }}
+          </span>
         </span>
         <button
           type="button"
           class="admin-pag-btn"
+          aria-label="Next page"
           :disabled="loading || page >= totalPages"
           @click="goNext"
         >
@@ -98,6 +106,10 @@ function onPerPageChange(e) {
 
 <style scoped>
 .admin-pag {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -107,68 +119,102 @@ function onPerPageChange(e) {
 }
 
 .admin-pag-summary {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   color: #475569;
   text-align: center;
+  padding: 0 2px;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  min-width: 0;
 }
 
 .admin-pag-actions {
   display: flex;
   flex-direction: column;
-  align-items: stretch;
+  align-items: center;
   gap: 10px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
+/* Label + select stay one unit; never space-between on narrow viewports */
 .admin-pag-per-label {
-  display: flex;
+  box-sizing: border-box;
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  font-size: 13px;
+  justify-content: flex-start;
+  flex-wrap: nowrap;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+  font-size: 12px;
   font-weight: 700;
   color: #334155;
 }
 
 .admin-pag-per-text {
-  flex-shrink: 0;
+  flex: 0 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .admin-pag-select {
-  min-width: 72px;
-  max-width: 100%;
-  padding: 8px 12px;
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 3rem;
+  max-width: min(5.5rem, 100%);
+  padding: 8px 10px;
   border-radius: 10px;
   border: 1px solid #cbd5e1;
   background: #fff;
   font-weight: 700;
+  font-size: 13px;
   color: #0f172a;
 }
 
 .admin-pag-nav {
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  flex-wrap: wrap;
+  gap: 6px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .admin-pag-page {
-  font-size: 13px;
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 12px;
   font-weight: 800;
   color: #0f172a;
-  min-width: 7rem;
   text-align: center;
 }
 
+.admin-pag-page-long {
+  display: none;
+}
+
+.admin-pag-page-short {
+  display: inline;
+}
+
 .admin-pag-btn {
-  flex: 1;
-  min-width: 0;
+  box-sizing: border-box;
+  flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 10px 12px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 10px;
   border-radius: 12px;
   border: 1px solid #cbd5e1;
   background: #fff;
@@ -179,6 +225,10 @@ function onPerPageChange(e) {
   transition:
     background 0.15s ease,
     border-color 0.15s ease;
+}
+
+.admin-pag-btn-text {
+  display: none;
 }
 
 .admin-pag-btn:hover:not(:disabled) {
@@ -196,6 +246,10 @@ function onPerPageChange(e) {
 }
 
 @media (min-width: 576px) {
+  .admin-pag-summary {
+    font-size: 13px;
+  }
+
   .admin-pag {
     flex-direction: row;
     align-items: center;
@@ -213,19 +267,50 @@ function onPerPageChange(e) {
     justify-content: flex-end;
     flex-wrap: wrap;
     gap: 14px;
+    width: auto;
+    max-width: none;
   }
 
   .admin-pag-per-label {
+    font-size: 13px;
+    gap: 10px;
     justify-content: flex-end;
+  }
+
+  .admin-pag-select {
+    min-width: 72px;
+    max-width: 100%;
+    padding: 8px 12px;
   }
 
   .admin-pag-nav {
     flex: 0 0 auto;
+    width: auto;
+    max-width: none;
+  }
+
+  .admin-pag-page-long {
+    display: inline;
+  }
+
+  .admin-pag-page-short {
+    display: none;
+  }
+
+  .admin-pag-page {
+    flex: 0 0 auto;
+    min-width: 7rem;
+    font-size: 13px;
   }
 
   .admin-pag-btn {
-    flex: 0 0 auto;
     min-width: 88px;
+    min-height: unset;
+    padding: 10px 12px;
+  }
+
+  .admin-pag-btn-text {
+    display: inline;
   }
 }
 </style>
