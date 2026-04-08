@@ -73,7 +73,7 @@ function getAvatarSrc(file) {
           <button
             class="pfp-wrapper-profile shadow-sm"
             data-bs-toggle="modal"
-            data-bs-target="#pfpChange"
+            data-bs-target="#userSettingsModal"
             v-else-if="isProfile && isCurrUser"
           >
             <img

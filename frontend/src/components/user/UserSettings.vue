@@ -101,6 +101,9 @@ const saveSettings = async () => {
       }
 
       if (modal) {
+        if (document.activeElement && modalElement.contains(document.activeElement)) {
+          document.activeElement.blur();
+        }
         modal.hide();
       } else {
         modalElement.classList.remove("show");
@@ -140,32 +143,23 @@ const selectAvatar = (imagePath) => {
     aria-hidden="true"
   >
     <div class="modal-dialog modal-dialog-centered modal-lg">
-      <div class="modal-content">
-        <div class="modal-header">
+      <div class="modal-content profile-modal-content">
+        <div class="modal-header profile-modal-header">
           <h1 class="modal-title fs-5" id="userSettingsModalLabel">
             User Settings
           </h1>
           <button
             type="button"
-            class="btn-close"
+            class="btn-close btn-close-white"
             data-bs-dismiss="modal"
             aria-label="Close"
           ></button>
         </div>
-        <div class="modal-body">
+        <div class="modal-body profile-modal-body">
           <div class="settings-section">
             <h5 class="settings-section-title">Profile Picture</h5>
-            <div class="current-avatar-container">
-              <p class="text-muted small mb-2">Current avatar:</p>
-              <img
-                v-if="selectedAvatar"
-                :src="selectedAvatar"
-                class="current-avatar-preview"
-                alt="Current avatar"
-              />
-            </div>
             <div class="avatar-selection-container">
-              <p class="text-muted small mb-3">Choose a new avatar:</p>
+              <p class="settings-label mb-2">Choose avatar</p>
               <div class="avatar-grid">
                 <img
                   v-for="(image, index) in images"
@@ -255,7 +249,7 @@ const selectAvatar = (imagePath) => {
             </div>
           </div>
         </div>
-        <div class="modal-footer">
+        <div class="modal-footer profile-modal-footer">
           <button
             type="button"
             class="cancel-btn"
@@ -273,6 +267,40 @@ const selectAvatar = (imagePath) => {
 </template>
 
 <style scoped>
+.profile-modal-content {
+  border: 0;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
+}
+
+.profile-modal-header {
+  background: #004750;
+  color: #ffffff;
+  border-bottom: none;
+  padding: 1rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.profile-modal-header .modal-title {
+  margin: 0 !important;
+  line-height: 1.2;
+  color: #ffffff;
+}
+
+.profile-modal-body {
+  padding: 1.25rem;
+  background: #ffffff;
+}
+
+.profile-modal-footer {
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+  padding: 1rem 1.25rem;
+}
+
 .settings-section {
   margin-bottom: 1.5rem;
 }
@@ -282,57 +310,54 @@ const selectAvatar = (imagePath) => {
 }
 
 .settings-section-title {
-  font-weight: 600;
+  font-weight: 700;
   margin-bottom: 1rem;
-  color: #333;
+  color: #0f172a;
 }
 
 .settings-divider {
   margin: 1.5rem 0;
-  opacity: 0.2;
+  opacity: 0.15;
 }
 
-.current-avatar-container {
-  margin-bottom: 1.5rem;
-}
-
-.current-avatar-preview {
-  width: 100px;
-  height: 100px;
-  border-radius: 50%;
-  border: 3px solid #48773c;
-  object-fit: cover;
+.settings-label {
+  color: #64748b;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .avatar-selection-container {
-  margin-top: 1rem;
+  margin-top: 0.25rem;
 }
 
 .avatar-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-  gap: 1rem;
-  padding: 0.5rem 0;
+  grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
+  gap: 0.7rem;
 }
 
 .pfp-selector {
-  width: 100px;
-  height: 100px;
-  border-radius: 20%;
+  width: 100%;
+  max-width: 82px;
+  justify-self: center;
+  aspect-ratio: 1 / 1;
+  border-radius: 18%;
   cursor: pointer;
-  transition: all 0.2s ease-in-out;
+  transition: all 0.15s ease-in-out;
   object-fit: cover;
-  border: 3px solid transparent;
+  border: 2px solid transparent;
 }
 
 .pfp-selector:hover {
-  border: 3px solid rgb(45, 149, 209);
-  transform: scale(1.05);
+  border-color: #00a5b5;
+  transform: translateY(-1px);
 }
 
 .pfp-selector.pfp-selected {
-  border: 4px solid #48773c;
-  box-shadow: 0 0 0 2px rgba(72, 119, 60, 0.3);
+  border-color: #007a4c;
+  box-shadow: 0 0 0 1px rgba(0, 122, 76, 0.22);
 }
 
 .notification-options {
@@ -346,13 +371,15 @@ const selectAvatar = (imagePath) => {
   justify-content: space-between;
   align-items: center;
   padding: 0.75rem;
-  background-color: #f8f9fa;
-  border-radius: 8px;
-  transition: background-color 0.2s;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  transition: background-color 0.2s, border-color 0.2s;
 }
 
 .notification-item:hover {
-  background-color: #e9ecef;
+  background-color: #f1f5f9;
+  border-color: #cbd5e1;
 }
 
 .notification-info {
@@ -363,15 +390,15 @@ const selectAvatar = (imagePath) => {
 }
 
 .notification-label {
-  font-weight: 500;
+  font-weight: 600;
   margin: 0;
-  color: #333;
+  color: #0f172a;
   cursor: pointer;
 }
 
 .notification-description {
   font-size: 0.875rem;
-  color: #6c757d;
+  color: #64748b;
 }
 
 .form-check-input {
@@ -381,18 +408,8 @@ const selectAvatar = (imagePath) => {
 }
 
 .form-check-input:checked {
-  background-color: #48773c;
-  border-color: #48773c;
-}
-
-.modal-footer .btn-primary {
-  background-color: #48773c;
-  border-color: #48773c;
-}
-
-.modal-footer .btn-primary:hover {
-  background-color: #3a6130;
-  border-color: #3a6130;
+  background-color: #007a4c;
+  border-color: #007a4c;
 }
 
 .cancel-btn,
@@ -412,7 +429,7 @@ const selectAvatar = (imagePath) => {
 }
 
 .save-btn {
-  background: #2e6c44;
+  background: #007a4c;
   color: white;
   border: none;
 }
@@ -425,8 +442,8 @@ const selectAvatar = (imagePath) => {
 }
 
 .save-btn:hover:not(:disabled) {
-  background: #3d8a59;
-  box-shadow: 0 4px 12px rgba(46, 108, 68, 0.25);
+  background: #008f57;
+  box-shadow: 0 4px 12px rgba(0, 122, 76, 0.25);
   transform: translateY(-1px);
 }
 
@@ -445,17 +462,12 @@ const selectAvatar = (imagePath) => {
 
 @media (max-width: 768px) {
   .avatar-grid {
-    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.6rem;
   }
 
   .pfp-selector {
-    width: 80px;
-    height: 80px;
-  }
-
-  .current-avatar-preview {
-    width: 80px;
-    height: 80px;
+    max-width: 72px;
   }
 }
 </style>
