@@ -130,7 +130,7 @@ function populateForm() {
 
     const tgs =
       props.postData.tags && Array.isArray(props.postData.tags)
-        ? props.postData.tags.map((t) => Number(t.tagId || t.TagID || t))
+        ? props.postData.tags.map((t) => Number(t.tagId || t))
         : [];
 
     // Set current form values

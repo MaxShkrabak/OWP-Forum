@@ -53,7 +53,7 @@ class PostController extends BaseController
 
         $tagsByPostId = [];
         while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            $tagsByPostId[(int)$row['PostID']][] = ['TagID' => (int)$row['TagID'], 'Name' => $row['Name']];
+            $tagsByPostId[(int)$row['PostID']][] = ['tagId' => (int)$row['TagID'], 'name' => $row['Name']];
         }
         return $tagsByPostId;
     }
@@ -328,7 +328,7 @@ class PostController extends BaseController
                         'authorName'   => trim(($row['FirstName'] ?? '') . ' ' . ($row['LastName'] ?? '')),
                         'authorRole'   => $row['RoleName'] ?? 'User',
                         'authorAvatar' => $row['Avatar'] ?? null,
-                        'tags'         => array_column($tagsByPostId[$pid] ?? [], 'Name'),
+                        'tags'         => array_column($tagsByPostId[$pid] ?? [], 'name'),
                         'commentCount' => (int)($row['commentCount'] ?? 0),
                         'totalScore'   => (int)($row['TotalScore'] ?? 0),
                         'myVote'       => (int)($row['myVote'] ?? 0),
@@ -488,7 +488,7 @@ class PostController extends BaseController
                     'authorName'   => trim(($row['FirstName'] ?? '') . ' ' . ($row['LastName'] ?? '')),
                     'authorRole'   => $row['RoleName'] ?? 'User',
                     'authorAvatar' => $row['Avatar'] ?? null,
-                    'tags'         => array_column($tagsByPostId[$pid] ?? [], 'Name'),
+                    'tags'         => array_column($tagsByPostId[$pid] ?? [], 'name'),
                     'commentCount' => (int)($row['commentCount'] ?? 0),
                     'totalScore'   => (int)($row['TotalScore'] ?? 0),
                     'myVote'       => (int)($row['myVote'] ?? 0),
@@ -576,7 +576,7 @@ class PostController extends BaseController
                     'authorName'   => trim(($row['FirstName'] ?? '') . ' ' . ($row['LastName'] ?? '')),
                     'authorRole'   => $row['RoleName'] ?? 'User',
                     'authorAvatar' => $row['Avatar'] ?? null,
-                    'tags'         => array_column($tagsByPostId[$pid] ?? [], 'Name'),
+                    'tags'         => array_column($tagsByPostId[$pid] ?? [], 'name'),
                     'commentCount' => (int)($row['commentCount'] ?? 0),
                     'totalScore'   => (int)($row['TotalScore'] ?? 0),
                     'myVote'       => (int)($row['myVote'] ?? 0),

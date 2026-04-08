@@ -194,7 +194,7 @@ final class PostControllerTest extends TestCase
         $this->assertEquals(5, $json['post']['totalScore']);
         $this->assertEquals(12, $json['post']['viewCount']);
         $this->assertEquals(1, $json['post']['myVote']);
-        $this->assertEquals([['TagID' => 3, 'Name' => 'Official']], $json['post']['tags']);
+        $this->assertEquals([['tagId' => 3, 'name' => 'Official']], $json['post']['tags']);
     }
 
     public function testGetPostReturns404WhenNotFound(): void
