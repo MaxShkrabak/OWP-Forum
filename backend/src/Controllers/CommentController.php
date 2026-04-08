@@ -382,15 +382,12 @@ class CommentController extends BaseController
                 'ok' => true,
                 'comment' => [
                     'commentId' => (int)$row['CommentId'],
-                    'postId'    => (int)$row['PostId'],
                     'score'     => (int)$row['TotalScore'],
                     'myVote'    => 0,
                     'user'      => $this->formatUserRow($row),
                     'content'   => $row['Content'],
-                    'createdAt' => strtotime($row['CreatedAt']),
-                    'updatedAt' => isset($row['UpdatedAt']) && $row['UpdatedAt'] !== null
-                        ? strtotime($row['UpdatedAt'])
-                        : null,
+                    'createdAt' => $row['CreatedAt'],
+                    'updatedAt' => $row['UpdatedAt'] ?? null,
                     'replyCount' => (int)$row['ReplyCount'],
                     'parentCommentId' => $row['ParentCommentId'] ? (int)$row['ParentCommentId'] : null,
                     'isDeleted' => false
@@ -460,15 +457,12 @@ class CommentController extends BaseController
                 $isDeleted = (int)$row['IsDeleted'] === 1;
                 return [
                     'commentId' => (int)$row['CommentId'],
-                    'postId'    => (int)$row['PostId'],
                     'score'     => $isDeleted ? 0 : (int)$row['TotalScore'],
                     'myVote'    => $isDeleted ? 0 : (int)$row['MyVote'],
                     'user'      => $isDeleted ? null : $this->formatUserRow($row),
                     'content'   => $isDeleted ? null : $row['Content'],
-                    'createdAt' => strtotime($row['CreatedAt']),
-                    'updatedAt' => isset($row['UpdatedAt']) && $row['UpdatedAt'] !== null
-                        ? strtotime($row['UpdatedAt'])
-                        : null,
+                    'createdAt' => $row['CreatedAt'],
+                    'updatedAt' => $row['UpdatedAt'] ?? null,
                     'replyCount' => (int)$row['ReplyCount'],
                     'parentCommentId' => $row['ParentCommentId'] ? (int)$row['ParentCommentId'] : null,
                     'isDeleted' => $isDeleted
@@ -558,15 +552,12 @@ class CommentController extends BaseController
                 $isDeleted = (int)$row['IsDeleted'] === 1;
                 return [
                     'commentId' => (int)$row['CommentId'],
-                    'postId'    => (int)$row['PostId'],
                     'score'     => $isDeleted ? 0 : (int)$row['TotalScore'],
                     'myVote'    => $isDeleted ? 0 : (int)$row['MyVote'],
                     'user'      => $isDeleted ? null : $this->formatUserRow($row),
                     'content'   => $isDeleted ? null : $row['Content'],
-                    'createdAt' => strtotime($row['CreatedAt']),
-                    'updatedAt' => isset($row['UpdatedAt']) && $row['UpdatedAt'] !== null
-                        ? strtotime($row['UpdatedAt'])
-                        : null,
+                    'createdAt' => $row['CreatedAt'],
+                    'updatedAt' => $row['UpdatedAt'] ?? null,
                     'replyCount' => (int)$row['ReplyCount'],
                     'parentCommentId' => (int)$row['ParentCommentId'],
                     'isDeleted' => $isDeleted
@@ -647,15 +638,12 @@ class CommentController extends BaseController
                 'ok' => true,
                 'comment' => [
                     'commentId' => (int)$details['CommentId'],
-                    'postId'    => (int)$details['PostId'],
                     'score'     => (int)$details['TotalScore'],
                     'myVote'    => 0,
                     'user'      => $this->formatUserRow($details),
                     'content'   => $details['Content'],
-                    'createdAt' => strtotime($details['CreatedAt']),
-                    'updatedAt' => isset($details['UpdatedAt']) && $details['UpdatedAt'] !== null
-                        ? strtotime($details['UpdatedAt'])
-                        : null,
+                    'createdAt' => $details['CreatedAt'],
+                    'updatedAt' => $details['UpdatedAt'] ?? null,
                     'replyCount' => (int)$details['ReplyCount'],
                     'parentCommentId' => $details['ParentCommentId'] ? (int)$details['ParentCommentId'] : null,
                     'isDeleted' => false

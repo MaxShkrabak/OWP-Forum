@@ -140,9 +140,7 @@ class PostController extends BaseController
             }
 
             $tagsByPostId = $this->fetchTagsByPostIds($pdo, [$postID]);
-            $tags     = $tagsByPostId[$postID] ?? [];
-            $tagNames = array_column($tags, 'Name');
-            $tagIds   = array_column($tags, 'TagID');
+            $tags = $tagsByPostId[$postID] ?? [];
 
             return json($res, ['ok' => true, 'post' => [
                 'postId'       => (int)$post['PostID'],
@@ -150,7 +148,6 @@ class PostController extends BaseController
                 'content'      => $post['Content'],
                 'createdAt'    => $post['CreatedAt'],
                 'updatedAt'    => $post['UpdatedAt'] ?? null,
-                'category'     => (int)$post['CategoryID'],
                 'categoryId'   => (int)$post['CategoryID'],
                 'categoryName' => $post['CategoryName'],
                 'authorId'     => (int)$post['AuthorID'],
@@ -158,8 +155,6 @@ class PostController extends BaseController
                 'authorAvatar' => $post['Avatar'],
                 'authorRole'   => $post['RoleName'] ?? 'User',
                 'tags'         => $tags,
-                'tagNames'     => $tagNames,
-                'tagIds'       => $tagIds,
                 'totalScore'          => (int)($post['TotalScore'] ?? 0),
                 'viewCount'           => (int)($post['ViewCount'] ?? 0),
                 'myVote'              => (int)($post['myVote'] ?? 0),
@@ -346,13 +341,8 @@ class PostController extends BaseController
                 'categoryName' => $cat['Name'],
                 'posts'        => $posts,
                 'meta'         => [
-                    'limit'      => $limit,
-                    'sort'       => $sort,
-                    'page'       => $page,
                     'totalPosts' => $totalAll,
                     'totalPages' => $totalPages,
-                    'q'          => $qRaw,
-                    'mode'       => $mode,
                 ],
             ]);
         } catch (Throwable $e) {
@@ -379,7 +369,7 @@ class PostController extends BaseController
 
             $stmt = $pdo->prepare($sql);
             $stmt->execute([':userId' => $userId]);
-            $categories = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $categories = array_map(fn($r) => ['categoryId' => (int)$r['CategoryID'], 'name' => $r['Name']], $stmt->fetchAll(PDO::FETCH_ASSOC));
 
             return json($res, ['ok' => true, 'items' => $categories]);
         } catch (Throwable $e) {
@@ -402,7 +392,7 @@ class PostController extends BaseController
 
             $stmt = $pdo->prepare($sql);
             $stmt->execute([':userId' => $userId]);
-            $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $items = array_map(fn($r) => ['tagId' => (int)$r['TagID'], 'name' => $r['Name']], $stmt->fetchAll(PDO::FETCH_ASSOC));
 
             return json($res, ['ok' => true, 'items' => $items]);
         } catch (Throwable $e) {
@@ -415,7 +405,7 @@ class PostController extends BaseController
         try {
             $pdo  = ($this->makePdo)();
             $stmt = $pdo->query("SELECT TagID, Name FROM dbo.Forum_Tags ORDER BY Name ASC");
-            $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $items = array_map(fn($r) => ['tagId' => (int)$r['TagID'], 'name' => $r['Name']], $stmt->fetchAll(PDO::FETCH_ASSOC));
 
             return json($res, ['ok' => true, 'items' => $items]);
         } catch (Throwable $e) {
@@ -777,14 +767,10 @@ class PostController extends BaseController
 
             $pdo->commit();
 
-            // Format date
-            $createdAtIso = (new \DateTimeImmutable($newPost['CreatedAt'], new \DateTimeZone('UTC')))
-                ->format(\DateTime::ATOM);
-
             return json($res, [
                 'ok'        => true,
                 'postId'    => $postId,
-                'createdAt' => $createdAtIso,
+                'createdAt' => $newPost['CreatedAt'],
                 'cooldownSeconds' => $isCooldownExempt ? 0 : $postCooldownSeconds,
             ]);
         } catch (Throwable $e) {

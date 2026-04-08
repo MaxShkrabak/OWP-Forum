@@ -28,6 +28,7 @@ const router = useRouter();
 
 const localReplies = ref([]);
 const isLoadingReplies = ref(false);
+const isSubmittingReply = ref(false);
 const hasFetched = ref(false);
 
 const isVoting = ref(false);
@@ -87,10 +88,8 @@ const linkedImage = computed(() => {
   return (
     props.comment.text?.replace(
       /<img[^>]+src="([^"]+)"[^>]*\/?>/gi,
-      (_, src) => {
-        const name =
-          decodeURIComponent(src.split("/").pop().split("?")[0]) || "image";
-        return `<a href="${src}" target="_blank" rel="noopener noreferrer">${name}</a>`;
+      (match, src) => {
+        return `<a href="${src}" target="_blank" rel="noopener noreferrer">${match}</a>`;
       },
     ) ?? ""
   );
@@ -220,12 +219,16 @@ const toggleRepliesDropdown = async () => {
 };
 
 const handleReply = async () => {
+  if (isSubmittingReply.value) return;
+
   const targetParentId =
     props.depth >= 2 && maxDepthContext
       ? maxDepthContext.parentId
       : props.comment.id;
 
+  isSubmittingReply.value = true;
   const newCommentData = await submitReply(replyText.value, targetParentId);
+  isSubmittingReply.value = false;
 
   if (newCommentData) {
     replyText.value = "";
@@ -398,9 +401,7 @@ watch(showOptionsMenu, (val) => {
           </RouterLink>
           <span class="timestamp text-muted">
             {{ comment.time }}
-            <span v-if="comment.wasEdited" class="edited-label ms-1"
-              >(edited)</span
-            >
+            <span v-if="comment.wasEdited" class="edited-label ms-1">(edited)</span>
           </span>
           <div v-if="hasOptions" class="position-relative" ref="optionsMenuRef">
             <button
@@ -549,11 +550,11 @@ watch(showOptionsMenu, (val) => {
               <button
                 class="btn-submit border-0 rounded-2 fw-bold px-3 py-1 small"
                 :disabled="
-                  !replyText || replyText === '<p></p>' || replyIsUploading
+                  !replyText || replyText === '<p></p>' || replyIsUploading || isSubmittingReply
                 "
                 @click="handleReply"
               >
-                {{ replyIsUploading ? "Uploading..." : "Reply" }}
+                {{ replyIsUploading ? "Uploading..." : isSubmittingReply ? "Posting..." : "Reply" }}
               </button>
             </div>
           </div>
@@ -733,8 +734,24 @@ watch(showOptionsMenu, (val) => {
   word-break: break-word;
 }
 
+.comment-body :deep(img) {
+  max-width: 100%;
+  max-height: 400px;
+  border-radius: 6px;
+  display: block;
+  margin-top: 4px;
+  object-fit: contain;
+  cursor: pointer;
+}
+
 .timestamp {
   font-size: 12px;
+}
+
+.edited-label {
+  font-style: italic;
+  opacity: 0.75;
+  font-size: 11px;
 }
 
 /* Menu */

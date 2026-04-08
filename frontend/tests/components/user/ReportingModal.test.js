@@ -6,11 +6,11 @@ import { submitReport } from "@/api/reports";
 vi.mock("@/api/reports", () => ({
   getReportTags: vi.fn(() =>
     Promise.resolve([
-      { tagID: 1, name: "Spam" },
-      { tagID: 2, name: "Harassment" },
-      { tagID: 3, name: "Inappropriate" },
-      { tagID: 4, name: "Misinformation" },
-      { tagID: 5, name: "Other" },
+      { tagId: 1, name: "Spam" },
+      { tagId: 2, name: "Harassment" },
+      { tagId: 3, name: "Inappropriate" },
+      { tagId: 4, name: "Misinformation" },
+      { tagId: 5, name: "Other" },
     ]),
   ),
   submitReport: vi.fn(),

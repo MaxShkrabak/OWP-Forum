@@ -29,8 +29,7 @@ USING (VALUES
     ('Spam'),
     ('Harassment'),
     ('Inappropriate'),
-    ('Misinformation'),
-    ('Other')
+    ('Misinformation')
 ) AS source (TagName)
 ON target.TagName = source.TagName
 WHEN NOT MATCHED BY TARGET THEN

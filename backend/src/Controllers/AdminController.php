@@ -253,6 +253,23 @@ class AdminController extends BaseController
         }
     }
 
+    public function listRoles(Request $req, Response $res): Response
+    {
+        try {
+            [$err, $pdo] = $this->requireRole(4, $req, $res);
+            if ($err !== null) return $err;
+
+            $rows = $pdo->query("SELECT RoleID as id, Name as name FROM dbo.Forum_Roles ORDER BY RoleID ASC")
+                ->fetchAll(PDO::FETCH_ASSOC);
+
+            $roles = array_map(fn($r) => ['id' => (int)$r['id'], 'name' => $r['name']], $rows);
+
+            return json($res, ['ok' => true, 'roles' => $roles]);
+        } catch (Throwable $e) {
+            return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
     public function listCategories(Request $req, Response $res): Response
     {
         [$err, $pdo] = $this->requireRole(4, $req, $res);
@@ -501,8 +518,10 @@ class AdminController extends BaseController
         try {
             [$err, $pdo] = $this->requireRole(4, $req, $res);
             if ($err !== null) return $err;
-            $rows = $pdo->query("SELECT ReportTagID, TagName FROM dbo.Forum_ReportTags ORDER BY TagName ASC")
-                ->fetchAll(PDO::FETCH_ASSOC);
+            $rows = array_map(
+                fn($r) => ['tagId' => (int)$r['ReportTagID'], 'name' => $r['TagName']],
+                $pdo->query("SELECT ReportTagID, TagName FROM dbo.Forum_ReportTags ORDER BY TagName ASC")->fetchAll(PDO::FETCH_ASSOC)
+            );
             return json($res, ['ok' => true, 'items' => $rows]);
         } catch (Throwable $e) {
             return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);

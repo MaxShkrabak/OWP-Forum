@@ -38,7 +38,7 @@ BEGIN
     CREATE TABLE dbo.Forum_PostViewDedup (
         PostID       INT NOT NULL,
         UserID       INT NOT NULL,
-        LastViewedAt DATETIME2 NOT NULL,
+        LastViewedAt DATETIME2(0) NOT NULL,
         CONSTRAINT PK_PostViewDedup PRIMARY KEY (PostID, UserID),
         CONSTRAINT FK_PostViewDedup_Posts FOREIGN KEY (PostID) REFERENCES dbo.Forum_Posts(PostID),
         CONSTRAINT FK_PostViewDedup_Users FOREIGN KEY (UserID) REFERENCES dbo.Forum_Users(User_ID)

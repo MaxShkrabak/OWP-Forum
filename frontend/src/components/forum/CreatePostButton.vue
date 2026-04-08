@@ -1,11 +1,12 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import CreatePostModal from "./CreatePostModal.vue";
-import { isBanned, userRoleId } from "@/stores/userStore";
 import {
+  isBanned,
+  userRoleId,
   createPostBlockedUntil,
   blockPostCreationFor,
-} from "@/stores/postCreationCooldown";
+} from "@/stores/userStore";
 
 const isModalOpen = ref(false);
 const emit = defineEmits(["post-refresh"]);

@@ -279,16 +279,15 @@ final class UserController extends BaseController
             $offset = ($page - 1) * $limit;
 
             $getPostsSql = "
-                SELECT p.AuthorID, p.PostID, p.Title, p.CreatedAt, p.CategoryID, p.TotalScore,
+                SELECT p.AuthorID, p.PostID, p.Title, p.CreatedAt, p.TotalScore,
                        (SELECT COUNT(*) FROM dbo.Forum_Comments cm WHERE cm.PostID = p.PostID AND cm.IsDeleted = 0) AS commentCount,
                        u.FirstName, u.LastName, u.Avatar, u.User_ID,
-                       r.Name AS RoleName, c.Name AS CategoryName,
+                       r.Name AS RoleName,
                        ISNULL(pv.VoteValue, 0) AS myVote,
                        CASE WHEN pin.PostID IS NOT NULL THEN 1 ELSE 0 END AS isPinned
                 FROM dbo.Forum_Posts p
                 LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.User_ID
                 LEFT JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
-                LEFT JOIN dbo.Forum_Categories c ON p.CategoryID = c.CategoryID
                 LEFT JOIN dbo.Forum_PostVotes pv ON p.PostID = pv.PostID AND pv.User_ID = :viewerId
                 LEFT JOIN dbo.Forum_Pinned pin ON p.PostID = pin.PostID
                 WHERE p.AuthorID = :uid AND p.IsDeleted = 0
@@ -301,25 +300,20 @@ final class UserController extends BaseController
             $rows = $rowstmt->fetchAll(PDO::FETCH_ASSOC);
 
             if (empty($rows)) {
-                return json($res, ['posts' => [], 'postsByCategory' => [], 'totalPosts' => 0]);
+                return json($res, ['posts' => []]);
             }
 
             $postIds = array_map(fn($r) => (int)$r['PostID'], $rows);
-            $placeholders = implode(',', array_fill(0, count($postIds), '?'));
 
             $tagsByPostId = fetchTagNamesByPostIds($pdo, $postIds);
-            $likeCounts = fetchCounts($pdo, 'dbo.PostLikes', $placeholders, $postIds, 'LikeCount');
 
             $posts = [];
-            $categoriesMap = [];
 
             foreach ($rows as $row) {
                 $pid = (int)$row['PostID'];
-                $catId = (int)$row['CategoryID'];
 
                 $post = [
                     'postId'       => $pid,
-                    'categoryId'   => $catId,
                     'title'        => $row['Title'],
                     'createdAt'    => $row['CreatedAt'],
                     'authorId'     => (int)($row['User_ID'] ?? 0),
@@ -328,31 +322,16 @@ final class UserController extends BaseController
                     'authorAvatar' => $row['Avatar'] ?? null,
                     'tags'         => $tagsByPostId[$pid] ?? [],
                     'commentCount' => (int)($row['commentCount'] ?? 0),
-                    'likeCount'    => $likeCounts[$pid] ?? 0,
                     'totalScore'   => (int)($row['TotalScore'] ?? 0),
                     'myVote'       => (int)($row['myVote'] ?? 0),
                     'isPinned'     => (bool)($row['isPinned'] ?? false),
                 ];
 
                 $posts[] = $post;
-
-                if (!isset($categoriesMap[$catId])) {
-                    $categoriesMap[$catId] = [
-                        'categoryId'   => $catId,
-                        'categoryName' => $row['CategoryName'] ?? 'Uncategorized',
-                        'posts'        => [],
-                    ];
-                }
-                $categoriesMap[$catId]['posts'][] = $post;
             }
-
-            $postsByCategory = array_values($categoriesMap);
-            usort($postsByCategory, fn($a, $b) => strcmp($a['categoryName'], $b['categoryName']));
 
             return json($res, [
                 'posts'           => $posts,
-                'postsByCategory' => $postsByCategory,
-                'totalPosts'      => count($posts),
                 'meta'            => [
                     'limit'      => $limit,
                     'sort'       => ($sort === 'oldest' || $sort === 'title') ? $sort : 'latest',

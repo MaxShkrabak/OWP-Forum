@@ -159,7 +159,7 @@ onMounted(() => {
   <body>
     <ForumHeader />
     <pfpModal/>
-    <UserSettings/>
+    <UserSettings v-if="checkIfCurrUser()"/>
       <div class="container-fluid text-center">
         
         <div v-if="!getUrlParams()" class="empty-state text-center py-5">
@@ -181,10 +181,10 @@ onMounted(() => {
           :new-full-name="setFullName"
           :new-role="setRole"
           :user-id="getUrlParams()"
-          class="col-md-3"></UserCard>
+          class="col-md-4 col-xl-3"></UserCard>
 
           <!--Filter header-->
-          <div class="col-md-9 text-center">
+          <div class="col-md-8 col-xl-9 text-center">
             <header class="filter-header mb-4">
             <div class="header-main-content">
               <button class="back-btn" @click="router.back()" aria-label="Go Back">
@@ -347,23 +347,6 @@ onMounted(() => {
   background: rgba(255, 255, 255, 0.2);
 }
 
-.category-badge {
-  font-size: 0.65rem;
-  text-transform: uppercase;
-  font-weight: 800;
-  color: #f1be48; 
-  letter-spacing: 1.5px;
-}
-.category-title {
-  margin: 0;
-  font-size: clamp(1.1rem, 3vw, 1.5rem);
-  font-weight: 700;
-  color: #fff8f8;
-  line-height: 1.2;
-  overflow-wrap: break-word;
-  gap: 30px;
-}
-
 .header-sorting {
   display: flex;
   gap: 0.75rem;
@@ -502,19 +485,16 @@ onMounted(() => {
   }
 }
 
-@media (min-width: 992px) {
-  .sticky-sidebar {
-    position: sticky;
-    top: 2rem;
+@media (max-width: 983px) {
+  .sort-label {
+    display: inline;
+  }
+  .sort-label-long {
+    display: none;
   }
 }
 
 @media (max-width: 768px) {
-  .category-header {
-    padding: 1rem;
-    border-radius: 12px;
-    gap: 0.5rem 1.25rem;
-  }
   .header-sorting {
     width: 100%;
     justify-content: space-between;
@@ -530,6 +510,29 @@ onMounted(() => {
   }
   .sort-label-long {
     display: none;
+  }
+}
+
+@media (max-width: 490px) {
+  .header-sorting {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .sort-pill {
+    padding: 4px 4px 4px 6px;
+    gap: 3px;
+    width: 90%;
+  }
+  .sort-select {
+    font-size: 0.7rem;
+    padding: 1px 2px;
+    width: auto;
+  }
+  .sort-label {
+    display: none;
+  }
+  .sort-label-long {
+    display: inline;
   }
 }
 
@@ -552,8 +555,13 @@ onMounted(() => {
     font-size: 0.7rem;
     padding: 1px 2px;
   }
+  .sort-label {
+    display: inline;
+  }
+  .sort-label-long {
+    display: none;
+  }
 }
-
 
 .filter-options {
   background: none;
@@ -577,61 +585,13 @@ onMounted(() => {
   }
 }
 
-.user-pfp-btn {
-  border: none;
-  background-color: transparent;
-}
-
-.user-icon {
-  width: 280px;
-  border-radius: 50%;
-  transition: border-radius 0.3s ease-out;
-}
-img.user-icon:hover {
-  border-radius: 25%;
-  border: 5px solid rgb(45, 149, 209);
-  transition: border-radius 0.3s ease-in, border 0.2s ease-in-out;
-}
-
-.btn {
-  height: 44px; /* slightly smaller button to match inputs */
-  width: fit-content;
-  background: #48773C;
-  color: #fff;
-  border: none;
-  border-radius: 4px;
-  font-weight: 600;
-  padding: 0 20%;
-  cursor: pointer;
-  span {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-  }
-}
 body {
   background-color:#DEE2E6;
 }
-.icon {
-  width: 19px;
-}
 .container-fluid {
-  padding-left: 3%;
-  padding-right: 4%;
+  padding-left: 2%;
+  padding-right: 2%;
   padding-top: 3%;
   padding-bottom: 5%;
-}
-.user-card{
-  background-color: rgb(255, 255, 255);
-  border-radius: 10px;
-  padding: 1%;
-  max-width: 300px;
-}
-
-@media (max-width: 770px) {
-  .user-icon {
-  max-width: 50%;
-}
 }
 </style>
