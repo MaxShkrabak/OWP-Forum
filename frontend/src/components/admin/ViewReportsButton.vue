@@ -1,9 +1,10 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { userRole } from "@/stores/userStore";
 import { fetchReports, resolveReport } from "@/api/reports";
 import { timeAgo } from "@/utils/timeAgo";
+import { getPaginationRange } from "@/utils/pagination";
 
 const router = useRouter();
 const reports = ref([]);
@@ -28,9 +29,52 @@ const sources = ref([
 ]);
 
 const totalReports = ref(0);
-const maxVisible = 5;
 
-const visibleReports = computed(() => reports.value.slice(0, maxVisible));
+const sortMode = ref("latest");
+const currentPage = ref(1);
+const limit = ref(Number(localStorage.getItem("reports_limit")) || 10);
+
+function toTime(v) {
+  const t = Date.parse(v);
+  return Number.isFinite(t) ? t : 0;
+}
+
+const sortedReports = computed(() => {
+  const mode = sortMode.value;
+  let filtered = [...reports.value];
+
+  if (mode === "posts") filtered = filtered.filter((r) => r.source === "Post");
+  else if (mode === "comments") filtered = filtered.filter((r) => r.source === "Comment");
+
+  filtered.sort((a, b) => {
+    const diff = toTime(a.createdAt) - toTime(b.createdAt);
+    return mode === "oldest" ? diff : -diff;
+  });
+
+  return filtered;
+});
+
+const totalPages = computed(() =>
+  Math.max(1, Math.ceil(sortedReports.value.length / limit.value))
+);
+
+const paginatedReports = computed(() => {
+  const start = (currentPage.value - 1) * limit.value;
+  return sortedReports.value.slice(start, start + limit.value);
+});
+
+const displayedPages = computed(() =>
+  getPaginationRange(currentPage.value, totalPages.value, 2)
+);
+
+watch([sortMode, limit], () => {
+  currentPage.value = 1;
+  localStorage.setItem("reports_limit", limit.value);
+});
+
+watch(totalPages, (tp) => {
+  if (currentPage.value > tp) currentPage.value = Math.max(1, tp);
+});
 
 async function loadReports() {
   loading.value = true;
@@ -95,7 +139,19 @@ async function handleResolve(reportId) {
   showToast();
 }
 
-function onModalShown() {}
+function onModalShown() {
+  history.pushState({ modal: "viewReports" }, "");
+}
+
+function onModalHidden() {
+  if (history.state?.modal === "viewReports") {
+    history.back();
+  }
+}
+
+function onPopState() {
+  hideModal();
+}
 
 function stripHTML(html) {
   return html.replace(/<[^>]*>/g, "");
@@ -108,14 +164,18 @@ onMounted(() => {
   const modalEl = document.getElementById("viewReports");
   if (modalEl) {
     modalEl.addEventListener("shown.bs.modal", onModalShown);
+    modalEl.addEventListener("hidden.bs.modal", onModalHidden);
   }
+  window.addEventListener("popstate", onPopState);
 });
 
 onUnmounted(() => {
   const modalEl = document.getElementById("viewReports");
   if (modalEl) {
     modalEl.removeEventListener("shown.bs.modal", onModalShown);
+    modalEl.removeEventListener("hidden.bs.modal", onModalHidden);
   }
+  window.removeEventListener("popstate", onPopState);
 });
 </script>
 
@@ -214,6 +274,28 @@ onUnmounted(() => {
                 aria-label="Close"
               ></button>
             </div>
+
+            <!-- Sort / Limit controls -->
+            <div class="modal-controls" v-if="reports.length > 0">
+              <div class="sort-pill">
+                <span class="sort-label">Limit</span>
+                <select v-model="limit" class="sort-select">
+                  <option v-for="n in [5, 10, 15, 20]" :key="n" :value="n">
+                    {{ n }}
+                  </option>
+                </select>
+              </div>
+
+              <div class="sort-pill">
+                <span class="sort-label">Sort</span>
+                <select v-model="sortMode" class="sort-select">
+                  <option value="latest">Latest</option>
+                  <option value="oldest">Oldest</option>
+                  <option value="posts">Posts Only</option>
+                  <option value="comments">Comments Only</option>
+                </select>
+              </div>
+            </div>
             <div class="modal-body">
               <div v-if="loading" class="text-center py-4">
                 <div class="spinner-border text-danger"></div>
@@ -227,9 +309,15 @@ onUnmounted(() => {
               >
                 No reports at this time.
               </div>
+              <div
+                v-else-if="sortedReports.length === 0"
+                class="text-muted text-center py-4"
+              >
+                {{ sortMode === 'posts' ? 'No post reports.' : sortMode === 'comments' ? 'No comment reports.' : 'No reports match this filter.' }}
+              </div>
               <ul v-else class="list-group list-group-flush report-list">
                 <li
-                  v-for="r in visibleReports"
+                  v-for="r in paginatedReports"
                   :key="r.reportId"
                   class="list-group-item d-flex flex-wrap align-items-center justify-content-between gap-2 pb-3"
                 >
@@ -310,15 +398,45 @@ onUnmounted(() => {
                   </div>
                 </li>
               </ul>
+
             </div>
-            <div class="modal-footer">
-              <button
-                type="button"
-                class="report-cta-btn text-white px-3 fs-6"
-                data-bs-dismiss="modal"
-              >
-                Close
-              </button>
+            <div v-if="totalPages > 1" class="modal-footer">
+              <!-- Page navigation -->
+              <nav class="page-nav-wraper">
+                <button
+                  class="page-nav-btn"
+                  :disabled="currentPage === 1"
+                  @click="currentPage--"
+                >
+                  <i class="pi pi-chevron-left"></i>
+                </button>
+
+                <div class="page-pages d-none d-sm-flex">
+                  <template v-for="p in displayedPages" :key="p">
+                    <button
+                      v-if="typeof p === 'number'"
+                      class="page-num"
+                      :class="{ active: p === currentPage }"
+                      @click="currentPage = p"
+                    >
+                      {{ p }}
+                    </button>
+                    <span v-else class="page-dots">{{ p }}</span>
+                  </template>
+                </div>
+
+                <div class="d-sm-none small fw-bold" style="color: #ffffff;">
+                  {{ currentPage }} / {{ totalPages }}
+                </div>
+
+                <button
+                  class="page-nav-btn"
+                  :disabled="currentPage === totalPages"
+                  @click="currentPage++"
+                >
+                  <i class="pi pi-chevron-right"></i>
+                </button>
+              </nav>
             </div>
           </div>
         </div>
@@ -432,11 +550,31 @@ onUnmounted(() => {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
+.modal-content {
+  border-radius: 16px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+  position: relative;
+}
 .modal-header {
-  position: sticky;
-  top: 0;
-  z-index: 1055;
+  flex-shrink: 0;
   background: linear-gradient(135deg, #004b33 0%, #003d4c 100%);
+  border-bottom: none;
+  gap: 12px;
+}
+.modal-controls {
+  flex-shrink: 0;
+}
+.modal-body {
+  overflow-y: auto;
+  flex: 1 1 auto;
+  padding-bottom: 70px;
+}
+.modal-header .btn-close {
+  margin-left: auto;
+  flex-shrink: 0;
 }
 .modal-title {
   font-weight: 700;
@@ -563,6 +701,127 @@ onUnmounted(() => {
   transition: background 0.45s ease;
 }
 
+/* Footer with pagination */
+.modal-footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  padding: 0.6rem 1rem;
+  background: rgba(0, 40, 33, 0.65);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  z-index: 10;
+}
+
+/* Sort / Limit controls */
+.modal-controls {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(135deg, #003d29 0%, #00313e 100%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.sort-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 6px 6px 6px 14px;
+  border-radius: 10px;
+}
+.sort-label {
+  font-size: 0.6rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: 0.8px;
+}
+.sort-select {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid transparent;
+  color: #ffffff;
+  font-size: 0.85rem;
+  font-weight: 700;
+  outline: none;
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+.sort-select:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+.sort-select option {
+  background-color: #004b33;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+/* Pagination */
+.page-nav-wraper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+}
+.page-dots {
+  color: rgba(255, 255, 255, 0.85);
+  align-self: center;
+}
+.page-pages {
+  display: flex;
+  gap: 8px;
+  background: #7e9291;
+  padding: 6px;
+  border-radius: 14px;
+}
+.page-num {
+  width: 42px;
+  height: 42px;
+  border: none;
+  background: transparent;
+  border-radius: 10px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.page-num:hover {
+  background: rgba(255, 255, 255, 0.226);
+  color: #ffffff;
+}
+.page-num.active {
+  background: #035157;
+  color: #ffffff;
+  box-shadow: 0 6px 16px rgba(3, 81, 87, 0.35);
+}
+.page-nav-btn {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 2px solid #7e9291;
+  background: #ffffff;
+  color: #004b33;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.page-nav-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  filter: grayscale(1);
+}
+
 @media (min-width: 432px) {
   .label-group {
     flex-direction: row;
@@ -587,6 +846,29 @@ onUnmounted(() => {
   }
   .cta-btns {
     flex-direction: column;
+  }
+}
+@media (max-width: 600px) {
+  .modal-dialog {
+    margin: 0;
+    max-width: 100%;
+    min-height: 100vh;
+  }
+  .modal-content {
+    border-radius: 0;
+    max-height: 100vh;
+    min-height: 100vh;
+  }
+  .modal-controls {
+    justify-content: center;
+  }
+  .modal-header .btn-close {
+    position: absolute;
+    right: 1rem;
+    top: 1rem;
+  }
+  .page-nav-wraper {
+    gap: 10px;
   }
 }
 @media (min-width: 1200px) {

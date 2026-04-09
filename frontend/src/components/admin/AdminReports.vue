@@ -335,34 +335,15 @@ onMounted(() => {
          SECTION 2: ACTIVE REPORTS
          ========================= -->
     <div class="reports-section">
-      <header class="reports-header">
-        <div class="header-main-content">
-          <div>
-            <span class="reports-badge">Active Reports</span>
-            <h4 class="reports-title">Manage Reports</h4>
-            <span class="reports-count">{{ reports.length }} report{{ reports.length !== 1 ? 's' : '' }} — {{ postCount }} post{{ postCount !== 1 ? 's' : '' }}, {{ commentCount }} comment{{ commentCount !== 1 ? 's' : '' }}</span>
-          </div>
-        </div>
+      <div class="reports-header">
+        <h3 class="section-title">Manage Reports</h3>
 
         <div class="reports-controls">
-          <div class="sort-pill">
-            <span class="sort-label">Limit</span>
-            <select v-model="limit" class="sort-select">
-              <option v-for="n in [5, 10, 15, 20]" :key="n" :value="n">
-                {{ n }}
-              </option>
-            </select>
-          </div>
-
-          <div class="sort-pill">
-            <span class="sort-label">Sort</span>
-            <select v-model="sortMode" class="sort-select">
-              <option value="latest">Latest</option>
-              <option value="oldest">Oldest</option>
-              <option value="posts">Posts</option>
-              <option value="comments">Comments</option>
-            </select>
-          </div>
+          <label class="sort-label">Sort</label>
+          <select v-model="sortMode" class="sort-select">
+            <option value="newest">Newest</option>
+            <option value="oldest">Oldest</option>
+          </select>
 
           <button
             class="btn-refresh"
@@ -373,7 +354,7 @@ onMounted(() => {
             {{ loadingReports ? "Loading..." : "Refresh" }}
           </button>
         </div>
-      </header>
+      </div>
 
       <div class="reports-card">
         <div v-if="reportsError" class="alert-error">

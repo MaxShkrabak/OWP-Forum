@@ -83,6 +83,7 @@ describe("ViewReportsButton.vue", () => {
     });
     await flushPromises();
 
+    // Default sort is "latest" (newest first), so report 2 (createdAt 13:00) comes first
     const goButtons = wrapper
       .findAll(".report-cta-btn")
       .filter((w) => w.text().includes("Go To"));
@@ -90,7 +91,7 @@ describe("ViewReportsButton.vue", () => {
     expect(goButtons.length).toBe(sampleReports.length);
     await goButtons[0].trigger("click");
 
-    expect(mockRouter.push).toHaveBeenCalledWith("/posts/99");
+    expect(mockRouter.push).toHaveBeenCalledWith("/posts/100");
   });
 
   it("should resolve the report and clear it from UI",
@@ -100,6 +101,7 @@ describe("ViewReportsButton.vue", () => {
       });
       await flushPromises();
 
+      // Default sort is "latest" (newest first), so report 2 (createdAt 13:00) comes first
       const resolveButtons = wrapper
         .findAll(".report-cta-btn")
         .filter((w) => w.text().includes("Resolve"));
@@ -108,13 +110,13 @@ describe("ViewReportsButton.vue", () => {
       await resolveButtons[0].trigger("click");
       await flushPromises();
 
-      expect(resolveReport).toHaveBeenCalledWith(1);
+      expect(resolveReport).toHaveBeenCalledWith(2);
 
       const remaining = wrapper.findAll("li.list-group-item");
       expect(remaining.length).toBe(sampleReports.length - 1);
 
       remaining.forEach((item) => {
-        expect(item.text()).not.toContain("Ticket: #1");
+        expect(item.text()).not.toContain("Ticket: #2");
       });
     }
   );
