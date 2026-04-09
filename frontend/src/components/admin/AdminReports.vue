@@ -266,7 +266,6 @@ onMounted(() => {
     <!-- Title row -->
     <div class="header-row mb-4">
       <h2 class="page-title m-0">Manage Report Tags</h2>
-      <div class="view-reports-top"></div>
     </div>
 
     <!-- =========================
@@ -554,24 +553,25 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 18px;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .page-title {
   font-size: 24px;
   font-weight: 700;
   color: #004750;
+  min-width: 0;
 }
 
 /* Title row */
 .header-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 16px;
-}
-.view-reports-top {
-  width: 220px;
-  min-width: 220px;
+  min-width: 0;
 }
 
 /* Toolbar */
@@ -639,6 +639,9 @@ onMounted(() => {
 
 .admin-card {
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   background: #ffffff;
   border-radius: 16px;
   padding: 12px;
@@ -815,23 +818,33 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  min-width: 0;
+  max-width: 100%;
 }
 .reports-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  flex-wrap: wrap;
+  min-width: 0;
 }
 .section-title {
   margin: 0;
   font-size: 20px;
   font-weight: 800;
   color: #0f172a;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 .reports-controls {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
+  flex: 1 1 auto;
+  justify-content: flex-end;
+  min-width: 0;
 }
 .sort-label {
   font-size: 12px;
@@ -865,6 +878,9 @@ onMounted(() => {
   border-radius: 16px;
   padding: 14px;
   border: 1px solid #e2e8f0;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .alert-error {
@@ -893,6 +909,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  min-width: 0;
 }
 
 .report-row {
@@ -903,6 +920,9 @@ onMounted(() => {
   border-radius: 14px;
   padding: 12px;
   background: #f8fafc;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .report-main {
@@ -915,9 +935,11 @@ onMounted(() => {
   align-items: center;
   gap: 10px;
   margin-bottom: 8px;
+  min-width: 0;
 }
 
 .badge-source {
+  flex-shrink: 0;
   font-size: 12px;
   font-weight: 900;
   padding: 4px 10px;
@@ -933,6 +955,8 @@ onMounted(() => {
 }
 
 .report-title {
+  flex: 1 1 auto;
+  min-width: 0;
   font-weight: 900;
   color: #0f172a;
   overflow: hidden;
@@ -962,13 +986,17 @@ onMounted(() => {
   font-size: 13px;
   font-weight: 800;
   color: #0f172a;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .report-actions {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  min-width: 110px;
+  flex: 0 0 auto;
+  min-width: 0;
   justify-content: center;
 }
 
@@ -993,6 +1021,38 @@ onMounted(() => {
 }
 .desktop-only {
   display: inline;
+}
+
+/* Tablet / collapsed sidebar: avoid horizontal overflow before mobile nav */
+@media (max-width: 1024px) {
+  .reports-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .section-title {
+    flex: none;
+  }
+
+  .reports-controls {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .report-row {
+    flex-direction: column;
+  }
+
+  .report-actions {
+    flex-direction: row;
+    width: 100%;
+  }
+
+  .btn-outline,
+  .btn-solid {
+    flex: 1 1 0;
+    min-width: 0;
+  }
 }
 
 /* Mobile */
