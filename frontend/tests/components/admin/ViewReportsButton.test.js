@@ -149,10 +149,14 @@ describe("ViewReportsButton.vue", () => {
       .findAll(".report-cta-btn")
       .filter((w) => w.text().includes("Go To"));
 
-    // Third Go To button corresponds to report 1 (oldest, a Post) in "latest" sort
+    // Third Go To button corresponds to the reply comment report (reportId 3)
     await goButtons[2].trigger("click");
 
-    expect(mockRouter.push).toHaveBeenCalledWith("/posts/99");
+    expect(mockRouter.push).toHaveBeenCalledWith({
+      path: "/posts/100",
+      hash: "#comment-45",
+      query: { parentCommentId: "30" },
+    });
   });
 });
 

@@ -23,7 +23,9 @@ class ReportController extends BaseController
                 'postId'        => (int)($row['PostID'] ?? 0) ?: null,
                 'postTitle'     => $row['PostTitle'] ?? null,
                 'postAuthor'    => $row['PostAuthor'] ?? null,
+                'postAuthorId'  => (int)($row['PostAuthorId'] ?? 0) ?: null,
                 'commentId'     => (int)($row['CommentID'] ?? 0) ?: null,
+                'parentCommentId' => (int)($row['CommentParentId'] ?? 0) ?: null,
                 'commentText'   => $row['CommentText'] ?? null,
                 'commentAuthor' => $row['CommentAuthor'] ?? null,
                 'source'        => (int)($row['CommentID'] ?? 0) > 0 ? 'Comment' : 'Post',
@@ -54,11 +56,14 @@ class ReportController extends BaseController
             $selectCols = "
                 SELECT
                     r.ReportID,
-                    r.PostID,
+                    COALESCE(r.PostID, c.PostId) AS PostID,
                     p.Title AS PostTitle,
+                    p.AuthorID AS PostAuthorId,
                     CONCAT(up.FirstName, ' ', up.LastName) AS PostAuthor,
                     r.CommentID,
+                    c.ParentCommentId AS CommentParentId,
                     c.Content AS CommentText,
+                    c.UserId AS CommentAuthorId,
                     NULLIF(CONCAT(uc.FirstName, ' ', uc.LastName),'') AS CommentAuthor,
                     r.CreatedAt,
                     rt.TagName AS Reason,
@@ -69,8 +74,8 @@ class ReportController extends BaseController
             $fromWhere = "
                 FROM dbo.Forum_Reports r
                 INNER JOIN dbo.Forum_ReportTags rt ON r.ReportTagID = rt.ReportTagID
-                LEFT JOIN dbo.Forum_Posts p ON r.PostID = p.PostID
                 LEFT JOIN dbo.Forum_Comments c ON r.CommentID = c.CommentId
+                LEFT JOIN dbo.Forum_Posts p ON p.PostID = COALESCE(r.PostID, c.PostId)
                 LEFT JOIN dbo.Forum_Users up ON up.User_ID = p.AuthorID
                 LEFT JOIN dbo.Forum_Users uc ON uc.User_ID = c.UserId
                 LEFT JOIN dbo.Forum_Users ur ON ur.User_ID = r.ReportUserID
