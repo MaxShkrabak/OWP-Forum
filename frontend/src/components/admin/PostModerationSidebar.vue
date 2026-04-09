@@ -1,11 +1,10 @@
 <script setup>
 import { ref, computed, watch } from "vue";
 import { useRouter } from "vue-router";
-import client from "@/api/client";
-import { votePost } from "@/api/posts";
+import { votePost, deletePost } from "@/api/posts";
 import { isLoggedIn, userRole, userRoleId, uid } from "@/stores/userStore";
 import CreatePostModal from "@/components/forum/CreatePostModal.vue";
-import ReportingModal from "@/components/user/ReportingModal.vue"
+import ReportingModal from "@/components/user/ReportingModal.vue";
 
 const props = defineProps({
   post: { type: Object, required: true },
@@ -14,7 +13,6 @@ const props = defineProps({
 const router = useRouter();
 
 const isVoting = ref(false);
-const isFollowing = ref(false);
 const showDeleteConfirm = ref(false);
 const isDeleting = ref(false);
 const showEditModal = ref(false);
@@ -34,17 +32,8 @@ const canReport = computed(() => {
 });
 
 const canDelete = computed(() => isAuthor.value || isAdminOrMod.value);
-const showMetadataButton = computed(
-  () => isAdminOrMod.value && !isAuthor.value,
-);
-
-const toggleFollow = () => {
-  if (!isLoggedIn.value) {
-    router.push("/login");
-    return;
-  }
-  isFollowing.value = !isFollowing.value;
-};
+const canFullEdit = computed(
+  () => isAuthor.value || isAdminOrMod.value);
 
 const handleReport = () => {
   if (!isLoggedIn.value) {
@@ -84,8 +73,9 @@ async function handleVote(dir) {
   }
 }
 
-function openRestrictedModal(modalType) {
-  isRestricted.value = modalType === "metadata";
+function openEditModal() {
+  if (!canFullEdit.value) return;
+  isRestricted.value = false;
   showEditModal.value = true;
 }
 
@@ -93,7 +83,7 @@ const confirmDelete = async () => {
   if (!props.post?.postId || !canDelete.value) return;
   isDeleting.value = true;
   try {
-    await client.delete(`posts/${props.post.postId}`);
+    await deletePost(props.post.postId);
     window.location.href = "/";
   } catch (err) {
     console.error("Delete failed:", err);
@@ -111,9 +101,7 @@ watch(isLoggedIn, (loggedIn) => {
 </script>
 
 <template>
-  <div
-    class="d-flex flex-wrap align-items-center gap-2 flex-grow-1 min-w-0"
-  >
+  <div class="d-flex flex-wrap align-items-center gap-2 flex-grow-1 min-w-0">
     <!-- Vote Buttons -->
     <div class="action-group vote-group d-flex align-items-center gap-1">
       <button
@@ -147,16 +135,6 @@ watch(isLoggedIn, (loggedIn) => {
       class="action-group user-actions d-flex align-items-center flex-wrap gap-2"
     >
       <button
-        v-if="!isAuthor"
-        class="text-action-btn d-inline-flex align-items-center gap-2 px-2 py-1 rounded-2"
-        :class="{ following: isFollowing }"
-        @click="toggleFollow"
-      >
-        <i :class="isFollowing ? 'pi pi-heart-fill' : 'pi pi-heart'"></i>
-        <span>{{ isFollowing ? "Following" : "Follow" }}</span>
-      </button>
-
-      <button
         v-if="canReport"
         class="text-action-btn report-btn d-inline-flex align-items-center gap-2 px-2 py-1 rounded-2"
         @click="handleReport"
@@ -165,24 +143,13 @@ watch(isLoggedIn, (loggedIn) => {
         <span>Report</span>
       </button>
 
-      <div v-if="!isAuthor && isAdminOrMod" class="action-divider mx-1"></div>
-
       <button
-        v-if="isAuthor"
+        v-if="canFullEdit"
         class="text-action-btn edit-btn d-inline-flex align-items-center gap-2 px-2 py-1 rounded-2"
-        @click="openRestrictedModal('edit')"
+        @click="openEditModal"
       >
         <i class="pi pi-pencil"></i>
         <span>Edit Post</span>
-      </button>
-
-      <button
-        v-if="showMetadataButton"
-        class="text-action-btn edit-btn d-inline-flex align-items-center gap-2 px-2 py-1 rounded-2"
-        @click="openRestrictedModal('metadata')"
-      >
-        <i class="pi pi-pencil"></i>
-        <span>Edit</span>
       </button>
 
       <button
@@ -255,12 +222,6 @@ watch(isLoggedIn, (loggedIn) => {
 </template>
 
 <style scoped>
-.action-divider {
-  width: 1px;
-  height: 20px;
-  background: #cbd5e1;
-}
-
 .vote-btn-up,
 .vote-btn-down {
   background: transparent;
@@ -371,21 +332,6 @@ watch(isLoggedIn, (loggedIn) => {
 .text-action-btn i {
   font-size: 0.88rem;
   transition: transform 0.2s ease;
-}
-
-/* Follow */
-.text-action-btn:not(.report-btn):not(.edit-btn):not(.delete-btn):hover {
-  color: #b91657;
-}
-.text-action-btn:not(.report-btn):not(.edit-btn):not(.delete-btn):hover i {
-  transform: scale(1.2);
-}
-.text-action-btn.following {
-  color: #b91657;
-}
-.text-action-btn.following::after {
-  transform: scaleX(1);
-  opacity: 0.5;
 }
 
 /* Report */

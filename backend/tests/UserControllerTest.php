@@ -19,7 +19,7 @@ class UserControllerTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->pdo = $this->createMock(PDO::class);
+        $this->pdo = $this->createStub(PDO::class);
         $this->stmt = $this->createStub(PDOStatement::class);
         $this->controller = new UserController(fn() => $this->pdo);
     }

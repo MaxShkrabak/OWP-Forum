@@ -21,6 +21,7 @@ vi.mock(
   () => ({
     resolveReport: mockReportsApi.resolveReport,
     fetchReports: mockReportsApi.fetchReports,
+    normalizeReport: (r) => r,
   }),
   { virtual: true }
 );
@@ -43,11 +44,11 @@ vi.mock(
 );
 
 const mockReportTags = [
-  { ReportTagID: 10, TagName: "Spam" },
-  { ReportTagID: 11, TagName: "Harassment" },
-  { ReportTagID: 12, TagName: "Other" },
-  { ReportTagID: 13, TagName: "Misinformation" },
-  { ReportTagID: 14, TagName: "Inappropriate" },
+  { tagId: 10, name: "Spam" },
+  { tagId: 11, name: "Harassment" },
+  { tagId: 12, name: "Other" },
+  { tagId: 13, name: "Misinformation" },
+  { tagId: 14, name: "Inappropriate" },
 ];
 
 const mockAdminReports = [
@@ -87,8 +88,8 @@ function reportTagExists(tags, name, excludeId = null) {
   const n = normalizeName(name).toLowerCase();
   if (!n) return false;
   return tags.some((t) => {
-    const same = normalizeName(t.TagName).toLowerCase() === n;
-    const notSelf = excludeId == null ? true : Number(t.ReportTagID) !== Number(excludeId);
+    const same = normalizeName(t.name).toLowerCase() === n;
+    const notSelf = excludeId == null ? true : t.tagId !== excludeId;
     return same && notSelf;
   });
 }
@@ -118,8 +119,8 @@ function getCreateReportModalTagsEndpoint() {
 describe("Report Tags (Admin) — duplicate prevention", () => {
   it("detects duplicates (case-insensitive, normalized)", () => {
     const tags = [
-      { ReportTagID: 1, TagName: "Spam" },
-      { ReportTagID: 2, TagName: "Inappropriate" },
+      { tagId: 1, name: "Spam" },
+      { tagId: 2, name: "Inappropriate" },
     ];
     expect(reportTagExists(tags, "spam")).toBe(true);
     expect(reportTagExists(tags, "  Inappropriate ")).toBe(true);
@@ -128,8 +129,8 @@ describe("Report Tags (Admin) — duplicate prevention", () => {
 
   it("allows editing same record (excludeId)", () => {
     const tags = [
-      { ReportTagID: 1, TagName: "Spam" },
-      { ReportTagID: 2, TagName: "Other" },
+      { tagId: 1, name: "Spam" },
+      { tagId: 2, name: "Other" },
     ];
     expect(reportTagExists(tags, "Spam", 1)).toBe(false);
     expect(reportTagExists(tags, "Other", 2)).toBe(false);

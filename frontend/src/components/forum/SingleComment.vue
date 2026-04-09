@@ -9,7 +9,7 @@ import {
   deleteComment as apiDeleteComment,
   formatCommentData,
 } from "@/api/comments";
-import { isLoggedIn, uid, userRole } from "@/stores/userStore";
+import { isLoggedIn, uid, userRole, userRoleId } from "@/stores/userStore";
 import { timeAgo } from "@/utils/timeAgo";
 import TextEditor from "./TextEditor.vue";
 import ReportingModal from "../user/ReportingModal.vue";
@@ -28,6 +28,7 @@ const router = useRouter();
 
 const localReplies = ref([]);
 const isLoadingReplies = ref(false);
+const isSubmittingReply = ref(false);
 const hasFetched = ref(false);
 
 const isVoting = ref(false);
@@ -88,10 +89,8 @@ const linkedImage = computed(() => {
   return (
     props.comment.text?.replace(
       /<img[^>]+src="([^"]+)"[^>]*\/?>/gi,
-      (_, src) => {
-        const name =
-          decodeURIComponent(src.split("/").pop().split("?")[0]) || "image";
-        return `<a href="${src}" target="_blank" rel="noopener noreferrer">${name}</a>`;
+      (match, src) => {
+        return `<a href="${src}" target="_blank" rel="noopener noreferrer">${match}</a>`;
       },
     ) ?? ""
   );
@@ -113,6 +112,10 @@ const isModeratorOrAdmin = computed(() => {
   return (
     currentUserRole.value === "moderator" || currentUserRole.value === "admin"
   );
+});
+
+const canEdit = computed(() => {
+  return isAuthor.value || Number(userRoleId?.value ?? 0) >= 3;
 });
 
 const canDelete = computed(() => {
@@ -221,12 +224,16 @@ const toggleRepliesDropdown = async () => {
 };
 
 const handleReply = async () => {
+  if (isSubmittingReply.value) return;
+
   const targetParentId =
     props.depth >= 2 && maxDepthContext
       ? maxDepthContext.parentId
       : props.comment.id;
 
+  isSubmittingReply.value = true;
   const newCommentData = await submitReply(replyText.value, targetParentId);
+  isSubmittingReply.value = false;
 
   if (newCommentData) {
     replyText.value = "";
@@ -405,9 +412,7 @@ watch(showOptionsMenu, (val) => {
           </RouterLink>
           <span class="timestamp text-muted">
             {{ comment.time }}
-            <span v-if="comment.wasEdited" class="edited-label ms-1"
-              >(edited)</span
-            >
+            <span v-if="comment.wasEdited" class="edited-label ms-1">(edited)</span>
           </span>
           <div v-if="hasOptions" class="position-relative" ref="optionsMenuRef">
             <button
@@ -420,7 +425,7 @@ watch(showOptionsMenu, (val) => {
             <Transition name="comment-menu-fade">
               <div v-if="showOptionsMenu" class="comment-menu-popup shadow-sm">
                 <button
-                  v-if="isAuthor"
+                  v-if="canEdit"
                   class="comment-menu-item d-flex align-items-center gap-2 w-100 border-0 bg-transparent px-3 py-2"
                   @click="
                     startEdit();
@@ -556,11 +561,11 @@ watch(showOptionsMenu, (val) => {
               <button
                 class="btn-submit border-0 rounded-2 fw-bold px-3 py-1 small"
                 :disabled="
-                  !replyText || replyText === '<p></p>' || replyIsUploading
+                  !replyText || replyText === '<p></p>' || replyIsUploading || isSubmittingReply
                 "
                 @click="handleReply"
               >
-                {{ replyIsUploading ? "Uploading..." : "Reply" }}
+                {{ replyIsUploading ? "Uploading..." : isSubmittingReply ? "Posting..." : "Reply" }}
               </button>
             </div>
           </div>
@@ -740,8 +745,24 @@ watch(showOptionsMenu, (val) => {
   word-break: break-word;
 }
 
+.comment-body :deep(img) {
+  max-width: 100%;
+  max-height: 400px;
+  border-radius: 6px;
+  display: block;
+  margin-top: 4px;
+  object-fit: contain;
+  cursor: pointer;
+}
+
 .timestamp {
   font-size: 12px;
+}
+
+.edited-label {
+  font-style: italic;
+  opacity: 0.75;
+  font-size: 11px;
 }
 
 /* Menu */

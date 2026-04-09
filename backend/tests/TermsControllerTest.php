@@ -33,6 +33,7 @@ final class TermsControllerTest extends TestCase
                 $this->stmt = $stmt;
             }
 
+            #[\ReturnTypeWillChange]
             public function prepare($query, $options = null)
             {
                 TestCase::assertStringContainsString('UPDATE dbo.Forum_Users', (string)$query);

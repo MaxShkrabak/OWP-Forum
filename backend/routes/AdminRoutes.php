@@ -4,6 +4,9 @@ use Forum\Controllers\AdminController;
 
 $controller = new AdminController($makePdo);
 
+// Roles
+$app->get('/api/admin/roles',                     [$controller, 'listRoles']);
+
 // Users
 $app->get('/api/admin/users',                     [$controller, 'getUsers']);
 $app->get('/api/admin/users/{id}',                [$controller, 'getUserById']);

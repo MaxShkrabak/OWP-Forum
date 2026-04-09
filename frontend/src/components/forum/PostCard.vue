@@ -180,14 +180,21 @@ function canViewReportButton() {
           <div class="mobile-author-header">
             <div class="author-info-wrap-v2">
               <div class="avatar-box-v2">
-                <img
-                  :src="getAvatarSrc(post.authorAvatar)"
-                  class="avatar-img"
-                  alt="user"
-                />
+                <RouterLink :to="`/profile?id=${post.authorId}`">
+                  <img
+                    :src="getAvatarSrc(post.authorAvatar)"
+                    class="avatar-img"
+                    alt="user"
+                  />
+                </RouterLink>
               </div>
               <div class="d-flex flex-column">
-                <span class="author-name-v2">{{ post.authorName }}</span>
+                <RouterLink
+                  :to="`/profile?id=${post.authorId}`"
+                  class="author-name text-truncate"
+                >
+                  {{ post.authorName }}
+                </RouterLink>
                 <UserRole :role="post.authorRole" />
               </div>
             </div>
@@ -210,12 +217,12 @@ function canViewReportButton() {
               :title="post.isPinned ? 'Unpin announcement' : 'Pin announcement'"
             >
               <i
-                class="pi pi-thumbtack pin-icon"
-                :class="{ pinned: !!post.isPinned, 'is-pinning': isPinning }"
+                class="pin-icon bi"
+                :class="post.isPinned ? 'bi-pin-angle-fill' : 'bi-pin-angle'"
               ></i>
             </button>
 
-            <span v-if="post.isPinned" class="pinned-badge">Pinned</span>
+            <span v-else-if="post.isPinned" class="bi bi-pin-angle-fill pin-icon"></span>
           </div>
 
           <div class="d-flex flex-wrap gap-2 mb-2">
@@ -389,29 +396,12 @@ function canViewReportButton() {
 
 .pin-icon {
   color: #c2680a;
-  font-size: 0.9rem;
+  margin-left: 4px;
+  font-size: 1rem;
   flex-shrink: 0;
   transition:
     transform 0.2s ease-in-out,
     opacity 0.2s ease-in-out;
-}
-
-.pin-icon.pinned {
-  transform: rotate(25deg);
-}
-
-.pin-icon.is-pinning {
-  opacity: 0.6;
-}
-
-.pinned-badge {
-  font-size: 0.65rem;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: #c2680a;
-  color: #fff4e8;
-  white-space: nowrap;
 }
 
 .mobile-author-header {

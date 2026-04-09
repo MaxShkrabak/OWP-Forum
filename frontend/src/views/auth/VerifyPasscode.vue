@@ -3,7 +3,7 @@ import { ref, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { verifyOtp } from '@/api/auth';
 import { syncProfileOnLoad } from '@/stores/userStore';
-import '/src/assets/style.css'
+import '/src/assets/forumAuth.css'
 
 const route = useRoute();
 const router = useRouter();

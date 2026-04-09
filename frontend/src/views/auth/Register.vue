@@ -2,7 +2,7 @@
 import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { registerUser } from "@/api/auth";
-import "/src/assets/style.css";
+import "/src/assets/forumAuth.css";
 
 const router = useRouter();
 const first = ref("");
