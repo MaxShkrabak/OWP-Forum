@@ -258,6 +258,7 @@ onBeforeUnmount(() => {
   display: flex;
   min-height: 100vh;
   position: relative;
+  min-width: 0;
 }
 
 .sidebar-backdrop {
@@ -707,6 +708,7 @@ onBeforeUnmount(() => {
 .main-panel {
   flex: 1;
   width: 100%;
+  min-width: 0;
   padding: 1rem;
   transition: all 0.28s ease;
 }
@@ -756,6 +758,7 @@ onBeforeUnmount(() => {
   border-radius: 28px;
   padding: 1rem;
   min-height: calc(100vh - 110px);
+  min-width: 0;
   box-shadow:
     0 20px 45px rgba(0, 71, 80, 0.08),
     inset 0 0 0 1px rgba(255, 255, 255, 0.45);

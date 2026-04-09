@@ -43,14 +43,37 @@ class AdminController extends BaseController
                 $where .= ')';
             }
 
+            $queryParams = $req->getQueryParams();
+            $page = (int)($queryParams['page'] ?? 1);
+            $perPage = (int)($queryParams['perPage'] ?? 25);
+            if ($page < 1) {
+                $page = 1;
+            }
+            $allowedSizes = [5, 10, 25, 50, 100];
+            if (!in_array($perPage, $allowedSizes, true)) {
+                $perPage = 25;
+            }
+            $offset = ($page - 1) * $perPage;
+
+            $countSql = "
+                SELECT COUNT(*) AS cnt
+                FROM dbo.Forum_Users u
+                LEFT JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
+                $where
+            ";
+            $countStmt = $pdo->prepare($countSql);
+            $countStmt->execute($bindings);
+            $total = (int)($countStmt->fetchColumn());
+
             $base = "
-                SELECT TOP 50
+                SELECT
                     u.User_ID as userId, u.Email as email, u.FirstName as firstName,
                     u.LastName as lastName, u.RoleID as roleId, r.Name as roleName
                 FROM dbo.Forum_Users u
                 LEFT JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
                 $where
                 ORDER BY u.User_ID DESC
+                OFFSET $offset ROWS FETCH NEXT $perPage ROWS ONLY
             ";
 
             try {
@@ -73,7 +96,13 @@ class AdminController extends BaseController
                 unset($u);
             }
 
-            return json($res, ['ok' => true, 'users' => $users]);
+            return json($res, [
+                'ok' => true,
+                'users' => $users,
+                'total' => $total,
+                'page' => $page,
+                'perPage' => $perPage,
+            ]);
         } catch (Throwable $e) {
             return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
         }

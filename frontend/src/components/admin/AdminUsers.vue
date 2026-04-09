@@ -8,9 +8,13 @@ import {
 } from "@/api/admin";
 import { formatBannedUntilDateTime } from "@/utils/banDate";
 import { uid } from "@/stores/userStore";
+import AdminPaginationControls from "@/components/admin/AdminPaginationControls.vue";
 
 const q = ref("");
 const users = ref([]);
+const userPage = ref(1);
+const userPerPage = ref(25);
+const userTotal = ref(0);
 const loading = ref(false);
 const error = ref("");
 const currentUserId = uid;
@@ -43,14 +47,48 @@ const minBanDate = computed(() => {
 let searchTimeout = null;
 function onSearchInput() {
   clearTimeout(searchTimeout);
-  searchTimeout = setTimeout(() => loadUsers(), 350);
+  searchTimeout = setTimeout(() => {
+    userPage.value = 1;
+    loadUsers();
+  }, 350);
+}
+
+function onUserPage(p) {
+  userPage.value = p;
+  loadUsers();
+}
+
+function onUserPerPage(n) {
+  userPerPage.value = n;
+  userPage.value = 1;
+  loadUsers();
 }
 
 async function loadUsers() {
   loading.value = true;
   error.value = "";
   try {
-    users.value = await getAdminUsers(q.value);
+    const result = await getAdminUsers(q.value, {
+      page: userPage.value,
+      perPage: userPerPage.value,
+    });
+    if (
+      result.users.length === 0 &&
+      result.total > 0 &&
+      userPage.value > 1
+    ) {
+      const maxPage = Math.max(
+        1,
+        Math.ceil(result.total / result.perPage),
+      );
+      userPage.value = maxPage;
+      await loadUsers();
+      return;
+    }
+    users.value = result.users;
+    userTotal.value = result.total;
+    userPage.value = result.page;
+    userPerPage.value = result.perPage;
     const map = {};
     for (const u of users.value) map[u.userId] = Number(u.roleId);
     roleDraft.value = map;
@@ -58,6 +96,7 @@ async function loadUsers() {
     error.value =
       e?.response?.data?.error || e.message || "Failed to load users";
     users.value = [];
+    userTotal.value = 0;
   } finally {
     loading.value = false;
   }
@@ -329,6 +368,17 @@ onMounted(async () => {
       <div v-if="!loading && users.length === 0" class="state mt-4 text-center">
         No users found.
       </div>
+
+      <AdminPaginationControls
+        v-if="!loading && userTotal > 0"
+        :page="userPage"
+        :per-page="userPerPage"
+        :total="userTotal"
+        :loading="loading"
+        per-page-label="Users per page"
+        @update:page="onUserPage"
+        @update:per-page="onUserPerPage"
+      />
     </div>
 
     <!-- Ban type modal -->

@@ -165,7 +165,13 @@ describe("AdminReports.vue — DOM + CRUD behaviors", () => {
       return Promise.resolve({ data: {} });
     });
 
-    mockReportsApi.fetchReports.mockResolvedValue({ ok: true, reports: mockAdminReports });
+    mockReportsApi.fetchReports.mockResolvedValue({
+      ok: true,
+      reports: mockAdminReports,
+      total: mockAdminReports.length,
+      page: 1,
+      perPage: 25,
+    });
   });
 
   it("1) All existing report tags load correctly", async () => {
@@ -235,7 +241,13 @@ describe("AdminReports.vue — DOM + CRUD behaviors", () => {
     const wrapper = mount(AdminReports);
     await flushPromises();
 
-    expect(mockReportsApi.fetchReports).toHaveBeenCalled();
+    expect(mockReportsApi.fetchReports).toHaveBeenCalledWith(
+      expect.objectContaining({
+        page: 1,
+        perPage: 25,
+        sort: "newest",
+      }),
+    );
 
     const rows = wrapper.findAll(".reports-list .report-row");
     expect(rows.length).toBe(3);
@@ -265,6 +277,21 @@ describe("AdminReports.vue — DOM + CRUD behaviors", () => {
   });
 
  it("8) Clicking Resolve calls resolveReport and removes report from UI list", async () => {
+  mockReportsApi.fetchReports
+    .mockResolvedValueOnce({
+      ok: true,
+      reports: mockAdminReports,
+      total: mockAdminReports.length,
+      page: 1,
+      perPage: 25,
+    })
+    .mockResolvedValueOnce({
+      ok: true,
+      reports: [mockAdminReports[1]],
+      total: 1,
+      page: 1,
+      perPage: 25,
+    });
   mockReportsApi.resolveReport.mockResolvedValue({ ok: true });
 
   const wrapper = mount(AdminReports);
