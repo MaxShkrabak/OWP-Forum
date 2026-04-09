@@ -2,8 +2,9 @@
 <script setup>
 import { ref, computed, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
+import { timeAgo } from "@/utils/timeAgo";
 
-import { fetchReports, resolveReport, normalizeReport } from "@/api/reports";
+import { fetchReports, resolveReport } from "@/api/reports";
 import AdminPaginationControls from "@/components/admin/AdminPaginationControls.vue";
 import {
   getAdminReportTags,
@@ -201,7 +202,7 @@ async function loadReports() {
       sort: sortMode.value,
     });
     if (data?.ok && Array.isArray(data.reports)) {
-      reports.value = data.reports.map(normalizeReport);
+      reports.value = data.reports;
       reportTotal.value =
         typeof data.total === "number" ? data.total : reports.value.length;
       if (typeof data.page === "number") reportPage.value = data.page;
@@ -393,7 +394,7 @@ onMounted(() => {
                 </span>
 
                 <span class="report-title">
-                  {{ r.contentTitle || "(No title found)" }}
+                  {{ r.source === 'Post' ? r.postTitle || "(No title found)" : stripHTML(r.commentText) || "(No content found)" }}
                 </span>
               </div>
 
@@ -410,7 +411,7 @@ onMounted(() => {
 
                 <div class="meta-item">
                   <span class="meta-label">Created:</span>
-                  <span class="meta-val">{{ r.createdAt }}</span>
+                  <span class="meta-val">{{ timeAgo(r.createdAt) }}</span>
                 </div>
               </div>
 
@@ -430,10 +431,10 @@ onMounted(() => {
                 <div class="meta-item">
                   <span class="meta-label">Posted by:</span>
                   <span class="meta-val">
-                    <template v-if="r.contentAuthorId">
-                      #{{ r.contentAuthorId }}
-                      <template v-if="r.contentAuthorName">
-                        — {{ r.contentAuthorName }}</template
+                    <template v-if="r.postAuthorId">
+                      #{{ r.postAuthorId }}
+                      <template v-if="r.postAuthor">
+                        — {{ r.postAuthor }}</template
                       >
                     </template>
                     <template v-else>Unknown</template>
@@ -443,10 +444,10 @@ onMounted(() => {
                 <div class="meta-item">
                   <span class="meta-label">Reported by:</span>
                   <span class="meta-val">
-                    <template v-if="r.reporterId">
-                      #{{ r.reporterId }}
-                      <template v-if="r.reporterName">
-                        — {{ r.reporterName }}</template
+                    <template v-if="r.reporter.id">
+                      #{{ r.reporter.id }}
+                      <template v-if="r.reporter.fullName">
+                        — {{ r.reporter.fullName }}</template
                       >
                       <template v-else> — (no name)</template>
                     </template>
