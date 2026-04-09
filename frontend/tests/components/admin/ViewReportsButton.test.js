@@ -96,14 +96,20 @@ describe("ViewReportsButton.vue", () => {
     });
     await flushPromises();
 
+    // Default sort is "latest" (newest first), so report 3 (createdAt 14:00) comes first
     const goButtons = wrapper
       .findAll(".report-cta-btn")
       .filter((w) => w.text().includes("Go To"));
 
     expect(goButtons.length).toBe(sampleReports.length);
+    // Report 3 is a comment with parentCommentId, so goToReport builds a route object
     await goButtons[0].trigger("click");
 
-    expect(mockRouter.push).toHaveBeenCalledWith("/posts/99");
+    expect(mockRouter.push).toHaveBeenCalledWith({
+      path: "/posts/100",
+      hash: "#comment-45",
+      query: { parentCommentId: "30" },
+    });
   });
 
   it("should resolve the report and clear it from UI",
@@ -113,6 +119,7 @@ describe("ViewReportsButton.vue", () => {
       });
       await flushPromises();
 
+      // Default sort is "latest" (newest first), so report 3 (createdAt 14:00) comes first
       const resolveButtons = wrapper
         .findAll(".report-cta-btn")
         .filter((w) => w.text().includes("Resolve"));
@@ -121,13 +128,13 @@ describe("ViewReportsButton.vue", () => {
       await resolveButtons[0].trigger("click");
       await flushPromises();
 
-      expect(resolveReport).toHaveBeenCalledWith(1);
+      expect(resolveReport).toHaveBeenCalledWith(3);
 
       const remaining = wrapper.findAll("li.list-group-item");
       expect(remaining.length).toBe(sampleReports.length - 1);
 
       remaining.forEach((item) => {
-        expect(item.text()).not.toContain("Ticket: #1");
+        expect(item.text()).not.toContain("Ticket: #3");
       });
     }
   );
@@ -142,8 +149,8 @@ describe("ViewReportsButton.vue", () => {
       .findAll(".report-cta-btn")
       .filter((w) => w.text().includes("Go To"));
 
-    // Third Go To button corresponds to the reply comment report (reportId 3)
-    await goButtons[2].trigger("click");
+    // With "latest" sort, report 3 (newest) is first
+    await goButtons[0].trigger("click");
 
     expect(mockRouter.push).toHaveBeenCalledWith({
       path: "/posts/100",

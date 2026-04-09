@@ -42,6 +42,18 @@ vi.mock(
   { virtual: true }
 );
 
+// Mock @/api/admin — functions delegate to mockClient under the hood
+vi.mock(
+  "@/api/admin",
+  () => ({
+    getAdminReportTags: () => mockClient.get("/admin/report-tags").then((r) => r.data.items || []),
+    createReportTag: (name) => mockClient.post("/admin/report-tags", { tagName: name }),
+    updateReportTag: (id, name) => mockClient.patch(`/admin/report-tags/${id}`, { tagName: name }),
+    deleteReportTag: (id) => mockClient.delete(`/admin/report-tags/${id}`),
+  }),
+  { virtual: true }
+);
+
 const mockReportTags = [
   { tagId: 10, name: "Spam" },
   { tagId: 11, name: "Harassment" },
@@ -409,4 +421,107 @@ it('12) Clicking "Go to" on a reply comment report passes parentCommentId query 
     query: { parentCommentId: "15" },
   });
 });
+});
+
+// 7 reports for pagination tests
+const mockManyReports = Array.from({ length: 7 }, (_, i) => ({
+  reportId: i + 1,
+  postId: 200 + i,
+  source: "Post",
+  reason: "Spam",
+  createdAt: `2026-03-0${i + 1}T00:00:00Z`,
+  contentTitle: `Report Title ${i + 1}`,
+}));
+
+describe("AdminReports.vue — Pagination", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockRouter.push.mockClear();
+    localStorage.clear();
+
+    mockClient.get.mockImplementation((url) => {
+      if (url === "/admin/report-tags")
+        return Promise.resolve({ data: { items: mockReportTags } });
+      return Promise.resolve({ data: {} });
+    });
+  });
+
+  it("shows pagination controls when total exceeds perPage", async () => {
+    mockReportsApi.fetchReports.mockResolvedValue({
+      ok: true,
+      reports: mockManyReports.slice(0, 5),
+      total: 7,
+      page: 1,
+      perPage: 5,
+    });
+    const wrapper = mount(AdminReports);
+    await flushPromises();
+
+    const rows = wrapper.findAll(".reports-list .report-row");
+    expect(rows.length).toBe(5);
+
+    expect(wrapper.find(".admin-pag").exists()).toBe(true);
+    expect(wrapper.text()).toContain("1–5 of 7");
+  });
+
+  it("hides pagination when no reports", async () => {
+    mockReportsApi.fetchReports.mockResolvedValue({
+      ok: true,
+      reports: [],
+      total: 0,
+      page: 1,
+      perPage: 25,
+    });
+    const wrapper = mount(AdminReports);
+    await flushPromises();
+
+    expect(wrapper.find(".admin-pag").exists()).toBe(false);
+  });
+
+  it("clicking next page emits update and reloads", async () => {
+    mockReportsApi.fetchReports
+      .mockResolvedValueOnce({
+        ok: true,
+        reports: mockManyReports.slice(0, 5),
+        total: 7,
+        page: 1,
+        perPage: 5,
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        reports: mockManyReports.slice(5),
+        total: 7,
+        page: 2,
+        perPage: 5,
+      });
+
+    const wrapper = mount(AdminReports);
+    await flushPromises();
+
+    expect(wrapper.findAll(".reports-list .report-row").length).toBe(5);
+
+    const nextBtn = wrapper.find(".admin-pag-btn[aria-label='Next page']");
+    await nextBtn.trigger("click");
+    await flushPromises();
+
+    expect(mockReportsApi.fetchReports).toHaveBeenCalledTimes(2);
+    const rows = wrapper.findAll(".reports-list .report-row");
+    expect(rows.length).toBe(2);
+  });
+
+  it("sort dropdown renders with correct options", async () => {
+    mockReportsApi.fetchReports.mockResolvedValue({
+      ok: true,
+      reports: mockManyReports,
+      total: mockManyReports.length,
+      page: 1,
+      perPage: 25,
+    });
+    const wrapper = mount(AdminReports);
+    await flushPromises();
+
+    const sortSelect = wrapper.find(".reports-controls select.sort-select");
+    const options = sortSelect.findAll("option");
+    expect(options.map((o) => o.element.value)).toEqual(["newest", "oldest"]);
+  });
 });
