@@ -21,7 +21,6 @@ vi.mock(
   () => ({
     resolveReport: mockReportsApi.resolveReport,
     fetchReports: mockReportsApi.fetchReports,
-    normalizeReport: (r) => r,
   }),
   { virtual: true }
 );
@@ -58,7 +57,7 @@ const mockAdminReports = [
     source: "Post",
     reason: "Spam",
     createdAt: "2026-02-26T00:00:00Z",
-    contentTitle: "Post 99 Title",
+    postTitle: "Post 99 Title",
   },
   {
     reportId: 2,
@@ -66,7 +65,7 @@ const mockAdminReports = [
     source: "Post",
     reason: "Other",
     createdAt: "2026-02-26T01:00:00Z",
-    contentTitle: "Post 100 Title",
+    postTitle: "Post 100 Title",
   },
   {
     reportId: 3,
@@ -75,11 +74,10 @@ const mockAdminReports = [
     source: "Comment",
     reason: "Harassment",
     createdAt: "2026-02-26T02:00:00Z",
-    contentTitle: "This is an offensive comment",
-    contentAuthorId: 7,
-    contentAuthorName: "Bad Commenter",
-    reporterId: 5,
-    reporterName: "Jane Reporter",
+    commentText: "Comment 12 Text",
+    postAuthorId: 7,
+    postAuthor: "Bad Commenter",
+    reporter: { id: 5, fullName: "Jane Reporter" },
   },
 ];
 
@@ -187,7 +185,7 @@ describe("AdminReports.vue — DOM + CRUD behaviors", () => {
     expect(wrapper.text()).toContain("Inappropriate");
   });
 
-  it("7) Sorting works correctly (alphabetical by TagName)", async () => {
+  it("2) Sorting works correctly (alphabetical by TagName)", async () => {
     const wrapper = mount(AdminReports);
     await flushPromises();
 
@@ -196,7 +194,7 @@ describe("AdminReports.vue — DOM + CRUD behaviors", () => {
     expect(names).toEqual(["Harassment", "Inappropriate", "Misinformation", "Other", "Spam"]);
   });
 
-  it("2) Editing a tag triggers PATCH and refreshes list", async () => {
+  it("3) Editing a tag triggers PATCH and refreshes list", async () => {
     const wrapper = mount(AdminReports);
     await flushPromises();
 
@@ -221,7 +219,7 @@ describe("AdminReports.vue — DOM + CRUD behaviors", () => {
     expect(mockClient.get).toHaveBeenCalledWith("/admin/report-tags");
   });
 
-  it("3) Deleting a tag calls DELETE and shows success message", async () => {
+  it("4) Deleting a tag calls DELETE and shows success message", async () => {
     const wrapper = mount(AdminReports);
     await flushPromises();
 
@@ -256,6 +254,7 @@ describe("AdminReports.vue — DOM + CRUD behaviors", () => {
 
     expect(wrapper.text()).toContain("Post 99 Title");
     expect(wrapper.text()).toContain("Post 100 Title");
+    expect(wrapper.text()).toContain("Comment 12 Text");
   });
 
   it("6) Reports are filtered to show only unresolved reports (UI shows what API returns)", async () => {
@@ -275,10 +274,11 @@ describe("AdminReports.vue — DOM + CRUD behaviors", () => {
 
     expect(wrapper.text()).toContain("Spam");
     expect(wrapper.text()).toContain("Other");
+    expect(wrapper.text()).toContain("Harassment");
     expect(wrapper.text()).not.toContain("No active reports (unresolved).");
   });
 
- it("8) Clicking Resolve calls resolveReport and removes report from UI list", async () => {
+ it("7) Clicking Resolve calls resolveReport and removes report from UI list", async () => {
   mockReportsApi.fetchReports
     .mockResolvedValueOnce({
       ok: true,
@@ -313,8 +313,8 @@ describe("AdminReports.vue — DOM + CRUD behaviors", () => {
   expect(wrapper.text()).not.toContain("Post #99");
   expect(wrapper.text()).toContain("Post #100");
 });
-
-it('9) Clicking "Go to" routes to correct report content', async () => {
+  
+it('8) Clicking "Go to" routes to correct report content', async () => {
   const wrapper = mount(AdminReports);
   await flushPromises();
 
@@ -328,7 +328,7 @@ it('9) Clicking "Go to" routes to correct report content', async () => {
   expect(mockRouter.push).toHaveBeenCalledWith("/posts/99");
 });
 
-it("10) Comment report displays stripped comment text as title", async () => {
+it("9) Comment report displays stripped comment text as title", async () => {
   const wrapper = mount(AdminReports);
   await flushPromises();
 
@@ -337,7 +337,7 @@ it("10) Comment report displays stripped comment text as title", async () => {
   expect(commentRow, "Expected a report row for Comment #12").toBeTruthy();
 
   // HTML tags should be stripped from commentText
-  expect(commentRow.text()).toContain("This is an offensive comment");
+  expect(commentRow.text()).toContain("Comment 12 Text");
   expect(commentRow.text()).not.toContain("<p>");
   expect(commentRow.text()).not.toContain("<strong>");
 
@@ -345,7 +345,7 @@ it("10) Comment report displays stripped comment text as title", async () => {
   expect(commentRow.text()).toContain("Comment");
 });
 
-it("11) Comment report shows reporter info correctly", async () => {
+it("10) Comment report shows reporter info correctly", async () => {
   const wrapper = mount(AdminReports);
   await flushPromises();
 
@@ -361,7 +361,7 @@ it("11) Comment report shows reporter info correctly", async () => {
   expect(commentRow.text()).toContain("Post #55");
 });
 
-it('12) Clicking "Go to" on a comment report routes to its parent post', async () => {
+it('11) Clicking "Go to" on a comment report routes to its parent post', async () => {
   const wrapper = mount(AdminReports);
   await flushPromises();
 
@@ -375,7 +375,7 @@ it('12) Clicking "Go to" on a comment report routes to its parent post', async (
   expect(mockRouter.push).toHaveBeenCalledWith({ path: "/posts/55", hash: "#comment-12", query: {} });
 });
 
-it('13) Clicking "Go to" on a reply comment report passes parentCommentId query param', async () => {
+it('12) Clicking "Go to" on a reply comment report passes parentCommentId query param', async () => {
   const reportsWithReply = [
     ...mockAdminReports,
     {

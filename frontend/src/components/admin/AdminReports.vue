@@ -444,7 +444,7 @@ onMounted(() => {
                 <div class="meta-item">
                   <span class="meta-label">Reported by:</span>
                   <span class="meta-val">
-                    <template v-if="r.reporter.id">
+                    <template v-if="r.reporter?.id">
                       #{{ r.reporter.id }}
                       <template v-if="r.reporter.fullName">
                         — {{ r.reporter.fullName }}</template
