@@ -834,28 +834,16 @@ onMounted(() => {
   max-width: 100%;
 }
 .reports-header {
-  background: linear-gradient(135deg, #004b33 0%, #003d4c 100%);
-  padding: 1.25rem 1.75rem;
-  border-radius: 16px;
-  box-shadow: 0 10px 25px -5px rgba(0, 75, 51, 0.3);
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
   min-width: 0;
 }
-.header-main-content {
-  display: flex;
-  align-items: center;
-  gap: 1.25rem;
-  flex: 0 1 auto;
-  min-width: 0;
-}
-.reports-badge {
-  font-size: 0.65rem;
-  text-transform: uppercase;
+.section-title {
+  margin: 0;
+  font-size: 20px;
   font-weight: 800;
   color: #0f172a;
   flex: 1 1 auto;
@@ -871,45 +859,26 @@ onMounted(() => {
   min-width: 0;
 }
 .sort-label {
-  font-size: 0.6rem;
+  font-size: 12px;
   font-weight: 800;
+  color: #64748b;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.5);
-  letter-spacing: 0.8px;
 }
 .sort-select {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid transparent;
-  color: #ffffff;
-  font-size: 0.85rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: white;
   font-weight: 700;
-  outline: none;
-  cursor: pointer;
-  padding: 2px 8px;
-  border-radius: 6px;
-  transition: all 0.2s ease;
-}
-.sort-select:hover {
-  background: rgba(255, 255, 255, 0.2);
-}
-.sort-select option {
-  background-color: #004b33;
-  color: #ffffff;
-  font-weight: 600;
-  padding: 10px;
 }
 .btn-refresh {
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: none;
   border-radius: 10px;
   padding: 9px 14px;
   font-weight: 800;
   cursor: pointer;
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.85);
-  transition: all 0.2s ease;
-}
-.btn-refresh:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.2);
+  background: #004750;
+  color: white;
 }
 .btn-refresh:disabled {
   opacity: 0.6;
@@ -1103,7 +1072,8 @@ onMounted(() => {
   .desktop-only {
     display: none;
   }
-  .header-row {
+  .header-row,
+  .reports-header {
     flex-direction: column;
     align-items: flex-start;
   }
@@ -1111,20 +1081,14 @@ onMounted(() => {
     font-size: 0.9rem;
   }
 
-  .reports-header {
-    padding: 1rem;
-    border-radius: 12px;
-    gap: 0.5rem 1.25rem;
-  }
-
   .reports-controls {
     width: 100%;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
   }
 
-  .sort-pill {
-    padding: 4px 4px 4px 6px;
-    gap: 3px;
+  .sort-select,
+  .btn-refresh {
+    width: 100%;
   }
 
   .report-row {
@@ -1144,10 +1108,6 @@ onMounted(() => {
 
   .report-title {
     white-space: normal;
-  }
-
-  .page-nav-wraper {
-    gap: 10px;
   }
 }
 </style>
