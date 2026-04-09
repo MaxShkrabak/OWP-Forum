@@ -275,10 +275,10 @@ onUnmounted(() => {
 
               <button
                 type="button"
-                class="btn-close btn-close-white"
+                class="modal-close-btn"
                 data-bs-dismiss="modal"
                 aria-label="Close"
-              ></button>
+              >&times;</button>
             </div>
 
             <!-- Sort / Limit controls -->
@@ -578,9 +578,21 @@ onUnmounted(() => {
   flex: 1 1 auto;
   padding-bottom: 70px;
 }
-.modal-header .btn-close {
+.modal-close-btn {
   margin-left: auto;
   flex-shrink: 0;
+  background: none;
+  border: none;
+  color: white;
+  font-size: 1.8rem;
+  line-height: 1;
+  padding: 0 0.5rem;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+.modal-close-btn:hover {
+  opacity: 1;
 }
 .modal-title {
   font-weight: 700;
@@ -855,23 +867,24 @@ onUnmounted(() => {
   }
 }
 @media (max-width: 600px) {
+  .modal {
+    padding: 0 !important;
+  }
   .modal-dialog {
     margin: 0;
     max-width: 100%;
-    min-height: 100vh;
+    width: 100%;
+    height: 100dvh;
+    height: 100vh;
   }
   .modal-content {
     border-radius: 0;
+    height: 100%;
+    max-height: 100dvh;
     max-height: 100vh;
-    min-height: 100vh;
   }
   .modal-controls {
     justify-content: center;
-  }
-  .modal-header .btn-close {
-    position: absolute;
-    right: 1rem;
-    top: 1rem;
   }
   .page-nav-wraper {
     gap: 10px;
