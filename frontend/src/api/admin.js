@@ -84,10 +84,13 @@ export async function deleteReportTag(id) {
   return data;
 }
 
-export async function getAdminUsers(query = "") {
-  const params = query.trim() ? { q: query.trim() } : {};
+export async function getAdminUsers(query = "", options = {}) {
+  const page = options.page ?? 1;
+  const perPage = options.perPage ?? 25;
+  const params = { page, perPage };
+  if (query.trim()) params.q = query.trim();
   const res = await client.get("/admin/users", { params });
-  return (res.data.users || []).map((u) => ({
+  const users = (res.data.users || []).map((u) => ({
     ...u,
     isBanned: Boolean(Number(u.isBanned ?? 0)),
     banType:
@@ -96,6 +99,12 @@ export async function getAdminUsers(query = "") {
         : null,
     bannedUntil: u.bannedUntil ? String(u.bannedUntil) : null,
   }));
+  return {
+    users,
+    total: Number(res.data.total ?? users.length),
+    page: Number(res.data.page ?? page),
+    perPage: Number(res.data.perPage ?? perPage),
+  };
 }
 
 export async function updateUserBan(userId, payload) {
