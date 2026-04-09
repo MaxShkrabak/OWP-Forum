@@ -185,28 +185,6 @@ function stripHTML(html) {
   return String(html ?? "").replace(/<[^>]*>/g, "");
 }
 
-function normalizeReport(r) {
-  const isComment = (r.source ?? r.Source ?? "Post") === "Comment";
-  return {
-    ...r,
-    reportId: r.reportId ?? r.ReportID ?? r.ReportId,
-    postId: r.postId,
-    commentId: r.commentId ?? r.CommentID ?? r.CommentId,
-    reason: r.reason ?? r.Reason ?? "",
-    createdAt: r.createdAt ?? r.CreatedAt ?? "",
-    source: r.source ?? r.Source ?? "Post",
-    reporterId: r.reporterId ?? r.reporter?.id ?? r.ReporterId ?? r.ReportUserID ?? null,
-    reporterName: r.reporterName ?? r.reporter?.fullName ?? r.ReporterName ?? "",
-    contentTitle: isComment
-      ? stripHTML(r.commentText ?? r.CommentText ?? "")
-      : (r.contentTitle ?? r.postTitle ?? r.ContentTitle ?? ""),
-    contentAuthorId: r.contentAuthorId ?? r.ContentAuthorId ?? null,
-    contentAuthorName: isComment
-      ? (r.commentAuthor ?? r.CommentAuthor ?? "")
-      : (r.contentAuthorName ?? r.postAuthor ?? r.ContentAuthorName ?? ""),
-  };
-}
-
 watch(sortMode, () => {
   reportPage.value = 1;
   loadReports();

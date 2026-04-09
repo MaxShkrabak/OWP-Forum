@@ -24,6 +24,7 @@ class ReportController extends BaseController
                 'postTitle'     => $row['PostTitle'] ?? null,
                 'postAuthor'    => $row['PostAuthor'] ?? null,
                 'commentId'     => (int)($row['CommentID'] ?? 0) ?: null,
+                'parentCommentId' => (int)($row['CommentParentId'] ?? 0) ?: null,
                 'commentText'   => $row['CommentText'] ?? null,
                 'commentAuthor' => $row['CommentAuthor'] ?? null,
                 'source'        => (int)($row['CommentID'] ?? 0) > 0 ? 'Comment' : 'Post',

@@ -75,9 +75,11 @@ const mockAdminReports = [
     source: "Comment",
     reason: "Harassment",
     createdAt: "2026-02-26T02:00:00Z",
-    commentText: "<p>This is an <strong>offensive</strong> comment</p>",
-    commentAuthor: "Bad Commenter",
-    reporter: { id: 5, fullName: "Jane Reporter" },
+    contentTitle: "This is an offensive comment",
+    contentAuthorId: 7,
+    contentAuthorName: "Bad Commenter",
+    reporterId: 5,
+    reporterName: "Jane Reporter",
   },
 ];
 
@@ -307,7 +309,7 @@ describe("AdminReports.vue — DOM + CRUD behaviors", () => {
   expect(mockReportsApi.resolveReport).toHaveBeenCalledWith(1);
 
   const remainingRows = wrapper.findAll(".reports-list .report-row");
-  expect(remainingRows.length).toBe(2);
+  expect(remainingRows.length).toBe(1);
   expect(wrapper.text()).not.toContain("Post #99");
   expect(wrapper.text()).toContain("Post #100");
 });
