@@ -53,7 +53,7 @@ class PostController extends BaseController
 
         $tagsByPostId = [];
         while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            $tagsByPostId[(int)$row['PostID']][] = ['TagID' => (int)$row['TagID'], 'Name' => $row['Name']];
+            $tagsByPostId[(int)$row['PostID']][] = ['tagId' => (int)$row['TagID'], 'name' => $row['Name']];
         }
         return $tagsByPostId;
     }
@@ -138,11 +138,14 @@ class PostController extends BaseController
             if (!$post) {
                 return json($res, ['ok' => false, 'error' => "Post not found or has been deleted."], 404);
             }
+            $categoryId = (int)($post['CategoryID'] ?? 0);
+
+            if (!$this->canViewCategory($pdo, $categoryId, $userId)) {
+                return json($res, ['ok' => false, 'error' => 'Post not found or has been deleted.'], 404);
+            }
 
             $tagsByPostId = $this->fetchTagsByPostIds($pdo, [$postID]);
-            $tags     = $tagsByPostId[$postID] ?? [];
-            $tagNames = array_column($tags, 'Name');
-            $tagIds   = array_column($tags, 'TagID');
+            $tags = $tagsByPostId[$postID] ?? [];
 
             return json($res, ['ok' => true, 'post' => [
                 'postId'       => (int)$post['PostID'],
@@ -150,16 +153,14 @@ class PostController extends BaseController
                 'content'      => $post['Content'],
                 'createdAt'    => $post['CreatedAt'],
                 'updatedAt'    => $post['UpdatedAt'] ?? null,
-                'category'     => (int)$post['CategoryID'],
                 'categoryId'   => (int)$post['CategoryID'],
                 'categoryName' => $post['CategoryName'],
+                'visibleFromRoleId' => $this->getCategoryVisibilityRoleId($pdo, $categoryId),
                 'authorId'     => (int)$post['AuthorID'],
                 'authorName'   => trim(($post['FirstName'] ?? '') . ' ' . ($post['LastName'] ?? '')),
                 'authorAvatar' => $post['Avatar'],
                 'authorRole'   => $post['RoleName'] ?? 'User',
                 'tags'         => $tags,
-                'tagNames'     => $tagNames,
-                'tagIds'       => $tagIds,
                 'totalScore'          => (int)($post['TotalScore'] ?? 0),
                 'viewCount'           => (int)($post['ViewCount'] ?? 0),
                 'myVote'              => (int)($post['myVote'] ?? 0),
@@ -333,7 +334,7 @@ class PostController extends BaseController
                         'authorName'   => trim(($row['FirstName'] ?? '') . ' ' . ($row['LastName'] ?? '')),
                         'authorRole'   => $row['RoleName'] ?? 'User',
                         'authorAvatar' => $row['Avatar'] ?? null,
-                        'tags'         => array_column($tagsByPostId[$pid] ?? [], 'Name'),
+                        'tags'         => array_column($tagsByPostId[$pid] ?? [], 'name'),
                         'commentCount' => (int)($row['commentCount'] ?? 0),
                         'totalScore'   => (int)($row['TotalScore'] ?? 0),
                         'myVote'       => (int)($row['myVote'] ?? 0),
@@ -341,18 +342,15 @@ class PostController extends BaseController
                 }
             }
 
+
             return json($res, [
-                'categoryId'   => $categoryId,
-                'categoryName' => $cat['Name'],
-                'posts'        => $posts,
-                'meta'         => [
-                    'limit'      => $limit,
-                    'sort'       => $sort,
-                    'page'       => $page,
+                'categoryId'        => $categoryId,
+                'categoryName'      => $cat['Name'],
+                'visibleFromRoleId' => $this->getCategoryVisibilityRoleId($pdo, $categoryId),
+                'posts'             => $posts,
+                'meta'              => [
                     'totalPosts' => $totalAll,
                     'totalPages' => $totalPages,
-                    'q'          => $qRaw,
-                    'mode'       => $mode,
                 ],
             ]);
         } catch (Throwable $e) {
@@ -363,23 +361,42 @@ class PostController extends BaseController
     public function getVerifyCategories(Request $req, Response $res): Response
     {
         try {
-            $userId = $req->getAttribute("user_id");
-            $pdo    = ($this->makePdo)();
+            $userId = (int)($req->getAttribute("user_id") ?? 0);
+            $pdo = ($this->makePdo)();
+            $userRoleId = $this->getUserRoleId($pdo, $userId);
 
-            $sql = "
+            if ($userRoleId >= 4) {
+                $sql = "
                 SELECT c.CategoryID, c.Name
                 FROM dbo.Forum_Categories c
-                WHERE c.UsableByRoleID <= (
-                    SELECT COALESCE(MAX(RoleID), 1)
-                    FROM dbo.Forum_Users
-                    WHERE User_ID = :userId
-                )
+                WHERE c.UsableByRoleID <= :usableRoleId
                 ORDER BY c.Name ASC
             ";
 
-            $stmt = $pdo->prepare($sql);
-            $stmt->execute([':userId' => $userId]);
-            $categories = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute([
+                    ':usableRoleId' => $userRoleId,
+                ]);
+            } else {
+                $sql = "
+                SELECT c.CategoryID, c.Name
+                FROM dbo.Forum_Categories c
+                WHERE c.UsableByRoleID <= :usableRoleId
+                  AND ISNULL(c.VisibleFromRoleID, 0) <= :visibleRoleId
+                ORDER BY c.Name ASC
+            ";
+
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute([
+                    ':usableRoleId' => $userRoleId,
+                    ':visibleRoleId' => $userRoleId,
+                ]);
+            }
+
+            $categories = array_map(fn($c) => [
+                'categoryId' => (int)$c['CategoryID'],
+                'name'       => $c['Name'],
+            ], $stmt->fetchAll(PDO::FETCH_ASSOC));
 
             return json($res, ['ok' => true, 'items' => $categories]);
         } catch (Throwable $e) {
@@ -402,7 +419,7 @@ class PostController extends BaseController
 
             $stmt = $pdo->prepare($sql);
             $stmt->execute([':userId' => $userId]);
-            $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $items = array_map(fn($r) => ['tagId' => (int)$r['TagID'], 'name' => $r['Name']], $stmt->fetchAll(PDO::FETCH_ASSOC));
 
             return json($res, ['ok' => true, 'items' => $items]);
         } catch (Throwable $e) {
@@ -415,7 +432,7 @@ class PostController extends BaseController
         try {
             $pdo  = ($this->makePdo)();
             $stmt = $pdo->query("SELECT TagID, Name FROM dbo.Forum_Tags ORDER BY Name ASC");
-            $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $items = array_map(fn($r) => ['tagId' => (int)$r['TagID'], 'name' => $r['Name']], $stmt->fetchAll(PDO::FETCH_ASSOC));
 
             return json($res, ['ok' => true, 'items' => $items]);
         } catch (Throwable $e) {
@@ -426,8 +443,9 @@ class PostController extends BaseController
     public function getPosts(Request $req, Response $res): Response
     {
         try {
-            $userId = $req->getAttribute("user_id") ?? 0;
+            $userId = (int)($req->getAttribute("user_id") ?? 0);
             $pdo = ($this->makePdo)();
+            $userRoleId = $this->getUserRoleId($pdo, $userId);
 
             $params = $req->getQueryParams();
             $sort = strtolower($params['sort'] ?? 'latest');
@@ -440,22 +458,53 @@ class PostController extends BaseController
                 default    => 'CreatedAt DESC',
             };
 
-            $countStmt = $pdo->query("
-                SELECT CategoryID, COUNT(*) AS postCount
-                FROM dbo.Forum_Posts WHERE IsDeleted = 0
-                GROUP BY CategoryID
-            ");
+            if ($userRoleId >= 4) {
+                $countSql = "
+                SELECT p.CategoryID, COUNT(*) AS postCount
+                FROM dbo.Forum_Posts p
+                INNER JOIN dbo.Forum_Categories c ON c.CategoryID = p.CategoryID
+                WHERE p.IsDeleted = 0
+                GROUP BY p.CategoryID
+            ";
+                $countStmt = $pdo->prepare($countSql);
+                $countStmt->execute();
+            } else {
+                $countSql = "
+                SELECT p.CategoryID, COUNT(*) AS postCount
+                FROM dbo.Forum_Posts p
+                INNER JOIN dbo.Forum_Categories c ON c.CategoryID = p.CategoryID
+                WHERE p.IsDeleted = 0
+                  AND ISNULL(c.VisibleFromRoleID, 0) <= :roleIdVisible
+                GROUP BY p.CategoryID
+            ";
+                $countStmt = $pdo->prepare($countSql);
+                $countStmt->execute([
+                    ':roleIdVisible' => $userRoleId,
+                ]);
+            }
+
             $categoryCounts = [];
             while ($row = $countStmt->fetch(PDO::FETCH_ASSOC)) {
                 $categoryCounts[(int)$row['CategoryID']] = (int)$row['postCount'];
             }
 
-            $getPostsSql = "
+            if ($userRoleId >= 4) {
+                $getPostsSql = "
                 WITH PostsWithCounts AS (
-                    SELECT p.PostID, p.Title, p.CreatedAt, p.CategoryID, p.TotalScore,
+                    SELECT
+                        p.PostID,
+                        p.Title,
+                        p.CreatedAt,
+                        p.CategoryID,
+                        p.TotalScore,
                         (SELECT COUNT(*) FROM dbo.Forum_Comments cm WHERE cm.PostID = p.PostID AND cm.IsDeleted = 0) AS commentCount,
-                        u.FirstName, u.LastName, u.Avatar, u.User_ID,
-                        r.Name AS RoleName, c.Name AS CategoryName,
+                        u.FirstName,
+                        u.LastName,
+                        u.Avatar,
+                        u.User_ID,
+                        r.Name AS RoleName,
+                        c.Name AS CategoryName,
+                        ISNULL(c.VisibleFromRoleID, 0) AS VisibleFromRoleID,
                         ISNULL(pv.VoteValue, 0) AS myVote
                     FROM dbo.Forum_Posts p
                     LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.User_ID
@@ -468,19 +517,64 @@ class PostController extends BaseController
                     SELECT *, ROW_NUMBER() OVER (PARTITION BY CategoryID ORDER BY $orderBy) AS rn
                     FROM PostsWithCounts
                 )
-                SELECT * FROM RankedPosts WHERE rn <= :limit
+                SELECT * FROM RankedPosts WHERE rn <= :limitRows
                 ORDER BY CategoryID, $orderBy
             ";
 
-            $stmt = $pdo->prepare($getPostsSql);
-            $stmt->execute([':userId' => $userId, ':limit' => $limit]);
+                $stmt = $pdo->prepare($getPostsSql);
+                $stmt->execute([
+                    ':userId' => $userId,
+                    ':limitRows' => $limit,
+                ]);
+            } else {
+                $getPostsSql = "
+                WITH PostsWithCounts AS (
+                    SELECT
+                        p.PostID,
+                        p.Title,
+                        p.CreatedAt,
+                        p.CategoryID,
+                        p.TotalScore,
+                        (SELECT COUNT(*) FROM dbo.Forum_Comments cm WHERE cm.PostID = p.PostID AND cm.IsDeleted = 0) AS commentCount,
+                        u.FirstName,
+                        u.LastName,
+                        u.Avatar,
+                        u.User_ID,
+                        r.Name AS RoleName,
+                        c.Name AS CategoryName,
+                        ISNULL(c.VisibleFromRoleID, 0) AS VisibleFromRoleID,
+                        ISNULL(pv.VoteValue, 0) AS myVote
+                    FROM dbo.Forum_Posts p
+                    LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.User_ID
+                    LEFT JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
+                    LEFT JOIN dbo.Forum_Categories c ON p.CategoryID = c.CategoryID
+                    LEFT JOIN dbo.Forum_PostVotes pv ON p.PostID = pv.PostID AND pv.User_ID = :userId
+                    WHERE p.IsDeleted = 0
+                      AND ISNULL(c.VisibleFromRoleID, 0) <= :roleIdVisible
+                ),
+                RankedPosts AS (
+                    SELECT *, ROW_NUMBER() OVER (PARTITION BY CategoryID ORDER BY $orderBy) AS rn
+                    FROM PostsWithCounts
+                )
+                SELECT * FROM RankedPosts WHERE rn <= :limitRows
+                ORDER BY CategoryID, $orderBy
+            ";
+
+                $stmt = $pdo->prepare($getPostsSql);
+                $stmt->execute([
+                    ':userId' => $userId,
+                    ':roleIdVisible' => $userRoleId,
+                    ':limitRows' => $limit,
+                ]);
+            }
+
             $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
             if (empty($rows)) {
                 return json($res, ['postsByCategory' => [], 'totalPosts' => 0]);
             }
 
-            $postIds      = array_map(fn($r) => (int)$r['PostID'], $rows);
+            $postIds = array_map(fn($r) => (int)$r['PostID'], $rows);
             $tagsByPostId = $this->fetchTagsByPostIds($pdo, $postIds);
 
             $categoriesMap = [];
@@ -490,40 +584,44 @@ class PostController extends BaseController
                 $catId = (int)$row['CategoryID'];
 
                 $post = [
-                    'postId'       => $pid,
-                    'categoryId'   => $catId,
-                    'title'        => $row['Title'],
-                    'createdAt'    => $row['CreatedAt'],
-                    'authorId'     => (int)($row['User_ID'] ?? 0),
-                    'authorName'   => trim(($row['FirstName'] ?? '') . ' ' . ($row['LastName'] ?? '')),
-                    'authorRole'   => $row['RoleName'] ?? 'User',
+                    'postId' => $pid,
+                    'categoryId' => $catId,
+                    'title' => $row['Title'],
+                    'createdAt' => $row['CreatedAt'],
+                    'authorId' => (int)($row['User_ID'] ?? 0),
+                    'authorName' => trim(($row['FirstName'] ?? '') . ' ' . ($row['LastName'] ?? '')),
+                    'authorRole' => $row['RoleName'] ?? 'User',
                     'authorAvatar' => $row['Avatar'] ?? null,
-                    'tags'         => array_column($tagsByPostId[$pid] ?? [], 'Name'),
+                    'tags' => array_column($tagsByPostId[$pid] ?? [], 'name'),
                     'commentCount' => (int)($row['commentCount'] ?? 0),
-                    'totalScore'   => (int)($row['TotalScore'] ?? 0),
-                    'myVote'       => (int)($row['myVote'] ?? 0),
+                    'totalScore' => (int)($row['TotalScore'] ?? 0),
+                    'myVote' => (int)($row['myVote'] ?? 0),
                 ];
 
                 if (!isset($categoriesMap[$catId])) {
                     $categoriesMap[$catId] = [
-                        'categoryId'   => $catId,
+                        'categoryId' => $catId,
                         'categoryName' => $row['CategoryName'] ?? 'Uncategorized',
-                        'posts'        => []
+                        'visibleFromRoleId' => (int)($row['VisibleFromRoleID'] ?? 0),
+                        'posts' => []
                     ];
                 }
+
                 $categoriesMap[$catId]['posts'][] = $post;
             }
 
             $postsByCategory = array_values($categoriesMap);
+
             foreach ($postsByCategory as &$cat) {
                 $cat['postCount'] = $categoryCounts[$cat['categoryId']] ?? count($cat['posts']);
             }
             unset($cat);
+
             usort($postsByCategory, fn($a, $b) => strcmp($a['categoryName'], $b['categoryName']));
 
             return json($res, [
                 'postsByCategory' => $postsByCategory,
-                'totalPosts'      => array_sum($categoryCounts),
+                'totalPosts' => array_sum($categoryCounts),
             ]);
         } catch (Throwable $e) {
             return json($res, ['ok' => false, 'error' => 'Failed to load posts.'], 500);
@@ -535,8 +633,10 @@ class PostController extends BaseController
         try {
             $pdo = ($this->makePdo)();
             $userId = (int)($req->getAttribute("user_id") ?? 0);
+            $userRoleId = $this->getUserRoleId($pdo, $userId);
 
-            $sql = "
+            if ($userRoleId >= 4) {
+                $sql = "
                 SELECT
                     p.PostID,
                     p.Title,
@@ -550,6 +650,7 @@ class PostController extends BaseController
                     u.User_ID,
                     r.Name AS RoleName,
                     c.Name AS CategoryName,
+                    ISNULL(c.VisibleFromRoleID, 0) AS VisibleFromRoleID,
                     ISNULL(pv.VoteValue, 0) AS myVote
                 FROM dbo.Forum_Pinned pin
                 INNER JOIN dbo.Forum_Posts p ON pin.PostID = p.PostID
@@ -561,15 +662,52 @@ class PostController extends BaseController
                 ORDER BY pin.CreatedAt DESC, p.CreatedAt DESC
             ";
 
-            $stmt = $pdo->prepare($sql);
-            $stmt->execute([':userId' => $userId]);
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute([
+                    ':userId' => $userId,
+                ]);
+            } else {
+                $sql = "
+                SELECT
+                    p.PostID,
+                    p.Title,
+                    p.CreatedAt,
+                    p.CategoryID,
+                    p.TotalScore,
+                    (SELECT COUNT(*) FROM dbo.Forum_Comments cm WHERE cm.PostID = p.PostID AND cm.IsDeleted = 0) AS commentCount,
+                    u.FirstName,
+                    u.LastName,
+                    u.Avatar,
+                    u.User_ID,
+                    r.Name AS RoleName,
+                    c.Name AS CategoryName,
+                    ISNULL(c.VisibleFromRoleID, 0) AS VisibleFromRoleID,
+                    ISNULL(pv.VoteValue, 0) AS myVote
+                FROM dbo.Forum_Pinned pin
+                INNER JOIN dbo.Forum_Posts p ON pin.PostID = p.PostID
+                LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.User_ID
+                LEFT JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
+                LEFT JOIN dbo.Forum_Categories c ON p.CategoryID = c.CategoryID
+                LEFT JOIN dbo.Forum_PostVotes pv ON p.PostID = pv.PostID AND pv.User_ID = :userId
+                WHERE p.IsDeleted = 0
+                  AND ISNULL(c.VisibleFromRoleID, 0) <= :roleIdVisible
+                ORDER BY pin.CreatedAt DESC, p.CreatedAt DESC
+            ";
+
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute([
+                    ':userId' => $userId,
+                    ':roleIdVisible' => $userRoleId,
+                ]);
+            }
+
             $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
             if (empty($rows)) {
                 return json($res, ['ok' => true, 'posts' => []]);
             }
 
-            $postIds      = array_map(fn($r) => (int)$r['PostID'], $rows);
+            $postIds = array_map(fn($r) => (int)$r['PostID'], $rows);
             $tagsByPostId = $this->fetchTagsByPostIds($pdo, $postIds);
 
             $posts = [];
@@ -577,20 +715,21 @@ class PostController extends BaseController
                 $pid = (int)$row['PostID'];
 
                 $posts[] = [
-                    'postId'       => $pid,
-                    'categoryId'   => (int)($row['CategoryID'] ?? 0),
+                    'postId' => $pid,
+                    'categoryId' => (int)($row['CategoryID'] ?? 0),
                     'categoryName' => $row['CategoryName'] ?? '',
-                    'title'        => $row['Title'],
-                    'createdAt'    => $row['CreatedAt'],
-                    'authorId'     => (int)($row['User_ID'] ?? 0),
-                    'authorName'   => trim(($row['FirstName'] ?? '') . ' ' . ($row['LastName'] ?? '')),
-                    'authorRole'   => $row['RoleName'] ?? 'User',
+                    'visibleFromRoleId' => (int)($row['VisibleFromRoleID'] ?? 0),
+                    'title' => $row['Title'],
+                    'createdAt' => $row['CreatedAt'],
+                    'authorId' => (int)($row['User_ID'] ?? 0),
+                    'authorName' => trim(($row['FirstName'] ?? '') . ' ' . ($row['LastName'] ?? '')),
+                    'authorRole' => $row['RoleName'] ?? 'User',
                     'authorAvatar' => $row['Avatar'] ?? null,
-                    'tags'         => array_column($tagsByPostId[$pid] ?? [], 'Name'),
+                    'tags' => array_column($tagsByPostId[$pid] ?? [], 'name'),
                     'commentCount' => (int)($row['commentCount'] ?? 0),
-                    'totalScore'   => (int)($row['TotalScore'] ?? 0),
-                    'myVote'       => (int)($row['myVote'] ?? 0),
-                    'isPinned'     => true,
+                    'totalScore' => (int)($row['TotalScore'] ?? 0),
+                    'myVote' => (int)($row['myVote'] ?? 0),
+                    'isPinned' => true,
                 ];
             }
 
@@ -715,7 +854,14 @@ class PostController extends BaseController
             }
 
             // Category section
-            $catStmt = $pdo->prepare("SELECT CategoryID, UsableByRoleID FROM dbo.Forum_Categories WHERE CategoryID = :catId");
+            $catStmt = $pdo->prepare("
+                SELECT
+                    c.CategoryID,
+                    c.UsableByRoleID,
+                    ISNULL(c.VisibleFromRoleID, 0) AS VisibleFromRoleID
+                FROM dbo.Forum_Categories c
+                WHERE c.CategoryID = :catId
+            ");
             $catStmt->execute([':catId' => $categoryIdIn]);
             $categoryData = $catStmt->fetch(PDO::FETCH_ASSOC);
 
@@ -726,6 +872,10 @@ class PostController extends BaseController
 
             // Check if user has permission to use category
             if ($currentRoleId < (int)$categoryData['UsableByRoleID']) {
+                $pdo->rollBack();
+                return json($res, ['ok' => false, 'error' => 'Permission denied for this category.'], 403);
+            }
+            if ($currentRoleId < 4 && $currentRoleId < (int)$categoryData['VisibleFromRoleID']) {
                 $pdo->rollBack();
                 return json($res, ['ok' => false, 'error' => 'Permission denied for this category.'], 403);
             }
@@ -777,14 +927,10 @@ class PostController extends BaseController
 
             $pdo->commit();
 
-            // Format date
-            $createdAtIso = (new \DateTimeImmutable($newPost['CreatedAt'], new \DateTimeZone('UTC')))
-                ->format(\DateTime::ATOM);
-
             return json($res, [
                 'ok'        => true,
                 'postId'    => $postId,
-                'createdAt' => $createdAtIso,
+                'createdAt' => $newPost['CreatedAt'],
                 'cooldownSeconds' => $isCooldownExempt ? 0 : $postCooldownSeconds,
             ]);
         } catch (Throwable $e) {
@@ -920,7 +1066,7 @@ class PostController extends BaseController
             ");
             $limitStmt->execute([':categoryId' => $post['CategoryID']]);
             if ((int)$limitStmt->fetchColumn() >= 2) {
-                return json($res, ['ok' => false, 'error' => 'Maximum of 2 pinned posts per category reached.'], 400);
+                return json($res, ['ok' => false, 'error' => 'Maximum of 2 pinned posts per category reached.']);
             }
 
             $insertStmt = $pdo->prepare("INSERT INTO dbo.Forum_Pinned (PostID) VALUES (:pid)");
@@ -1030,7 +1176,14 @@ class PostController extends BaseController
             }
             $userRoleId = $access['userRoleId'];
 
-            $catStmt = $pdo->prepare("SELECT CategoryID, UsableByRoleID FROM dbo.Forum_Categories WHERE CategoryID = :catId");
+            $catStmt = $pdo->prepare("
+                SELECT
+                    c.CategoryID,
+                    c.UsableByRoleID,
+                    ISNULL(c.VisibleFromRoleID, 0) AS VisibleFromRoleID
+                FROM dbo.Forum_Categories c
+                WHERE c.CategoryID = :catId
+            ");
             $catStmt->execute(['catId' => $categoryIdIn]);
             $categoryData = $catStmt->fetch(PDO::FETCH_ASSOC);
 
@@ -1040,7 +1193,9 @@ class PostController extends BaseController
             if ($userRoleId < (int)$categoryData['UsableByRoleID']) {
                 return json($res, ['ok' => false, 'error' => 'Permission denied for this category.'], 403);
             }
-
+            if ($userRoleId < 4 && $userRoleId < (int)$categoryData['VisibleFromRoleID']) {
+                return json($res, ['ok' => false, 'error' => 'Permission denied for this category.'], 403);
+            }
             // Only mods/admins (role >= 3) may toggle comment disabling
             $isCommentsDisabled = ($userRoleId >= 3 && $disableCommentsIn) ? 1 : 0;
 

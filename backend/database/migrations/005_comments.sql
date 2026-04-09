@@ -1,3 +1,5 @@
+-- 005_comments.sql
+
 IF OBJECT_ID ('dbo.Forum_Comments', 'U') IS NULL
 BEGIN
     CREATE TABLE dbo.Forum_Comments (
@@ -7,7 +9,7 @@ BEGIN
         ParentCommentId INT NULL     CONSTRAINT FK_Comments_Parent REFERENCES dbo.Forum_Comments(CommentId),
         Content         NVARCHAR(1000) NOT NULL,
         TotalScore      INT NOT NULL CONSTRAINT DF_Comments_TotalScore DEFAULT 0,
-        CreatedAt       DATETIME2 NOT NULL CONSTRAINT DF_Comments_CreatedAt DEFAULT SYSUTCDATETIME(),
+        CreatedAt       DATETIME2(0) NOT NULL CONSTRAINT DF_Comments_CreatedAt DEFAULT SYSUTCDATETIME(),
         UpdatedAt       DATETIME2(0) NULL,
         IsDeleted       BIT NOT NULL CONSTRAINT DF_Comments_IsDeleted DEFAULT 0,
         DeletedAt       DATETIME2 NULL

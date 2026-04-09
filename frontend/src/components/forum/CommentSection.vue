@@ -183,6 +183,8 @@ const currentBatch = ref(1);
 const commentsPerLoad = 10;
 const hasMore = ref(true);
 const isLoadingMore = ref(false);
+const isSubmittingComment = ref(false);
+const isSubmittingReply = ref(false);
 
 const commentTotalCount = ref(0);
 const isUploading = ref(false);
@@ -320,8 +322,9 @@ const handleLoadMore = async () => {
 
 const submitComment = async () => {
   const cleanContent = newComment.value.replace(/(<([^>]+)>)/gi, "").trim();
-  if (!cleanContent) return;
+  if (!cleanContent || isSubmittingComment.value) return;
 
+  isSubmittingComment.value = true;
   try {
     const data = await apiSubmitComment(props.postId, newComment.value);
     if (data && data.ok) {
@@ -336,11 +339,15 @@ const submitComment = async () => {
     }
   } catch (error) {
     openCommentFeedbackModal(error);
+  } finally {
+    isSubmittingComment.value = false;
   }
 };
 
 const submitReply = async (replyContent, parentCommentId) => {
-  if (!replyContent.trim()) return false;
+  if (!replyContent.trim() || isSubmittingReply.value) return false;
+
+  isSubmittingReply.value = true;
   try {
     const data = await apiSubmitComment(
       props.postId,
@@ -356,6 +363,8 @@ const submitReply = async (replyContent, parentCommentId) => {
   } catch (error) {
     openCommentFeedbackModal(error, true);
     return false;
+  } finally {
+    isSubmittingReply.value = false;
   }
 };
 
@@ -372,16 +381,10 @@ onMounted(() => {
 });
 
 const handleDeletedComment = (deletedCommentId) => {
-  const before = flatCommentsList.value.length;
-
   flatCommentsList.value = flatCommentsList.value.filter(
-    (comment) =>
-      comment.id !== deletedCommentId &&
-      comment.parentCommentId !== deletedCommentId,
+    (comment) => comment.id !== deletedCommentId,
   );
-
-  const removedCount = before - flatCommentsList.value.length;
-  commentTotalCount.value = Math.max(0, commentTotalCount.value - removedCount);
+  commentTotalCount.value = Math.max(0, commentTotalCount.value - 1);
   commentsTree.value = buildCommentTree(flatCommentsList.value);
 };
 </script>
@@ -404,6 +407,7 @@ const handleDeletedComment = (deletedCommentId) => {
           v-model="selectedSort"
           @change="handleSortChange"
           class="sort-select"
+          :disabled="commentTotalCount <= 1"
         >
           <option
             v-for="option in sortOptions"
@@ -430,7 +434,8 @@ const handleDeletedComment = (deletedCommentId) => {
           v-if="commentsDisabled && userRoleId >= 3"
           class="comments-disabled-mod-notice rounded-3 px-4 py-2 mb-2 justify-content-center d-flex align-items-center gap-2"
         >
-          <i class="pi pi-lock me-2"></i>Comments are disabled for regular users on this post.
+          <i class="pi pi-lock me-2"></i>Comments are disabled for regular users
+          on this post.
         </div>
 
         <div
@@ -464,10 +469,10 @@ const handleDeletedComment = (deletedCommentId) => {
             </button>
             <button
               class="btn-submit border-0 rounded-2 fw-bold px-4 py-2"
-              :disabled="!newComment || newComment === '<p></p>' || isUploading"
+              :disabled="!newComment || newComment === '<p></p>' || isUploading || isSubmittingComment"
               @click.stop="submitComment"
             >
-              {{ isUploading ? "Uploading..." : "Comment" }}
+              {{ isUploading ? "Uploading..." : isSubmittingComment ? "Posting..." : "Comment" }}
             </button>
           </div>
         </div>
@@ -681,6 +686,10 @@ const handleDeletedComment = (deletedCommentId) => {
   cursor: pointer;
   text-transform: uppercase;
   padding-right: 0.25rem;
+}
+.sort-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .sort-select option {

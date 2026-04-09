@@ -23,16 +23,40 @@ const routes = [
     props: (route) => ({ email: route.query.email || "" }),
   },
 
-  { path: "/terms", name: "Terms", component: TermsPage, meta: { hideTermsModal: true } },
-  { path: "/privacy", name: "Privacy", component: PrivacyPage, meta: { hideTermsModal: true } },
+  {
+    path: "/terms",
+    name: "Terms",
+    component: TermsPage,
+    meta: { hideTermsModal: true },
+  },
+  {
+    path: "/privacy",
+    name: "Privacy",
+    component: PrivacyPage,
+    meta: { hideTermsModal: true },
+  },
 
-  { path: "/create-post", name: "CreatePost", component: CreatePost, meta: { requiresAuth: true } },
+  {
+    path: "/create-post",
+    name: "CreatePost",
+    component: CreatePost,
+    meta: { requiresAuth: true },
+  },
 
   { path: "/profile", name: "User Profile", component: ForumUserProfile },
-  { path: "/categories/:categoryId/:slug?", name: "CategoryPosts", component: CategoryPost },
+  {
+    path: "/categories/:categoryId/:slug?",
+    name: "CategoryPosts",
+    component: CategoryPost,
+  },
   { path: "/posts/:id", name: "ViewPost", component: ViewPost, props: true },
 
-  { path: "/admin", name: "AdminPanel", component: AdminPanel, meta: { requiresAdmin: true } },
+  {
+    path: "/admin",
+    name: "AdminPanel",
+    component: AdminPanel,
+    meta: { requiresAdmin: true },
+  },
 ];
 
 const router = createRouter({
@@ -77,6 +101,12 @@ router.beforeEach(async (to, from, next) => {
   }
 
   next();
+});
+
+router.afterEach((to, from) => {
+  if (to.path !== from.path) {
+    scrollTo(0, 0);
+  }
 });
 
 export default router;

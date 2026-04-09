@@ -24,7 +24,7 @@ abstract class BaseController
         if ($userId === null) {
             return [json($res, ['ok' => false, 'error' => 'Not Authenticated'], 401), null, null];
         }
-        return [null, ($this->makePdo)(), $userId];
+        return [null, ($this->makePdo)(), (int)$userId];
     }
 
     protected function requireRole(int $minRole, Request $req, Response $res): array
@@ -44,6 +44,47 @@ abstract class BaseController
             return [json($res, ['ok' => false, 'error' => $msg], 403), null, null];
         }
 
-        return [null, $pdo, $userId];
+        return [null, $pdo, (int)$userId];
     }
+    protected function getUserRoleId(PDO $pdo, ?int $userId): int
+{
+    if (!$userId || $userId <= 0) {
+        return 0;
+    }
+
+    $stmt = $pdo->prepare("
+        SELECT ISNULL(RoleID, 0)
+        FROM dbo.Forum_Users
+        WHERE User_ID = :uid
+    ");
+    $stmt->execute([':uid' => $userId]);
+
+    $roleId = (int)($stmt->fetchColumn() ?? 0);
+    return $roleId >= 0 ? $roleId : 0;
+}
+
+protected function getCategoryVisibilityRoleId(PDO $pdo, int $categoryId): int
+{
+    $stmt = $pdo->prepare("
+        SELECT ISNULL(VisibleFromRoleID, 0)
+        FROM dbo.Forum_Categories
+        WHERE CategoryID = :categoryId
+    ");
+    $stmt->execute([':categoryId' => $categoryId]);
+
+    $roleId = (int)($stmt->fetchColumn() ?? 0);
+    return $roleId >= 0 ? $roleId : 0;
+}
+
+protected function canViewCategory(PDO $pdo, int $categoryId, ?int $userId): bool
+{
+    $userRoleId = $this->getUserRoleId($pdo, $userId);
+
+    if ($userRoleId >= 4) {
+        return true;
+    }
+
+    $visibleFromRoleId = $this->getCategoryVisibilityRoleId($pdo, $categoryId);
+    return $userRoleId >= $visibleFromRoleId;
+}
 }

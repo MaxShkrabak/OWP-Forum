@@ -58,7 +58,6 @@ if (!function_exists('Forum\Helpers\setSessionCookie')) {
         setcookie('session', $rawToken, [
             'expires'  => time() + 86400, // 24 hours
             'path'     => '/',
-            'domain'   => 'localhost',
             'secure'   => false,
             'httponly' => true,
             'samesite' => 'Lax'
@@ -71,7 +70,6 @@ if (!function_exists('Forum\Helpers\clearSessionCookie')) {
         setcookie('session', '', [
             'expires'  => time() - 3600, // One hour ago
             'path'     => '/',
-            'domain'   => 'localhost',
             'secure'   => false,
             'httponly' => true,
             'samesite' => 'Lax'

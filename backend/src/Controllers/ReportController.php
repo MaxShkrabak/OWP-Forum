@@ -10,13 +10,48 @@ use function Forum\Helpers\json;
 
 class ReportController extends BaseController
 {
+    /**
+     * @param array<int, array<string, mixed>> $rows
+     * @return array<int, array<string, mixed>>
+     */
+    private function mapReportRows(array $rows): array
+    {
+        $reports = [];
+        foreach ($rows as $row) {
+            $reports[] = [
+                'reportId'      => (int)$row['ReportID'],
+                'postId'        => (int)($row['PostID'] ?? 0) ?: null,
+                'postTitle'     => $row['PostTitle'] ?? null,
+                'postAuthor'    => $row['PostAuthor'] ?? null,
+                'commentId'     => (int)($row['CommentID'] ?? 0) ?: null,
+                'commentText'   => $row['CommentText'] ?? null,
+                'commentAuthor' => $row['CommentAuthor'] ?? null,
+                'source'        => (int)($row['CommentID'] ?? 0) > 0 ? 'Comment' : 'Post',
+                'reason'        => $row['Reason'] ?? 'Other',
+                'createdAt'     => $row['CreatedAt'],
+                'reporter'      => [
+                    'id'       => (int)$row['ReporterId'],
+                    'fullName' => $row['ReporterName'] ?? null,
+                ],
+            ];
+        }
+
+        return $reports;
+    }
+
     public function getReports(Request $req, Response $res): Response
     {
         try {
             [$err, $pdo] = $this->requireRole(3, $req, $res);
             if ($err !== null) return $err;
 
-            $sql = "
+            $queryParams = $req->getQueryParams();
+            $wantPaginate = array_key_exists('page', $queryParams) || array_key_exists('perPage', $queryParams);
+
+            $sortRaw = strtolower(trim((string)($queryParams['sort'] ?? 'newest')));
+            $orderSql = ($sortRaw === 'oldest') ? 'r.CreatedAt ASC' : 'r.CreatedAt DESC';
+
+            $selectCols = "
                 SELECT
                     r.ReportID,
                     r.PostID,
@@ -29,6 +64,9 @@ class ReportController extends BaseController
                     rt.TagName AS Reason,
                     r.ReportUserID AS ReporterId,
                     CONCAT(ur.FirstName, ' ', ur.LastName) AS ReporterName
+            ";
+
+            $fromWhere = "
                 FROM dbo.Forum_Reports r
                 INNER JOIN dbo.Forum_ReportTags rt ON r.ReportTagID = rt.ReportTagID
                 LEFT JOIN dbo.Forum_Posts p ON r.PostID = p.PostID
@@ -37,33 +75,45 @@ class ReportController extends BaseController
                 LEFT JOIN dbo.Forum_Users uc ON uc.User_ID = c.UserId
                 LEFT JOIN dbo.Forum_Users ur ON ur.User_ID = r.ReportUserID
                 WHERE r.Resolved = 0
-                ORDER BY r.CreatedAt DESC
             ";
+
+            if (!$wantPaginate) {
+                $sql = $selectCols . $fromWhere . " ORDER BY $orderSql";
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute();
+                $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+                return json($res, ['ok' => true, 'reports' => $this->mapReportRows($rows)]);
+            }
+
+            $page = (int)($queryParams['page'] ?? 1);
+            $perPage = (int)($queryParams['perPage'] ?? 25);
+            if ($page < 1) {
+                $page = 1;
+            }
+            $allowedSizes = [5, 10, 25, 50, 100];
+            if (!in_array($perPage, $allowedSizes, true)) {
+                $perPage = 25;
+            }
+            $offset = ($page - 1) * $perPage;
+
+            $countSql = "SELECT COUNT(*) AS cnt $fromWhere";
+            $countStmt = $pdo->prepare($countSql);
+            $countStmt->execute();
+            $total = (int)$countStmt->fetchColumn();
+
+            $sql = $selectCols . $fromWhere . " ORDER BY $orderSql OFFSET $offset ROWS FETCH NEXT $perPage ROWS ONLY";
             $stmt = $pdo->prepare($sql);
             $stmt->execute();
             $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            $reports = [];
-            foreach ($rows as $row) {
-                $reports[] = [
-                    'reportId'      => (int)$row['ReportID'],
-                    'postId'        => (int)($row['PostID'] ?? 0) ?: null,
-                    'postTitle'     => $row['PostTitle'] ?? null,
-                    'postAuthor'    => $row['PostAuthor'] ?? null,
-                    'commentId'     => (int)($row['CommentID'] ?? 0) ?: null,
-                    'commentText'   => $row['CommentText'] ?? null,
-                    'commentAuthor' => $row['CommentAuthor'] ?? null,
-                    'source'        => (int)($row['CommentID'] ?? 0) > 0 ? 'Comment' : 'Post',
-                    'reason'        => $row['Reason'] ?? 'Other',
-                    'createdAt'     => $row['CreatedAt'],
-                    'reporter'      => [
-                        'id'       => (int)$row['ReporterId'],
-                        'fullName' => $row['ReporterName'] ?? null,
-                    ],
-                ];
-            }
-
-            return json($res, ['ok' => true, 'reports' => $reports]);
+            return json($res, [
+                'ok' => true,
+                'reports' => $this->mapReportRows($rows),
+                'total' => $total,
+                'page' => $page,
+                'perPage' => $perPage,
+            ]);
         } catch (Throwable $e) {
             return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
         }
@@ -99,7 +149,10 @@ class ReportController extends BaseController
             $sql = "SELECT ReportTagID, TagName FROM dbo.Forum_ReportTags
                     ORDER BY CASE WHEN TagName = 'Other' THEN 1 ELSE 0 END, TagName ASC";
 
-            $tags = $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+            $tags = array_map(
+                fn($r) => ['tagId' => (int)$r['ReportTagID'], 'name' => $r['TagName']],
+                $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC)
+            );
 
             return json($res, ['ok' => true, 'tags' => $tags]);
         } catch (Throwable $e) {

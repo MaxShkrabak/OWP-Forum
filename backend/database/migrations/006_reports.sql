@@ -1,3 +1,5 @@
+-- 006_reports.sql
+
 IF OBJECT_ID('dbo.Forum_ReportTags', 'U') IS NULL
 BEGIN
   CREATE TABLE dbo.Forum_ReportTags (
@@ -29,8 +31,7 @@ USING (VALUES
     ('Spam'),
     ('Harassment'),
     ('Inappropriate'),
-    ('Misinformation'),
-    ('Other')
+    ('Misinformation')
 ) AS source (TagName)
 ON target.TagName = source.TagName
 WHEN NOT MATCHED BY TARGET THEN

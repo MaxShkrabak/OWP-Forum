@@ -1,3 +1,5 @@
+-- 004_posts.sql
+
 -- Posts table
 IF OBJECT_ID('dbo.Forum_Posts','U') IS NULL
 BEGIN
