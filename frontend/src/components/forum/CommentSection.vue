@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, provide, onMounted, onBeforeUnmount, nextTick } from "vue";
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
 import SingleComment from "./SingleComment.vue";
 import CommentEditor from "./TextEditor.vue";
 
@@ -23,6 +23,7 @@ const props = defineProps({
 });
 
 const router = useRouter();
+const route = useRoute();
 
 const flatCommentsList = ref([]);
 const commentsTree = ref([]);
@@ -195,8 +196,11 @@ const sortOptions = [
 ];
 const selectedSort = ref("latest");
 
+const autoExpandCommentId = ref(null);
+
 provide("activeReplyId", activeReplyId);
 provide("activeEditId", activeEditId);
+provide("autoExpandCommentId", autoExpandCommentId);
 
 const openEditComment = (commentId) => {
   if (activeEditId.value === commentId) return;
@@ -383,6 +387,20 @@ onMounted(async () => {
     if (!hasMore.value) break;
     currentBatch.value++;
     await loadComments(false);
+  }
+
+  // If not found, it may be a reply hidden inside a collapsed parent
+  if (!el) {
+    const parentId = route.query.parentCommentId;
+    if (parentId) {
+      autoExpandCommentId.value = Number(parentId);
+      // Wait for the parent to fetch and render its replies
+      for (let i = 0; i < 50; i++) {
+        await new Promise((r) => setTimeout(r, 100));
+        el = document.getElementById(targetId);
+        if (el) break;
+      }
+    }
   }
 
   await nextTick();

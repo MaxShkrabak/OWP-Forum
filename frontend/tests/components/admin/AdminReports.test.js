@@ -342,6 +342,41 @@ it('12) Clicking "Go to" on a comment report routes to its parent post', async (
   await commentRow.find("button.btn-outline").trigger("click");
   await flushPromises();
 
-  expect(mockRouter.push).toHaveBeenCalledWith({ path: "/posts/55", hash: "#comment-12" });
+  expect(mockRouter.push).toHaveBeenCalledWith({ path: "/posts/55", hash: "#comment-12", query: {} });
+});
+
+it('13) Clicking "Go to" on a reply comment report passes parentCommentId query param', async () => {
+  const reportsWithReply = [
+    ...mockAdminReports,
+    {
+      reportId: 4,
+      postId: 60,
+      commentId: 25,
+      parentCommentId: 15,
+      source: "Comment",
+      reason: "Spam",
+      createdAt: "2026-02-26T03:00:00Z",
+      commentText: "<p>A reply comment</p>",
+      commentAuthor: "Reply Author",
+      reporter: { id: 6, fullName: "Report Person" },
+    },
+  ];
+  mockReportsApi.fetchReports.mockResolvedValue({ ok: true, reports: reportsWithReply });
+
+  const wrapper = mount(AdminReports);
+  await flushPromises();
+
+  const rows = wrapper.findAll(".reports-list .report-row");
+  const replyRow = rows.find((row) => row.text().includes("Comment #25"));
+  expect(replyRow, "Expected a report row for Comment #25").toBeTruthy();
+
+  await replyRow.find("button.btn-outline").trigger("click");
+  await flushPromises();
+
+  expect(mockRouter.push).toHaveBeenCalledWith({
+    path: "/posts/60",
+    hash: "#comment-25",
+    query: { parentCommentId: "15" },
+  });
 });
 });

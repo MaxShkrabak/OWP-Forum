@@ -23,12 +23,25 @@ const sampleReports = [
   {
     reportId: 2,
     postId: 100,
+    commentId: 30,
     source: "Comment",
     commentText: "This is a bad comment",
     commentAuthor: "charlie Author",
     reporter: { fullName: "Joe Smith" },
     createdAt: "2026-02-28T13:00:00Z",
     reason: "Harassment",
+  },
+  {
+    reportId: 3,
+    postId: 100,
+    commentId: 45,
+    parentCommentId: 30,
+    source: "Comment",
+    commentText: "This is a bad reply",
+    commentAuthor: "dave Author",
+    reporter: { fullName: "Eve Reporter" },
+    createdAt: "2026-02-28T14:00:00Z",
+    reason: "Spam",
   },
 ];
 
@@ -118,5 +131,25 @@ describe("ViewReportsButton.vue", () => {
       });
     }
   );
+
+  it("should pass parentCommentId query param when navigating to a reply comment report", async () => {
+    const wrapper = mount(ViewReportsButton, {
+      global: { stubs: { teleport: true } },
+    });
+    await flushPromises();
+
+    const goButtons = wrapper
+      .findAll(".report-cta-btn")
+      .filter((w) => w.text().includes("Go To"));
+
+    // Third Go To button corresponds to the reply comment report (reportId 3)
+    await goButtons[2].trigger("click");
+
+    expect(mockRouter.push).toHaveBeenCalledWith({
+      path: "/posts/100",
+      hash: "#comment-45",
+      query: { parentCommentId: "30" },
+    });
+  });
 });
 

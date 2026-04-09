@@ -142,9 +142,12 @@ class ReportControllerTest extends TestCase
                 'ReportID' => 1,
                 'PostID' => 10,
                 'PostTitle' => 'Test Post',
+                'PostAuthorId' => 5,
                 'PostAuthor' => 'John Doe',
                 'CommentID' => null,
+                'CommentParentId' => null,
                 'CommentText' => null,
+                'CommentAuthorId' => null,
                 'CommentAuthor' => null,
                 'CreatedAt' => '2026-03-14 12:00:00',
                 'Reason' => 'Spam',
@@ -170,6 +173,56 @@ class ReportControllerTest extends TestCase
         $this->assertEquals('Post', $body['reports'][0]['source']);
         $this->assertEquals('Spam', $body['reports'][0]['reason']);
         $this->assertEquals(2, $body['reports'][0]['reporter']['id']);
+        $this->assertNull($body['reports'][0]['parentCommentId']);
+    }
+
+    #[AllowMockObjectsWithoutExpectations]
+    public function testGetReportsIncludesParentCommentIdForReplies(): void
+    {
+        $req = $this->createStub(Request::class);
+        $req->method('getAttribute')->willReturn(1);
+
+        $roleStmt = $this->createStub(PDOStatement::class);
+        $roleStmt->method('execute')->willReturn(true);
+        $roleStmt->method('fetchColumn')->willReturn(4);
+
+        $reportStmt = $this->createStub(PDOStatement::class);
+        $reportStmt->method('execute')->willReturn(true);
+        $reportStmt->method('fetchAll')->willReturn([
+            [
+                'ReportID' => 5,
+                'PostID' => 20,
+                'PostTitle' => 'Parent Post',
+                'PostAuthorId' => 3,
+                'PostAuthor' => 'Post Author',
+                'CommentID' => 42,
+                'CommentParentId' => 10,
+                'CommentText' => 'Reply comment',
+                'CommentAuthorId' => 7,
+                'CommentAuthor' => 'Reply Author',
+                'CreatedAt' => '2026-03-14 14:00:00',
+                'Reason' => 'Harassment',
+                'ReporterId' => 8,
+                'ReporterName' => 'Reporter User',
+            ],
+        ]);
+
+        $this->pdo->method('prepare')->willReturnCallback(
+            function (string $sql) use ($roleStmt, $reportStmt) {
+                if (str_contains($sql, 'dbo.Forum_Reports')) return $reportStmt;
+                return $roleStmt;
+            }
+        );
+
+        $response = $this->controller->getReports($req, new Response());
+
+        $this->assertEquals(200, $response->getStatusCode());
+        $body = json_decode((string)$response->getBody(), true);
+        $this->assertTrue($body['ok']);
+        $this->assertCount(1, $body['reports']);
+        $this->assertEquals(42, $body['reports'][0]['commentId']);
+        $this->assertEquals(10, $body['reports'][0]['parentCommentId']);
+        $this->assertEquals('Comment', $body['reports'][0]['source']);
     }
 
     public function testGetReportTagsSuccess(): void

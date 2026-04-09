@@ -78,7 +78,8 @@ function goToReport(r) {
   hideModal();
   const path = `/posts/${r.postId}`;
   if (r.source === "Comment" && r.commentId) {
-    router.push({ path, hash: `#comment-${r.commentId}` });
+    const query = r.parentCommentId ? { parentCommentId: String(r.parentCommentId) } : {};
+    router.push({ path, hash: `#comment-${r.commentId}`, query });
   } else {
     router.push(path);
   }

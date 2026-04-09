@@ -1,5 +1,5 @@
 <script setup>
-import { ref, inject, computed, watch, provide } from "vue";
+import { ref, inject, computed, watch, provide, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import UserRole from "@/components/user/UserRole.vue";
 import {
@@ -53,6 +53,7 @@ const closeEditComment = inject("closeEditComment");
 const markEditDirty = inject("markEditDirty");
 
 const maxDepthContext = inject("maxDepthContext", null);
+const autoExpandCommentId = inject("autoExpandCommentId", ref(null));
 
 if (props.depth === 1) {
   provide("maxDepthContext", {
@@ -312,6 +313,12 @@ const handleVote = async (direction) => {
     isVoting.value = false;
   }
 };
+
+watch(autoExpandCommentId, async (id) => {
+  if (id && id === props.comment.id && !showReplies.value) {
+    await toggleRepliesDropdown();
+  }
+});
 
 watch(isLoggedIn, (loggedIn) => {
   if (!loggedIn) myVote.value = 0;
