@@ -68,6 +68,19 @@ const mockAdminReports = [
     createdAt: "2026-02-26T01:00:00Z",
     contentTitle: "Post 100 Title",
   },
+  {
+    reportId: 3,
+    postId: 55,
+    commentId: 12,
+    source: "Comment",
+    reason: "Harassment",
+    createdAt: "2026-02-26T02:00:00Z",
+    contentTitle: "This is an offensive comment",
+    contentAuthorId: 7,
+    contentAuthorName: "Bad Commenter",
+    reporterId: 5,
+    reporterName: "Jane Reporter",
+  },
 ];
 
 function normalizeName(s) {
@@ -239,7 +252,7 @@ describe("AdminReports.vue — DOM + CRUD behaviors", () => {
     );
 
     const rows = wrapper.findAll(".reports-list .report-row");
-    expect(rows.length).toBe(2);
+    expect(rows.length).toBe(3);
 
     expect(wrapper.text()).toContain("Post 99 Title");
     expect(wrapper.text()).toContain("Post 100 Title");
@@ -258,7 +271,7 @@ describe("AdminReports.vue — DOM + CRUD behaviors", () => {
     await flushPromises();
 
     const rows = wrapper.findAll(".reports-list .report-row");
-    expect(rows.length).toBe(2);
+    expect(rows.length).toBe(3);
 
     expect(wrapper.text()).toContain("Spam");
     expect(wrapper.text()).toContain("Other");
@@ -313,5 +326,87 @@ it('9) Clicking "Go to" routes to correct report content', async () => {
   await flushPromises();
 
   expect(mockRouter.push).toHaveBeenCalledWith("/posts/99");
+});
+
+it("10) Comment report displays stripped comment text as title", async () => {
+  const wrapper = mount(AdminReports);
+  await flushPromises();
+
+  const rows = wrapper.findAll(".reports-list .report-row");
+  const commentRow = rows.find((row) => row.text().includes("Comment #12"));
+  expect(commentRow, "Expected a report row for Comment #12").toBeTruthy();
+
+  // HTML tags should be stripped from commentText
+  expect(commentRow.text()).toContain("This is an offensive comment");
+  expect(commentRow.text()).not.toContain("<p>");
+  expect(commentRow.text()).not.toContain("<strong>");
+
+  // Should show Comment badge
+  expect(commentRow.text()).toContain("Comment");
+});
+
+it("11) Comment report shows reporter info correctly", async () => {
+  const wrapper = mount(AdminReports);
+  await flushPromises();
+
+  const rows = wrapper.findAll(".reports-list .report-row");
+  const commentRow = rows.find((row) => row.text().includes("Comment #12"));
+  expect(commentRow, "Expected a report row for Comment #12").toBeTruthy();
+
+  // Reporter name should be displayed
+  expect(commentRow.text()).toContain("Jane Reporter");
+  // Should show the reason
+  expect(commentRow.text()).toContain("Harassment");
+  // Should reference both the comment and its parent post
+  expect(commentRow.text()).toContain("Post #55");
+});
+
+it('12) Clicking "Go to" on a comment report routes to its parent post', async () => {
+  const wrapper = mount(AdminReports);
+  await flushPromises();
+
+  const rows = wrapper.findAll(".reports-list .report-row");
+  const commentRow = rows.find((row) => row.text().includes("Comment #12"));
+  expect(commentRow, "Expected a report row for Comment #12").toBeTruthy();
+
+  await commentRow.find("button.btn-outline").trigger("click");
+  await flushPromises();
+
+  expect(mockRouter.push).toHaveBeenCalledWith({ path: "/posts/55", hash: "#comment-12", query: {} });
+});
+
+it('13) Clicking "Go to" on a reply comment report passes parentCommentId query param', async () => {
+  const reportsWithReply = [
+    ...mockAdminReports,
+    {
+      reportId: 4,
+      postId: 60,
+      commentId: 25,
+      parentCommentId: 15,
+      source: "Comment",
+      reason: "Spam",
+      createdAt: "2026-02-26T03:00:00Z",
+      commentText: "<p>A reply comment</p>",
+      commentAuthor: "Reply Author",
+      reporter: { id: 6, fullName: "Report Person" },
+    },
+  ];
+  mockReportsApi.fetchReports.mockResolvedValue({ ok: true, reports: reportsWithReply });
+
+  const wrapper = mount(AdminReports);
+  await flushPromises();
+
+  const rows = wrapper.findAll(".reports-list .report-row");
+  const replyRow = rows.find((row) => row.text().includes("Comment #25"));
+  expect(replyRow, "Expected a report row for Comment #25").toBeTruthy();
+
+  await replyRow.find("button.btn-outline").trigger("click");
+  await flushPromises();
+
+  expect(mockRouter.push).toHaveBeenCalledWith({
+    path: "/posts/60",
+    hash: "#comment-25",
+    query: { parentCommentId: "15" },
+  });
 });
 });

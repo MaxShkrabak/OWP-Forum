@@ -179,7 +179,11 @@ const reportPage = ref(1);
 const reportPerPage = ref(25);
 const reportTotal = ref(0);
 
-const sortMode = ref("newest");
+const sortMode = ref("newest"); // newest | oldest
+
+function stripHTML(html) {
+  return String(html ?? "").replace(/<[^>]*>/g, "");
+}
 
 watch(sortMode, () => {
   reportPage.value = 1;
@@ -241,7 +245,14 @@ function onReportPerPage(n) {
 }
 
 function goToContent(r) {
-  if (r?.postId) router.push(`/posts/${r.postId}`);
+  if (!r?.postId) return;
+  const path = `/posts/${r.postId}`;
+  if (r.source === "Comment" && r.commentId) {
+    const query = r.parentCommentId ? { parentCommentId: String(r.parentCommentId) } : {};
+    router.push({ path, hash: `#comment-${r.commentId}`, query });
+  } else {
+    router.push(path);
+  }
 }
 
 async function handleResolve(reportId) {

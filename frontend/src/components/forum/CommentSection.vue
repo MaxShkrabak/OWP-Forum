@@ -1,6 +1,6 @@
 <script setup>
-import { ref, computed, provide, onMounted, onBeforeUnmount } from "vue";
-import { useRouter } from "vue-router";
+import { ref, computed, provide, onMounted, onBeforeUnmount, nextTick } from "vue";
+import { useRouter, useRoute } from "vue-router";
 import SingleComment from "./SingleComment.vue";
 import CommentEditor from "./TextEditor.vue";
 
@@ -23,6 +23,7 @@ const props = defineProps({
 });
 
 const router = useRouter();
+const route = useRoute();
 
 const flatCommentsList = ref([]);
 const commentsTree = ref([]);
@@ -197,8 +198,11 @@ const sortOptions = [
 ];
 const selectedSort = ref("latest");
 
+const autoExpandCommentId = ref(null);
+
 provide("activeReplyId", activeReplyId);
 provide("activeEditId", activeEditId);
+provide("autoExpandCommentId", autoExpandCommentId);
 
 const openEditComment = (commentId) => {
   if (activeEditId.value === commentId) return;
@@ -376,8 +380,45 @@ const cancelComment = () => {
   isFocused.value = false;
 };
 
-onMounted(() => {
-  loadComments();
+onMounted(async () => {
+  await loadComments();
+
+  const hash = window.location.hash;
+  if (!hash || !hash.startsWith("#comment-")) return;
+
+  // Load more batches until the comment is in the DOM
+  const targetId = hash.slice(1);
+  let el = null;
+  while (!el) {
+    await nextTick();
+    el = document.getElementById(targetId);
+    if (el) break;
+    if (!hasMore.value) break;
+    currentBatch.value++;
+    await loadComments(false);
+  }
+
+  // If not found, it may be a reply hidden inside a collapsed parent
+  if (!el) {
+    const parentId = route.query.parentCommentId;
+    if (parentId) {
+      autoExpandCommentId.value = Number(parentId);
+      // Wait for the parent to fetch and render its replies
+      for (let i = 0; i < 50; i++) {
+        await new Promise((r) => setTimeout(r, 100));
+        el = document.getElementById(targetId);
+        if (el) break;
+      }
+    }
+  }
+
+  await nextTick();
+  el = el || document.getElementById(targetId);
+  if (el) {
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.classList.add("comment-highlight");
+    setTimeout(() => el.classList.remove("comment-highlight"), 3000);
+  }
 });
 
 const handleDeletedComment = (deletedCommentId) => {
@@ -696,5 +737,14 @@ const handleDeletedComment = (deletedCommentId) => {
   color: #1f2937;
   text-transform: none;
   font-weight: normal;
+}
+
+:deep(.comment-highlight) {
+  animation: highlightFade 3s ease-out;
+}
+
+@keyframes highlightFade {
+  0%, 30% { background-color: rgba(0, 71, 80, 0.12); border-radius: 12px; }
+  100% { background-color: transparent; }
 }
 </style>

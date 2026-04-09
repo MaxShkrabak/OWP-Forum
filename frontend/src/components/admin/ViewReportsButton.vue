@@ -72,10 +72,16 @@ function hideModal() {
   }
 }
 
-function goToPost(postId) {
-  if (!postId) return;
+function goToReport(r) {
+  if (!r?.postId) return;
   hideModal();
-  router.push(`/posts/${postId}`);
+  const path = `/posts/${r.postId}`;
+  if (r.source === "Comment" && r.commentId) {
+    const query = r.parentCommentId ? { parentCommentId: String(r.parentCommentId) } : {};
+    router.push({ path, hash: `#comment-${r.commentId}`, query });
+  } else {
+    router.push(path);
+  }
 }
 
 async function handleResolve(reportId) {
@@ -284,7 +290,7 @@ onUnmounted(() => {
                     <button
                       type="button"
                       class="report-cta-btn text-white"
-                      @click="goToPost(r.postId)"
+                      @click="goToReport(r)"
                     >
                       Go To
                       <i
