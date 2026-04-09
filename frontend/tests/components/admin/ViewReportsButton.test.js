@@ -149,8 +149,8 @@ describe("ViewReportsButton.vue", () => {
       .findAll(".report-cta-btn")
       .filter((w) => w.text().includes("Go To"));
 
-    // Third Go To button corresponds to the reply comment report (reportId 3)
-    await goButtons[2].trigger("click");
+    // With "latest" sort, report 3 (newest) is first
+    await goButtons[0].trigger("click");
 
     expect(mockRouter.push).toHaveBeenCalledWith({
       path: "/posts/100",
