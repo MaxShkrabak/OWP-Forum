@@ -307,6 +307,12 @@ class CommentController extends BaseController
                 return json($res, ['ok' => false, 'error' => 'Missing post_id or content'], 400);
             }
 
+            if (mb_strlen($content) > 1000) {
+                return json($res, ['ok' => false, 'error' => 'Comment must be 1,000 characters or fewer.'], 400);
+            }
+
+            $content = \Forum\Helpers\sanitizeHtml($content);
+
             $postCheckStmt = $pdo->prepare("
                 SELECT IsCommentsDisabled FROM dbo.Forum_Posts WHERE PostID = :pid AND IsDeleted = 0
             ");
@@ -398,7 +404,7 @@ class CommentController extends BaseController
             if (isset($pdo) && $pdo instanceof PDO && $pdo->inTransaction()) {
                 $pdo->rollBack();
             }
-            return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+            return json($res, ['ok' => false, 'error' => 'Failed to create comment.'], 500);
         }
     }
 
@@ -604,6 +610,12 @@ class CommentController extends BaseController
             if ($content === '') {
                 return json($res, ['ok' => false, 'error' => 'Content cannot be empty'], 400);
             }
+
+            if (mb_strlen($content) > 1000) {
+                return json($res, ['ok' => false, 'error' => 'Comment must be 1,000 characters or fewer.'], 400);
+            }
+
+            $content = \Forum\Helpers\sanitizeHtml($content);
 
             $banResponse = checkUserBan($pdo, (int)$userId, $res);
             if ($banResponse) return $banResponse;

@@ -770,6 +770,12 @@ class PostController extends BaseController
                 return json($res, ['ok' => false, 'error' => 'Title, content, and category are required.'], 400);
             }
 
+            if (mb_strlen($content) > 50000) {
+                return json($res, ['ok' => false, 'error' => 'Content must be 50,000 characters or fewer.'], 400);
+            }
+
+            $content = \Forum\Helpers\sanitizeHtml($content);
+
             $tagsIn = (array)($data['tags'] ?? []);
             $tagsIn = array_values(array_unique(array_map('intval', $tagsIn)));
             $tagsIn = array_slice(array_filter($tagsIn, fn($v) => $v > 0), 0, 5);
@@ -1157,6 +1163,12 @@ class PostController extends BaseController
             if ($title === '' || $content === '' || $categoryIdIn === 0) {
                 return json($res, ['ok' => false, 'error' => 'Title, content, and category are required.'], 400);
             }
+
+            if (mb_strlen($content) > 50000) {
+                return json($res, ['ok' => false, 'error' => 'Content must be 50,000 characters or fewer.'], 400);
+            }
+
+            $content = \Forum\Helpers\sanitizeHtml($content);
 
             $tagsIn = (array)($data['tags'] ?? []);
             $tagsIn = array_values(array_unique(array_map('intval', $tagsIn)));

@@ -1,5 +1,6 @@
 <script setup>
 import { ref, inject, computed, watch, provide, onMounted } from "vue";
+import DOMPurify from 'dompurify';
 import { useRouter } from "vue-router";
 import UserRole from "@/components/user/UserRole.vue";
 import {
@@ -86,8 +87,9 @@ const editIsUploading = ref(false);
 const replyIsUploading = ref(false);
 
 const linkedImage = computed(() => {
+  const sanitized = DOMPurify.sanitize(props.comment.text ?? '');
   return (
-    props.comment.text?.replace(
+    sanitized.replace(
       /<img[^>]+src="([^"]+)"[^>]*\/?>/gi,
       (match, src) => {
         return `<a href="${src}" target="_blank" rel="noopener noreferrer">${match}</a>`;

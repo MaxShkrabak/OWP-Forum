@@ -6,6 +6,37 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 use PDO;
 use Throwable;
 
+if (!function_exists('Forum\Helpers\sanitizeHtml')) {
+    function sanitizeHtml(string $html): string {
+        $config = \HTMLPurifier_Config::createDefault();
+        $config->set('Cache.SerializerPath', sys_get_temp_dir());
+        $config->set('HTML.DefinitionID', 'forum-html');
+        $config->set('HTML.DefinitionRev', 1);
+        $config->set('HTML.Allowed',
+            'p,br,strong,em,u,s,h1,h2,h3,h4,h5,h6,' .
+            'ul,ol,li,blockquote,pre,code,' .
+            'a[href|target|rel|class],img[src|alt|width|height],' .
+            'span[style|class],mark[style|class]'
+        );
+        $config->set('HTML.Doctype', 'HTML 4.01 Transitional');
+        $config->set('CSS.AllowedProperties', 'color,background-color,text-align');
+        $config->set('AutoFormat.AutoParagraph', false);
+        $config->set('AutoFormat.RemoveEmpty', false);
+        $config->set('URI.SafeIframeRegexp', null);
+        $config->set('Attr.AllowedRel', 'noopener noreferrer');
+
+        $def = $config->maybeGetRawHTMLDefinition();
+        if ($def) {
+            $def->addElement('mark', 'Inline', 'Inline', 'Common');
+            $def->addAttribute('mark', 'style', 'CDATA');
+            $def->addAttribute('mark', 'class', 'CDATA');
+        }
+
+        $purifier = new \HTMLPurifier($config);
+        return $purifier->purify($html);
+    }
+}
+
 if (!function_exists('Forum\Helpers\json')) {
     function json(Response $res, array $data, int $status = 200): Response {
         $res->getBody()->write(json_encode($data));

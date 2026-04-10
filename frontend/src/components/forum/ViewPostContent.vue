@@ -1,14 +1,19 @@
 <script setup>
+import DOMPurify from 'dompurify';
+import { computed } from 'vue';
+
 const props = defineProps({
   content: {
     type: String,
     required: true,
   },
 });
+
+const safeContent = computed(() => DOMPurify.sanitize(props.content));
 </script>
 
 <template>
-  <div class="content-body" v-html="content"></div>
+  <div class="content-body" v-html="safeContent"></div>
 </template>
 
 <style scoped>
