@@ -75,7 +75,7 @@ final class CommentControllerTest extends TestCase
         $insertStmt = $this->createMock(\PDOStatement::class);
         $insertStmt->expects($this->once())->method('execute');
         $insertStmt->method('fetch')->willReturn([
-            'CommentId' => 55,
+            'CommentID' => 55,
             'CreatedAt' => '2026-02-26 12:00:00'
         ]);
 
@@ -97,12 +97,12 @@ final class CommentControllerTest extends TestCase
         $selectStmt = $this->createMock(\PDOStatement::class);
         $selectStmt->expects($this->once())->method('execute')->with([':commentId' => 55]);
         $selectStmt->method('fetch')->willReturn([
-            'CommentId' => 55,
-            'PostId' => $postId,
-            'ParentCommentId' => null,
+            'CommentID' => 55,
+            'PostID' => $postId,
+            'ParentCommentID' => null,
             'Content' => 'This is a brand new comment!',
             'CreatedAt' => '2026-02-26 12:00:00',
-            'UserId' => $userId,
+            'UserID' => $userId,
             'TotalScore' => 0,
             'FirstName' => 'Joe',
             'LastName' => 'Rogers',
@@ -155,7 +155,7 @@ final class CommentControllerTest extends TestCase
             if (str_contains($sql, 'SELECT p.PostID, p.Title, p.AuthorID')) {
                 return $postOwnerStmt;
             }
-            if (str_contains($sql, 'SELECT c.CommentId, c.PostId')) {
+            if (str_contains($sql, 'SELECT c.CommentID, c.PostID')) {
                 return $selectStmt;
             }
             if (str_contains($sql, 'UPDATE dbo.Forum_Posts SET LastCommentNotificationSentAt')) {
@@ -220,12 +220,12 @@ final class CommentControllerTest extends TestCase
 
         $fakeData = [
             [
-                'CommentId' => 1,
-                'PostId' => $postId,
-                'ParentCommentId' => null,
+                'CommentID' => 1,
+                'PostID' => $postId,
+                'ParentCommentID' => null,
                 'Content' => 'What an amazing post!',
                 'CreatedAt' => '2026-02-26 10:00:00',
-                'UserId' => 5,
+                'UserID' => 5,
                 'TotalScore' => 10,
                 'FirstName' => 'Joe',
                 'LastName' => 'Rogers',
@@ -236,12 +236,12 @@ final class CommentControllerTest extends TestCase
                 'IsDeleted' => 0
             ],
             [
-                'CommentId' => 2,
-                'PostId' => $postId,
-                'ParentCommentId' => 1,
+                'CommentID' => 2,
+                'PostID' => $postId,
+                'ParentCommentID' => 1,
                 'Content' => 'I disagree.',
                 'CreatedAt' => '2026-02-26 11:00:00',
-                'UserId' => 6,
+                'UserID' => 6,
                 'TotalScore' => -3,
                 'FirstName' => 'Jane',
                 'LastName' => 'Smith',
@@ -391,7 +391,7 @@ final class CommentControllerTest extends TestCase
         $insertStmt = $this->createMock(PDOStatement::class);
         $insertStmt->expects($this->once())->method('execute');
         $insertStmt->method('fetch')->willReturn([
-            'CommentId' => 56,
+            'CommentID' => 56,
             'CreatedAt' => '2026-03-04 12:00:00'
         ]);
 
@@ -411,12 +411,12 @@ final class CommentControllerTest extends TestCase
         $selectStmt = $this->createMock(PDOStatement::class);
         $selectStmt->expects($this->once())->method('execute')->with([':commentId' => 56]);
         $selectStmt->method('fetch')->willReturn([
-            'CommentId' => 56,
-            'PostId' => $postId,
-            'ParentCommentId' => null,
+            'CommentID' => 56,
+            'PostID' => $postId,
+            'ParentCommentID' => null,
             'Content' => 'This should not send an email.',
             'CreatedAt' => '2026-03-04 12:00:00',
-            'UserId' => $userId,
+            'UserID' => $userId,
             'TotalScore' => 0,
             'FirstName' => 'Joe',
             'LastName' => 'Rogers',
@@ -469,7 +469,7 @@ final class CommentControllerTest extends TestCase
                 if (str_contains($sql, 'SELECT p.PostID, p.Title, p.AuthorID')) {
                     return $postOwnerStmt;
                 }
-                if (str_contains($sql, 'SELECT c.CommentId, c.PostId')) {
+                if (str_contains($sql, 'SELECT c.CommentID, c.PostID')) {
                     return $selectStmt;
                 }
                 if (str_contains($sql, 'dbo.Forum_Users')) {
@@ -531,7 +531,7 @@ final class CommentControllerTest extends TestCase
         $insertStmt = $this->createMock(PDOStatement::class);
         $insertStmt->expects($this->once())->method('execute');
         $insertStmt->method('fetch')->willReturn([
-            'CommentId' => 57,
+            'CommentID' => 57,
             'CreatedAt' => '2026-03-04 12:00:00'
         ]);
 
@@ -551,12 +551,12 @@ final class CommentControllerTest extends TestCase
         $selectStmt = $this->createMock(PDOStatement::class);
         $selectStmt->expects($this->once())->method('execute')->with([':commentId' => 57]);
         $selectStmt->method('fetch')->willReturn([
-            'CommentId' => 57,
-            'PostId' => $postId,
-            'ParentCommentId' => null,
+            'CommentID' => 57,
+            'PostID' => $postId,
+            'ParentCommentID' => null,
             'Content' => 'This should be blocked by cooldown.',
             'CreatedAt' => '2026-03-04 12:00:00',
-            'UserId' => $userId,
+            'UserID' => $userId,
             'TotalScore' => 0,
             'FirstName' => 'Joe',
             'LastName' => 'Rogers',
@@ -608,7 +608,7 @@ final class CommentControllerTest extends TestCase
                 if (str_contains($sql, 'SELECT p.PostID, p.Title, p.AuthorID')) {
                     return $postOwnerStmt;
                 }
-                if (str_contains($sql, 'SELECT c.CommentId, c.PostId')) {
+                if (str_contains($sql, 'SELECT c.CommentID, c.PostID')) {
                     return $selectStmt;
                 }
                 if (str_contains($sql, 'dbo.Forum_Users')) {
@@ -670,7 +670,7 @@ final class CommentControllerTest extends TestCase
         $insertStmt = $this->createMock(PDOStatement::class);
         $insertStmt->expects($this->once())->method('execute');
         $insertStmt->method('fetch')->willReturn([
-            'CommentId' => 58,
+            'CommentID' => 58,
             'CreatedAt' => '2026-03-04 12:00:00'
         ]);
 
@@ -690,12 +690,12 @@ final class CommentControllerTest extends TestCase
         $selectStmt = $this->createMock(PDOStatement::class);
         $selectStmt->expects($this->once())->method('execute')->with([':commentId' => 58]);
         $selectStmt->method('fetch')->willReturn([
-            'CommentId' => 58,
-            'PostId' => $postId,
-            'ParentCommentId' => null,
+            'CommentID' => 58,
+            'PostID' => $postId,
+            'ParentCommentID' => null,
             'Content' => 'Author is commenting on their own post.',
             'CreatedAt' => '2026-03-04 12:00:00',
-            'UserId' => $userId,
+            'UserID' => $userId,
             'TotalScore' => 0,
             'FirstName' => 'Joe',
             'LastName' => 'Rogers',
@@ -748,7 +748,7 @@ final class CommentControllerTest extends TestCase
                 if (str_contains($sql, 'SELECT p.PostID, p.Title, p.AuthorID')) {
                     return $postOwnerStmt;
                 }
-                if (str_contains($sql, 'SELECT c.CommentId, c.PostId')) {
+                if (str_contains($sql, 'SELECT c.CommentID, c.PostID')) {
                     return $selectStmt;
                 }
                 if (str_contains($sql, 'dbo.Forum_Users')) {
@@ -798,7 +798,7 @@ final class CommentControllerTest extends TestCase
         $insertStmt = $this->createMock(PDOStatement::class);
         $insertStmt->expects($this->once())->method('execute');
         $insertStmt->method('fetch')->willReturn([
-            'CommentId' => 59,
+            'CommentID' => 59,
             'CreatedAt' => '2026-03-04 12:00:00',
         ]);
 
@@ -807,12 +807,12 @@ final class CommentControllerTest extends TestCase
             ->method('execute')
             ->with([':commentId' => 59]);
         $selectStmt->method('fetch')->willReturn([
-            'CommentId' => 59,
-            'PostId' => $postId,
-            'ParentCommentId' => null,
+            'CommentID' => 59,
+            'PostID' => $postId,
+            'ParentCommentID' => null,
             'Content' => "Staff {$roleName} comment",
             'CreatedAt' => '2026-03-04 12:00:00',
-            'UserId' => $userId,
+            'UserID' => $userId,
             'TotalScore' => 0,
             'FirstName' => 'Staff',
             'LastName' => 'User',
@@ -866,7 +866,7 @@ final class CommentControllerTest extends TestCase
             if (str_contains($sql, 'INSERT INTO dbo.Forum_Comments')) {
                 return $insertStmt;
             }
-            if (str_contains($sql, 'SELECT c.CommentId, c.PostId')) {
+            if (str_contains($sql, 'SELECT c.CommentID, c.PostID')) {
                 return $selectStmt;
             }
             if (str_contains($sql, 'SELECT AuthorID FROM dbo.Forum_Posts')) {

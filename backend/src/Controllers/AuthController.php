@@ -25,13 +25,13 @@ final class AuthController extends BaseController
             $pdo = ($this->makePdo)();
 
             $sql = "
-                SELECT u.User_ID, u.Email, u.FirstName, u.LastName, u.Avatar,
+                SELECT u.UserID, u.Email, u.FirstName, u.LastName, u.Avatar,
                        r.Name as RoleName, r.RoleID,
                        ISNULL(u.IsBanned, 0) as IsBanned, u.BanType, u.BannedUntil,
                        ISNULL(u.TermsAccepted, 0) as termsAccepted
                 FROM dbo.Forum_Users u
                 LEFT JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
-                WHERE u.User_ID = :uid
+                WHERE u.UserID = :uid
             ";
             $stmt = $pdo->prepare($sql);
             $stmt->execute([':uid' => $userId]);
@@ -56,7 +56,7 @@ final class AuthController extends BaseController
             }
 
             return json($res, ['ok' => true, 'user' => [
-                'userId'                     => (int)$user['User_ID'],
+                'userId'                     => (int)$user['UserID'],
                 'email'                      => $user['Email'],
                 'firstName'                  => $user['FirstName'],
                 'lastName'                   => $user['LastName'],
@@ -89,7 +89,7 @@ final class AuthController extends BaseController
         $pdo = ($this->makePdo)();
 
         $stmt = $pdo->prepare("
-            SELECT User_ID, EmailVerified
+            SELECT UserID, EmailVerified
             FROM dbo.Forum_Users
             WHERE Email = :email
         ");
@@ -104,19 +104,19 @@ final class AuthController extends BaseController
 
         $isVerified = (int)($user['EmailVerified'] ?? 0);
         $updateSql = ($isVerified === 0)
-            ? "UPDATE dbo.Forum_Users SET EmailVerified = 1, LastLogin=SYSDATETIME() WHERE User_ID = :uid"
-            : "UPDATE dbo.Forum_Users SET LastLogin=SYSDATETIME() WHERE User_ID = :uid";
+            ? "UPDATE dbo.Forum_Users SET EmailVerified = 1, LastLogin = SYSUTCDATETIME() WHERE UserID = :uid"
+            : "UPDATE dbo.Forum_Users SET LastLogin = SYSUTCDATETIME() WHERE UserID = :uid";
 
-        $pdo->prepare($updateSql)->execute([':uid' => $user['User_ID']]);
+        $pdo->prepare($updateSql)->execute([':uid' => $user['UserID']]);
 
         $rawToken = bin2hex(random_bytes(32));
         $tokenHash = hash_hmac('sha256', $rawToken, $_ENV['HMAC_KEY']);
 
         $pdo->prepare("
-            INSERT INTO dbo.Forum_Sessions (User_ID, Token_Hash, Expires)
-            VALUES (:uid, :hash, DATEADD(hour, 24, SYSDATETIME()))
+            INSERT INTO dbo.Forum_Sessions (UserID, TokenHash, ExpiresAt)
+            VALUES (:uid, :hash, DATEADD(hour, 24, SYSUTCDATETIME()))
         ")->execute([
-            ':uid' => $user['User_ID'],
+            ':uid' => $user['UserID'],
             ':hash' => $tokenHash,
         ]);
 
@@ -143,8 +143,8 @@ final class AuthController extends BaseController
             }
 
             $pdo->prepare("
-                INSERT INTO dbo.Forum_Users (Email, FirstName, LastName, RoleID, Created)
-                VALUES (:email, :first, :last, 1, GETDATE())
+                INSERT INTO dbo.Forum_Users (Email, FirstName, LastName, RoleID)
+                VALUES (:email, :first, :last, 1)
             ")->execute([
                 ':email' => $email,
                 ':first' => $first,
@@ -188,7 +188,7 @@ final class AuthController extends BaseController
         if ($rawToken) {
             $tokenHash = hash_hmac('sha256', $rawToken, $_ENV['HMAC_KEY']);
             $pdo = ($this->makePdo)();
-            $pdo->prepare("DELETE FROM dbo.Forum_Sessions WHERE Token_Hash = :hash")
+            $pdo->prepare("DELETE FROM dbo.Forum_Sessions WHERE TokenHash = :hash")
                 ->execute([':hash' => $tokenHash]);
         }
 

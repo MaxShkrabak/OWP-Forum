@@ -56,30 +56,30 @@ class ReportController extends BaseController
             $selectCols = "
                 SELECT
                     r.ReportID,
-                    COALESCE(r.PostID, c.PostId) AS PostID,
+                    COALESCE(r.PostID, c.PostID) AS PostID,
                     p.Title AS PostTitle,
                     p.AuthorID AS PostAuthorId,
                     CONCAT(up.FirstName, ' ', up.LastName) AS PostAuthor,
                     r.CommentID,
-                    c.ParentCommentId AS CommentParentId,
+                    c.ParentCommentID AS CommentParentId,
                     c.Content AS CommentText,
-                    c.UserId AS CommentAuthorId,
+                    c.UserID AS CommentAuthorId,
                     NULLIF(CONCAT(uc.FirstName, ' ', uc.LastName),'') AS CommentAuthor,
                     r.CreatedAt,
                     rt.TagName AS Reason,
-                    r.ReportUserID AS ReporterId,
+                    r.ReporterID AS ReporterId,
                     CONCAT(ur.FirstName, ' ', ur.LastName) AS ReporterName
             ";
 
             $fromWhere = "
                 FROM dbo.Forum_Reports r
                 INNER JOIN dbo.Forum_ReportTags rt ON r.ReportTagID = rt.ReportTagID
-                LEFT JOIN dbo.Forum_Comments c ON r.CommentID = c.CommentId
-                LEFT JOIN dbo.Forum_Posts p ON p.PostID = COALESCE(r.PostID, c.PostId)
-                LEFT JOIN dbo.Forum_Users up ON up.User_ID = p.AuthorID
-                LEFT JOIN dbo.Forum_Users uc ON uc.User_ID = c.UserId
-                LEFT JOIN dbo.Forum_Users ur ON ur.User_ID = r.ReportUserID
-                WHERE r.Resolved = 0
+                LEFT JOIN dbo.Forum_Comments c ON r.CommentID = c.CommentID
+                LEFT JOIN dbo.Forum_Posts p ON p.PostID = COALESCE(r.PostID, c.PostID)
+                LEFT JOIN dbo.Forum_Users up ON up.UserID = p.AuthorID
+                LEFT JOIN dbo.Forum_Users uc ON uc.UserID = c.UserID
+                LEFT JOIN dbo.Forum_Users ur ON ur.UserID = r.ReporterID
+                WHERE r.IsResolved = 0
             ";
 
             if (!$wantPaginate) {
@@ -132,7 +132,7 @@ class ReportController extends BaseController
 
             $reportId = (int)$args['id'];
 
-            $stmt = $pdo->prepare("UPDATE dbo.Forum_Reports SET Resolved = 1, ResolvedBy = :uid, ResolvedAt = SYSUTCDATETIME() WHERE ReportID = :id AND Resolved = 0");
+            $stmt = $pdo->prepare("UPDATE dbo.Forum_Reports SET IsResolved = 1, ResolverID = :uid, ResolvedAt = SYSUTCDATETIME() WHERE ReportID = :id AND IsResolved = 0");
             $stmt->execute([':uid' => $userId, ':id' => $reportId]);
 
             if ($stmt->rowCount() === 0) {
@@ -184,10 +184,10 @@ class ReportController extends BaseController
             $commentId = ($type === 'comment') ? $targetId : null;
 
             $checkSql = "SELECT TOP 1 ReportID FROM dbo.Forum_Reports
-                         WHERE ReportUserID = :userId
+                         WHERE ReporterID = :userId
                          AND COALESCE(PostID, 0) = :postId
                          AND COALESCE(CommentID, 0) = :commentId
-                         AND Resolved = 0";
+                         AND IsResolved = 0";
 
             $checkStmt = $pdo->prepare($checkSql);
             $checkStmt->execute([
@@ -200,8 +200,8 @@ class ReportController extends BaseController
                 return json($res, ['ok' => false, 'error' => "You have already reported this $type."], 400);
             }
 
-            $sql = "INSERT INTO dbo.Forum_Reports (ReportUserID, PostID, CommentID, ReportTagID, CreatedAt, Resolved)
-                    VALUES (:userId, :postId, :commentId, :tagId, SYSUTCDATETIME(), 0)";
+            $sql = "INSERT INTO dbo.Forum_Reports (ReporterID, PostID, CommentID, ReportTagID)
+                    VALUES (:userId, :postId, :commentId, :tagId)";
 
             $stmt = $pdo->prepare($sql);
             $success = $stmt->execute([

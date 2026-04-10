@@ -44,7 +44,7 @@ final class PostControllerTest extends TestCase
 
         $termsStmt = $this->createMock(PDOStatement::class);
         $termsStmt->expects($this->once())->method('execute')->with([':uid' => $userId]);
-        $termsStmt->method('fetch')->willReturn(['termsAccepted' => 1]);
+        $termsStmt->method('fetch')->willReturn(['TermsAccepted' => 1]);
 
         $banStmt = $this->createMock(PDOStatement::class);
         $banStmt->expects($this->once())->method('execute')->with([':uid' => $userId]);
@@ -262,14 +262,14 @@ final class PostControllerTest extends TestCase
             [
                 'PostID' => 1, 'Title' => 'Post A', 'CreatedAt' => '2026-01-01',
                 'CategoryID' => 10, 'TotalScore' => 3, 'commentCount' => 2,
-                'User_ID' => 5, 'FirstName' => 'Alice', 'LastName' => 'Smith',
+                'UserID' => 5, 'FirstName' => 'Alice', 'LastName' => 'Smith',
                 'Avatar' => 'a.png', 'RoleName' => 'User', 'CategoryName' => 'Wastewater Collection',
                 'VisibleFromRoleID' => 0, 'myVote' => 0,
             ],
             [
                 'PostID' => 2, 'Title' => 'Post B', 'CreatedAt' => '2026-01-02',
                 'CategoryID' => 10, 'TotalScore' => 1, 'commentCount' => 0,
-                'User_ID' => 6, 'FirstName' => 'Bob', 'LastName' => 'Jones',
+                'UserID' => 6, 'FirstName' => 'Bob', 'LastName' => 'Jones',
                 'Avatar' => 'b.png', 'RoleName' => 'User', 'CategoryName' => 'Wastewater Collection',
                 'VisibleFromRoleID' => 0, 'myVote' => 0,
             ],
@@ -333,7 +333,7 @@ final class PostControllerTest extends TestCase
         $rows = [[
             'PostID' => 5, 'Title' => 'Pinned Post', 'CreatedAt' => '2026-01-01',
             'CategoryID' => 1, 'TotalScore' => 10, 'commentCount' => 4,
-            'User_ID' => 2, 'FirstName' => 'Admin', 'LastName' => 'User',
+            'UserID' => 2, 'FirstName' => 'Admin', 'LastName' => 'User',
             'Avatar' => 'admin.png', 'RoleName' => 'Admin', 'CategoryName' => 'News',
             'VisibleFromRoleID' => 0, 'myVote' => 0,
         ]];
@@ -400,7 +400,7 @@ final class PostControllerTest extends TestCase
         $postRows = [[
             'PostID' => 7, 'Title' => 'Help me', 'CreatedAt' => '2026-02-01',
             'TotalScore' => 0, 'commentCount' => 1,
-            'User_ID' => 3, 'FirstName' => 'Joe', 'LastName' => 'Blogs',
+            'UserID' => 3, 'FirstName' => 'Joe', 'LastName' => 'Blogs',
             'Avatar' => 'joe.png', 'RoleName' => 'User', 'myVote' => 0,
         ]];
 
@@ -523,7 +523,7 @@ final class PostControllerTest extends TestCase
 
         $termsStmt = $this->createMock(PDOStatement::class);
         $termsStmt->expects($this->once())->method('execute')->with([':uid' => $userId]);
-        $termsStmt->method('fetch')->willReturn(['termsAccepted' => 1]);
+        $termsStmt->method('fetch')->willReturn(['TermsAccepted' => 1]);
 
         $banStmt = $this->createMock(PDOStatement::class);
         $banStmt->expects($this->once())->method('execute')->with([':uid' => $userId]);

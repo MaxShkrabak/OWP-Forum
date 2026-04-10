@@ -37,7 +37,7 @@ class AdminController extends BaseController
                 $where = "WHERE (u.Email LIKE :emailLike OR u.FirstName LIKE :firstLike OR u.LastName LIKE :lastLike";
                 $bindings = [':emailLike' => "%$q%", ':firstLike' => "%$q%", ':lastLike' => "%$q%"];
                 if (ctype_digit($q)) {
-                    $where .= ' OR u.User_ID = :uidSearch';
+                    $where .= ' OR u.UserID = :uidSearch';
                     $bindings[':uidSearch'] = (int)$q;
                 }
                 $where .= ')';
@@ -67,12 +67,12 @@ class AdminController extends BaseController
 
             $base = "
                 SELECT
-                    u.User_ID as userId, u.Email as email, u.FirstName as firstName,
+                    u.UserID as userId, u.Email as email, u.FirstName as firstName,
                     u.LastName as lastName, u.RoleID as roleId, r.Name as roleName
                 FROM dbo.Forum_Users u
                 LEFT JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
                 $where
-                ORDER BY u.User_ID DESC
+                ORDER BY u.UserID DESC
                 OFFSET $offset ROWS FETCH NEXT $perPage ROWS ONLY
             ";
 
@@ -119,7 +119,7 @@ class AdminController extends BaseController
                 return json($res, ['ok' => false, 'error' => 'Invalid user id.'], 400);
             }
 
-            $stmt = $pdo->prepare("SELECT User_ID, FirstName, LastName FROM dbo.Forum_Users WHERE User_ID = :id");
+            $stmt = $pdo->prepare("SELECT UserID, FirstName, LastName FROM dbo.Forum_Users WHERE UserID = :id");
             $stmt->execute([':id' => $id]);
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -155,7 +155,7 @@ class AdminController extends BaseController
                 return json($res, ['ok' => false, 'error' => 'roleId must be between 1 and 4'], 400);
             }
 
-            $pdo->prepare("UPDATE dbo.Forum_Users SET RoleID = :roleId WHERE User_ID = :uid")
+            $pdo->prepare("UPDATE dbo.Forum_Users SET RoleID = :roleId WHERE UserID = :uid")
                 ->execute([':roleId' => $newRoleId, ':uid' => $targetId]);
 
             return json($res, ['ok' => true]);
@@ -184,7 +184,7 @@ class AdminController extends BaseController
             $banned = isset($data['banned']) ? (bool)$data['banned'] : true;
 
             if ($banned) {
-                $targetStmt = $pdo->prepare("SELECT RoleID FROM dbo.Forum_Users WHERE User_ID = :uid");
+                $targetStmt = $pdo->prepare("SELECT RoleID FROM dbo.Forum_Users WHERE UserID = :uid");
                 $targetStmt->execute([':uid' => $targetId]);
                 if ((int)($targetStmt->fetchColumn() ?? 0) === 4) {
                     return json($res, ['ok' => false, 'error' => 'You cannot ban another administrator'], 403);
@@ -223,13 +223,13 @@ class AdminController extends BaseController
                     $pdo->prepare("
                         UPDATE dbo.Forum_Users
                         SET IsBanned = 1, BanType = :banType, BannedUntil = :bannedUntil
-                        WHERE User_ID = :uid
+                        WHERE UserID = :uid
                     ")->execute([':banType' => $banType, ':bannedUntil' => $bannedUntil, ':uid' => $targetId]);
                 } else {
                     $pdo->prepare("
                         UPDATE dbo.Forum_Users
                         SET IsBanned = 0, BanType = NULL, BannedUntil = NULL
-                        WHERE User_ID = :uid
+                        WHERE UserID = :uid
                     ")->execute([':uid' => $targetId]);
                 }
             } catch (Throwable $e) {

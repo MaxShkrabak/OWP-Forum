@@ -25,7 +25,7 @@ class PostController extends BaseController
             return ['error' => 'Post not found.', 'status' => 404];
         }
 
-        $roleStmt = $pdo->prepare("SELECT ISNULL(RoleID, 1) FROM dbo.Forum_Users WHERE User_ID = :uid");
+        $roleStmt = $pdo->prepare("SELECT ISNULL(RoleID, 1) FROM dbo.Forum_Users WHERE UserID = :uid");
         $roleStmt->execute(['uid' => $userId]);
         $userRoleId = (int)($roleStmt->fetchColumn() ?? 1);
         if ($userRoleId <= 0) $userRoleId = 1;
@@ -124,10 +124,10 @@ class PostController extends BaseController
                         c.Name AS CategoryName,
                         ISNULL(pv.VoteValue, 0) AS myVote
                 FROM dbo.Forum_Posts p
-                LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.User_ID
+                LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.UserID
                 LEFT JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
                 LEFT JOIN dbo.Forum_Categories c ON p.CategoryID = c.CategoryID
-                LEFT JOIN dbo.Forum_PostVotes pv ON p.PostID = pv.PostID AND pv.User_ID = :userId
+                LEFT JOIN dbo.Forum_PostVotes pv ON p.PostID = pv.PostID AND pv.UserID = :userId
                 WHERE p.PostID = :id AND p.IsDeleted = 0
             ";
 
@@ -250,7 +250,7 @@ class PostController extends BaseController
             $countSql  = "
                 SELECT COUNT(*)
                 FROM dbo.Forum_Posts p
-                LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.User_ID
+                LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.UserID
                 WHERE p.CategoryID = :id AND p.IsDeleted = 0
                 AND p.PostID NOT IN (SELECT PostID FROM dbo.Forum_Pinned)
                 $searchWhere
@@ -289,12 +289,12 @@ class PostController extends BaseController
             $sql = "
                 SELECT p.PostID, p.Title, p.CreatedAt, p.TotalScore,
                        (SELECT COUNT(*) FROM dbo.Forum_Comments cm WHERE cm.PostID = p.PostID AND cm.IsDeleted = 0) AS commentCount,
-                       u.FirstName, u.LastName, u.Avatar, u.User_ID, r.Name AS RoleName,
+                       u.FirstName, u.LastName, u.Avatar, u.UserID, r.Name AS RoleName,
                        ISNULL(pv.VoteValue, 0) AS myVote
                 FROM dbo.Forum_Posts p
-                LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.User_ID
+                LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.UserID
                 LEFT JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
-                LEFT JOIN dbo.Forum_PostVotes pv ON p.PostID = pv.PostID AND pv.User_ID = :userId
+                LEFT JOIN dbo.Forum_PostVotes pv ON p.PostID = pv.PostID AND pv.UserID = :userId
                 WHERE p.CategoryID = :categoryId AND p.IsDeleted = 0
                 AND p.PostID NOT IN (SELECT PostID FROM dbo.Forum_Pinned)
                 $searchWhere
@@ -330,7 +330,7 @@ class PostController extends BaseController
                         'postId'       => $pid,
                         'title'        => $row['Title'],
                         'createdAt'    => $row['CreatedAt'],
-                        'authorId'     => (int)($row['User_ID'] ?? 0),
+                        'authorId'     => (int)($row['UserID'] ?? 0),
                         'authorName'   => trim(($row['FirstName'] ?? '') . ' ' . ($row['LastName'] ?? '')),
                         'authorRole'   => $row['RoleName'] ?? 'User',
                         'authorAvatar' => $row['Avatar'] ?? null,
@@ -413,7 +413,7 @@ class PostController extends BaseController
             $sql = "
                 SELECT TagID, Name
                 FROM dbo.Forum_Tags
-                WHERE UsableByRoleID <= ISNULL((SELECT RoleID FROM dbo.Forum_Users WHERE User_ID = :userId), 1)
+                WHERE UsableByRoleID <= ISNULL((SELECT RoleID FROM dbo.Forum_Users WHERE UserID = :userId), 1)
                 ORDER BY Name ASC
             ";
 
@@ -501,16 +501,16 @@ class PostController extends BaseController
                         u.FirstName,
                         u.LastName,
                         u.Avatar,
-                        u.User_ID,
+                        u.UserID,
                         r.Name AS RoleName,
                         c.Name AS CategoryName,
                         ISNULL(c.VisibleFromRoleID, 0) AS VisibleFromRoleID,
                         ISNULL(pv.VoteValue, 0) AS myVote
                     FROM dbo.Forum_Posts p
-                    LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.User_ID
+                    LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.UserID
                     LEFT JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
                     LEFT JOIN dbo.Forum_Categories c ON p.CategoryID = c.CategoryID
-                    LEFT JOIN dbo.Forum_PostVotes pv ON p.PostID = pv.PostID AND pv.User_ID = :userId
+                    LEFT JOIN dbo.Forum_PostVotes pv ON p.PostID = pv.PostID AND pv.UserID = :userId
                     WHERE p.IsDeleted = 0
                 ),
                 RankedPosts AS (
@@ -539,16 +539,16 @@ class PostController extends BaseController
                         u.FirstName,
                         u.LastName,
                         u.Avatar,
-                        u.User_ID,
+                        u.UserID,
                         r.Name AS RoleName,
                         c.Name AS CategoryName,
                         ISNULL(c.VisibleFromRoleID, 0) AS VisibleFromRoleID,
                         ISNULL(pv.VoteValue, 0) AS myVote
                     FROM dbo.Forum_Posts p
-                    LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.User_ID
+                    LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.UserID
                     LEFT JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
                     LEFT JOIN dbo.Forum_Categories c ON p.CategoryID = c.CategoryID
-                    LEFT JOIN dbo.Forum_PostVotes pv ON p.PostID = pv.PostID AND pv.User_ID = :userId
+                    LEFT JOIN dbo.Forum_PostVotes pv ON p.PostID = pv.PostID AND pv.UserID = :userId
                     WHERE p.IsDeleted = 0
                       AND ISNULL(c.VisibleFromRoleID, 0) <= :roleIdVisible
                 ),
@@ -588,7 +588,7 @@ class PostController extends BaseController
                     'categoryId' => $catId,
                     'title' => $row['Title'],
                     'createdAt' => $row['CreatedAt'],
-                    'authorId' => (int)($row['User_ID'] ?? 0),
+                    'authorId' => (int)($row['UserID'] ?? 0),
                     'authorName' => trim(($row['FirstName'] ?? '') . ' ' . ($row['LastName'] ?? '')),
                     'authorRole' => $row['RoleName'] ?? 'User',
                     'authorAvatar' => $row['Avatar'] ?? null,
@@ -647,17 +647,17 @@ class PostController extends BaseController
                     u.FirstName,
                     u.LastName,
                     u.Avatar,
-                    u.User_ID,
+                    u.UserID,
                     r.Name AS RoleName,
                     c.Name AS CategoryName,
                     ISNULL(c.VisibleFromRoleID, 0) AS VisibleFromRoleID,
                     ISNULL(pv.VoteValue, 0) AS myVote
                 FROM dbo.Forum_Pinned pin
                 INNER JOIN dbo.Forum_Posts p ON pin.PostID = p.PostID
-                LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.User_ID
+                LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.UserID
                 LEFT JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
                 LEFT JOIN dbo.Forum_Categories c ON p.CategoryID = c.CategoryID
-                LEFT JOIN dbo.Forum_PostVotes pv ON p.PostID = pv.PostID AND pv.User_ID = :userId
+                LEFT JOIN dbo.Forum_PostVotes pv ON p.PostID = pv.PostID AND pv.UserID = :userId
                 WHERE p.IsDeleted = 0
                 ORDER BY pin.CreatedAt DESC, p.CreatedAt DESC
             ";
@@ -678,17 +678,17 @@ class PostController extends BaseController
                     u.FirstName,
                     u.LastName,
                     u.Avatar,
-                    u.User_ID,
+                    u.UserID,
                     r.Name AS RoleName,
                     c.Name AS CategoryName,
                     ISNULL(c.VisibleFromRoleID, 0) AS VisibleFromRoleID,
                     ISNULL(pv.VoteValue, 0) AS myVote
                 FROM dbo.Forum_Pinned pin
                 INNER JOIN dbo.Forum_Posts p ON pin.PostID = p.PostID
-                LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.User_ID
+                LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.UserID
                 LEFT JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
                 LEFT JOIN dbo.Forum_Categories c ON p.CategoryID = c.CategoryID
-                LEFT JOIN dbo.Forum_PostVotes pv ON p.PostID = pv.PostID AND pv.User_ID = :userId
+                LEFT JOIN dbo.Forum_PostVotes pv ON p.PostID = pv.PostID AND pv.UserID = :userId
                 WHERE p.IsDeleted = 0
                   AND ISNULL(c.VisibleFromRoleID, 0) <= :roleIdVisible
                 ORDER BY pin.CreatedAt DESC, p.CreatedAt DESC
@@ -721,7 +721,7 @@ class PostController extends BaseController
                     'visibleFromRoleId' => (int)($row['VisibleFromRoleID'] ?? 0),
                     'title' => $row['Title'],
                     'createdAt' => $row['CreatedAt'],
-                    'authorId' => (int)($row['User_ID'] ?? 0),
+                    'authorId' => (int)($row['UserID'] ?? 0),
                     'authorName' => trim(($row['FirstName'] ?? '') . ' ' . ($row['LastName'] ?? '')),
                     'authorRole' => $row['RoleName'] ?? 'User',
                     'authorAvatar' => $row['Avatar'] ?? null,
@@ -783,7 +783,7 @@ class PostController extends BaseController
             $roleStmt = $pdo->prepare("
                 SELECT ISNULL(RoleID, 1)
                 FROM dbo.Forum_Users
-                WHERE User_ID = :uid
+                WHERE UserID = :uid
             ");
             $roleStmt->execute([':uid' => $userId]);
             $currentRoleId = (int)($roleStmt->fetchColumn() ?? 1);
@@ -909,7 +909,7 @@ class PostController extends BaseController
                 $checkTagsSql = "
                     SELECT TagID FROM dbo.Forum_Tags 
                     WHERE TagID IN ($placeholders)
-                    AND UsableByRoleID <= ISNULL((SELECT RoleID FROM dbo.Forum_Users WHERE User_ID = ?), 1)
+                    AND UsableByRoleID <= ISNULL((SELECT RoleID FROM dbo.Forum_Users WHERE UserID = ?), 1)
                 ";
 
                 $checkStmt = $pdo->prepare($checkTagsSql);
@@ -960,19 +960,19 @@ class PostController extends BaseController
 
             $val = ($action === 'up') ? 1 : (($action === 'down') ? -1 : 0);
 
-            $prevStmt = $pdo->prepare("SELECT VoteValue FROM dbo.Forum_PostVotes WHERE PostID = ? AND User_ID = ?");
+            $prevStmt = $pdo->prepare("SELECT VoteValue FROM dbo.Forum_PostVotes WHERE PostID = ? AND UserID = ?");
             $prevStmt->execute([$postId, $userId]);
             $previousVote = $prevStmt->fetchColumn();
             $previousVote = ($previousVote === false) ? 0 : (int)$previousVote;
 
             $pdo->prepare("
                 MERGE dbo.Forum_PostVotes AS target
-                USING (SELECT ? AS PostID, ? AS User_ID, ? AS VoteValue) AS source
-                    ON target.PostID = source.PostID AND target.User_ID = source.User_ID
+                USING (SELECT ? AS PostID, ? AS UserID, ? AS VoteValue) AS source
+                    ON target.PostID = source.PostID AND target.UserID = source.UserID
                 WHEN MATCHED AND source.VoteValue = 0 THEN DELETE
                 WHEN MATCHED THEN UPDATE SET VoteValue = source.VoteValue
                 WHEN NOT MATCHED AND source.VoteValue != 0 THEN
-                    INSERT (PostID, User_ID, VoteValue) VALUES (source.PostID, source.User_ID, source.VoteValue);
+                    INSERT (PostID, UserID, VoteValue) VALUES (source.PostID, source.UserID, source.VoteValue);
             ")->execute([$postId, $userId, $val]);
 
             if ($val === 1 && $previousVote !== 1) {
@@ -1027,7 +1027,7 @@ class PostController extends BaseController
                 SELECT ISNULL(r.Name, '') AS RoleName
                 FROM dbo.Forum_Users u
                 LEFT JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
-                WHERE u.User_ID = :uid
+                WHERE u.UserID = :uid
             ");
             $roleStmt->execute([':uid' => $userId]);
             $roleName = trim((string)$roleStmt->fetchColumn());

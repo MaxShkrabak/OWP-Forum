@@ -45,7 +45,7 @@ class AuthControllerTest extends TestCase
 
         $this->stmt->method('execute')->willReturn(true);
         $this->stmt->method('fetch')->willReturn([
-            'User_ID' => 42,
+            'UserID' => 42,
             'Email' => 'test@example.com',
             'FirstName' => 'Jane',
             'LastName' => 'Doe',
@@ -95,7 +95,7 @@ class AuthControllerTest extends TestCase
 
         $this->stmt->method('execute')->willReturn(true);
         $this->stmt->method('fetch')->willReturn([
-            'User_ID' => 1,
+            'UserID' => 1,
             'Email' => 'banned@example.com',
             'FirstName' => 'Ban',
             'LastName' => 'User',

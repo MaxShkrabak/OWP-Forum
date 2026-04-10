@@ -30,7 +30,7 @@ class UserControllerTest extends TestCase
 
         $this->stmt->method('execute')->willReturn(true);
         $this->stmt->method('fetch')->willReturn([
-            'User_ID' => 5,
+            'UserID' => 5,
             'FirstName' => 'Alice',
             'LastName' => 'Smith',
             'Avatar' => 'pfp-2.png',

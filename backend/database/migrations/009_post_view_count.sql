@@ -7,7 +7,7 @@ BEGIN
 END;
 GO
 
-IF OBJECT_ID('dbo.Forum_tr_Posts_SetUpdatedAt','TR') IS NOT NULL
+IF OBJECT_ID('dbo.Forum_tr_Posts_SetUpdatedAt', 'TR') IS NOT NULL
     DROP TRIGGER dbo.Forum_tr_Posts_SetUpdatedAt;
 GO
 CREATE TRIGGER dbo.Forum_tr_Posts_SetUpdatedAt
@@ -16,13 +16,13 @@ AFTER UPDATE
 AS
 BEGIN
     SET NOCOUNT ON;
-    IF UPDATE (TotalScore) AND NOT (
+    IF UPDATE(TotalScore) AND NOT (
         UPDATE(Title) OR
         UPDATE(CategoryID) OR
         UPDATE(Content)
     )
         RETURN;
-    IF UPDATE (ViewCount) AND NOT (
+    IF UPDATE(ViewCount) AND NOT (
         UPDATE(Title) OR
         UPDATE(CategoryID) OR
         UPDATE(Content)
@@ -38,12 +38,12 @@ GO
 IF OBJECT_ID('dbo.Forum_PostViewDedup', 'U') IS NULL
 BEGIN
     CREATE TABLE dbo.Forum_PostViewDedup (
-        PostID       INT NOT NULL,
-        UserID       INT NOT NULL,
+        PostID       INT          NOT NULL,
+        UserID       INT          NOT NULL,
         LastViewedAt DATETIME2(0) NOT NULL,
-        CONSTRAINT PK_PostViewDedup PRIMARY KEY (PostID, UserID),
+        CONSTRAINT PK_PostViewDedup       PRIMARY KEY (PostID, UserID),
         CONSTRAINT FK_PostViewDedup_Posts FOREIGN KEY (PostID) REFERENCES dbo.Forum_Posts(PostID),
-        CONSTRAINT FK_PostViewDedup_Users FOREIGN KEY (UserID) REFERENCES dbo.Forum_Users(User_ID)
+        CONSTRAINT FK_PostViewDedup_Users FOREIGN KEY (UserID) REFERENCES dbo.Forum_Users(UserID)
     );
 END;
 GO

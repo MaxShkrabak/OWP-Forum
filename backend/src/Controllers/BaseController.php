@@ -35,7 +35,7 @@ abstract class BaseController
         }
 
         $pdo = ($this->makePdo)();
-        $stmt = $pdo->prepare("SELECT RoleID FROM dbo.Forum_Users WHERE User_ID = :uid");
+        $stmt = $pdo->prepare("SELECT RoleID FROM dbo.Forum_Users WHERE UserID = :uid");
         $stmt->execute([':uid' => $userId]);
         $role = (int)($stmt->fetchColumn() ?? 0);
 
@@ -55,7 +55,7 @@ abstract class BaseController
     $stmt = $pdo->prepare("
         SELECT ISNULL(RoleID, 0)
         FROM dbo.Forum_Users
-        WHERE User_ID = :uid
+        WHERE UserID = :uid
     ");
     $stmt->execute([':uid' => $userId]);
 
