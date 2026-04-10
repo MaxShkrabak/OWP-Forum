@@ -45,6 +45,7 @@ export async function fetchPosts({
   } else if (userId) {
     endpoint = `/profile/${userId}/posts`;
   }
+
   const params = { limit, sort, page };
 
   if (Array.isArray(tags) && tags.length > 0) {
@@ -66,6 +67,33 @@ export async function fetchPosts({
       ...cat,
       posts: (cat.posts || []).map(normalizePost),
     }));
+  }
+
+  return data;
+}
+
+export async function searchPosts({
+  q,
+  page = 1,
+  limit = 10,
+  sort = "latest",
+  categoryIds = [],
+} = {}) {
+  const params = {
+    q,
+    page,
+    limit,
+    sort,
+  };
+
+  if (Array.isArray(categoryIds) && categoryIds.length > 0) {
+    params.categoryIds = categoryIds.join(",");
+  }
+
+  const { data } = await client.get("/posts/search", { params });
+
+  if (data?.posts) {
+    data.posts = data.posts.map(normalizePost);
   }
 
   return data;

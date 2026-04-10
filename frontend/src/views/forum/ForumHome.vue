@@ -1,11 +1,12 @@
 <script setup>
 import CreatePostButton from "@/components/forum/CreatePostButton.vue";
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted, computed, watch } from "vue";
 import { RouterLink } from "vue-router";
 import ForumHeader from "@/components/layout/ForumHeader.vue";
 import {
   fetchPosts as apiGetPosts,
   fetchPinnedPosts as apiGetPinnedPosts,
+  searchPosts as apiSearchPosts,
 } from "@/api/posts";
 import { isLoggedIn } from "@/stores/userStore";
 import UserCard from "@/components/user/UserCard.vue";
@@ -16,6 +17,7 @@ import AdminPanelButton from "@/components/admin/AdminPanelButton.vue";
 const postsByCategory = ref([]);
 const pinnedPosts = ref([]);
 const totalPosts = ref(0);
+
 const loading = ref(true);
 const error = ref(null);
 
@@ -29,13 +31,29 @@ const selectedCategories = ref([]);
 const sort = ref("latest");
 
 const INITIAL_LIMIT = 5;
+const SEARCH_LIMIT = 10;
 
-async function fetchPosts() {
+const searchResults = ref([]);
+const searchMeta = ref({
+  page: 1,
+  limit: SEARCH_LIMIT,
+  totalPosts: 0,
+  totalPages: 1,
+  hasNextPage: false,
+  hasPrevPage: false,
+});
+
+let searchDebounce = null;
+
+const isSearchMode = computed(() => searchQuery.value.trim() !== "");
+
+async function fetchHomepageData() {
   loading.value = true;
   error.value = null;
+
   try {
     const [postsData, pinnedData] = await Promise.all([
-      apiGetPosts({ sort: sort.value, limit: INITIAL_LIMIT }),
+      apiGetPosts({ sort: sort.value }),
       apiGetPinnedPosts(),
     ]);
 
@@ -53,8 +71,54 @@ async function fetchPosts() {
       pinnedPosts.value = [];
     }
   } catch (e) {
-    console.error("Error fetching posts:", e);
-    error.value = e.message;
+    console.error("Error fetching homepage posts:", e);
+    error.value = e.message || "Failed to load posts.";
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function fetchSearchResults(page = 1) {
+  const q = searchQuery.value.trim();
+
+  if (!q) {
+    searchResults.value = [];
+    searchMeta.value = {
+      page: 1,
+      limit: SEARCH_LIMIT,
+      totalPosts: 0,
+      totalPages: 1,
+      hasNextPage: false,
+      hasPrevPage: false,
+    };
+    return;
+  }
+
+  loading.value = true;
+  error.value = null;
+
+  try {
+    const data = await apiSearchPosts({
+      q,
+      page,
+      limit: SEARCH_LIMIT,
+      sort: sort.value,
+      categoryIds: selectedCategories.value,
+    });
+
+    searchResults.value = data?.posts || [];
+    searchMeta.value = {
+      page: data?.meta?.page ?? 1,
+      limit: data?.meta?.limit ?? SEARCH_LIMIT,
+      totalPosts: data?.meta?.totalPosts ?? 0,
+      totalPages: data?.meta?.totalPages ?? 1,
+      hasNextPage: data?.meta?.hasNextPage ?? false,
+      hasPrevPage: data?.meta?.hasPrevPage ?? false,
+    };
+  } catch (e) {
+    console.error("Error searching posts:", e);
+    error.value = e.message || "Failed to search posts.";
+    searchResults.value = [];
   } finally {
     loading.value = false;
   }
@@ -74,13 +138,14 @@ function showGlobalPinMessage(message, type = "success") {
 }
 
 async function handlePostRefresh(payload = null) {
-  await fetchPosts();
+  if (isSearchMode.value) {
+    await fetchSearchResults(searchMeta.value.page || 1);
+  } else {
+    await fetchHomepageData();
+  }
 
   if (payload?.pinMessage) {
-    showGlobalPinMessage(
-      payload.pinMessage,
-      payload.pinMessageType || "success",
-    );
+    showGlobalPinMessage(payload.pinMessage, payload.pinMessageType || "success");
   }
 }
 
@@ -88,27 +153,7 @@ function normalize(str) {
   return (str ?? "").toString().trim().toLowerCase();
 }
 
-function postMatchesGeneralSearch(post, categoryName, q) {
-  if (!q) return true;
-  const nq = normalize(q);
-
-  const title = normalize(post?.title);
-  const author = normalize(post?.authorName);
-  const cat = normalize(categoryName);
-  const tags = Array.isArray(post?.tags) ? post.tags : [];
-  const authorRole = normalize(post?.authorRole);
-
-  return (
-    title.includes(nq) ||
-    author.includes(nq) ||
-    cat.includes(nq) ||
-    authorRole.includes(nq) ||
-    tags.some((t) => normalize(t).includes(nq))
-  );
-}
-
 const filteredCategories = computed(() => {
-  const q = normalize(searchQuery.value);
   const catQ = normalize(categorySearch.value);
 
   return postsByCategory.value
@@ -134,28 +179,20 @@ const filteredCategories = computed(() => {
           ...p,
           categoryName: cat.categoryName,
           categoryId: cat.categoryId,
-        }))
-        .filter((p) => postMatchesGeneralSearch(p, cat.categoryName, q));
+        }));
 
       const pinnedIds = new Set(
-        pinnedForCategory.map((p) => Number(p.PostID ?? p.postId)),
+        pinnedForCategory.map((p) => Number(p.PostID ?? p.postId))
       );
 
       const homepagePosts = normalizedCategoryPosts
         .filter((p) => !pinnedIds.has(Number(p.PostID ?? p.postId)))
-        .filter((p) => postMatchesGeneralSearch(p, cat.categoryName, q));
+        .slice(0, INITIAL_LIMIT);
 
       return {
         ...cat,
-        _homepagePosts: [...pinnedForCategory, ...homepagePosts].slice(
-          0,
-          INITIAL_LIMIT,
-        ),
+        _homepagePosts: [...pinnedForCategory, ...homepagePosts],
       };
-    })
-    .filter((cat) => {
-      if (!q) return true;
-      return (cat._homepagePosts?.length || 0) > 0;
     });
 });
 
@@ -166,15 +203,21 @@ const filtersActive = computed(
     searchQuery.value.trim() !== "",
 );
 
+const noResults = computed(() => {
+  if (loading.value || error.value) return false;
+
+  if (isSearchMode.value) {
+    return searchResults.value.length === 0;
+  }
+
+  return filteredCategories.value.length === 0;
+});
+
 function clearAllFilters() {
   selectedCategories.value = [];
   categorySearch.value = "";
   searchQuery.value = "";
 }
-
-const noResults = computed(
-  () => !loading.value && !error.value && filteredCategories.value.length === 0,
-);
 
 function getCategoryIcon(categoryName) {
   const name = (categoryName || "").toLowerCase();
@@ -184,8 +227,52 @@ function getCategoryIcon(categoryName) {
   return "pi pi-folder-open";
 }
 
+function goToSearchPage(page) {
+  if (page < 1 || page > searchMeta.value.totalPages) return;
+  fetchSearchResults(page);
+}
+
+watch(sort, async () => {
+  if (isSearchMode.value) {
+    await fetchSearchResults(1);
+  } else {
+    await fetchHomepageData();
+  }
+});
+
+watch(
+  selectedCategories,
+  async () => {
+    if (isSearchMode.value) {
+      await fetchSearchResults(1);
+    }
+  },
+  { deep: true },
+);
+
+watch(searchQuery, (newValue) => {
+  clearTimeout(searchDebounce);
+
+  searchDebounce = setTimeout(async () => {
+    if (newValue.trim()) {
+      await fetchSearchResults(1);
+    } else {
+      searchResults.value = [];
+      searchMeta.value = {
+        page: 1,
+        limit: SEARCH_LIMIT,
+        totalPosts: 0,
+        totalPages: 1,
+        hasNextPage: false,
+        hasPrevPage: false,
+      };
+      await fetchHomepageData();
+    }
+  }, 350);
+});
+
 onMounted(async () => {
-  await fetchPosts();
+  await fetchHomepageData();
 });
 </script>
 
@@ -201,24 +288,14 @@ onMounted(async () => {
 
             <div class="action-buttons-container mt-3" v-if="isLoggedIn">
               <AdminPanelButton />
-              <CreatePostButton @post-refresh="fetchPosts" />
+              <CreatePostButton @post-refresh="handlePostRefresh" />
               <ViewReportsButton />
             </div>
 
-            <div
-              class="card border-0 shadow-sm rounded-3 mt-4 d-none d-lg-block overflow-hidden"
-            >
-              <div
-                class="filter-header px-3 py-2 d-flex justify-content-between align-items-center"
-              >
-                <span class="fw-bold small text-uppercase tracking-wider"
-                  >Categories</span
-                >
-                <button
-                  v-if="selectedCategories.length > 0"
-                  @click="selectedCategories = []"
-                  class="clear-btn"
-                >
+            <div class="card border-0 shadow-sm rounded-3 mt-4 d-none d-lg-block overflow-hidden">
+              <div class="filter-header px-3 py-2 d-flex justify-content-between align-items-center">
+                <span class="fw-bold small text-uppercase tracking-wider">Categories</span>
+                <button v-if="selectedCategories.length > 0" @click="selectedCategories = []" class="clear-btn">
                   Clear
                 </button>
               </div>
@@ -227,11 +304,7 @@ onMounted(async () => {
                   v-for="cat in postsByCategory"
                   :key="cat.categoryId"
                   class="list-group-item list-group-item-action d-flex align-items-center justify-content-between border-0 py-2 px-3 clickable-label"
-                  :class="{
-                    'active-category': selectedCategories.includes(
-                      cat.categoryId,
-                    ),
-                  }"
+                  :class="{ 'active-category': selectedCategories.includes(cat.categoryId) }"
                 >
                   <div class="d-flex align-items-center">
                     <input
@@ -240,18 +313,10 @@ onMounted(async () => {
                       :value="cat.categoryId"
                       v-model="selectedCategories"
                     />
-                    <i
-                      :class="getCategoryIcon(cat.categoryName)"
-                      class="me-2 text-muted"
-                    ></i>
-                    <span class="category-name-text">{{
-                      cat.categoryName
-                    }}</span>
+                    <i :class="getCategoryIcon(cat.categoryName)" class="me-2 text-muted"></i>
+                    <span class="category-name-text">{{ cat.categoryName }}</span>
                   </div>
-                  <span
-                    class="badge rounded-pill bg-light text-dark small border"
-                    >{{ cat.postCount }}</span
-                  >
+                  <span class="badge rounded-pill bg-light text-dark small border">{{ cat.postCount }}</span>
                 </label>
               </div>
             </div>
@@ -259,39 +324,33 @@ onMounted(async () => {
         </div>
 
         <div class="col-12 col-lg-9 order-2">
-          <div
-            class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3 px-1 gap-3"
-          >
+          <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3 px-1 gap-3">
             <div class="d-flex gap-2 align-items-center flex-grow-1">
               <div class="category-search-wrap shadow-sm">
                 <i class="pi pi-search ms-3 text-muted"></i>
                 <input
                   v-model="searchQuery"
                   type="text"
-                  placeholder="Search posts..."
+                  placeholder="Search all posts..."
                   class="category-search-input"
                 />
-                <button
-                  v-if="searchQuery"
-                  @click="searchQuery = ''"
-                  class="search-clear-btn"
-                >
+                <button v-if="searchQuery" @click="searchQuery = ''" class="search-clear-btn">
                   ✕
                 </button>
               </div>
             </div>
 
             <div class="d-flex align-items-center gap-4">
-              <div
-                class="small text-secondary fw-bold text-uppercase tracking-wider"
-              >
-                {{ totalPosts }} posts
+              <div class="small text-secondary fw-bold text-uppercase tracking-wider">
+                <template v-if="isSearchMode">
+                  {{ searchMeta.totalPosts }} results
+                </template>
+                <template v-else>
+                  {{ totalPosts }} posts
+                </template>
               </div>
-              <select
-                v-model="sort"
-                @change="fetchPosts"
-                class="sort-select shadow-sm"
-              >
+
+              <select v-model="sort" class="sort-select shadow-sm">
                 <option value="latest">Latest</option>
                 <option value="oldest">Oldest</option>
                 <option value="upvotes">Most Upvotes</option>
@@ -335,30 +394,69 @@ onMounted(async () => {
               <button @click="clearAllFilters">Reset everything</button>
             </div>
 
-            <div
-              v-for="category in filteredCategories"
-              :key="category.categoryId"
-              :id="`category-${category.categoryId}`"
-              class="category-group mb-5"
-            >
-              <RouterLink :to="`/categories/${category.categoryId}`">
-                <div class="category-banner mb-3 shadow-sm">
-                  <i
-                    :class="getCategoryIcon(category.categoryName) + ' me-2'"
-                  ></i>
-                  <span class="category-title">{{
-                    category.categoryName
-                  }}</span>
+            <template v-else-if="isSearchMode">
+              <div class="search-results-box mb-4">
+                <div class="search-results-header">
+                  <h5 class="mb-1">Search Results</h5>
+                  <p class="mb-0 text-muted">
+                    Showing page {{ searchMeta.page }} of {{ searchMeta.totalPages }}
+                  </p>
                 </div>
-              </RouterLink>
 
-              <PostCard
-                v-for="post in category._homepagePosts"
-                :key="post.postId ?? post.PostID"
-                :post="post"
-                @post-refresh="handlePostRefresh"
-              />
-            </div>
+                <PostCard
+                  v-for="post in searchResults"
+                  :key="post.postId"
+                  :post="post"
+                />
+
+                <div
+                  v-if="searchMeta.totalPages > 1"
+                  class="search-pagination d-flex justify-content-center align-items-center gap-2 mt-4"
+                >
+                  <button
+                    class="pagination-btn"
+                    :disabled="!searchMeta.hasPrevPage"
+                    @click="goToSearchPage(searchMeta.page - 1)"
+                  >
+                    Prev
+                  </button>
+
+                  <span class="pagination-status">
+                    Page {{ searchMeta.page }} / {{ searchMeta.totalPages }}
+                  </span>
+
+                  <button
+                    class="pagination-btn"
+                    :disabled="!searchMeta.hasNextPage"
+                    @click="goToSearchPage(searchMeta.page + 1)"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            </template>
+
+            <template v-else>
+              <div
+                v-for="category in filteredCategories"
+                :key="category.categoryId"
+                :id="`category-${category.categoryId}`"
+                class="category-group mb-5"
+              >
+                <RouterLink :to="`/categories/${category.categoryId}`">
+                  <div class="category-banner mb-3 shadow-sm">
+                    <i :class="getCategoryIcon(category.categoryName) + ' me-2'"></i>
+                    <span class="category-title">{{ category.categoryName }}</span>
+                  </div>
+                </RouterLink>
+
+                <PostCard
+                  v-for="post in category._homepagePosts"
+                  :key="post.postId"
+                  :post="post"
+                />
+              </div>
+            </template>
           </template>
         </div>
       </div>
@@ -551,12 +649,7 @@ onMounted(async () => {
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.1),
-    transparent
-  );
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
   transition: 0.5s;
 }
 
@@ -608,5 +701,44 @@ onMounted(async () => {
     top: 1.5rem;
     height: fit-content;
   }
+}
+
+.search-results-box {
+  background: #bcc8cc;
+  border-radius: 12px;
+  padding: 18px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
+}
+
+.search-results-header {
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #ececec;
+}
+
+.search-pagination {
+  flex-wrap: wrap;
+}
+
+.pagination-btn {
+  border: none;
+  background: #145a32;
+  color: white;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pagination-btn:disabled {
+  background: #b7c6bd;
+  cursor: not-allowed;
+}
+
+.pagination-status {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #444;
 }
 </style>
