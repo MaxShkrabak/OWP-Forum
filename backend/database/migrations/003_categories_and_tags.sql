@@ -26,20 +26,23 @@ END;
 GO
 
 -- Seed categories
+-- General is admin-only (UsableByRoleID = 4, VisibleFromRoleID = 4): used as a
+-- fallback when a category is deleted, not intended for regular user posting.
 MERGE dbo.Forum_Categories AS c
 USING (VALUES
-    ('Announcements & News',  3),
-    ('Wastewater Treatment',  1),
-    ('Water Treatment',       1),
-    ('Wastewater Collection', 1),
-    ('Water Distribution',    1),
-    ('General',               1)
-) AS s (Name, UsableByRoleID)
+    ('Announcements & News',  3, NULL),
+    ('Wastewater Treatment',  1, NULL),
+    ('Water Treatment',       1, NULL),
+    ('Wastewater Collection', 1, NULL),
+    ('Water Distribution',    1, NULL),
+    ('General',               4,    4)
+) AS s (Name, UsableByRoleID, VisibleFromRoleID)
     ON c.Name = s.Name
 WHEN NOT MATCHED BY TARGET THEN
-    INSERT (Name, UsableByRoleID) VALUES (s.Name, s.UsableByRoleID)
+    INSERT (Name, UsableByRoleID, VisibleFromRoleID) VALUES (s.Name, s.UsableByRoleID, s.VisibleFromRoleID)
 WHEN MATCHED THEN
-    UPDATE SET UsableByRoleID = s.UsableByRoleID;
+    UPDATE SET UsableByRoleID    = s.UsableByRoleID,
+               VisibleFromRoleID = s.VisibleFromRoleID;
 GO
 
 -- Seed tags
