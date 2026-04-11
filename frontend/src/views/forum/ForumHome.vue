@@ -26,6 +26,7 @@ const globalPinMessageType = ref("success");
 let globalPinMessageTimeout = null;
 
 const searchQuery = ref("");
+const activeSearchQuery = ref("");
 const categorySearch = ref("");
 const selectedCategories = ref([]);
 const sort = ref("latest");
@@ -43,9 +44,7 @@ const searchMeta = ref({
   hasPrevPage: false,
 });
 
-let searchDebounce = null;
-
-const isSearchMode = computed(() => searchQuery.value.trim() !== "");
+const isSearchMode = computed(() => activeSearchQuery.value !== "");
 
 async function fetchHomepageData() {
   loading.value = true;
@@ -78,19 +77,23 @@ async function fetchHomepageData() {
   }
 }
 
+function resetSearchState() {
+  searchResults.value = [];
+  searchMeta.value = {
+    page: 1,
+    limit: SEARCH_LIMIT,
+    totalPosts: 0,
+    totalPages: 1,
+    hasNextPage: false,
+    hasPrevPage: false,
+  };
+}
+
 async function fetchSearchResults(page = 1) {
-  const q = searchQuery.value.trim();
+  const q = activeSearchQuery.value.trim();
 
   if (!q) {
-    searchResults.value = [];
-    searchMeta.value = {
-      page: 1,
-      limit: SEARCH_LIMIT,
-      totalPosts: 0,
-      totalPages: 1,
-      hasNextPage: false,
-      hasPrevPage: false,
-    };
+    resetSearchState();
     return;
   }
 
@@ -122,6 +125,24 @@ async function fetchSearchResults(page = 1) {
   } finally {
     loading.value = false;
   }
+}
+
+async function handleSearchSubmit() {
+  activeSearchQuery.value = searchQuery.value.trim();
+
+  if (activeSearchQuery.value) {
+    await fetchSearchResults(1);
+  } else {
+    resetSearchState();
+    await fetchHomepageData();
+  }
+}
+
+async function clearSearch() {
+  searchQuery.value = "";
+  activeSearchQuery.value = "";
+  resetSearchState();
+  await fetchHomepageData();
 }
 
 function showGlobalPinMessage(message, type = "success") {
@@ -200,13 +221,13 @@ const filtersActive = computed(
   () =>
     selectedCategories.value.length > 0 ||
     categorySearch.value.trim() !== "" ||
-    searchQuery.value.trim() !== "",
+    activeSearchQuery.value !== "",
 );
 
 const noResults = computed(() => {
   if (loading.value || error.value) return false;
 
-  if (isSearchMode.value) {
+  if (activeSearchQuery.value) {
     return searchResults.value.length === 0;
   }
 
@@ -217,6 +238,9 @@ function clearAllFilters() {
   selectedCategories.value = [];
   categorySearch.value = "";
   searchQuery.value = "";
+  activeSearchQuery.value = "";
+  resetSearchState();
+  fetchHomepageData();
 }
 
 function getCategoryIcon(categoryName) {
@@ -249,27 +273,6 @@ watch(
   },
   { deep: true },
 );
-
-watch(searchQuery, (newValue) => {
-  clearTimeout(searchDebounce);
-
-  searchDebounce = setTimeout(async () => {
-    if (newValue.trim()) {
-      await fetchSearchResults(1);
-    } else {
-      searchResults.value = [];
-      searchMeta.value = {
-        page: 1,
-        limit: SEARCH_LIMIT,
-        totalPosts: 0,
-        totalPages: 1,
-        hasNextPage: false,
-        hasPrevPage: false,
-      };
-      await fetchHomepageData();
-    }
-  }, 350);
-});
 
 onMounted(async () => {
   await fetchHomepageData();
@@ -330,11 +333,12 @@ onMounted(async () => {
                 <i class="pi pi-search ms-3 text-muted"></i>
                 <input
                   v-model="searchQuery"
+                  @keyup.enter="handleSearchSubmit"
                   type="text"
                   placeholder="Search all posts..."
                   class="category-search-input"
                 />
-                <button v-if="searchQuery" @click="searchQuery = ''" class="search-clear-btn">
+                <button v-if="searchQuery" @click="clearSearch" class="search-clear-btn">
                   ✕
                 </button>
               </div>
@@ -379,7 +383,7 @@ onMounted(async () => {
             <div v-if="filtersActive" class="active-filter-banner mb-3">
               <div>
                 <strong>Filters active:</strong>
-                <span v-if="searchQuery"> Search "{{ searchQuery }}"</span>
+                <span v-if="activeSearchQuery"> Search "{{ activeSearchQuery }}"</span>
                 <span v-if="selectedCategories.length">
                   Categories ({{ selectedCategories.length }})
                 </span>
@@ -399,7 +403,7 @@ onMounted(async () => {
                 <div class="search-results-header">
                   <h5 class="mb-1">Search Results</h5>
                   <p class="mb-0 text-muted">
-                    Showing page {{ searchMeta.page }} of {{ searchMeta.totalPages }}
+                    {{ searchMeta.totalPosts }} results
                   </p>
                 </div>
 
@@ -422,7 +426,7 @@ onMounted(async () => {
                   </button>
 
                   <span class="pagination-status">
-                    Page {{ searchMeta.page }} / {{ searchMeta.totalPages }}
+                    Page {{ searchMeta.page }} of {{ searchMeta.totalPages }}
                   </span>
 
                   <button
@@ -709,19 +713,17 @@ onMounted(async () => {
   padding: 18px;
   border: 1px solid rgba(0, 0, 0, 0.06);
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
-  
 }
 
 .search-results-header {
   margin-bottom: 14px;
   padding-bottom: 10px;
   border-bottom: 1px solid #ececec;
-  color:#ffffff
+  color: #ffffff;
 }
 
 .search-pagination {
   flex-wrap: wrap;
-  
 }
 
 .pagination-btn {
@@ -737,7 +739,6 @@ onMounted(async () => {
 .pagination-btn:disabled {
   background: #b7c6bd;
   cursor: not-allowed;
-  
 }
 
 .pagination-status {

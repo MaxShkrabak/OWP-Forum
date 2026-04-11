@@ -108,19 +108,33 @@ describe("ForumHome search acceptance criteria", () => {
   async function triggerSearch(wrapper, value) {
     const input = wrapper.find('input[placeholder="Search all posts..."]');
     await input.setValue(value);
-    vi.advanceTimersByTime(400);
+    await input.trigger("keyup.enter");
     await flushPromises();
   }
 
-  it("meets the search-bar acceptance criteria", async () => {
-    vi.useFakeTimers();
-
+  it("keeps the page unchanged while typing and only searches on Enter", async () => {
     const wrapper = mountPage();
     await flushPromises();
 
     expect(fetchPostsMock).toHaveBeenCalledWith({ sort: "latest" });
     expect(fetchPinnedPostsMock).toHaveBeenCalled();
     expect(wrapper.text()).toContain("8 posts");
+    expect(wrapper.text()).toContain("General");
+
+    const input = wrapper.find('input[placeholder="Search all posts..."]');
+    await input.setValue("database");
+    await flushPromises();
+
+    expect(searchPostsMock).not.toHaveBeenCalled();
+    expect(wrapper.text()).toContain("8 posts");
+    expect(wrapper.text()).toContain("General");
+    expect(wrapper.text()).not.toContain("Filters active:");
+    expect(wrapper.text()).not.toContain("No posts match your search or filters");
+  });
+
+  it("meets the search-bar acceptance criteria after Enter is pressed", async () => {
+    const wrapper = mountPage();
+    await flushPromises();
 
     searchPostsMock.mockResolvedValueOnce({
       ok: true,
@@ -148,12 +162,14 @@ describe("ForumHome search acceptance criteria", () => {
       categoryIds: [],
     });
 
+    expect(wrapper.text()).toContain("Filters active:");
+    expect(wrapper.text()).toContain('Search "database"');
     expect(wrapper.text()).toContain("Search Results");
     expect(wrapper.text()).toContain("Database Match 1");
     expect(wrapper.text()).toContain("Database Match 2");
     expect(wrapper.findAll('[data-test="post-card"]')).toHaveLength(2);
     expect(wrapper.text()).toContain("12 results");
-    expect(wrapper.text()).toContain("Page 1 / 2");
+    expect(wrapper.text()).toContain("Page 1 of 2");
 
     const nextButton = wrapper
       .findAll("button")
@@ -188,8 +204,20 @@ describe("ForumHome search acceptance criteria", () => {
       categoryIds: [],
     });
 
-    expect(wrapper.text()).toContain("Page 2 / 2");
+    expect(wrapper.text()).toContain("Page 2 of 2");
     expect(wrapper.text()).toContain("Database Match 3");
+  });
+
+  it("shows no-results only after Enter submits the search", async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const input = wrapper.find('input[placeholder="Search all posts..."]');
+    await input.setValue("nohits");
+    await flushPromises();
+
+    expect(searchPostsMock).not.toHaveBeenCalled();
+    expect(wrapper.text()).not.toContain("No posts match your search or filters");
 
     searchPostsMock.mockResolvedValueOnce({
       ok: true,
@@ -204,9 +232,10 @@ describe("ForumHome search acceptance criteria", () => {
       },
     });
 
-    await triggerSearch(wrapper, "nohits");
+    await input.trigger("keyup.enter");
+    await flushPromises();
 
-    expect(searchPostsMock).toHaveBeenLastCalledWith({
+    expect(searchPostsMock).toHaveBeenCalledWith({
       q: "nohits",
       page: 1,
       limit: 10,
@@ -215,32 +244,5 @@ describe("ForumHome search acceptance criteria", () => {
     });
 
     expect(wrapper.text()).toContain("No posts match your search or filters");
-  });
-
-  it("does not search immediately before debounce finishes", async () => {
-    vi.useFakeTimers();
-
-    const wrapper = mountPage();
-    await flushPromises();
-
-    const input = wrapper.find('input[placeholder="Search all posts..."]');
-    await input.setValue("draft");
-
-    expect(searchPostsMock).not.toHaveBeenCalled();
-
-    vi.advanceTimersByTime(200);
-    await flushPromises();
-    expect(searchPostsMock).not.toHaveBeenCalled();
-
-    vi.advanceTimersByTime(200);
-    await flushPromises();
-
-    expect(searchPostsMock).toHaveBeenCalledWith({
-      q: "draft",
-      page: 1,
-      limit: 10,
-      sort: "latest",
-      categoryIds: [],
-    });
   });
 });
