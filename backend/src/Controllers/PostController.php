@@ -239,7 +239,7 @@ public function searchPosts(Request $req, Response $res): Response
         $countSql = "
             SELECT COUNT(*)
             FROM dbo.Forum_Posts p
-            LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.User_ID
+            LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.UserID
             LEFT JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
             LEFT JOIN dbo.Forum_Categories c ON p.CategoryID = c.CategoryID
             $where
@@ -282,7 +282,7 @@ public function searchPosts(Request $req, Response $res): Response
                     u.FirstName,
                     u.LastName,
                     u.Avatar,
-                    u.User_ID,
+                    u.UserID,
                     r.Name AS RoleName,
                     c.Name AS CategoryName,
                     ISNULL(c.VisibleFromRoleID, 0) AS VisibleFromRoleID,
@@ -296,10 +296,10 @@ public function searchPosts(Request $req, Response $res): Response
                         ELSE 0
                     END AS IsPinned
                 FROM dbo.Forum_Posts p
-                LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.User_ID
+                LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.UserID
                 LEFT JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
                 LEFT JOIN dbo.Forum_Categories c ON p.CategoryID = c.CategoryID
-                LEFT JOIN dbo.Forum_PostVotes pv ON p.PostID = pv.PostID AND pv.User_ID = :userId
+                LEFT JOIN dbo.Forum_PostVotes pv ON p.PostID = pv.PostID AND pv.UserID = :userId
                 $where
             )
             SELECT *
@@ -351,7 +351,7 @@ public function searchPosts(Request $req, Response $res): Response
                 'visibleFromRoleId' => (int)($row['VisibleFromRoleID'] ?? 0),
                 'title' => $row['Title'],
                 'createdAt' => $row['CreatedAt'],
-                'authorId' => (int)($row['User_ID'] ?? 0),
+                'authorId' => (int)($row['UserID'] ?? 0),
                 'authorName' => trim(($row['FirstName'] ?? '') . ' ' . ($row['LastName'] ?? '')),
                 'authorRole' => $row['RoleName'] ?? 'User',
                 'authorAvatar' => $row['Avatar'] ?? null,
