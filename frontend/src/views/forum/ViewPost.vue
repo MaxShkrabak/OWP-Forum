@@ -154,10 +154,10 @@ onMounted(async () => {
               >
                 <span
                   v-for="t in post.tags"
-                  :key="t"
+                  :key="t.tagId"
                   class="post-tag rounded-4 text-uppercase px-2 py-1"
-                  :class="{ 'post-tag-official': t.Name === 'Official' }"
-                  >{{ t.Name }}</span
+                  :class="{ 'post-tag-official': t.name === 'Official' }"
+                  >{{ t.name }}</span
                 >
               </div>
             </div>

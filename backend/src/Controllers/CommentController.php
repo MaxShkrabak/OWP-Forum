@@ -387,10 +387,8 @@ class CommentController extends BaseController
                     'myVote'    => 0,
                     'user'      => $this->formatUserRow($row),
                     'content'   => $row['Content'],
-                    'createdAt' => strtotime($row['CreatedAt']),
-                    'updatedAt' => isset($row['UpdatedAt']) && $row['UpdatedAt'] !== null
-                        ? strtotime($row['UpdatedAt'])
-                        : null,
+                    'createdAt' => $row['CreatedAt'],
+                    'updatedAt' => $row['UpdatedAt'] ?? null,
                     'replyCount' => (int)$row['ReplyCount'],
                     'parentCommentId' => $row['ParentCommentId'] ? (int)$row['ParentCommentId'] : null,
                     'isDeleted' => false
@@ -465,10 +463,8 @@ class CommentController extends BaseController
                     'myVote'    => $isDeleted ? 0 : (int)$row['MyVote'],
                     'user'      => $isDeleted ? null : $this->formatUserRow($row),
                     'content'   => $isDeleted ? null : $row['Content'],
-                    'createdAt' => strtotime($row['CreatedAt']),
-                    'updatedAt' => isset($row['UpdatedAt']) && $row['UpdatedAt'] !== null
-                        ? strtotime($row['UpdatedAt'])
-                        : null,
+                    'createdAt' => $row['CreatedAt'],
+                    'updatedAt' => $row['UpdatedAt'] ?? null,
                     'replyCount' => (int)$row['ReplyCount'],
                     'parentCommentId' => $row['ParentCommentId'] ? (int)$row['ParentCommentId'] : null,
                     'isDeleted' => $isDeleted
@@ -525,6 +521,10 @@ class CommentController extends BaseController
                 return json($res, ['ok' => false, 'error' => 'Failed to delete comment'], 500);
             }
 
+            // Auto-resolve any unresolved reports for this comment
+            $resolveStmt = $pdo->prepare("UPDATE dbo.Forum_Reports SET Resolved = 1, ResolvedBy = :uid, ResolvedAt = SYSUTCDATETIME() WHERE CommentID = :commentId AND Resolved = 0");
+            $resolveStmt->execute([':uid' => $userId, ':commentId' => $commentId]);
+
             return json($res, ['ok' => true]);
         } catch (Throwable $e) {
             return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
@@ -558,15 +558,12 @@ class CommentController extends BaseController
                 $isDeleted = (int)$row['IsDeleted'] === 1;
                 return [
                     'commentId' => (int)$row['CommentId'],
-                    'postId'    => (int)$row['PostId'],
                     'score'     => $isDeleted ? 0 : (int)$row['TotalScore'],
                     'myVote'    => $isDeleted ? 0 : (int)$row['MyVote'],
                     'user'      => $isDeleted ? null : $this->formatUserRow($row),
                     'content'   => $isDeleted ? null : $row['Content'],
-                    'createdAt' => strtotime($row['CreatedAt']),
-                    'updatedAt' => isset($row['UpdatedAt']) && $row['UpdatedAt'] !== null
-                        ? strtotime($row['UpdatedAt'])
-                        : null,
+                    'createdAt' => $row['CreatedAt'],
+                    'updatedAt' => $row['UpdatedAt'] ?? null,
                     'replyCount' => (int)$row['ReplyCount'],
                     'parentCommentId' => (int)$row['ParentCommentId'],
                     'isDeleted' => $isDeleted
@@ -607,7 +604,19 @@ class CommentController extends BaseController
                 return json($res, ['ok' => false, 'error' => 'Comment not found'], 404);
             }
 
-            if ((int)$row['UserId'] !== (int)$userId) {
+            $roleStmt = $pdo->prepare("
+                SELECT ISNULL(RoleID, 1)
+                FROM dbo.Forum_Users
+                WHERE User_ID = :uid
+            ");
+            $roleStmt->execute([':uid' => $userId]);
+            $userRoleId = (int)($roleStmt->fetchColumn() ?? 1);
+
+            if ($userRoleId <= 0) {
+                $userRoleId = 1;
+            }
+
+            if ((int)$row['UserId'] !== (int)$userId && $userRoleId < 4) {
                 return json($res, ['ok' => false, 'error' => 'You cannot edit this comment'], 403);
             }
 
@@ -628,9 +637,9 @@ class CommentController extends BaseController
 
             $detailsStmt = $pdo->prepare("
                 SELECT c.CommentId, c.PostId, c.ParentCommentId, c.Content, c.CreatedAt, c.UpdatedAt, c.UserId, c.TotalScore,
-                       u.FirstName, u.LastName, u.Avatar, r.Name AS RoleName,
-                       0 AS MyVote,
-                       (SELECT COUNT(*) FROM dbo.Forum_Comments r WHERE r.ParentCommentId = c.CommentId AND r.IsDeleted = 0) AS ReplyCount
+                    u.FirstName, u.LastName, u.Avatar, r.Name AS RoleName,
+                    0 AS MyVote,
+                    (SELECT COUNT(*) FROM dbo.Forum_Comments r WHERE r.ParentCommentId = c.CommentId AND r.IsDeleted = 0) AS ReplyCount
                 FROM dbo.Forum_Comments c
                 JOIN dbo.Forum_Users u ON u.User_ID = c.UserId
                 JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
@@ -647,15 +656,12 @@ class CommentController extends BaseController
                 'ok' => true,
                 'comment' => [
                     'commentId' => (int)$details['CommentId'],
-                    'postId'    => (int)$details['PostId'],
                     'score'     => (int)$details['TotalScore'],
                     'myVote'    => 0,
                     'user'      => $this->formatUserRow($details),
                     'content'   => $details['Content'],
-                    'createdAt' => strtotime($details['CreatedAt']),
-                    'updatedAt' => isset($details['UpdatedAt']) && $details['UpdatedAt'] !== null
-                        ? strtotime($details['UpdatedAt'])
-                        : null,
+                    'createdAt' => $details['CreatedAt'],
+                    'updatedAt' => $details['UpdatedAt'] ?? null,
                     'replyCount' => (int)$details['ReplyCount'],
                     'parentCommentId' => $details['ParentCommentId'] ? (int)$details['ParentCommentId'] : null,
                     'isDeleted' => false

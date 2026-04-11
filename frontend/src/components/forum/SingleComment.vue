@@ -1,5 +1,5 @@
 <script setup>
-import { ref, inject, computed, watch, provide } from "vue";
+import { ref, inject, computed, watch, provide, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import UserRole from "@/components/user/UserRole.vue";
 import {
@@ -9,7 +9,7 @@ import {
   deleteComment as apiDeleteComment,
   formatCommentData,
 } from "@/api/comments";
-import { isLoggedIn, uid, userRole } from "@/stores/userStore";
+import { isLoggedIn, uid, userRole, userRoleId } from "@/stores/userStore";
 import { timeAgo } from "@/utils/timeAgo";
 import TextEditor from "./TextEditor.vue";
 import ReportingModal from "../user/ReportingModal.vue";
@@ -28,6 +28,7 @@ const router = useRouter();
 
 const localReplies = ref([]);
 const isLoadingReplies = ref(false);
+const isSubmittingReply = ref(false);
 const hasFetched = ref(false);
 
 const isVoting = ref(false);
@@ -53,6 +54,7 @@ const closeEditComment = inject("closeEditComment");
 const markEditDirty = inject("markEditDirty");
 
 const maxDepthContext = inject("maxDepthContext", null);
+const autoExpandCommentId = inject("autoExpandCommentId", ref(null));
 
 if (props.depth === 1) {
   provide("maxDepthContext", {
@@ -87,10 +89,8 @@ const linkedImage = computed(() => {
   return (
     props.comment.text?.replace(
       /<img[^>]+src="([^"]+)"[^>]*\/?>/gi,
-      (_, src) => {
-        const name =
-          decodeURIComponent(src.split("/").pop().split("?")[0]) || "image";
-        return `<a href="${src}" target="_blank" rel="noopener noreferrer">${name}</a>`;
+      (match, src) => {
+        return `<a href="${src}" target="_blank" rel="noopener noreferrer">${match}</a>`;
       },
     ) ?? ""
   );
@@ -112,6 +112,10 @@ const isModeratorOrAdmin = computed(() => {
   return (
     currentUserRole.value === "moderator" || currentUserRole.value === "admin"
   );
+});
+
+const canEdit = computed(() => {
+  return isAuthor.value || Number(userRoleId?.value ?? 0) >= 3;
 });
 
 const canDelete = computed(() => {
@@ -220,12 +224,16 @@ const toggleRepliesDropdown = async () => {
 };
 
 const handleReply = async () => {
+  if (isSubmittingReply.value) return;
+
   const targetParentId =
     props.depth >= 2 && maxDepthContext
       ? maxDepthContext.parentId
       : props.comment.id;
 
+  isSubmittingReply.value = true;
   const newCommentData = await submitReply(replyText.value, targetParentId);
+  isSubmittingReply.value = false;
 
   if (newCommentData) {
     replyText.value = "";
@@ -313,6 +321,12 @@ const handleVote = async (direction) => {
   }
 };
 
+watch(autoExpandCommentId, async (id) => {
+  if (id && id === props.comment.id && !showReplies.value) {
+    await toggleRepliesDropdown();
+  }
+});
+
 watch(isLoggedIn, (loggedIn) => {
   if (!loggedIn) myVote.value = 0;
 });
@@ -354,7 +368,7 @@ watch(showOptionsMenu, (val) => {
 </script>
 
 <template>
-  <div class="comment-node mb-3 position-relative">
+  <div class="comment-node mb-3 position-relative" :id="'comment-' + comment.id">
     <div
       v-if="localReplies.length || comment.replyCount > 0"
       class="thread-line"
@@ -398,9 +412,7 @@ watch(showOptionsMenu, (val) => {
           </RouterLink>
           <span class="timestamp text-muted">
             {{ comment.time }}
-            <span v-if="comment.wasEdited" class="edited-label ms-1"
-              >(edited)</span
-            >
+            <span v-if="comment.wasEdited" class="edited-label ms-1">(edited)</span>
           </span>
           <div v-if="hasOptions" class="position-relative" ref="optionsMenuRef">
             <button
@@ -413,7 +425,7 @@ watch(showOptionsMenu, (val) => {
             <Transition name="comment-menu-fade">
               <div v-if="showOptionsMenu" class="comment-menu-popup shadow-sm">
                 <button
-                  v-if="isAuthor"
+                  v-if="canEdit"
                   class="comment-menu-item d-flex align-items-center gap-2 w-100 border-0 bg-transparent px-3 py-2"
                   @click="
                     startEdit();
@@ -549,11 +561,11 @@ watch(showOptionsMenu, (val) => {
               <button
                 class="btn-submit border-0 rounded-2 fw-bold px-3 py-1 small"
                 :disabled="
-                  !replyText || replyText === '<p></p>' || replyIsUploading
+                  !replyText || replyText === '<p></p>' || replyIsUploading || isSubmittingReply
                 "
                 @click="handleReply"
               >
-                {{ replyIsUploading ? "Uploading..." : "Reply" }}
+                {{ replyIsUploading ? "Uploading..." : isSubmittingReply ? "Posting..." : "Reply" }}
               </button>
             </div>
           </div>
@@ -733,8 +745,24 @@ watch(showOptionsMenu, (val) => {
   word-break: break-word;
 }
 
+.comment-body :deep(img) {
+  max-width: 100%;
+  max-height: 400px;
+  border-radius: 6px;
+  display: block;
+  margin-top: 4px;
+  object-fit: contain;
+  cursor: pointer;
+}
+
 .timestamp {
   font-size: 12px;
+}
+
+.edited-label {
+  font-style: italic;
+  opacity: 0.75;
+  font-size: 11px;
 }
 
 /* Menu */

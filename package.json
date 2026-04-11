@@ -1,5 +1,8 @@
 {
   "devDependencies": {
     "jsdom": "^28.1.0"
+  },
+  "dependencies": {
+    "@tiptap/extension-placeholder": "^3.22.3"
   }
 }

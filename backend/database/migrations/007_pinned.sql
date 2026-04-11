@@ -1,3 +1,5 @@
+-- 007_pinned.sql
+
 IF OBJECT_ID('dbo.Forum_Pinned','U') IS NULL
 BEGIN
     CREATE TABLE dbo.Forum_Pinned

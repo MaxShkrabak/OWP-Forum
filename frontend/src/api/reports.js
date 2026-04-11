@@ -1,7 +1,17 @@
 import client from "./client";
 
-export async function fetchReports() {
-  const { data } = await client.get("/reports");
+/**
+ * @param {object} [opts]
+ * @param {number} [opts.page] — When set with perPage (or either alone), server paginates and returns total.
+ * @param {number} [opts.perPage]
+ * @param {'newest'|'oldest'} [opts.sort]
+ */
+export async function fetchReports(opts = {}) {
+  const params = {};
+  if (opts.page != null) params.page = opts.page;
+  if (opts.perPage != null) params.perPage = opts.perPage;
+  if (opts.sort) params.sort = opts.sort;
+  const { data } = await client.get("/reports", { params });
   return data;
 }
 
@@ -10,26 +20,19 @@ export async function resolveReport(reportId) {
   return data;
 }
 
-// Fetch report tags for report modal
 export async function getReportTags() {
   const { data } = await client.get("/reports/tags");
-  return (data.tags || []).map((reportTag) => ({
-    tagID: Number(reportTag.ReportTagID),
-    name: reportTag.TagName,
-  }));
+  return data.tags || [];
 }
 
-// Process report
 export async function submitReport(reportData) {
-    try {
-      const { data } = await client.post("/reports", reportData);
-      return data;
-    } catch (error) {
-        if (error.response && error.response.data) {
-            return {
-                ok: false,
-                error: error.response.data.error || "Failed to submit report"
-            };
-        }
-    }
+  try {
+    const { data } = await client.post("/reports", reportData);
+    return data;
+  } catch (error) {
+    return {
+      ok: false,
+      error: error.response?.data?.error || "Failed to submit report",
+    };
+  }
 }

@@ -1,3 +1,5 @@
+-- 001_user_roles.sql
+
 -- Optional: track schema versions for migrate.php
 IF OBJECT_ID('dbo.Forum_SchemaVersions', 'U') IS NULL
 BEGIN

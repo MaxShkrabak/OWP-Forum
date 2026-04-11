@@ -28,9 +28,7 @@ final class AuthController extends BaseController
                 SELECT u.User_ID, u.Email, u.FirstName, u.LastName, u.Avatar,
                        r.Name as RoleName, r.RoleID,
                        ISNULL(u.IsBanned, 0) as IsBanned, u.BanType, u.BannedUntil,
-                       ISNULL(u.EmailNotificationsEnabled, 1) as EmailNotificationsEnabled,
-                       ISNULL(u.TermsAccepted, 0) as termsAccepted,
-                       u.TermsAcceptedAt as termsAcceptedAt
+                       ISNULL(u.TermsAccepted, 0) as termsAccepted
                 FROM dbo.Forum_Users u
                 LEFT JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
                 WHERE u.User_ID = :uid
@@ -68,9 +66,7 @@ final class AuthController extends BaseController
                 'isBanned'                   => $isBanned,
                 'banType'                    => $banType,
                 'bannedUntil'                => $bannedUntil,
-                'emailNotificationsEnabled'  => (int)($user['EmailNotificationsEnabled'] ?? 1),
                 'termsAccepted'              => (int)($user['termsAccepted'] ?? 0),
-                'termsAcceptedAt'            => isset($user['termsAcceptedAt']) && $user['termsAcceptedAt'] ? $user['termsAcceptedAt'] : null,
             ]]);
         } catch (Throwable $e) {
             return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);

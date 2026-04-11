@@ -16,6 +16,7 @@ const fetchReportsMock = vi.fn();
 vi.mock("@/api/reports", () => ({
   resolveReport: (...args) => resolveReportMock(...args),
   fetchReports: (...args) => fetchReportsMock(...args),
+  normalizeReport: (r) => r,
 }));
 
 function makeReport(overrides = {}) {
@@ -26,11 +27,10 @@ function makeReport(overrides = {}) {
     reason: "Spam",
     createdAt: "2026-01-01T00:00:00Z",
     source: "Post",
-    reporterId: 111,
-    reporterName: "Reporter",
-    contentTitle: "Test Post",
-    contentAuthorId: 222,
-    contentAuthorName: "Author",
+    reporter: { id: 111, name: "Reporter" },
+    postTitle: "Test Post",
+    postAuthorId: 222,
+    postAuthor: "Author",
     ...overrides,
   };
 }
@@ -46,13 +46,26 @@ describe("AdminReports - acceptance checks", () => {
       return Promise.reject(new Error(`Unexpected GET ${url}`));
     });
 
-    fetchReportsMock.mockResolvedValue({
-      ok: true,
-      reports: [
-        makeReport({ reportId: 1, postId: 10, contentTitle: "Post A" }),
-        makeReport({ reportId: 2, postId: 11, contentTitle: "Post B" }),
-      ],
-    });
+    fetchReportsMock
+      .mockResolvedValueOnce({
+        ok: true,
+        reports: [
+          makeReport({ report: { id: 1 }, postId: 10, postTitle: "Post A" }),
+          makeReport({ report: { id: 2 }, postId: 11, postTitle: "Post B" }),
+        ],
+        total: 2,
+        page: 1,
+        perPage: 25,
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        reports: [
+          makeReport({ report: { id: 2 }, postId: 11, postTitle: "Post B" }),
+        ],
+        total: 1,
+        page: 1,
+        perPage: 25,
+      });
 
     resolveReportMock.mockResolvedValue({ ok: true });
 
@@ -83,14 +96,14 @@ describe("AdminReports - acceptance checks", () => {
       .mockResolvedValueOnce({
         ok: true,
         reports: [
-          makeReport({ reportId: 1, postId: 10, contentTitle: "Deleted Post" }),
-          makeReport({ reportId: 2, postId: 10, contentTitle: "Deleted Post" }),
-          makeReport({ reportId: 3, postId: 99, contentTitle: "Other Post" }),
+          makeReport({ report: { id: 1 }, postId: 10, postTitle: "Deleted Post" }),
+          makeReport({ report: { id: 2 }, postId: 10, postTitle: "Deleted Post" }),
+          makeReport({ report: { id: 3 }, postId: 99, postTitle: "Other Post" }),
         ],
       })
       .mockResolvedValueOnce({
         ok: true,
-        reports: [makeReport({ reportId: 3, postId: 99, contentTitle: "Other Post" })],
+        reports: [makeReport({ report: { id: 3 }, postId: 99, postTitle: "Other Post" })],
       });
 
     const wrapper = mount(AdminReports);

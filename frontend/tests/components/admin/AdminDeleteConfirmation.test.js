@@ -12,8 +12,8 @@ const { mockClient } = vi.hoisted(() => ({
 vi.mock("@/api/client", () => ({ default: mockClient }));
 
 const mockCategories = [
-  { categoryId: 1, name: "General", usableByRoleID: 1 },
-  { categoryId: 2, name: "Help", usableByRoleID: 1 },
+  { categoryId: 1, name: "General", usableByRoleId: 1 },
+  { categoryId: 2, name: "Help", usableByRoleId: 1 },
 ];
 
 // API contract: same paths used by AdminCategories.vue and AdminTags.vue
@@ -83,7 +83,7 @@ describe("Delete Confirmation Tags/Categories — success message after delete",
 describe("Delete Confirmation Tags/Categories — DOM (confirmation displays)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockClient.get.mockResolvedValue({ data: { items: mockCategories.map((c) => ({ categoryId: c.categoryId, name: c.name, usableByRoleID: c.usableByRoleID })) } });
+    mockClient.get.mockResolvedValue({ data: { items: mockCategories.map((c) => ({ categoryId: c.categoryId, name: c.name, usableByRoleId: c.usableByRoleId })) } });
   });
 
   it("category delete button opens modal with Delete category? and General", async () => {

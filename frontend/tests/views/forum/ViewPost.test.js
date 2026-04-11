@@ -50,7 +50,7 @@ describe("ViewPost.vue", () => {
       authorAvatar: "pfp-1.png",
       createdAt: "2026-02-22 14:20:00",
       categoryName: "General",
-      tags: [{ Name: "Help" }, { Name: "Official" }, { Name: "Research" }],
+      tags: [{ tagId: 1, name: "Help" }, { tagId: 2, name: "Official" }, { tagId: 3, name: "Research" }],
       content: "Some content",
       viewCount: 1247,
     };

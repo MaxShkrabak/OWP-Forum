@@ -137,4 +137,26 @@ describe("UserCard.vue — user stats", () => {
     expect(statValues[1].text()).toBe("0");
     expect(statValues[2].text()).toBe("0");
   });
+
+  it("opens the unified settings modal from profile avatar", async () => {
+    mockFetchUserStats.mockResolvedValueOnce({
+      ok: true,
+      stats: { postCount: 0, voteScore: 0, commentCount: 0 },
+    });
+
+    const wrapper = mount(UserCard, {
+      props: {
+        isProfile: true,
+        isCurrUser: true,
+      },
+      global: {
+        stubs: { RouterLink: true, UserRole: true },
+      },
+    });
+    await flushPromises();
+
+    const avatarButton = wrapper.find(".pfp-wrapper-profile");
+    expect(avatarButton.attributes("data-bs-toggle")).toBe("modal");
+    expect(avatarButton.attributes("data-bs-target")).toBe("#userSettingsModal");
+  });
 });

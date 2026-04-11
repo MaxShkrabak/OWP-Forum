@@ -1,9 +1,12 @@
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue';
-import { useRouter } from 'vue-router';
-import { fetchNotifications, markNotificationsRead } from '@/api/users';
-import { isLoggedIn } from '@/stores/userStore';
-import { isNotificationEnabled, getNotificationPreferences } from '@/utils/notificationPreferences';
+import { ref, onMounted, onBeforeUnmount } from "vue";
+import { useRouter } from "vue-router";
+import { fetchNotifications, markNotificationsRead } from "@/api/users";
+import { isLoggedIn } from "@/stores/userStore";
+import {
+  isNotificationEnabled,
+  getNotificationPreferences,
+} from "@/utils/notificationPreferences";
 
 const router = useRouter();
 
@@ -21,21 +24,21 @@ const FETCH_COOLDOWN_MS = 30_000;
 let lastFetchedAt = 0;
 
 function getMessage(item) {
-  if (item.type === 'postLike') {
+  if (item.type === "postLike") {
     return `Your post "${item.title}" received a like.`;
   }
 
-  if (item.type === 'postReply') {
+  if (item.type === "postReply") {
     return `Your post "${item.title}" received a reply.`;
   }
 
-  return 'You have a new notification.';
+  return "You have a new notification.";
 }
 
 function pruneRateWindow() {
   const now = Date.now();
   shownTimestamps.value = shownTimestamps.value.filter(
-    (ts) => now - ts < RATE_WINDOW_MS
+    (ts) => now - ts < RATE_WINDOW_MS,
   );
 }
 
@@ -52,7 +55,7 @@ async function markRead(notificationId) {
   try {
     await markNotificationsRead([notificationId]);
   } catch (e) {
-    console.error('Failed to mark notification as read', e);
+    console.error("Failed to mark notification as read", e);
   }
 }
 
@@ -62,13 +65,13 @@ async function markManyRead(notificationIds) {
   try {
     await markNotificationsRead(notificationIds);
   } catch (e) {
-    console.error('Failed to mark notifications as read', e);
+    console.error("Failed to mark notifications as read", e);
   }
 }
 
 async function removeNotification(notificationId, shouldMarkRead = true) {
   notifications.value = notifications.value.filter(
-    (n) => n.notificationId !== notificationId
+    (n) => n.notificationId !== notificationId,
   );
 
   if (shouldMarkRead) {
@@ -90,7 +93,9 @@ async function closeNotification(notificationId) {
 
 function scheduleAutoDismiss(notificationId) {
   window.setTimeout(() => {
-    const exists = notifications.value.some((n) => n.notificationId === notificationId);
+    const exists = notifications.value.some(
+      (n) => n.notificationId === notificationId,
+    );
     if (exists) {
       removeNotification(notificationId, true);
     }
@@ -149,25 +154,25 @@ async function loadNotifications() {
       await markManyRead(discardIds);
     }
   } catch (e) {
-    console.error('Failed to fetch notifications', e);
+    console.error("Failed to fetch notifications", e);
   } finally {
     isFetching = false;
   }
 }
 
 function onVisibilityChange() {
-  if (document.visibilityState === 'visible') {
+  if (document.visibilityState === "visible") {
     loadNotifications();
   }
 }
 
 onMounted(() => {
   loadNotifications();
-  document.addEventListener('visibilitychange', onVisibilityChange);
+  document.addEventListener("visibilitychange", onVisibilityChange);
 });
 
 onBeforeUnmount(() => {
-  document.removeEventListener('visibilitychange', onVisibilityChange);
+  document.removeEventListener("visibilitychange", onVisibilityChange);
 });
 </script>
 
@@ -181,7 +186,7 @@ onBeforeUnmount(() => {
       >
         <div class="notification-content">
           <div class="notification-title">
-            {{ item.type === 'postLike' ? 'Post liked' : 'Post replied to' }}
+            {{ item.type === "postLike" ? "Post liked" : "Post replied to" }}
           </div>
 
           <button
@@ -290,7 +295,7 @@ onBeforeUnmount(() => {
 }
 
 .notification-btn-primary {
-  background-color: #48773C;
+  background-color: #48773c;
   color: white;
 }
 

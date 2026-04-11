@@ -1,35 +1,38 @@
 <script setup>
 import { ref, onMounted, computed, watch } from "vue";
-import client from "@/api/client";
+import {
+  getAdminUsers,
+  updateUserBan,
+  updateUserRole,
+  getAdminRoles,
+} from "@/api/admin";
 import { formatBannedUntilDateTime } from "@/utils/banDate";
 import { uid } from "@/stores/userStore";
+import AdminPaginationControls from "@/components/admin/AdminPaginationControls.vue";
 
 const q = ref("");
 const users = ref([]);
+const userPage = ref(1);
+const userPerPage = ref(25);
+const userTotal = ref(0);
 const loading = ref(false);
 const error = ref("");
 const currentUserId = uid;
 
 const showBanModal = ref(false);
 const banTarget = ref(null);
-const banKind = ref("permanent"); // 'permanent' | 'temporary'
+const banKind = ref("permanent");
 const banUntilDate = ref("");
 
 const showWarning = ref(false);
 const warningMessage = ref("");
 
-// Role management state
 const roleDraft = ref({});
 const showRoleConfirm = ref(false);
 const pendingRole = ref({ user: null, newRoleId: null, oldRoleId: null });
 const roleInfoModal = ref({ open: false, title: "", message: "" });
 
-const roles = [
-  { id: 1, label: "User" },
-  { id: 2, label: "Student" },
-  { id: 3, label: "Moderator" },
-  { id: 4, label: "Admin" },
-];
+const roles = ref([]);
 
 // Tomorrow in local time (YYYY-MM-DD) so date picker min is correct in user's timezone
 const minBanDate = computed(() => {
@@ -44,26 +47,48 @@ const minBanDate = computed(() => {
 let searchTimeout = null;
 function onSearchInput() {
   clearTimeout(searchTimeout);
-  searchTimeout = setTimeout(() => loadUsers(), 350);
+  searchTimeout = setTimeout(() => {
+    userPage.value = 1;
+    loadUsers();
+  }, 350);
+}
+
+function onUserPage(p) {
+  userPage.value = p;
+  loadUsers();
+}
+
+function onUserPerPage(n) {
+  userPerPage.value = n;
+  userPage.value = 1;
+  loadUsers();
 }
 
 async function loadUsers() {
   loading.value = true;
   error.value = "";
   try {
-    const params = q.value.trim() ? { q: q.value.trim() } : {};
-    const res = await client.get("/admin/users", { params });
-    users.value = (res.data.users || []).map((u) => ({
-      ...u,
-      isBanned: Boolean(Number(u.isBanned ?? 0)),
-      banType:
-        u.banType && (u.banType === "permanent" || u.banType === "temporary")
-          ? u.banType
-          : null,
-      bannedUntil: u.bannedUntil ? String(u.bannedUntil) : null,
-    }));
-
-    // Populate roleDraft map
+    const result = await getAdminUsers(q.value, {
+      page: userPage.value,
+      perPage: userPerPage.value,
+    });
+    if (
+      result.users.length === 0 &&
+      result.total > 0 &&
+      userPage.value > 1
+    ) {
+      const maxPage = Math.max(
+        1,
+        Math.ceil(result.total / result.perPage),
+      );
+      userPage.value = maxPage;
+      await loadUsers();
+      return;
+    }
+    users.value = result.users;
+    userTotal.value = result.total;
+    userPage.value = result.page;
+    userPerPage.value = result.perPage;
     const map = {};
     for (const u of users.value) map[u.userId] = Number(u.roleId);
     roleDraft.value = map;
@@ -71,6 +96,7 @@ async function loadUsers() {
     error.value =
       e?.response?.data?.error || e.message || "Failed to load users";
     users.value = [];
+    userTotal.value = 0;
   } finally {
     loading.value = false;
   }
@@ -122,7 +148,7 @@ async function confirmBan() {
     payload.banType = "permanent";
   }
   try {
-    await client.patch(`/admin/users/${banTarget.value.userId}/ban`, payload);
+    await updateUserBan(banTarget.value.userId, payload);
     banTarget.value.isBanned = true;
     banTarget.value.banType = payload.banType;
     banTarget.value.bannedUntil = payload.bannedUntil || null;
@@ -134,7 +160,7 @@ async function confirmBan() {
 
 async function unban(user) {
   try {
-    await client.patch(`/admin/users/${user.userId}/ban`, { banned: false });
+    await updateUserBan(user.userId, { banned: false });
     user.isBanned = false;
     user.banType = null;
     user.bannedUntil = null;
@@ -174,15 +200,8 @@ function isAdminUser(u) {
   return (u.roleName || "").toLowerCase() === "admin";
 }
 
-// Role management functions
 function roleLabel(id) {
-  return id === 1
-    ? "User"
-    : id === 2
-      ? "Student"
-      : id === 3
-        ? "Moderator"
-        : "Admin";
+  return roles.value.find((r) => r.id === Number(id))?.label || "";
 }
 
 function showRoleInfo(title, message) {
@@ -216,7 +235,7 @@ function onRoleSelected(user) {
 
 async function applyRoleChange(user, newRole) {
   try {
-    await client.patch(`/admin/users/${user.userId}/role`, { roleId: newRole });
+    await updateUserRole(user.userId, newRole);
     user.roleId = String(newRole);
     user.roleName =
       newRole === 1
@@ -249,7 +268,10 @@ async function confirmRoleChange() {
 }
 
 onMounted(async () => {
-  await loadUsers();
+  await Promise.all([
+    loadUsers(),
+    getAdminRoles().then((r) => (roles.value = r)),
+  ]);
 });
 </script>
 
@@ -346,6 +368,17 @@ onMounted(async () => {
       <div v-if="!loading && users.length === 0" class="state mt-4 text-center">
         No users found.
       </div>
+
+      <AdminPaginationControls
+        v-if="!loading && userTotal > 0"
+        :page="userPage"
+        :per-page="userPerPage"
+        :total="userTotal"
+        :loading="loading"
+        per-page-label="Users per page"
+        @update:page="onUserPage"
+        @update:per-page="onUserPerPage"
+      />
     </div>
 
     <!-- Ban type modal -->
@@ -582,9 +615,9 @@ onMounted(async () => {
 
 /* Role Select */
 .role-select {
-  padding: 4px 2px;
-  border-radius: 10px;
-  font-weight: 500;
+  padding: 5px 2px;
+  border-radius: 8px;
+  font-weight: 600;
   border: 1px solid #ccc;
   outline: none;
   cursor: pointer;
@@ -597,30 +630,34 @@ onMounted(async () => {
 }
 
 .role-select.admin {
-  background: #f2cece;
-  color: #ff0000;
-  border-color: #f2cece;
+  background: #fee2e2;
+  color: #c91919;
+  border-color: #fecaca;
+  border-width: 2px;
 }
 .role-select.moderator {
-  background: #fdf4d9;
-  color: #d29e00;
-  border-color: #fdf4d9;
-}
-.role-select.user {
-  background: #d5f5d7;
-  color: #0a3800;
-  border-color: #d5f5d7;
+  background: #fef3c7;
+  color: #c56c06;
+  border-color: #fde68a;
+  border-width: 2px;
 }
 .role-select.student {
-  background: #b9d0e8;
-  color: #0015ff;
-  border-color: #b9d0e8;
+  background: #e0f2fe;
+  color: #0376af;
+  border-color: #bae6fd;
+  border-width: 2px;
+}
+.role-select.user {
+  background: #e8f5e9;
+  color: #2a633e;
+  border-color: #c8e6c9;
+  border-width: 2px;
 }
 
 .badge {
   display: inline-block;
   padding: 6px 6px;
-  border-radius: 20px;
+  border-radius: 8px;
   font-size: 12px;
   font-weight: 600;
 }
@@ -639,9 +676,9 @@ onMounted(async () => {
 
 .btn-ban {
   padding: 1px 8px;
-  border-radius: 10px;
+  border-radius: 8px;
   font-weight: 600;
-  font-size: 13px;
+  font-size: 12px;
   border: 1px solid #dc2626;
   background: #fef2f2;
   color: #dc2626;

@@ -133,7 +133,7 @@ final class CommentControllerTest extends TestCase
             $updateStmt,
             $postAuthorStmt,
             $postCheckStmt
-            ) {
+        ) {
             if (str_contains($sql, 'IsCommentsDisabled')) {
                 return $postCheckStmt;
             }
@@ -232,7 +232,8 @@ final class CommentControllerTest extends TestCase
                 'Avatar' => 'pfp-0.png',
                 'RoleName' => 'student',
                 'MyVote' => 1,
-                'ReplyCount' => 1
+                'ReplyCount' => 1,
+                'IsDeleted' => 0
             ],
             [
                 'CommentId' => 2,
@@ -247,7 +248,8 @@ final class CommentControllerTest extends TestCase
                 'Avatar' => 'pfp-1.png',
                 'RoleName' => 'user',
                 'MyVote' => -1,
-                'ReplyCount' => 0
+                'ReplyCount' => 0,
+                'IsDeleted' => 0
             ]
         ];
 
@@ -277,8 +279,65 @@ final class CommentControllerTest extends TestCase
         $this->assertEquals(1, $json['items'][1]['parentCommentId']);
         $this->assertEquals(-3, $json['items'][1]['score']);
 
-        $this->assertIsInt($json['items'][0]['createdAt']);
-        $this->assertIsInt($json['items'][1]['createdAt']);
+        $this->assertIsString($json['items'][0]['createdAt']);
+        $this->assertIsString($json['items'][1]['createdAt']);
+    }
+
+    #[AllowMockObjectsWithoutExpectations]
+    public function testCreateCommentFailsWhenCommentsDisabledForRegularUser(): void
+    {
+        $postId = 101;
+        $userId = 1;
+
+        $request = (new ServerRequestFactory())->createServerRequest('POST', "/api/posts/{$postId}/comments")
+            ->withAttribute('user_id', $userId)
+            ->withParsedBody(['content' => 'Trying to comment on a locked post.']);
+
+        $banStmt = $this->createMock(\PDOStatement::class);
+        $banStmt->method('fetch')->willReturn(['IsBanned' => 0]);
+
+        $postCheckStmt = $this->createMock(\PDOStatement::class);
+        $postCheckStmt->expects($this->once())
+            ->method('execute')
+            ->with([':pid' => $postId]);
+        $postCheckStmt->method('fetch')->willReturn(['IsCommentsDisabled' => 1]);
+
+        $roleStmt = $this->createMock(\PDOStatement::class);
+        $roleStmt->expects($this->once())
+            ->method('execute')
+            ->with([':uid' => $userId]);
+        // RoleID 1 (regular user)
+        $roleStmt->method('fetchColumn')->willReturn(1);
+
+        $this->pdo->expects($this->never())->method('beginTransaction');
+        $this->pdo->expects($this->never())->method('commit');
+        $this->pdo->expects($this->never())->method('rollBack');
+
+        $this->pdo->method('prepare')->willReturnCallback(function (string $sql) use (
+            $banStmt,
+            $postCheckStmt,
+            $roleStmt
+        ) {
+            if (str_contains($sql, 'IsCommentsDisabled')) {
+                return $postCheckStmt;
+            }
+
+            if (str_contains($sql, 'RoleID')) {
+                return $roleStmt;
+            }
+            if (str_contains($sql, 'dbo.Forum_Users')) {
+                return $banStmt;
+            }
+            throw new \Exception("Unexpected SQL: $sql");
+        });
+
+        $response = $this->controller->createComment($request, new Response(), ['postId' => $postId]);
+
+        $json = $this->decode($response);
+
+        $this->assertEquals(403, $response->getStatusCode());
+        $this->assertFalse($json['ok']);
+        $this->assertEquals('Comments are disabled on this post.', $json['error']);
     }
 
     #[AllowMockObjectsWithoutExpectations]
@@ -324,7 +383,7 @@ final class CommentControllerTest extends TestCase
 
     #[AllowMockObjectsWithoutExpectations]
     public function testVoteFailsForBannedUser(): void
-    {   
+    {
         $commentId = 1;
         $userId = 99;
         $request = (new ServerRequestFactory())->createServerRequest('POST', "/api/comments/{$commentId}/vote")
@@ -445,7 +504,7 @@ final class CommentControllerTest extends TestCase
                 $selectStmt,
                 $postAuthorStmt,
                 $postCheckStmt
-                ) {
+            ) {
                 if (str_contains($sql, 'IsCommentsDisabled')) {
                     return $postCheckStmt;
                 }
@@ -575,15 +634,16 @@ final class CommentControllerTest extends TestCase
         $this->pdo->expects($this->never())->method('rollBack');
 
         $this->pdo->method('prepare')->willReturnCallback(
-            function (string $sql) use ($banStmt,
-            $lockStmt,
-            $recentCommentsStmt,
-            $lastCommentTimeStmt,
-            $insertStmt,
-            $postOwnerStmt,
-            $selectStmt,
-            $postAuthorStmt,
-            $postCheckStmt
+            function (string $sql) use (
+                $banStmt,
+                $lockStmt,
+                $recentCommentsStmt,
+                $lastCommentTimeStmt,
+                $insertStmt,
+                $postOwnerStmt,
+                $selectStmt,
+                $postAuthorStmt,
+                $postCheckStmt
             ) {
                 if (str_contains($sql, 'IsCommentsDisabled')) {
                     return $postCheckStmt;
@@ -724,7 +784,7 @@ final class CommentControllerTest extends TestCase
                 $selectStmt,
                 $postAuthorStmt,
                 $postCheckStmt
-                ) {
+            ) {
                 if (str_contains($sql, 'IsCommentsDisabled')) {
                     return $postCheckStmt;
                 }
@@ -1011,12 +1071,11 @@ final class CommentControllerTest extends TestCase
             ->method('execute')
             ->with([':uid' => $userId]);
         $lastCommentTimeStmt->method('fetchColumn')->willReturn(date('Y-m-d H:i:s', time() - 5));
-        
+
         $this->pdo->expects($this->once())->method('beginTransaction')->willReturn(true);
         $this->pdo->expects($this->never())->method('commit');
         $this->pdo->expects($this->once())->method('rollBack')->willReturn(true);
 
-        
         $postCheckStmt = $this->createStub(\PDOStatement::class);
         $postCheckStmt->method('fetch')->willReturn(['IsCommentsDisabled' => 0]);
 

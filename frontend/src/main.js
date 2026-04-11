@@ -1,6 +1,6 @@
 // main.js
-import './assets/stylesheet.css'
-import './assets/media.css'
+import './assets/forumStylesheet.css'
+import './assets/forumMedia.css'
 import 'primeicons/primeicons.css'
 import 'bootstrap-icons/font/bootstrap-icons.css'
 
