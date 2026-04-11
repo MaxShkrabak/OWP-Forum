@@ -6,21 +6,23 @@ import { mount } from "@vue/test-utils";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { nextTick } from "vue";
 
-const { mockUid, mockIsLoggedIn, mockUserRole, mockUserRoleId } = vi.hoisted(() => ({
-  mockUid: { value: 2 },
-  mockIsLoggedIn: { value: true },
-  mockUserRole: { value: "Student" },
-  mockUserRoleId: { value: 1 },
-}));
+vi.mock("@/stores/userStore", async () => {
+  const { ref } = await import("vue");
+  return {
+    uid: ref(2),
+    isLoggedIn: ref(true),
+    userRole: ref("Student"),
+    userRoleId: ref(1),
+  };
+});
 
-vi.mock("@/stores/userStore", () => ({
-  uid: mockUid,
-  isLoggedIn: mockIsLoggedIn,
-  userRole: mockUserRole,
-  userRoleId: mockUserRoleId,
+vi.mock("vue-router", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  useRoute: () => ({ params: {}, query: {} }),
 }));
 
 import SingleComment from "@/components/forum/SingleComment.vue";
+import * as userStore from "@/stores/userStore";
 
 const mockComment = {
   id: 1,
@@ -68,15 +70,15 @@ function mountComment() {
 
 describe("SingleComment Admin Permissions", () => {
   beforeEach(() => {
-    mockUid.value = 2;
-    mockIsLoggedIn.value = true;
-    mockUserRole.value = "Student";
-    mockUserRoleId.value = 1;
+    userStore.uid.value = 2;
+    userStore.isLoggedIn.value = true;
+    userStore.userRole.value = "Student";
+    userStore.userRoleId.value = 1;
   });
 
   it("shows edit button for admin on another user's comment", async () => {
-    mockUserRole.value = "Admin";
-    mockUserRoleId.value = 4;
+    userStore.userRole.value = "Admin";
+    userStore.userRoleId.value = 4;
 
     const wrapper = mountComment();
 
@@ -87,8 +89,8 @@ describe("SingleComment Admin Permissions", () => {
   });
 
   it("does not show edit button for normal user on another user's comment", async () => {
-    mockUserRole.value = "Student";
-    mockUserRoleId.value = 1;
+    userStore.userRole.value = "Student";
+    userStore.userRoleId.value = 1;
 
     const wrapper = mountComment();
 
