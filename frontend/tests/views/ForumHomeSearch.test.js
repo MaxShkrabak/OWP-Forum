@@ -120,6 +120,7 @@ describe("ForumHome search acceptance criteria", () => {
 
     expect(fetchPostsMock).toHaveBeenCalledWith({ sort: "latest" });
     expect(fetchPinnedPostsMock).toHaveBeenCalled();
+    expect(wrapper.text()).toContain("8 posts");
 
     searchPostsMock.mockResolvedValueOnce({
       ok: true,
@@ -148,16 +149,15 @@ describe("ForumHome search acceptance criteria", () => {
     });
 
     expect(wrapper.text()).toContain("Search Results");
-    expect(wrapper.text()).toContain("12 results");
     expect(wrapper.text()).toContain("Database Match 1");
     expect(wrapper.text()).toContain("Database Match 2");
     expect(wrapper.findAll('[data-test="post-card"]')).toHaveLength(2);
-
+    expect(wrapper.text()).toContain("12 results");
     expect(wrapper.text()).toContain("Page 1 / 2");
 
     const nextButton = wrapper
       .findAll("button")
-      .find((button) => button.text() === "Next");
+      .find((button) => button.text().trim() === ">");
 
     expect(nextButton).toBeTruthy();
     expect(nextButton.element.disabled).toBe(false);
@@ -215,5 +215,32 @@ describe("ForumHome search acceptance criteria", () => {
     });
 
     expect(wrapper.text()).toContain("No posts match your search or filters");
+  });
+
+  it("does not search immediately before debounce finishes", async () => {
+    vi.useFakeTimers();
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const input = wrapper.find('input[placeholder="Search all posts..."]');
+    await input.setValue("draft");
+
+    expect(searchPostsMock).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(200);
+    await flushPromises();
+    expect(searchPostsMock).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(200);
+    await flushPromises();
+
+    expect(searchPostsMock).toHaveBeenCalledWith({
+      q: "draft",
+      page: 1,
+      limit: 10,
+      sort: "latest",
+      categoryIds: [],
+    });
   });
 });
