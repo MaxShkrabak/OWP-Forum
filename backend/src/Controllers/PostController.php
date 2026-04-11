@@ -170,6 +170,220 @@ class PostController extends BaseController
             return json($res, ['ok' => false, 'error' => 'Failed to load post.'], 500);
         }
     }
+public function searchPosts(Request $req, Response $res): Response
+{
+    try {
+        $userId = (int)($req->getAttribute("user_id") ?? 0);
+        $pdo = ($this->makePdo)();
+        $userRoleId = $this->getUserRoleId($pdo, $userId);
+
+        $params = $req->getQueryParams();
+
+        $q = trim((string)($params['q'] ?? ''));
+        $page = max((int)($params['page'] ?? 1), 1);
+        $limit = min(max((int)($params['limit'] ?? 10), 1), 50);
+        $sort = strtolower((string)($params['sort'] ?? 'latest'));
+
+        $rawCategoryIds = trim((string)($params['categoryIds'] ?? ''));
+        $categoryIds = array_values(array_filter(
+            array_map('intval', explode(',', $rawCategoryIds)),
+            fn($id) => $id > 0
+        ));
+
+        $where = "WHERE p.IsDeleted = 0";
+        $bind = [];
+
+        if ($userRoleId < 4) {
+            $where .= " AND ISNULL(c.VisibleFromRoleID, 0) <= :roleIdVisible";
+            $bind[':roleIdVisible'] = $userRoleId;
+        }
+
+        if (!empty($categoryIds)) {
+            $catPlaceholders = [];
+            foreach ($categoryIds as $i => $categoryId) {
+                $param = ":cat$i";
+                $catPlaceholders[] = $param;
+                $bind[$param] = $categoryId;
+            }
+            $where .= " AND p.CategoryID IN (" . implode(',', $catPlaceholders) . ")";
+        }
+
+        if ($q !== '') {
+            $qLike = '%' . $q . '%';
+
+            $where .= "
+                AND (
+                    p.Title LIKE :qTitle
+                    OR c.Name LIKE :qCategory
+                    OR r.Name LIKE :qRole
+                    OR u.FirstName LIKE :qFirstName
+                    OR u.LastName LIKE :qLastName
+                    OR EXISTS (
+                        SELECT 1
+                        FROM dbo.Forum_PostTags pt
+                        JOIN dbo.Forum_Tags t ON t.TagID = pt.TagID
+                        WHERE pt.PostID = p.PostID
+                        AND t.Name LIKE :qTag
+                    )
+                )
+            ";
+
+            $bind[':qTitle'] = $qLike;
+            $bind[':qCategory'] = $qLike;
+            $bind[':qRole'] = $qLike;
+            $bind[':qFirstName'] = $qLike;
+            $bind[':qLastName'] = $qLike;
+            $bind[':qTag'] = $qLike;
+        }
+
+        $countSql = "
+            SELECT COUNT(*)
+            FROM dbo.Forum_Posts p
+            LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.User_ID
+            LEFT JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
+            LEFT JOIN dbo.Forum_Categories c ON p.CategoryID = c.CategoryID
+            $where
+        ";
+
+        $countStmt = $pdo->prepare($countSql);
+        foreach ($bind as $key => $value) {
+            $countStmt->bindValue($key, $value, is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR);
+        }
+        $countStmt->execute();
+        $totalPosts = (int)$countStmt->fetchColumn();
+
+        $totalPages = max(1, (int)ceil($totalPosts / $limit));
+        if ($page > $totalPages) {
+            $page = $totalPages;
+        }
+
+        $offset = ($page - 1) * $limit;
+
+        $orderBy = match ($sort) {
+            'oldest'   => 'CreatedAt ASC',
+            'upvotes'  => 'TotalScore DESC, CreatedAt DESC',
+            'comments' => 'commentCount DESC, CreatedAt DESC',
+            default    => 'CreatedAt DESC',
+        };
+
+        $sql = "
+            WITH SearchResults AS (
+                SELECT
+                    p.PostID,
+                    p.Title,
+                    p.CreatedAt,
+                    p.CategoryID,
+                    p.TotalScore,
+                    (
+                        SELECT COUNT(*)
+                        FROM dbo.Forum_Comments cm
+                        WHERE cm.PostID = p.PostID AND cm.IsDeleted = 0
+                    ) AS commentCount,
+                    u.FirstName,
+                    u.LastName,
+                    u.Avatar,
+                    u.User_ID,
+                    r.Name AS RoleName,
+                    c.Name AS CategoryName,
+                    ISNULL(c.VisibleFromRoleID, 0) AS VisibleFromRoleID,
+                    ISNULL(pv.VoteValue, 0) AS myVote,
+                    CASE
+                        WHEN EXISTS (
+                            SELECT 1
+                            FROM dbo.Forum_Pinned pin
+                            WHERE pin.PostID = p.PostID
+                        ) THEN 1
+                        ELSE 0
+                    END AS IsPinned
+                FROM dbo.Forum_Posts p
+                LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.User_ID
+                LEFT JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
+                LEFT JOIN dbo.Forum_Categories c ON p.CategoryID = c.CategoryID
+                LEFT JOIN dbo.Forum_PostVotes pv ON p.PostID = pv.PostID AND pv.User_ID = :userId
+                $where
+            )
+            SELECT *
+            FROM SearchResults
+            ORDER BY $orderBy
+            OFFSET :offset ROWS FETCH NEXT :limit ROWS ONLY
+        ";
+
+        $stmt = $pdo->prepare($sql);
+
+        $stmt->bindValue(':userId', $userId, PDO::PARAM_INT);
+
+        foreach ($bind as $key => $value) {
+            $stmt->bindValue($key, $value, is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR);
+        }
+
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->execute();
+
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        if (empty($rows)) {
+            return json($res, [
+                'ok' => true,
+                'posts' => [],
+                'meta' => [
+                    'page' => $page,
+                    'limit' => $limit,
+                    'totalPosts' => $totalPosts,
+                    'totalPages' => $totalPages,
+                    'hasNextPage' => false,
+                    'hasPrevPage' => $page > 1,
+                ],
+            ]);
+        }
+
+        $postIds = array_map(fn($r) => (int)$r['PostID'], $rows);
+        $tagsByPostId = $this->fetchTagsByPostIds($pdo, $postIds);
+
+        $posts = [];
+        foreach ($rows as $row) {
+            $pid = (int)$row['PostID'];
+
+            $posts[] = [
+                'postId' => $pid,
+                'categoryId' => (int)($row['CategoryID'] ?? 0),
+                'categoryName' => $row['CategoryName'] ?? '',
+                'visibleFromRoleId' => (int)($row['VisibleFromRoleID'] ?? 0),
+                'title' => $row['Title'],
+                'createdAt' => $row['CreatedAt'],
+                'authorId' => (int)($row['User_ID'] ?? 0),
+                'authorName' => trim(($row['FirstName'] ?? '') . ' ' . ($row['LastName'] ?? '')),
+                'authorRole' => $row['RoleName'] ?? 'User',
+                'authorAvatar' => $row['Avatar'] ?? null,
+                'tags' => array_column($tagsByPostId[$pid] ?? [], 'name'),
+                'commentCount' => (int)($row['commentCount'] ?? 0),
+                'totalScore' => (int)($row['TotalScore'] ?? 0),
+                'myVote' => (int)($row['myVote'] ?? 0),
+                'isPinned' => (int)($row['IsPinned'] ?? 0) === 1,
+            ];
+        }
+
+        return json($res, [
+            'ok' => true,
+            'posts' => $posts,
+            'meta' => [
+                'page' => $page,
+                'limit' => $limit,
+                'totalPosts' => $totalPosts,
+                'totalPages' => $totalPages,
+                'hasNextPage' => $page < $totalPages,
+                'hasPrevPage' => $page > 1,
+            ],
+        ]);
+    } catch (Throwable $e) {
+        error_log('searchPosts error: ' . $e->getMessage());
+
+        return json($res, [
+            'ok' => false,
+            'error' => 'Failed to search posts.',
+        ], 500);
+    }
+}
 
     public function getCategoryPosts(Request $req, Response $res, array $args): Response
     {

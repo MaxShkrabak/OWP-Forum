@@ -6,6 +6,7 @@ $postController = new PostController($makePdo);
 // READ ENDPOINTS
 
 $app->get('/api/posts',                    [$postController, 'getPosts']);
+$app->get('/api/posts/search',             [$postController, 'searchPosts']);
 $app->get('/api/posts/pinned',             [$postController, 'getPinnedPosts']);
 $app->get('/api/get-post/{id}',            [$postController, 'getPost']);
 $app->get('/api/categories/{id}/posts',    [$postController, 'getCategoryPosts']);
