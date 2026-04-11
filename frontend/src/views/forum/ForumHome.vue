@@ -418,7 +418,7 @@ onMounted(async () => {
                     :disabled="!searchMeta.hasPrevPage"
                     @click="goToSearchPage(searchMeta.page - 1)"
                   >
-                    Prev
+                    <
                   </button>
 
                   <span class="pagination-status">
@@ -430,7 +430,7 @@ onMounted(async () => {
                     :disabled="!searchMeta.hasNextPage"
                     @click="goToSearchPage(searchMeta.page + 1)"
                   >
-                    Next
+                    >
                   </button>
                 </div>
               </div>
@@ -704,41 +704,45 @@ onMounted(async () => {
 }
 
 .search-results-box {
-  background: #bcc8cc;
+  background: linear-gradient(135deg, #008a78 0%, #004750 100%);
   border-radius: 12px;
   padding: 18px;
   border: 1px solid rgba(0, 0, 0, 0.06);
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
+  
 }
 
 .search-results-header {
   margin-bottom: 14px;
   padding-bottom: 10px;
   border-bottom: 1px solid #ececec;
+  color:#ffffff
 }
 
 .search-pagination {
   flex-wrap: wrap;
+  
 }
 
 .pagination-btn {
   border: none;
-  background: #145a32;
   color: white;
   padding: 8px 14px;
   border-radius: 8px;
   font-weight: 600;
   cursor: pointer;
+  background: linear-gradient(135deg, #007c8a 0%, #057043 100%);
 }
 
 .pagination-btn:disabled {
   background: #b7c6bd;
   cursor: not-allowed;
+  
 }
 
 .pagination-status {
   font-size: 0.9rem;
   font-weight: 600;
-  color: #444;
+  color: #ffffff;
 }
 </style>

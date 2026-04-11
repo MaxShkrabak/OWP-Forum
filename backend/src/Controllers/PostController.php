@@ -214,7 +214,6 @@ public function searchPosts(Request $req, Response $res): Response
             $where .= "
                 AND (
                     p.Title LIKE :qTitle
-                    OR p.Content LIKE :qContent
                     OR c.Name LIKE :qCategory
                     OR r.Name LIKE :qRole
                     OR u.FirstName LIKE :qFirstName
@@ -224,13 +223,12 @@ public function searchPosts(Request $req, Response $res): Response
                         FROM dbo.Forum_PostTags pt
                         JOIN dbo.Forum_Tags t ON t.TagID = pt.TagID
                         WHERE pt.PostID = p.PostID
-                          AND t.Name LIKE :qTag
+                        AND t.Name LIKE :qTag
                     )
                 )
             ";
 
             $bind[':qTitle'] = $qLike;
-            $bind[':qContent'] = $qLike;
             $bind[':qCategory'] = $qLike;
             $bind[':qRole'] = $qLike;
             $bind[':qFirstName'] = $qLike;
