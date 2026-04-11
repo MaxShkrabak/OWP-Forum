@@ -41,7 +41,7 @@ vi.mock("@/api/comments", async (importOriginal) => {
         ok: true,
         comment: {
           commentId: 99,
-          content: "This is my newly createds comment",
+          content: "This is my newly created comment",
           createdAt: "2026-04-08 23:00:00",
           user: { userId: 1, firstName: "Test", lastName: "User" },
         },
