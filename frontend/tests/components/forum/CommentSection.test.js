@@ -2,12 +2,14 @@ import { mount, flushPromises, DOMWrapper } from "@vue/test-utils";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { ref } from "vue";
 import CommentSection from "@/components/forum/CommentSection.vue";
+import { userRoleId } from "@/stores/userStore";
 import { fetchComments, submitComment, updateComment } from "@/api/comments";
 import TextEditor from "@/components/forum/TextEditor.vue";
 
 vi.mock("@/stores/userStore", () => ({
   isLoggedIn: ref(true),
   uid: ref(1), // Matches the userId: 1 in the mocked comments below
+  userRoleId: ref(1),
   userRole: ref("user"),
 }));
 
@@ -250,5 +252,52 @@ describe("CommentSection.vue", () => {
 
     expect(document.body.textContent).toContain("You're commenting too fast");
     expect(document.body.textContent).toContain("1 minute 15 seconds");
+  });
+
+  it("hides the comment box and shows the disabled notice for a regular user when commentsDisabled is true", async () => {
+    wrapper.unmount();
+    userRoleId.value = 1; // regular user
+
+    wrapper = mount(CommentSection, {
+      props: {
+        postId: 12,
+        commentsDisabled: true,
+      },
+      global: {
+        stubs: { SingleComment: false, RouterLink: true },
+      },
+    });
+    await flushPromises();
+
+    const mainInput = wrapper.find(".main-input-wrapper");
+    expect(mainInput.find(".comments-disabled-notice").exists()).toBe(true);
+    expect(mainInput.text()).toContain("Comments have been disabled on this post");
+    expect(mainInput.find(".reply-box-container").exists()).toBe(false);
+  });
+
+
+  it("shows the comment box with a mod notice when commentsDisabled is true and the user is a moderator", async () => {
+    wrapper.unmount();
+    userRoleId.value = 3; // moderator
+
+    wrapper = mount(CommentSection, {
+      props: {
+        postId: 12,
+        commentsDisabled: true,
+      },
+      global: {
+        stubs: { SingleComment: false, RouterLink: true },
+      },
+    });
+    await flushPromises();
+
+    const mainInput = wrapper.find(".main-input-wrapper");
+    expect(mainInput.find(".comments-disabled-mod-notice").exists()).toBe(true);
+    expect(mainInput.text()).toContain(
+      "Comments are disabled for regular users on this post",
+    );
+    expect(mainInput.find(".reply-box-container").exists()).toBe(true);
+
+    userRoleId.value = 1; // reset for other tests
   });
 });

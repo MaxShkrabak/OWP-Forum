@@ -300,7 +300,10 @@ final class UserController extends BaseController
             $rows = $rowstmt->fetchAll(PDO::FETCH_ASSOC);
 
             if (empty($rows)) {
-                return json($res, ['posts' => []]);
+                return json($res, [
+                    'ok' => true,
+                    'posts' => [],
+                ]);
             }
 
             $postIds = array_map(fn($r) => (int)$r['PostID'], $rows);
@@ -331,7 +334,9 @@ final class UserController extends BaseController
             }
 
             return json($res, [
+                'ok'              => true,
                 'posts'           => $posts,
+                'totalPosts'      => $totalPosts,
                 'meta'            => [
                     'limit'      => $limit,
                     'sort'       => ($sort === 'oldest' || $sort === 'title') ? $sort : 'latest',
@@ -379,17 +384,16 @@ final class UserController extends BaseController
             $offset = ($page - 1) * $limit;
 
             $stmt = $pdo->prepare("
-                SELECT p.PostID, p.Title, p.CreatedAt, p.CategoryID, p.TotalScore,
+                SELECT p.PostID, p.Title, p.CreatedAt, p.TotalScore,
                        (SELECT COUNT(*) FROM dbo.Forum_Comments cm WHERE cm.PostID = p.PostID AND cm.IsDeleted = 0) AS commentCount,
                        u.FirstName, u.LastName, u.Avatar, u.UserID,
-                       r.Name AS RoleName, c.Name AS CategoryName,
+                       r.Name AS RoleName,
                        ISNULL(pv.VoteValue, 0) AS myVote,
                        CASE WHEN pin.PostID IS NOT NULL THEN 1 ELSE 0 END AS isPinned
                 FROM dbo.Forum_PostVotes pov
                 JOIN dbo.Forum_Posts p ON p.PostID = pov.PostID
                 LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.UserID
                 LEFT JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
-                LEFT JOIN dbo.Forum_Categories c ON p.CategoryID = c.CategoryID
                 LEFT JOIN dbo.Forum_PostVotes pv ON p.PostID = pv.PostID AND pv.UserID = :viewerId
                 LEFT JOIN dbo.Forum_Pinned pin ON p.PostID = pin.PostID
                 WHERE pov.UserID = :profileId AND pov.VoteValue = 1 AND p.IsDeleted = 0
@@ -408,28 +412,17 @@ final class UserController extends BaseController
                 return json($res, [
                     'ok' => true,
                     'posts' => [],
-                    'meta' => [
-                        'limit'      => $limit,
-                        'sort'       => $sort,
-                        'page'       => $page,
-                        'totalPosts' => $totalPosts,
-                        'totalPages' => $totalPages,
-                    ],
                 ]);
             }
 
             $postIds = array_map(fn($r) => (int)$r['PostID'], $rows);
-            $placeholders = implode(',', array_fill(0, count($postIds), '?'));
-
             $tagsByPostId = fetchTagNamesByPostIds($pdo, $postIds);
-            $likeCounts = fetchCounts($pdo, 'dbo.PostLikes', $placeholders, $postIds, 'LikeCount');
 
             $posts = [];
             foreach ($rows as $row) {
                 $pid = (int)$row['PostID'];
                 $posts[] = [
                     'postId'       => $pid,
-                    'categoryId'   => (int)($row['CategoryID'] ?? 0),
                     'title'        => $row['Title'],
                     'createdAt'    => $row['CreatedAt'],
                     'authorId'     => (int)($row['UserID'] ?? 0),
@@ -438,7 +431,6 @@ final class UserController extends BaseController
                     'authorAvatar' => $row['Avatar'] ?? null,
                     'tags'         => $tagsByPostId[$pid] ?? [],
                     'commentCount' => (int)($row['commentCount'] ?? 0),
-                    'likeCount'    => $likeCounts[$pid] ?? 0,
                     'totalScore'   => (int)($row['TotalScore'] ?? 0),
                     'myVote'       => (int)($row['myVote'] ?? 0),
                     'isPinned'     => (bool)($row['isPinned'] ?? false),

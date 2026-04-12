@@ -389,6 +389,7 @@ class CommentController extends BaseController
                 'ok' => true,
                 'comment' => [
                     'commentId'       => (int)$row['CommentID'],
+                    'postId'          => $postId,
                     'score'           => (int)$row['TotalScore'],
                     'myVote'          => 0,
                     'user'            => $this->formatUserRow($row),
@@ -470,6 +471,7 @@ class CommentController extends BaseController
                 $isDeleted = (int)$row['IsDeleted'] === 1;
                 return [
                     'commentId'       => (int)$row['CommentID'],
+                    'postId'          => (int)$row['PostID'],
                     'score'           => $isDeleted ? 0 : (int)$row['TotalScore'],
                     'myVote'          => $isDeleted ? 0 : (int)$row['MyVote'],
                     'user'            => $isDeleted ? null : $this->formatUserRow($row),
