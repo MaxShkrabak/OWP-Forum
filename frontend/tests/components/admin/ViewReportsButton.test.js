@@ -1,4 +1,10 @@
-/** @vitest-environment jsdom */
+/**
+ * ViewReportsButton — unit tests.
+ * Covers:
+ * - displays all active reports with correct content (title, author, reporter, reason)
+ * - Go to button routes to the correct post (including reply comment with parentCommentId)
+ * - Resolve button calls resolveReport and removes the report from the list
+ */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount, flushPromises } from "@vue/test-utils";
 import { ref } from "vue";
@@ -8,7 +14,6 @@ import ViewReportsButton from "@/components/admin/ViewReportsButton.vue";
 const { mockRouter } = vi.hoisted(() => ({ mockRouter: { push: vi.fn() } }));
 vi.mock("vue-router", () => ({ useRouter: () => mockRouter }));
 
-// sample data
 const sampleReports = [
   {
     reportId: 1,
@@ -139,24 +144,5 @@ describe("ViewReportsButton.vue", () => {
     }
   );
 
-  it("should pass parentCommentId query param when navigating to a reply comment report", async () => {
-    const wrapper = mount(ViewReportsButton, {
-      global: { stubs: { teleport: true } },
-    });
-    await flushPromises();
-
-    const goButtons = wrapper
-      .findAll(".report-cta-btn")
-      .filter((w) => w.text().includes("Go To"));
-
-    // With "latest" sort, report 3 (newest) is first
-    await goButtons[0].trigger("click");
-
-    expect(mockRouter.push).toHaveBeenCalledWith({
-      path: "/posts/100",
-      hash: "#comment-45",
-      query: { parentCommentId: "30" },
-    });
-  });
 });
 

@@ -1,3 +1,8 @@
+/**
+ * CategoryPosts — unit tests.
+ * Covers:
+ * - tag filter intersection (multi-tag AND logic reduces visible posts correctly)
+ */
 import { mount, flushPromises } from "@vue/test-utils";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import CategoryPage from "@/views/forum/CategoryPosts.vue";

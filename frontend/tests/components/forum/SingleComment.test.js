@@ -1,7 +1,9 @@
 /**
- * @vitest-environment jsdom
+ * SingleComment — admin permissions — unit tests.
+ * Covers:
+ * - admin sees Edit button on another user's comment
+ * - regular user does not see Edit button on another user's comment
  */
-
 import { mount } from "@vue/test-utils";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { nextTick } from "vue";

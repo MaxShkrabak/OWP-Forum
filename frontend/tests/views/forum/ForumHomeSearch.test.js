@@ -1,3 +1,11 @@
+/**
+ * ForumHome search — unit tests.
+ * Covers:
+ * - no search triggered while typing, only fires on Enter
+ * - shows results and active filter label after Enter is pressed
+ * - paginates results when next/prev page buttons are clicked
+ * - shows no-results state when the search returns zero posts
+ */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { mount, flushPromises } from "@vue/test-utils";
 import ForumHome from "@/views/forum/ForumHome.vue";
@@ -157,7 +165,7 @@ describe("ForumHome search acceptance criteria", () => {
     expect(wrapper.text()).toContain("Database Match 2");
     expect(wrapper.findAll('[data-test="post-card"]')).toHaveLength(2);
     expect(wrapper.text()).toContain("12 results");
-    expect(wrapper.text()).toContain("Page 1 of 2");
+    expect(wrapper.text()).toContain("1 / 2");
   });
 
   it("paginates search results when next page is clicked", async () => {
@@ -178,7 +186,8 @@ describe("ForumHome search acceptance criteria", () => {
       meta: { page: 2, limit: 10, totalPosts: 12, totalPages: 2, hasNextPage: false, hasPrevPage: true },
     });
 
-    const nextButton = wrapper.findAll("button").find((b) => b.text().trim() === ">");
+    const navBtns = wrapper.findAll(".page-nav-btn");
+    const nextButton = navBtns[navBtns.length - 1]; // last page-nav-btn is always "next"
     expect(nextButton.element.disabled).toBe(false);
     await nextButton.trigger("click");
     await flushPromises();
@@ -186,7 +195,7 @@ describe("ForumHome search acceptance criteria", () => {
     expect(searchPostsMock).toHaveBeenLastCalledWith({
       q: "database", page: 2, limit: 10, sort: "latest", categoryIds: [],
     });
-    expect(wrapper.text()).toContain("Page 2 of 2");
+    expect(wrapper.text()).toContain("2 / 2");
     expect(wrapper.text()).toContain("Database Match 3");
   });
 

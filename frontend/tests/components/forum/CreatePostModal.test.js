@@ -1,8 +1,13 @@
+/**
+ * CreatePostModal — unit tests.
+ * Covers:
+ * - restricted mode disables title and content inputs for moderators editing tags/category
+ * - publish button is disabled immediately after first click to prevent duplicate submissions
+ */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount, flushPromises } from "@vue/test-utils";
 import CreatePostModal from "@/components/forum/CreatePostModal.vue";
 
-// 1. Mock the API so it doesn't throw Network Errors
 vi.mock("@/api/posts.js", () => ({
   createPost: vi.fn(async () => ({})),
   getTags: vi.fn(async () => []),
@@ -13,7 +18,6 @@ vi.mock("@/api/auth.js", () => ({
   checkAuth: vi.fn(async () => ({ data: null })),
 }));
 
-// 2. Mock Vue Router so it doesn't throw injection warnings
 vi.mock("vue-router", () => ({
   useRouter: () => ({
     currentRoute: { value: { params: { id: "123" } } },
@@ -21,7 +25,6 @@ vi.mock("vue-router", () => ({
   }),
 }));
 
-// 3. Mock the User Store
 vi.mock("@/stores/userStore", () => ({
   fullName: "Test User",
   userAvatar: "/test.png",

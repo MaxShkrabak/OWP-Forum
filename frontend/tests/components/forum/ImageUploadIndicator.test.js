@@ -1,15 +1,20 @@
+/**
+ * ImageUploadIndicator (inside CreatePostModal) — unit tests.
+ * Covers:
+ * - no upload indicator shown by default
+ * - upload indicator appears when image upload starts
+ * - upload indicator disappears when image upload finishes
+ */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount, flushPromises } from "@vue/test-utils";
 import CreatePostModal from "@/components/forum/CreatePostModal.vue";
 
-// Mock posts API calls
 vi.mock("@/api/posts", () => ({
   createPost: vi.fn(async () => ({})),
   getTags: vi.fn(async () => []),
   getCategories: vi.fn(async () => []),
 }));
 
-// Mock router usage inside component
 vi.mock("vue-router", () => ({
   useRouter: () => ({
     currentRoute: { value: { params: { id: "123" } } },
@@ -17,7 +22,6 @@ vi.mock("vue-router", () => ({
   }),
 }));
 
-// Mock user store imports (CreatePostModal uses these in template)
 vi.mock("@/stores/userStore", () => ({
   fullName: "Test User",
   userAvatar: "/test.png",

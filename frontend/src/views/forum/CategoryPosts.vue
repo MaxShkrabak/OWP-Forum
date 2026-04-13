@@ -75,6 +75,8 @@ async function loadCategoryPosts() {
     );
 
     pinnedPosts.value = pinnedForCategory;
+    // Pinned posts only appear on page 1, prepended and counted against the limit
+    // so the total shown stays consistent regardless of how many are pinned.
     posts.value =
       currentPage.value === 1
         ? [...pinnedForCategory, ...normalPosts].slice(0, limit.value)

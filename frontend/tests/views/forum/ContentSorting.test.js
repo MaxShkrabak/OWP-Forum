@@ -1,3 +1,10 @@
+/**
+ * ForumHome sorting — unit tests.
+ * Covers:
+ * - defaults sort to 'latest' on mount
+ * - renders all sort options in the dropdown
+ * - updates sort ref when a different option is selected
+ */
 import { describe, it, expect, vi } from "vitest";
 import { mount, flushPromises } from "@vue/test-utils";
 import ForumHome from "@/views/forum/ForumHome.vue";

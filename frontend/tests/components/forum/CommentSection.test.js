@@ -1,3 +1,17 @@
+/**
+ * CommentSection — unit tests.
+ * Covers:
+ * - displays total comment count in the header
+ * - sort dropdown renders with the correct options
+ * - submit button disabled until text is entered
+ * - only one reply box open at a time
+ * - Show More appends the next page of comments
+ * - author can edit their own comment (shows edited label after save)
+ * - refetches comments when sort option changes
+ * - rate limit banner with formatted minutes and seconds remaining
+ * - comments disabled notice shown to regular users
+ * - moderator sees comment box with a disabled-notice instead of full block
+ */
 import { mount, flushPromises, DOMWrapper } from "@vue/test-utils";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { ref } from "vue";

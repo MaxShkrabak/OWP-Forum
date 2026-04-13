@@ -1,3 +1,10 @@
+/**
+ * PostModerationSidebar — unit tests.
+ * Covers:
+ * - author sees Edit Post and Delete buttons
+ * - non-author regular user sees no edit or delete buttons
+ * - admin/mod sees Edit Post and Delete on another user's post
+ */
 import { mount } from "@vue/test-utils";
 import { describe, it, expect, vi } from "vitest";
 

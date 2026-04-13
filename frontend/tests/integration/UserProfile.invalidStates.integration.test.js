@@ -1,3 +1,9 @@
+/**
+ * UserProfile — invalid states — integration tests.
+ * Covers:
+ * - shows guest empty-state when no route query id is present
+ * - shows user-not-found empty-state when fetchUser rejects
+ */
 import { mount, flushPromises } from "@vue/test-utils";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import UserProfile from "@/views/forum/UserProfile.vue";

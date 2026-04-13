@@ -26,17 +26,14 @@ async function createAccount() {
   loading.value = true;
 
   try {
-    // Load users data into payload for backend
     const payload = {
       first: first.value,
       last: last.value,
       email: email.value,
     };
 
-    // Send the data to backend and store repsonse in res
     const res = await registerUser(payload);
 
-    // User was succesfuly stored in database and routes to OTP page
     if (res.ok) {
       const resOtp = await requestOtp(payload.email);
       if (resOtp.ok) {
@@ -48,7 +45,6 @@ async function createAccount() {
       alert(res.message || 'Failed to create account. Please try again.');
     }
   } catch (err) {
-    // User email already exists or OTP email failed to send
     if (err.response && err.response.data) {
       alert(err.response.data.message);
     } else {

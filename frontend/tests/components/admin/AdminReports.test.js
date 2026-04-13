@@ -1,3 +1,15 @@
+/**
+ * AdminReports — unit tests.
+ * Covers:
+ * - loads and displays all report tags sorted alphabetically
+ * - editing a tag triggers PATCH and refreshes the list
+ * - deleting a tag calls DELETE and shows a success message
+ * - loads active reports and renders post and comment rows
+ * - clicking Resolve calls resolveReport and removes the report from the list
+ * - clicking Go to routes to the correct post or comment (including parentCommentId)
+ * - after Refresh, reports for a deleted post are gone
+ * - pagination controls (next page, hidden when empty, sort dropdown options)
+ */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount, flushPromises } from "@vue/test-utils";
 import { ref } from "vue";
@@ -8,22 +20,16 @@ const { mockClient } = vi.hoisted(() => ({
   mockClient: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), delete: vi.fn() },
 }));
 
-// Virtual mock so "@/api/client" doesn't need to resolve to a real path
-vi.mock("@/api/client", () => ({ default: mockClient }), { virtual: true });
+vi.mock("@/api/client", () => ({ default: mockClient }));
 
 const { mockReportsApi } = vi.hoisted(() => ({
   mockReportsApi: { resolveReport: vi.fn(), fetchReports: vi.fn() },
 }));
 
-// Virtual mock so "@/api/reports" doesn't need alias resolution
-vi.mock(
-  "@/api/reports",
-  () => ({
-    resolveReport: mockReportsApi.resolveReport,
-    fetchReports: mockReportsApi.fetchReports,
-  }),
-  { virtual: true }
-);
+vi.mock("@/api/reports", () => ({
+  resolveReport: mockReportsApi.resolveReport,
+  fetchReports: mockReportsApi.fetchReports,
+}));
 
 const { mockRouter } = vi.hoisted(() => ({
   mockRouter: { push: vi.fn() },
@@ -32,27 +38,17 @@ vi.mock("vue-router", () => ({
   useRouter: () => mockRouter,
 }));
 
-// IMPORTANT: mock userRole as a real Vue ref so template unwrapping works
-// Virtual mock so "@/stores/userStore" doesn't need alias resolution
-vi.mock(
-  "@/stores/userStore",
-  () => ({
-    userRole: ref("admin"),
-  }),
-  { virtual: true }
-);
+// userRole must be a real Vue ref so template unwrapping works
+vi.mock("@/stores/userStore", () => ({
+  userRole: ref("admin"),
+}));
 
-// Mock @/api/admin — functions delegate to mockClient under the hood
-vi.mock(
-  "@/api/admin",
-  () => ({
-    getAdminReportTags: () => mockClient.get("/admin/report-tags").then((r) => r.data.items || []),
-    createReportTag: (name) => mockClient.post("/admin/report-tags", { tagName: name }),
-    updateReportTag: (id, name) => mockClient.patch(`/admin/report-tags/${id}`, { tagName: name }),
-    deleteReportTag: (id) => mockClient.delete(`/admin/report-tags/${id}`),
-  }),
-  { virtual: true }
-);
+vi.mock("@/api/admin", () => ({
+  getAdminReportTags: () => mockClient.get("/admin/report-tags").then((r) => r.data.items || []),
+  createReportTag: (name) => mockClient.post("/admin/report-tags", { tagName: name }),
+  updateReportTag: (id, name) => mockClient.patch(`/admin/report-tags/${id}`, { tagName: name }),
+  deleteReportTag: (id) => mockClient.delete(`/admin/report-tags/${id}`),
+}));
 
 const mockReportTags = [
   { tagId: 10, name: "Spam" },
@@ -93,80 +89,6 @@ const mockAdminReports = [
   },
 ];
 
-function normalizeName(s) {
-  return String(s ?? "").trim().replace(/\s+/g, " ");
-}
-function reportTagExists(tags, name, excludeId = null) {
-  const n = normalizeName(name).toLowerCase();
-  if (!n) return false;
-  return tags.some((t) => {
-    const same = normalizeName(t.name).toLowerCase() === n;
-    const notSelf = excludeId == null ? true : t.tagId !== excludeId;
-    return same && notSelf;
-  });
-}
-
-function getReportTagsListEndpoint() {
-  return "/admin/report-tags";
-}
-function getReportTagsAddEndpoint() {
-  return "/admin/report-tags";
-}
-function getReportTagsEditEndpoint(id) {
-  return `/admin/report-tags/${id}`;
-}
-function getReportTagsDeleteEndpoint(id) {
-  return `/admin/report-tags/${id}`;
-}
-
-function getActiveReportsEndpoint() {
-  return "/reports"; // client baseURL '/api' => /api/reports
-}
-
-function getCreateReportModalTagsEndpoint() {
-  // Provided in ReportRoutes.php: GET /api/reports/tags
-  return "/reports/tags";
-}
-
-describe("Report Tags (Admin) — duplicate prevention", () => {
-  it("detects duplicates (case-insensitive, normalized)", () => {
-    const tags = [
-      { tagId: 1, name: "Spam" },
-      { tagId: 2, name: "Inappropriate" },
-    ];
-    expect(reportTagExists(tags, "spam")).toBe(true);
-    expect(reportTagExists(tags, "  Inappropriate ")).toBe(true);
-    expect(reportTagExists(tags, "Other")).toBe(false);
-  });
-
-  it("allows editing same record (excludeId)", () => {
-    const tags = [
-      { tagId: 1, name: "Spam" },
-      { tagId: 2, name: "Other" },
-    ];
-    expect(reportTagExists(tags, "Spam", 1)).toBe(false);
-    expect(reportTagExists(tags, "Other", 2)).toBe(false);
-    expect(reportTagExists(tags, "Other", 1)).toBe(true);
-  });
-});
-
-describe("Report Tags (Admin) — API contract", () => {
-  it("list/add/edit/delete endpoints are correct", () => {
-    expect(getReportTagsListEndpoint()).toBe("/admin/report-tags");
-    expect(getReportTagsAddEndpoint()).toBe("/admin/report-tags");
-    expect(getReportTagsEditEndpoint(7)).toBe("/admin/report-tags/7");
-    expect(getReportTagsDeleteEndpoint(7)).toBe("/admin/report-tags/7");
-  });
-
-  it("reports endpoint matches AdminReports.vue", () => {
-    expect(getActiveReportsEndpoint()).toBe("/reports");
-  });
-
-  it("create report modal tags endpoint matches ReportRoutes.php", () => {
-    expect(getCreateReportModalTagsEndpoint()).toBe("/reports/tags");
-  });
-});
-
 describe("AdminReports.vue — DOM + CRUD behaviors", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -186,7 +108,7 @@ describe("AdminReports.vue — DOM + CRUD behaviors", () => {
     });
   });
 
-  it("1) All existing report tags load correctly", async () => {
+  it("loads all existing report tags and displays them sorted alphabetically", async () => {
     const wrapper = mount(AdminReports);
     await flushPromises();
 
@@ -197,7 +119,7 @@ describe("AdminReports.vue — DOM + CRUD behaviors", () => {
     expect(wrapper.text()).toContain("Inappropriate");
   });
 
-  it("2) Sorting works correctly (alphabetical by TagName)", async () => {
+  it("tag names are sorted alphabetically in the table", async () => {
     const wrapper = mount(AdminReports);
     await flushPromises();
 
@@ -206,7 +128,7 @@ describe("AdminReports.vue — DOM + CRUD behaviors", () => {
     expect(names).toEqual(["Harassment", "Inappropriate", "Misinformation", "Other", "Spam"]);
   });
 
-  it("3) Editing a tag triggers PATCH and refreshes list", async () => {
+  it("editing a tag triggers PATCH and refreshes the list", async () => {
     const wrapper = mount(AdminReports);
     await flushPromises();
 
@@ -231,7 +153,7 @@ describe("AdminReports.vue — DOM + CRUD behaviors", () => {
     expect(mockClient.get).toHaveBeenCalledWith("/admin/report-tags");
   });
 
-  it("4) Deleting a tag calls DELETE and shows success message", async () => {
+  it("deleting a tag calls DELETE and shows a success message", async () => {
     const wrapper = mount(AdminReports);
     await flushPromises();
 
@@ -249,7 +171,7 @@ describe("AdminReports.vue — DOM + CRUD behaviors", () => {
     expect(wrapper.text()).toContain("Report tag deleted");
   });
 
-  it("5) Active reports load correctly (fetchReports called and list renders)", async () => {
+  it("loads active reports and renders post and comment rows", async () => {
     const wrapper = mount(AdminReports);
     await flushPromises();
 
@@ -269,7 +191,7 @@ describe("AdminReports.vue — DOM + CRUD behaviors", () => {
     expect(wrapper.text()).toContain("Comment 12 Text");
   });
 
-  it("6) Reports are filtered to show only unresolved reports (UI shows what API returns)", async () => {
+  it("renders whatever the API returns without client-side filtering", async () => {
     // AdminReports.vue itself does not filter by status; it shows whatever /admin/reports returns.
     mockClient.get.mockImplementation((url) => {
       if (url === "/admin/report-tags") return Promise.resolve({ data: { items: mockReportTags } });
@@ -290,7 +212,7 @@ describe("AdminReports.vue — DOM + CRUD behaviors", () => {
     expect(wrapper.text()).not.toContain("No active reports (unresolved).");
   });
 
- it("7) Clicking Resolve calls resolveReport and removes report from UI list", async () => {
+ it("clicking Resolve calls resolveReport and removes the report from the list", async () => {
   mockReportsApi.fetchReports
     .mockResolvedValueOnce({
       ok: true,
@@ -326,7 +248,7 @@ describe("AdminReports.vue — DOM + CRUD behaviors", () => {
   expect(wrapper.text()).toContain("Post #100");
 });
   
-it('8) Clicking "Go to" routes to correct report content', async () => {
+it("clicking Go to routes to the correct post", async () => {
   const wrapper = mount(AdminReports);
   await flushPromises();
 
@@ -340,7 +262,7 @@ it('8) Clicking "Go to" routes to correct report content', async () => {
   expect(mockRouter.push).toHaveBeenCalledWith("/posts/99");
 });
 
-it("9) Comment report displays stripped comment text as title", async () => {
+it("comment report displays stripped comment text (no HTML tags)", async () => {
   const wrapper = mount(AdminReports);
   await flushPromises();
 
@@ -357,7 +279,7 @@ it("9) Comment report displays stripped comment text as title", async () => {
   expect(commentRow.text()).toContain("Comment");
 });
 
-it("10) Comment report shows reporter info correctly", async () => {
+it("comment report shows reporter name, reason, and parent post reference", async () => {
   const wrapper = mount(AdminReports);
   await flushPromises();
 
@@ -373,7 +295,7 @@ it("10) Comment report shows reporter info correctly", async () => {
   expect(commentRow.text()).toContain("Post #55");
 });
 
-it('11) Clicking "Go to" on a comment report routes to its parent post', async () => {
+it("clicking Go to on a comment report routes to its parent post with hash anchor", async () => {
   const wrapper = mount(AdminReports);
   await flushPromises();
 
@@ -387,7 +309,7 @@ it('11) Clicking "Go to" on a comment report routes to its parent post', async (
   expect(mockRouter.push).toHaveBeenCalledWith({ path: "/posts/55", hash: "#comment-12", query: {} });
 });
 
-it('12) Clicking "Go to" on a reply comment report passes parentCommentId query param', async () => {
+it("clicking Go to on a reply comment passes parentCommentId as a query param", async () => {
   const reportsWithReply = [
     ...mockAdminReports,
     {
@@ -420,6 +342,44 @@ it('12) Clicking "Go to" on a reply comment report passes parentCommentId query 
     hash: "#comment-25",
     query: { parentCommentId: "15" },
   });
+});
+
+it("13) after Refresh, reports for a deleted post are gone", async () => {
+  mockReportsApi.fetchReports
+    .mockResolvedValueOnce({
+      ok: true,
+      reports: [
+        { reportId: 1, postId: 10, source: "Post", postTitle: "Deleted Post", reason: "Spam", createdAt: "2026-01-01T00:00:00Z" },
+        { reportId: 2, postId: 10, source: "Post", postTitle: "Deleted Post", reason: "Spam", createdAt: "2026-01-01T00:00:00Z" },
+        { reportId: 3, postId: 99, source: "Post", postTitle: "Other Post", reason: "Spam", createdAt: "2026-01-01T00:00:00Z" },
+      ],
+      total: 3,
+      page: 1,
+      perPage: 25,
+    })
+    .mockResolvedValueOnce({
+      ok: true,
+      reports: [
+        { reportId: 3, postId: 99, source: "Post", postTitle: "Other Post", reason: "Spam", createdAt: "2026-01-01T00:00:00Z" },
+      ],
+      total: 1,
+      page: 1,
+      perPage: 25,
+    });
+
+  const wrapper = mount(AdminReports);
+  await flushPromises();
+
+  expect(wrapper.findAll(".report-row").length).toBe(3);
+  expect(wrapper.text()).toContain("Deleted Post");
+  expect(wrapper.text()).toContain("Other Post");
+
+  await wrapper.find("button.btn-refresh").trigger("click");
+  await flushPromises();
+
+  expect(wrapper.findAll(".report-row").length).toBe(1);
+  expect(wrapper.text()).not.toContain("Deleted Post");
+  expect(wrapper.text()).toContain("Other Post");
 });
 });
 

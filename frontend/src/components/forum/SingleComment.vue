@@ -56,6 +56,9 @@ const markEditDirty = inject("markEditDirty");
 const maxDepthContext = inject("maxDepthContext", null);
 const autoExpandCommentId = inject("autoExpandCommentId", ref(null));
 
+// Replies are capped at two levels deep (top-level comment + one reply layer).
+// Any reply typed on a depth-2 comment is redirected up to its depth-1 ancestor
+// via maxDepthContext, so the UI stays flat rather than infinitely nesting.
 if (props.depth === 1) {
   provide("maxDepthContext", {
     parentId: props.comment.id,
@@ -87,6 +90,7 @@ const replyIsUploading = ref(false);
 
 const safeContent = computed(() => {
   const sanitized = DOMPurify.sanitize(props.comment.text ?? '');
+  // Wrap images in an anchor so clicking them opens the full-size URL in a new tab.
   return sanitized.replace(
     /<img[^>]+src="([^"]+)"[^>]*\/?>/gi,
     (match, src) =>

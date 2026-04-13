@@ -1,11 +1,13 @@
 /**
- * Manage Categories Visibility (Admin) — unit tests.
+ * AdminCategories — category visibility — unit tests.
  * Covers:
- * - loading visibleFromRoleId from API
- * - rendering visibility labels
- * - opening edit modal with correct visibility
- * - sending null for Public
- * - sending numeric values for User+/Student+/Moderator+/Admin only
+ * - loads categories and renders visibility labels (Public, User+, Student+, Moderator+, Admin only)
+ * - edit modal pre-fills Public when visibleFromRoleId is null
+ * - edit modal pre-fills numeric value when visibleFromRoleId is set
+ * - saving with Public selected sends null to the API
+ * - saving with a role selected sends the numeric roleId to the API
+ * - creating a category with Public sends null visibleFromRoleId
+ * - validation error shown when add name is empty
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";

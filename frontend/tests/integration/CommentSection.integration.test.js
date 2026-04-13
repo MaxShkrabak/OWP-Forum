@@ -1,3 +1,9 @@
+/**
+ * CommentSection — integration tests.
+ * Covers:
+ * - loads initial comments on mount with correct content and timestamp
+ * - submits a new comment and shows it in the list with correct timestamp after refresh
+ */
 import { mount, flushPromises } from "@vue/test-utils";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { ref } from "vue";

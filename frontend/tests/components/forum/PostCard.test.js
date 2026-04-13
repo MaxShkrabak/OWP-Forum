@@ -1,5 +1,11 @@
 /**
- * PostCard — unit tests for pin/unpin behavior.
+ * PostCard — pin/unpin — unit tests.
+ * Covers:
+ * - admin sees pin button on posts from any category
+ * - non-admin user sees no pin button
+ * - successful pin emits refresh payload with success message
+ * - successful unpin emits refresh payload with success message
+ * - failed pin shows error toast and does not emit refresh
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount, flushPromises } from "@vue/test-utils";

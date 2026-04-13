@@ -1,3 +1,13 @@
+/**
+ * UserCard — unit tests.
+ * Covers:
+ * - displays fetched stats for the logged-in user
+ * - uses userId prop when viewing another user's profile
+ * - re-fetches stats when userId prop changes
+ * - shows Reputation label (not Votes or Likes)
+ * - falls back to zero stats when API call fails
+ * - profile avatar opens the settings modal
+ */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount, flushPromises } from "@vue/test-utils";
 

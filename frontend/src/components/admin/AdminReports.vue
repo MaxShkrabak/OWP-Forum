@@ -1,4 +1,3 @@
-<!-- AdminReports.vue -->
 <script setup>
 import { ref, computed, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
@@ -180,7 +179,7 @@ const reportPage = ref(1);
 const reportPerPage = ref(25);
 const reportTotal = ref(0);
 
-const sortMode = ref("newest"); // newest | oldest
+const sortMode = ref("newest");
 
 function stripHTML(html) {
   return String(html ?? "").replace(/<[^>]*>/g, "");

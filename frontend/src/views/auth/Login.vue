@@ -26,10 +26,9 @@ async function onSubmit() {
   sending.value = true;
 
   try {
-    const data = await verifyEmail(email.value); // calls backend to verify if email exists
-    const exists = data?.emailExists ?? false;  // true if email exists, false otherwise
+    const data = await verifyEmail(email.value);
+    const exists = data?.emailExists ?? false;
 
-    // Handles the response from the backend
     if (data.ok && exists) {
       const resOtp = await requestOtp(email.value);
       if (resOtp.ok) {
@@ -56,7 +55,6 @@ async function onSubmit() {
 </script>
 
 <template>
-  <!-- ====================== BODY ====================== -->
   <section class="auth-wrap" aria-label="Login">
     <div class="auth-card" role="region" aria-labelledby="login-title">
       <div class="form-inner">
@@ -104,19 +102,16 @@ async function onSubmit() {
 </template>
 
 <style scoped>
-/* NAV */
 .inline-nav {
   display: inline-block;
   margin-bottom: 1rem;
   font-size: 0.95rem;
 }
 
-/* Extra spacing before "First time here?" */
 .auth-card .tiny {
   margin-top: 2em;
 }
 
-/* Mobile tweaks */
 @media (max-width: 768px) {
   .login-wrap { --section-gutter: clamp(8px, 4vw, 16px); }
 
@@ -131,7 +126,6 @@ async function onSubmit() {
   }
 }
 
-/* Typography */
 .card-title {
   margin: 0 0 3.75rem 0;
   font-size: 2.5rem;
@@ -147,7 +141,6 @@ async function onSubmit() {
   margin-bottom: 0.65rem;
 }
 
-/* Button */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -165,7 +158,6 @@ async function onSubmit() {
 .btn:hover { filter: brightness(1.05); }
 .btn:disabled { opacity: 0.65; cursor: not-allowed; }
 
-/* Tiny note & link emphasis */
 .tiny {
   margin-top: 2.5rem;
   font-size: 1.1rem;

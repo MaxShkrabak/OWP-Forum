@@ -4,13 +4,11 @@ import { updateUserAvatar } from "@/api/auth";
 import { getNotificationSettings, saveNotificationSettings } from "@/api/users";
 import { userAvatar } from "@/stores/userStore";
 
-// Import all images from the 'src/assets/images' folder
 const allImages = import.meta.glob(
   "/src/assets/img/user-pfps-premade/*.(png|jpeg|jpg|svg)",
   { eager: true },
 );
 
-// Extract the image paths for use in the template
 const images = computed(() => {
   return Object.values(allImages).map((module) => module.default);
 });

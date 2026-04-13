@@ -136,7 +136,6 @@ function getAvatarSrc(file) {
         data-bs-target="#userSettingsModal"
         v-if="isProfile && isCurrUser"
       >
-        <!--Edit Profile button-->
         <span class="edit-prof-text text-center"> Edit Profile </span>
       </button>
     </div>
@@ -159,22 +158,18 @@ function getAvatarSrc(file) {
           <h5 class="user-name mt-2 mb-1">{{ newFullName }}</h5>
           <UserRole :role="newRole" />
         </div>
-        <!-- User Stats Section -->
         <div class="stats-divider my-3"></div>
         <div class="stats-container d-flex justify-content-around text-center">
-          <!-- Posts count-->
           <div class="stat-item">
             <span class="stat-value">{{ postCount }}</span>
             <span class="stat-label text-uppercase"
               >Post{{ postCount !== 1 ? "s" : "" }}</span
             >
           </div>
-          <!-- Reputation score -->
           <div class="stat-item">
             <span class="stat-value">{{ voteScore }}</span>
             <span class="stat-label text-uppercase">Reputation</span>
           </div>
-          <!-- Comment count -->
           <div class="stat-item">
             <span class="stat-value">{{ commentCount }}</span>
             <span class="stat-label text-uppercase"

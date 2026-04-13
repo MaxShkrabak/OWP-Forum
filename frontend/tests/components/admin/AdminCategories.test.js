@@ -1,6 +1,8 @@
 /**
- * Manage Categories (Admin) — unit tests.
- * Duplicate prevention (no DOM) + AdminCategories.vue DOM tests.
+ * AdminCategories — unit tests.
+ * Covers:
+ * - categories table renders on load
+ * - clicking Delete opens confirmation modal with category name and General fallback note
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount, flushPromises } from "@vue/test-utils";
@@ -16,56 +18,7 @@ const mockCategories = [
   { categoryId: 2, name: "Help", usableByRoleId: 1 },
 ];
 
-// Same duplicate-check logic as AdminCategories.vue nameExists (for "Prevent duplicates" / BB-151)
-function categoryNameExists(categories, name, excludeId = null) {
-  const n = (name || "").trim().toLowerCase();
-  if (!n) return false;
-  return categories.some(
-    (c) =>
-      (c.name || "").trim().toLowerCase() === n && c.categoryId !== excludeId
-  );
-}
-
-describe("Manage Categories (Admin) — duplicate prevention", () => {
-  const categories = [
-    { categoryId: 1, name: "General", usableByRoleId: 1 },
-    { categoryId: 2, name: "Help", usableByRoleId: 1 },
-    { categoryId: 3, name: "Random", usableByRoleId: 2 },
-  ];
-
-  it("returns true when another category has the same name (add case)", () => {
-    expect(categoryNameExists(categories, "Help")).toBe(true);
-    expect(categoryNameExists(categories, "help")).toBe(true);
-    expect(categoryNameExists(categories, "  General  ")).toBe(true);
-  });
-
-  it("returns false when name is unique", () => {
-    expect(categoryNameExists(categories, "News")).toBe(false);
-    expect(categoryNameExists(categories, "Announcements")).toBe(false);
-  });
-
-  it("returns false when editing same category (excludeId)", () => {
-    expect(categoryNameExists(categories, "Help", 2)).toBe(false);
-    expect(categoryNameExists(categories, "Random", 3)).toBe(false);
-  });
-
-  it("returns true when editing to a name used by another category", () => {
-    expect(categoryNameExists(categories, "General", 2)).toBe(true);
-    expect(categoryNameExists(categories, "Help", 1)).toBe(true);
-  });
-
-  it("returns false for empty or whitespace name", () => {
-    expect(categoryNameExists(categories, "")).toBe(false);
-    expect(categoryNameExists(categories, "   ")).toBe(false);
-    expect(categoryNameExists(categories, null)).toBe(false);
-  });
-
-  it("handles empty category list", () => {
-    expect(categoryNameExists([], "Help")).toBe(false);
-  });
-});
-
-describe("Manage Categories (Admin) — AdminCategories.vue DOM", () => {
+describe("AdminCategories.vue", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockClient.get.mockResolvedValue({ data: { items: mockCategories.map((c) => ({ ...c, categoryId: c.categoryId, name: c.name, usableByRoleId: c.usableByRoleId })) } });

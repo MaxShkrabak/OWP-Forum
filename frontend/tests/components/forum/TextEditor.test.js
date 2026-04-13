@@ -1,3 +1,10 @@
+/**
+ * TextEditor — unit tests.
+ * Covers:
+ * - clear all formatting across a full selection
+ * - clear formatting on a partial selection only
+ * - convert heading back to a standard paragraph
+ */
 import { mount, flushPromises } from "@vue/test-utils";
 import { describe, it, expect, beforeEach } from "vitest";
 import TextEditor from "@/components/forum/TextEditor.vue";

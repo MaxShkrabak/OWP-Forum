@@ -1,3 +1,9 @@
+/**
+ * UserProfile — integration tests.
+ * Covers:
+ * - renders UserCard with fetched user data and PostCard with fetched posts
+ * - switching to the liked tab calls the liked-posts API and renders those posts
+ */
 import { mount, flushPromises } from "@vue/test-utils";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import UserProfile from "@/views/forum/UserProfile.vue";

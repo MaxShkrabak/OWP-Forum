@@ -1,15 +1,20 @@
 /** @vitest-environment jsdom */
+/**
+ * UserProfile — liked posts tab — unit tests.
+ * Covers:
+ * - displays liked posts when the liked tab is opened
+ * - sort-triggered refetch reflects removed posts (fewer results rendered)
+ * - pagination on the liked posts tab (next page, no preloading)
+ */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount, flushPromises } from "@vue/test-utils";
 import { ref, reactive } from "vue";
 import UserProfile from "@/views/forum/UserProfile.vue";
 
-// --- Mock store uid ---
 vi.mock("@/stores/userStore", () => ({
   uid: ref(5),
 }));
 
-// --- Mock router (query.id must be STRING to make "Liked Posts" tab render) ---
 const mockRoute = reactive({ query: { id: "5" } });
 const mockBack = vi.fn();
 
@@ -22,7 +27,6 @@ vi.mock("@/api/users", () => ({
   fetchUser: vi.fn(),
 }));
 
-// --- API mocks ---
 const mockFetchPosts = vi.fn();
 const mockFetchLikedPosts = vi.fn();
 
@@ -31,7 +35,6 @@ vi.mock("@/api/posts.js", () => ({
   fetchLikedPosts: (...args) => mockFetchLikedPosts(...args),
 }));
 
-// --- Stubs ---
 const stubs = {
   ForumHeader: { template: "<div />" },
   pfpModal: { template: "<div />" },
@@ -59,7 +62,7 @@ function renderedPostTitles(wrapper) {
   return wrapper.findAll(".post-card-stub").map((n) => n.text().trim());
 }
 
-describe("UserProfile — Liked Posts (single test)", () => {
+describe("UserProfile — liked posts tab", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockBack.mockClear();
@@ -67,7 +70,6 @@ describe("UserProfile — Liked Posts (single test)", () => {
     localStorage.setItem("category_limit", "5");
     localStorage.setItem("category_sort", "latest");
 
-    // Your Posts fetch on mount
     mockFetchPosts.mockResolvedValue({
       posts: [],
       meta: { totalPages: 1 },
@@ -93,7 +95,7 @@ describe("UserProfile — Liked Posts (single test)", () => {
         };
       }
 
-      // 2 After "unvote/downvote" => refetch on sort=oldest returns only B
+      // 2 Sort changed to oldest => refetch returns only B (simulates a post being removed)
       if (mockFetchLikedPosts.__stage === "after-liked" && page === 1 && sort === "oldest") {
         mockFetchLikedPosts.__stage = "pagination";
         return {
@@ -137,14 +139,13 @@ describe("UserProfile — Liked Posts (single test)", () => {
     const wrapper = mount(UserProfile, { global: { stubs } });
     await flushPromises();
 
-    // Go to Liked Posts via UI
     await findButtonContains(wrapper, "Liked Posts").trigger("click");
     await flushPromises();
 
     // 1 Shows both liked posts
     expect(renderedPostTitles(wrapper)).toEqual(["Upvoted A", "Upvoted B"]);
 
-    // 2 Sort to oldest triggers refetch; A removed
+    // 2 Sort to oldest triggers refetch; refetch returns fewer posts (A gone)
     const sortSelect = getSortSelect(wrapper);
     await sortSelect.setValue("oldest");
     await flushPromises();
@@ -157,7 +158,6 @@ describe("UserProfile — Liked Posts (single test)", () => {
 
     expect(renderedPostTitles(wrapper)).toEqual(["P1", "P2", "P3", "P4", "P5"]);
 
-    // Navigate to next page (page 2)
     const nextBtn = wrapper.get("nav .page-nav-btn:last-child");
     await nextBtn.trigger("click");
     await flushPromises();
