@@ -61,14 +61,7 @@ async function fetchHomepageData() {
       totalPosts.value = postsData.totalPosts || 0;
     }
 
-    if (pinnedData?.posts) {
-      pinnedPosts.value = pinnedData.posts.map((post) => ({
-        ...post,
-        isPinned: true,
-      }));
-    } else {
-      pinnedPosts.value = [];
-    }
+    pinnedPosts.value = pinnedData?.posts || [];
   } catch (e) {
     console.error("Error fetching homepage posts:", e);
     error.value = e.message || "Failed to load posts.";
@@ -203,11 +196,11 @@ const filteredCategories = computed(() => {
         }));
 
       const pinnedIds = new Set(
-        pinnedForCategory.map((p) => Number(p.PostID ?? p.postId))
+        pinnedForCategory.map((p) => Number(p.postId))
       );
 
       const homepagePosts = normalizedCategoryPosts
-        .filter((p) => !pinnedIds.has(Number(p.PostID ?? p.postId)))
+        .filter((p) => !pinnedIds.has(Number(p.postId)))
         .slice(0, INITIAL_LIMIT);
 
       return {
@@ -411,6 +404,7 @@ onMounted(async () => {
                   v-for="post in searchResults"
                   :key="post.postId"
                   :post="post"
+                  @post-refresh="handlePostRefresh"
                 />
 
                 <div
@@ -458,6 +452,7 @@ onMounted(async () => {
                   v-for="post in category._homepagePosts"
                   :key="post.postId"
                   :post="post"
+                  @post-refresh="handlePostRefresh"
                 />
               </div>
             </template>

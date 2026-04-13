@@ -91,7 +91,8 @@ async function handlePinToggle() {
     }
   } catch (err) {
     console.error("Pin toggle error:", err);
-    showPinMessage("Failed to update pin state", "error");
+    const msg = err.response?.data?.error || "Failed to update pin state";
+    showPinMessage(msg, "error");
   } finally {
     isPinning.value = false;
   }

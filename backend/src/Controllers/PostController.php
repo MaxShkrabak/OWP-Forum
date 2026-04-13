@@ -849,8 +849,11 @@ public function searchPosts(Request $req, Response $res): Response
             $userId = (int)($req->getAttribute("user_id") ?? 0);
             $userRoleId = $this->getUserRoleId($pdo, $userId);
 
-            if ($userRoleId >= 4) {
-                $sql = "
+            $visibilityClause = $userRoleId >= 4
+                ? ''
+                : 'AND ISNULL(c.VisibleFromRoleID, 0) <= :roleIdVisible';
+
+            $sql = "
                 SELECT
                     p.PostID,
                     p.Title,
@@ -873,47 +876,17 @@ public function searchPosts(Request $req, Response $res): Response
                 LEFT JOIN dbo.Forum_Categories c ON p.CategoryID = c.CategoryID
                 LEFT JOIN dbo.Forum_PostVotes pv ON p.PostID = pv.PostID AND pv.UserID = :userId
                 WHERE p.IsDeleted = 0
+                  {$visibilityClause}
                 ORDER BY pin.CreatedAt DESC, p.CreatedAt DESC
             ";
 
-                $stmt = $pdo->prepare($sql);
-                $stmt->execute([
-                    ':userId' => $userId,
-                ]);
-            } else {
-                $sql = "
-                SELECT
-                    p.PostID,
-                    p.Title,
-                    p.CreatedAt,
-                    p.CategoryID,
-                    p.TotalScore,
-                    (SELECT COUNT(*) FROM dbo.Forum_Comments cm WHERE cm.PostID = p.PostID AND cm.IsDeleted = 0) AS commentCount,
-                    u.FirstName,
-                    u.LastName,
-                    u.Avatar,
-                    u.UserID,
-                    r.Name AS RoleName,
-                    c.Name AS CategoryName,
-                    ISNULL(c.VisibleFromRoleID, 0) AS VisibleFromRoleID,
-                    ISNULL(pv.VoteValue, 0) AS myVote
-                FROM dbo.Forum_Pinned pin
-                INNER JOIN dbo.Forum_Posts p ON pin.PostID = p.PostID
-                LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.UserID
-                LEFT JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
-                LEFT JOIN dbo.Forum_Categories c ON p.CategoryID = c.CategoryID
-                LEFT JOIN dbo.Forum_PostVotes pv ON p.PostID = pv.PostID AND pv.UserID = :userId
-                WHERE p.IsDeleted = 0
-                  AND ISNULL(c.VisibleFromRoleID, 0) <= :roleIdVisible
-                ORDER BY pin.CreatedAt DESC, p.CreatedAt DESC
-            ";
-
-                $stmt = $pdo->prepare($sql);
-                $stmt->execute([
-                    ':userId' => $userId,
-                    ':roleIdVisible' => $userRoleId,
-                ]);
+            $params = [':userId' => $userId];
+            if ($userRoleId < 4) {
+                $params[':roleIdVisible'] = $userRoleId;
             }
+
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
 
             $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -1268,35 +1241,43 @@ public function searchPosts(Request $req, Response $res): Response
                 return json($res, ['ok' => false, 'error' => 'Post not found.'], 404);
             }
 
-            $checkStmt = $pdo->prepare("SELECT 1 FROM dbo.Forum_Pinned WHERE PostID = :pid");
+            $pdo->beginTransaction();
+
+            $checkStmt = $pdo->prepare("SELECT 1 FROM dbo.Forum_Pinned WITH (UPDLOCK, ROWLOCK) WHERE PostID = :pid");
             $checkStmt->execute([':pid' => $postId]);
             $alreadyPinned = (bool)$checkStmt->fetchColumn();
 
             if ($alreadyPinned) {
                 $deleteStmt = $pdo->prepare("DELETE FROM dbo.Forum_Pinned WHERE PostID = :pid");
                 $deleteStmt->execute([':pid' => $postId]);
+                $pdo->commit();
 
                 return json($res, ['ok' => true, 'isPinned' => false]);
             }
 
             $limitStmt = $pdo->prepare("
-                SELECT COUNT(*) FROM dbo.Forum_Pinned pin
+                SELECT COUNT(*) FROM dbo.Forum_Pinned pin WITH (HOLDLOCK)
                 JOIN dbo.Forum_Posts p ON p.PostID = pin.PostID
                 WHERE p.CategoryID = :categoryId
             ");
             $limitStmt->execute([':categoryId' => $post['CategoryID']]);
             if ((int)$limitStmt->fetchColumn() >= 2) {
-                return json($res, ['ok' => false, 'error' => 'Maximum of 2 pinned posts per category reached.']);
+                $pdo->rollBack();
+                return json($res, ['ok' => false, 'error' => 'Maximum of 2 pinned posts per category reached.'], 409);
             }
 
             $insertStmt = $pdo->prepare("INSERT INTO dbo.Forum_Pinned (PostID) VALUES (:pid)");
             $insertStmt->execute([':pid' => $postId]);
+            $pdo->commit();
 
             return json($res, [
                 'ok' => true,
                 'isPinned' => true
             ]);
         } catch (Throwable $e) {
+            if (isset($pdo) && $pdo instanceof PDO && $pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
             return json($res, ['ok' => false, 'error' => 'Failed to update pin.'], 500);
         }
     }

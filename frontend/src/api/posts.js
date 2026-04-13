@@ -148,6 +148,9 @@ export async function togglePostPin(postId) {
 
 export async function fetchPinnedPosts() {
   const { data } = await client.get("/posts/pinned");
+  if (data?.posts) {
+    data.posts = data.posts.map(normalizePost);
+  }
   return data;
 }
 
