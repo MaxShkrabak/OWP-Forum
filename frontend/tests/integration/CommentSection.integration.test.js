@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { ref } from "vue";
 import CommentSection from "@/components/forum/CommentSection.vue";
 import { fetchComments, submitComment } from "@/api/comments";
-import { timeAgo } from "@/utils/timeAgo";
+import { timeAgo } from "@/utils/time";
 import TextEditor from "@/components/forum/TextEditor.vue";
 
 vi.mock("@/stores/userStore", () => ({
@@ -22,8 +22,8 @@ vi.mock("@/api/comments", async (importOriginal) => {
   const actual = await importOriginal();
   return {
     ...actual,
-    fetchComments: vi.fn(() =>
-      Promise.resolve({
+    fetchComments: vi.fn()
+      .mockResolvedValueOnce({
         ok: true,
         total: 1,
         items: [
@@ -34,8 +34,25 @@ vi.mock("@/api/comments", async (importOriginal) => {
             user: { userId: 2, firstName: "Jane", lastName: "Doe" },
           },
         ],
+      })
+      .mockResolvedValue({
+        ok: true,
+        total: 2,
+        items: [
+          {
+            commentId: 99,
+            content: "This is my newly created comment",
+            createdAt: "2026-04-08 23:00:00",
+            user: { userId: 1, firstName: "Test", lastName: "User" },
+          },
+          {
+            commentId: 1,
+            content: "My first comment!",
+            createdAt: "2026-04-08 22:33:11",
+            user: { userId: 2, firstName: "Jane", lastName: "Doe" },
+          },
+        ],
       }),
-    ),
     submitComment: vi.fn(() =>
       Promise.resolve({
         ok: true,

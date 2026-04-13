@@ -62,7 +62,7 @@ vi.mock("@/components/user/ReportingModal.vue", () => ({
   },
 }));
 
-vi.mock("@/utils/timeAgo", () => ({
+vi.mock("@/utils/time", () => ({
   timeAgo: () => "1h ago",
 }));
 

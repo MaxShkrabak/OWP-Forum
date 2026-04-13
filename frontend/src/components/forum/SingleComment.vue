@@ -1,5 +1,5 @@
 <script setup>
-import { ref, inject, computed, watch, provide, onMounted } from "vue";
+import { ref, inject, computed, watch, provide, onBeforeUnmount } from "vue";
 import DOMPurify from 'dompurify';
 import { useRouter } from "vue-router";
 import UserRole from "@/components/user/UserRole.vue";
@@ -11,7 +11,6 @@ import {
   formatCommentData,
 } from "@/api/comments";
 import { isLoggedIn, uid, userRole, userRoleId } from "@/stores/userStore";
-import { timeAgo } from "@/utils/time";
 import TextEditor from "./TextEditor.vue";
 import ReportingModal from "../user/ReportingModal.vue";
 
@@ -86,15 +85,12 @@ const showSaveConfirm = ref(false);
 const editIsUploading = ref(false);
 const replyIsUploading = ref(false);
 
-const linkedImage = computed(() => {
+const safeContent = computed(() => {
   const sanitized = DOMPurify.sanitize(props.comment.text ?? '');
-  return (
-    sanitized.replace(
-      /<img[^>]+src="([^"]+)"[^>]*\/?>/gi,
-      (match, src) => {
-        return `<a href="${src}" target="_blank" rel="noopener noreferrer">${match}</a>`;
-      },
-    ) ?? ""
+  return sanitized.replace(
+    /<img[^>]+src="([^"]+)"[^>]*\/?>/gi,
+    (match, src) =>
+      `<a href="${src}" target="_blank" rel="noopener noreferrer">${match}</a>`,
   );
 });
 
@@ -203,6 +199,7 @@ const confirmSaveEdit = async () => {
 };
 
 function getAvatarSrc(file) {
+  if (!file) return "";
   return new URL(`../../assets/img/user-pfps-premade/${file}`, import.meta.url)
     .href;
 }
@@ -347,7 +344,7 @@ watch(isEditing, (active) => {
 const hasOptions = computed(
   () =>
     !props.comment.isDeleted &&
-    (isAuthor.value || canDelete.value || canReport.value),
+    (canDelete.value || canReport.value),
 );
 
 const toggleOptionsMenu = () => {
@@ -366,6 +363,10 @@ watch(showOptionsMenu, (val) => {
   } else {
     document.removeEventListener("click", handleClickOutsideOptions, true);
   }
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener("click", handleClickOutsideOptions, true);
 });
 </script>
 
@@ -501,7 +502,7 @@ watch(showOptionsMenu, (val) => {
         >
           [deleted]
         </div>
-        <div v-else class="comment-body mb-2 small" v-html="linkedImage"></div>
+        <div v-else class="comment-body mb-2 small" v-html="safeContent"></div>
 
         <div
           v-if="!comment.isDeleted"

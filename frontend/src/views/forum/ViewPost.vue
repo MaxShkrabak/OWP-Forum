@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import DOMPurify from "dompurify";
 import { getPost } from "@/api/posts";
 import { formatPostTimestamp } from "@/utils/time";
 
@@ -34,6 +35,10 @@ async function copyPostUrlToClipboard() {
 
 const postTimestamp = computed(() =>
   formatPostTimestamp(post.value?.createdAt, post.value?.updatedAt)
+);
+
+const safeContent = computed(() =>
+  DOMPurify.sanitize(post.value?.content ?? "")
 );
 
 function getAvatarSrc(file) {
@@ -161,7 +166,7 @@ onMounted(async () => {
             <h1 class="post-title fs-2 m-0 text-break">{{ post.title }}</h1>
           </div>
 
-          <div class="content-body px-3 px-md-4 pt-3 pt-md-4" v-html="post.content"></div>
+          <div class="content-body px-3 px-md-4 pt-3 pt-md-4" v-html="safeContent"></div>
 
           <section class="post-footer">
             <div

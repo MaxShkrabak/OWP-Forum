@@ -238,6 +238,6 @@ class AuthControllerTest extends TestCase
         $this->assertEquals(400, $response->getStatusCode());
         $body = json_decode((string)$response->getBody(), true);
         $this->assertFalse($body['ok']);
-        $this->assertEquals('Password required', $body['error']);
+        $this->assertEquals('One-Time Passcode required', $body['error']);
     }
 }

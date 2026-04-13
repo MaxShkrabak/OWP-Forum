@@ -101,7 +101,7 @@ describe("CommentSection.vue", () => {
   it("renders a sort dropdown with the correct options", () => {
     const select = wrapper.find("#comment-sort");
     const options = select.findAll("option").map((o) => o.text());
-    expect(options).toEqual(["Newest", "Oldest", "Most Liked"]);
+    expect(options).toEqual(["Newest", "Oldest", "Most Upvoted"]);
   });
 
   it("disables the submit button if there is no data, and enables it when text is entered", async () => {
@@ -221,7 +221,8 @@ describe("CommentSection.vue", () => {
     expect(lastCallArgs[3]).toBe("mostLiked");
   });
 
-  it("shows a centered rate limit modal with minutes and seconds", async () => {
+  it("shows an inline rate limit banner with minutes and seconds", async () => {
+    Element.prototype.scrollIntoView = vi.fn();
     await flushPromises();
 
     submitComment.mockRejectedValueOnce({
@@ -250,8 +251,8 @@ describe("CommentSection.vue", () => {
     await submitBtn.trigger("click");
     await flushPromises();
 
-    expect(document.body.textContent).toContain("You're commenting too fast");
-    expect(document.body.textContent).toContain("1 minute 15 seconds");
+    expect(wrapper.text()).toContain("You're commenting too fast");
+    expect(wrapper.text()).toContain("1m 15s");
   });
 
   it("hides the comment box and shows the disabled notice for a regular user when commentsDisabled is true", async () => {
