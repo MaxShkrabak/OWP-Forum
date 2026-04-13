@@ -2,19 +2,29 @@ import { describe, it, expect, vi } from "vitest";
 import { mount, flushPromises } from "@vue/test-utils";
 import ForumHome from "@/views/forum/ForumHome.vue";
 
-// Mock posts API so mount doesn't depend on backend
-vi.mock("@/api/posts.js", () => ({
-  fetchPosts: vi.fn(async () => ({
-    postsByCategory: [],
-    totalPosts: 0,
-  })),
+vi.mock("@/api/posts", () => ({
+  fetchPosts: vi.fn(async () => ({ postsByCategory: [], totalPosts: 0 })),
   fetchPinnedPosts: vi.fn(async () => ({ posts: [] })),
+  searchPosts: vi.fn(async () => ({ ok: true, posts: [], meta: {} })),
 }));
 
-vi.mock("@/api/auth.js", () => ({
-  checkAuth: vi.fn(async () => ({
-    data: null
-  })),
+vi.mock("@/api/auth", () => ({
+  checkAuth: vi.fn(async () => ({ data: null })),
+}));
+
+vi.mock("vue-router", () => ({
+  useRoute: () => ({ params: {}, query: {}, meta: {} }),
+  useRouter: () => ({ push: vi.fn(), back: vi.fn() }),
+  RouterLink: { name: "RouterLink", props: ["to"], template: `<a><slot /></a>` },
+}));
+
+vi.mock("@/stores/userStore", () => ({
+  isLoggedIn: { value: false },
+  userRoleId: { value: 1 },
+  userRole: "user",
+  uid: { value: 0 },
+  fullName: "",
+  userAvatar: "pfp-0.png",
 }));
 
 describe("ForumHome.vue", () => {
@@ -24,6 +34,11 @@ describe("ForumHome.vue", () => {
         stubs: {
           Teleport: true,
           RouterLink: true,
+          UserRole: true,
+          ForumHeader: true,
+          CreatePostButton: true,
+          ViewReportsButton: true,
+          AdminPanelButton: true,
         },
       },
     });
@@ -57,7 +72,7 @@ describe("ForumHome.vue", () => {
     expect(optionTexts).toContain("Most Comments");
   });
 
-  it("changes sort to 'upvotes' when selected", async () => {
+  it("updates sort when a different option is selected", async () => {
     const wrapper = createWrapper();
     await flushPromises();
 
@@ -66,14 +81,6 @@ describe("ForumHome.vue", () => {
 
     await sortSelect.setValue("upvotes");
     expect(wrapper.vm.sort).toBe("upvotes");
-  });
-
-  it("changes sort to 'comments' when selected", async () => {
-    const wrapper = createWrapper();
-    await flushPromises();
-
-    const sortSelect = findSortSelect(wrapper);
-    expect(sortSelect).not.toBeNull();
 
     await sortSelect.setValue("comments");
     expect(wrapper.vm.sort).toBe("comments");

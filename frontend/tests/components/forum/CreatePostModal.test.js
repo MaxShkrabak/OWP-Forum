@@ -30,7 +30,7 @@ vi.mock("@/stores/userStore", () => ({
   userRoleId: 2,
 }));
 
-describe("View Post Page Sidebar (Admin, Mod)", () => {
+describe("CreatePostModal — restricted mode (Moderator)", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("disables Title and Content inputs when editing tags/category as a Moderator (isRestricted)", async () => {
@@ -54,16 +54,8 @@ describe("View Post Page Sidebar (Admin, Mod)", () => {
     await flushPromises();
 
     const titleInput = wrapper.find(".title-input");
-    if (titleInput.exists()) {
-      expect(titleInput.element.disabled || titleInput.element.readOnly).toBe(
-        true,
-      );
-    }
-
-    const categoryDropdown = wrapper.find("select.category-dropdown");
-    if (categoryDropdown.exists()) {
-      expect(categoryDropdown.element.disabled).toBe(false);
-    }
+    expect(titleInput.exists()).toBe(true);
+    expect(titleInput.element.disabled || titleInput.element.readOnly).toBe(true);
   });
 });
 

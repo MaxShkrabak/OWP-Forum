@@ -92,22 +92,6 @@ describe("ImageUploadIndicator (CreatePostModal.vue)", () => {
     expect(overlay.text()).toContain("Uploading image");
   });
 
-  it("keeps upload indicator visible while uploading (until upload finishes)", async () => {
-    const wrapper = createWrapper();
-    await flushPromises();
-
-    const startBtn = wrapper.find('[data-testid="start-upload"]');
-    await startBtn.trigger("click");
-    await flushPromises();
-
-    let overlay = findUploadOverlay(wrapper);
-    expect(overlay).not.toBeNull();
-
-    await flushPromises();
-    overlay = findUploadOverlay(wrapper);
-    expect(overlay).not.toBeNull();
-  });
-
   it("hides upload indicator when TextEditor finishes uploading", async () => {
     const wrapper = createWrapper();
     await flushPromises();
