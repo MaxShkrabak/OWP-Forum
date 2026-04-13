@@ -10,7 +10,7 @@ BEGIN
         LastName                   NVARCHAR(120)               NULL,
         RoleID                     INT                         NULL
             CONSTRAINT FK_Users_Roles REFERENCES dbo.Forum_Roles(RoleID),
-        Avatar                     VARCHAR(100)                NOT NULL CONSTRAINT DF_Users_Avatar DEFAULT ('waves.png'),
+        Avatar                     VARCHAR(100)                NOT NULL CONSTRAINT DF_Users_Avatar DEFAULT ('waves.svg'),
         EmailVerified              BIT                         NOT NULL CONSTRAINT DF_Users_EmailVerified DEFAULT (0),
         CreatedAt                  DATETIME2(0)                NOT NULL CONSTRAINT DF_Users_CreatedAt DEFAULT (SYSUTCDATETIME()),
         LastLogin                  DATETIME2(0)                NULL,
