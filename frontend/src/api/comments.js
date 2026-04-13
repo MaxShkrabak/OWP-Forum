@@ -1,5 +1,5 @@
 import client from "./client";
-import { timeAgo } from "@/utils/timeAgo";
+import { timeAgo } from "@/utils/time";
 
 export const formatCommentData = (comment) => {
   const createdAt = comment.createdAt;

@@ -14,7 +14,3 @@ export function isDuplicateName(name, items, nameKey, idKey, excludeId = null) {
     return same && notSelf;
   });
 }
-
-export function stripHTML(html) {
-  return html.replace(/<[^>]*>/g, "");
-}

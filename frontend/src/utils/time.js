@@ -1,17 +1,18 @@
+export function parseUTCDate(input) {
+  if (!input) return null;
+  let dateStr = input;
+  if (typeof input === "string" && !input.includes("Z") && !input.includes("+")) {
+    dateStr = input.trim().replace(" ", "T") + "Z";
+  }
+  const d = new Date(dateStr);
+  return isNaN(d.getTime()) ? null : d;
+}
+
 export function timeAgo(input) {
   if (!input) return "";
 
-  let dateStr = input;
-
-  if (typeof input === "string") {
-    if (!input.includes("Z") && !input.includes("+")) {
-      dateStr = input.trim().replace(" ", "T") + "Z";
-    }
-  }
-
-  const d = new Date(dateStr);
-
-  if (isNaN(d.getTime())) return "";
+  const d = parseUTCDate(input);
+  if (!d) return "";
 
   const diffSec = Math.max(0, Math.round((Date.now() - d.getTime()) / 1000));
   const abs = Math.abs(diffSec);
@@ -38,4 +39,15 @@ export function timeAgo(input) {
 
   if (abs < 545 * DAY) return fmt(1, "year");
   return fmt(Math.round(abs / YEAR), "year");
+}
+
+// Returns e.g. "Posted Apr 12, 2026 at 3:45 PM" or "Edited Apr 12, 2026 at 3:45 PM"
+export function formatPostTimestamp(createdAt, updatedAt) {
+  const source = updatedAt || createdAt;
+  const d = parseUTCDate(source);
+  if (!d) return "";
+  const label = updatedAt ? "Edited" : "Posted";
+  const date = d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  const time = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  return `${label} ${date} at ${time}`;
 }

@@ -3,7 +3,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { userRole } from "@/stores/userStore";
 import { fetchReports, resolveReport } from "@/api/reports";
-import { timeAgo } from "@/utils/timeAgo";
+import { timeAgo } from "@/utils/time";
 import { getPaginationRange } from "@/utils/pagination";
 
 const router = useRouter();

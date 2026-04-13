@@ -2,7 +2,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
-import { timeAgo } from "@/utils/timeAgo";
+import { timeAgo } from "@/utils/time";
 
 import { fetchReports, resolveReport } from "@/api/reports";
 import AdminPaginationControls from "@/components/admin/AdminPaginationControls.vue";

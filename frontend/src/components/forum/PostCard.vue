@@ -1,7 +1,7 @@
 <script setup>
 import { ref, watch, computed } from "vue";
 import { RouterLink, useRouter } from "vue-router";
-import { timeAgo } from "@/utils/timeAgo";
+import { timeAgo } from "@/utils/time";
 import UserRole from "@/components/user/UserRole.vue";
 import { votePost, togglePostPin } from "@/api/posts";
 import { isLoggedIn, userRole, uid, userRoleId } from "@/stores/userStore";

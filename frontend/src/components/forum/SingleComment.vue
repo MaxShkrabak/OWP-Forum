@@ -11,7 +11,7 @@ import {
   formatCommentData,
 } from "@/api/comments";
 import { isLoggedIn, uid, userRole, userRoleId } from "@/stores/userStore";
-import { timeAgo } from "@/utils/timeAgo";
+import { timeAgo } from "@/utils/time";
 import TextEditor from "./TextEditor.vue";
 import ReportingModal from "../user/ReportingModal.vue";
 
