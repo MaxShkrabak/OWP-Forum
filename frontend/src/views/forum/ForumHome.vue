@@ -201,7 +201,7 @@ const filteredCategories = computed(() => {
 
       const homepagePosts = normalizedCategoryPosts
         .filter((p) => !pinnedIds.has(Number(p.postId)))
-        .slice(0, INITIAL_LIMIT);
+        .slice(0, Math.max(0, INITIAL_LIMIT - pinnedForCategory.length));
 
       return {
         ...cat,
