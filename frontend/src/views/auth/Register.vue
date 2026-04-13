@@ -7,11 +7,20 @@ import "/src/assets/forumAuth.css";
 const router = useRouter();
 const first = ref("");
 const last = ref("");
+const ssn = ref("");
 const email = ref("");
 const loading = ref(false);
+const nameRegex = /^[A-Za-z]+$/;
+const ssnRegex = /^\d{4}$/;
+const emailRegex = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
 
 async function createAccount() {
-  if (!first.value || !last.value || !/^\S+@\S+\.\S+$/.test(email.value))
+  if (
+    !nameRegex.test(first.value) ||
+    !nameRegex.test(last.value) ||
+    !ssnRegex.test(ssn.value) ||
+    !emailRegex.test(email.value)
+  )
     return;
 
   loading.value = true;
@@ -88,6 +97,7 @@ async function createAccount() {
           </div>
           <input
             id="ssn"
+            v-model.trim="ssn"
             type="text"
             placeholder="1234"
             maxlength="4"
@@ -110,7 +120,11 @@ async function createAccount() {
             class="btn"
             type="submit"
             :disabled="
-              loading || !first || !last || !/^\S+@\S+\.\S+$/.test(email)
+              loading ||
+              !nameRegex.test(first) ||
+              !nameRegex.test(last) ||
+              !ssnRegex.test(ssn) ||
+              !emailRegex.test(email)
             "
           >
             <span v-if="!loading">Create Account</span>
