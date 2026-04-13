@@ -486,7 +486,8 @@ class CommentController extends BaseController
 
             return json($res, ['ok' => true, 'items' => $items, 'total' => $totalComments]);
         } catch (Throwable $e) {
-            return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+            error_log($e->getMessage());
+            return json($res, ['ok' => false, 'error' => 'Internal server error.'], 500);
         }
     }
 
@@ -544,7 +545,8 @@ class CommentController extends BaseController
 
             return json($res, ['ok' => true]);
         } catch (Throwable $e) {
-            return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+            error_log($e->getMessage());
+            return json($res, ['ok' => false, 'error' => 'Internal server error.'], 500);
         }
     }
 
@@ -592,7 +594,8 @@ class CommentController extends BaseController
 
             return json($res, ['ok' => true, 'items' => $items]);
         } catch (Throwable $e) {
-            return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+            error_log($e->getMessage());
+            return json($res, ['ok' => false, 'error' => 'Internal server error.'], 500);
         }
     }
 
@@ -694,7 +697,8 @@ class CommentController extends BaseController
                 ]
             ]);
         } catch (Throwable $e) {
-            return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+            error_log($e->getMessage());
+            return json($res, ['ok' => false, 'error' => 'Internal server error.'], 500);
         }
     }
 
@@ -742,7 +746,8 @@ class CommentController extends BaseController
             ]);
         } catch (Throwable $e) {
             if ($pdo && $pdo->inTransaction()) $pdo->rollBack();
-            return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+            error_log($e->getMessage());
+            return json($res, ['ok' => false, 'error' => 'Internal server error.'], 500);
         }
     }
 }

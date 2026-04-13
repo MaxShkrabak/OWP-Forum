@@ -47,7 +47,7 @@ vi.mock("@/api/comments", () => ({
     Promise.resolve({
       ok: true,
       total: 15,
-      // We dynamically generate 10 items here so the "Show More" button stays visible
+      // Generate 10 items here so the "Show More" button stays visible
       items: Array.from({ length: 10 }, (_, i) => ({
         commentId: i + 1,
         content: `This is comment ${i + 1}`,
@@ -63,8 +63,8 @@ vi.mock("@/api/comments", () => ({
       comment: {
         commentId: 1,
         content: "Updated comment content",
-        createdAt: 1700000000,
-        updatedAt: 1700001000,
+        createdAt: "2024-11-14 20:53:20",
+        updatedAt: "2024-11-14 20:55:00",
         user: { userId: 1, firstName: "John", lastName: "Rogers" },
       },
     }),

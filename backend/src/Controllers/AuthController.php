@@ -150,7 +150,8 @@ final class AuthController extends BaseController
                 'termsAccepted'              => (int)($user['termsAccepted'] ?? 0),
             ]]);
         } catch (Throwable $e) {
-            return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+            error_log($e->getMessage());
+            return json($res, ['ok' => false, 'error' => 'Internal server error.'], 500);
         }
     }
 
@@ -256,7 +257,8 @@ final class AuthController extends BaseController
                 $message = $this->buildOtpRequestMessage($email, $fullName, $otpCode);
                 ($this->sendOtpEmail)($message);
             } catch (Throwable $e) {
-                return json($res, ['ok' => false, 'error' => 'Failed to send OTP email: ' . $e->getMessage()], 404);
+                error_log('Failed to send OTP email: ' . $e->getMessage());
+                return json($res, ['ok' => false, 'error' => 'Failed to send verification email. Please try again.'], 500);
             }
 
             $pdo->prepare("
@@ -269,7 +271,8 @@ final class AuthController extends BaseController
 
             return json($res, ['ok' => true, 'message' => 'OTP code sent successfully']);
         } catch (Throwable $e) {
-            return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+            error_log($e->getMessage());
+            return json($res, ['ok' => false, 'error' => 'Internal server error.'], 500);
         }
     }
 
@@ -301,7 +304,8 @@ final class AuthController extends BaseController
 
             return json($res, ['ok' => true, 'message' => 'User registered successfully']);
         } catch (Throwable $e) {
-            return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+            error_log($e->getMessage());
+            return json($res, ['ok' => false, 'error' => 'Internal server error.'], 500);
         }
     }
 
@@ -324,7 +328,8 @@ final class AuthController extends BaseController
 
             return json($res, ['ok' => true, 'emailExists' => $emailExists]);
         } catch (Throwable $e) {
-            return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+            error_log($e->getMessage());
+            return json($res, ['ok' => false, 'error' => 'Internal server error.'], 500);
         }
     }
 
