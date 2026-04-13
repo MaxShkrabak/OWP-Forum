@@ -13,8 +13,9 @@ if (!function_exists('Forum\Helpers\sanitizeHtml')) {
         $config->set('HTML.DefinitionID', 'forum-html');
         $config->set('HTML.DefinitionRev', 1);
         $config->set('HTML.Allowed',
-            'p,br,strong,em,u,s,h1,h2,h3,h4,h5,h6,' .
-            'ul,ol,li,blockquote,pre,code,' .
+            'p[style|class],br,strong,em,u,s,' .
+            'h1[style|class],h2[style|class],h3[style|class],h4[style|class],h5[style|class],h6[style|class],' .
+            'ul,ol,li[style|class],blockquote,pre,code,' .
             'a[href|target|rel|class],img[src|alt|width|height],' .
             'span[style|class],mark[style|class]'
         );
