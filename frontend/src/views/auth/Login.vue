@@ -1,7 +1,7 @@
 <script setup>
 import { ref } from "vue";
 import { useRouter } from "vue-router";
-import { verifyEmail } from "@/api/auth";
+import { verifyEmail, requestOtp } from "@/api/auth";
 import '/src/assets/forumAuth.css'
 
 const router = useRouter();
@@ -31,8 +31,13 @@ async function onSubmit() {
 
     // Handles the response from the backend
     if (data.ok && exists) {
-      status.value = "sent";
-      router.push({ name: "VerifyPasscode", query: { email: email.value } });
+      const resOtp = await requestOtp(email.value);
+      if (resOtp.ok) {
+        router.push({ path: '/verify', query: { email: email.value } });
+        status.value = "sent";
+      } else {
+        alert(resOtp.message || 'Failed to send passcode.');
+      }
     } else if (data.ok && !exists) {
       status.value = "error";
       errorMsg.value = "This email has not been registered. Please register first.";

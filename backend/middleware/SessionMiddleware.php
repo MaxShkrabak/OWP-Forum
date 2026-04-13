@@ -13,6 +13,7 @@ return function (Request $request, RequestHandler $handler) use ($makePdo) {
         '/api/login'             => ['POST'],
         '/api/register-new-user' => ['POST'],
         '/api/verify-email'      => ['GET', 'POST'],
+        '/api/request-otp'       => ['POST'],
         '/api/me'                => ['GET'],
         '/api/posts'             => ['GET'],
         '/api/tags/filter'       => ['GET'],

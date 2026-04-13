@@ -29,14 +29,14 @@ IF OBJECT_ID('dbo.Forum_OTP_Codes', 'U') IS NULL
 BEGIN
     CREATE TABLE dbo.Forum_OTP_Codes (
         OtpID     INT           IDENTITY(1,1) NOT NULL CONSTRAINT PK_OtpCodes PRIMARY KEY,
-        UserID    INT                         NOT NULL CONSTRAINT FK_OtpCodes_Users REFERENCES dbo.Forum_Users(UserID),
-        CodeHash  VARBINARY(64)               NOT NULL, -- SHA-256, not raw code
+        Email     NVARCHAR(255)               NOT NULL CONSTRAINT FK_OtpCodes_Email REFERENCES dbo.Forum_Users(Email),
+        CodeHash  NVARCHAR(64)                NOT NULL, -- SHA-256, not raw code
         ExpiresAt DATETIME2(0)                NOT NULL,
         IsUsed    BIT                         NOT NULL CONSTRAINT DF_OtpCodes_IsUsed DEFAULT (0),
         CreatedAt DATETIME2(0)                NOT NULL CONSTRAINT DF_OtpCodes_CreatedAt DEFAULT (SYSUTCDATETIME())
     );
-    CREATE NONCLUSTERED INDEX IX_OtpCodes_UserID_Active
-        ON dbo.Forum_OTP_Codes (UserID, IsUsed, ExpiresAt);
+    CREATE NONCLUSTERED INDEX IX_OtpCodes_Email_Active
+        ON dbo.Forum_OTP_Codes (Email, IsUsed, ExpiresAt);
 END;
 GO
 

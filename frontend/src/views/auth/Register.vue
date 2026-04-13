@@ -1,7 +1,7 @@
 <script setup>
 import { ref } from "vue";
 import { useRouter } from "vue-router";
-import { registerUser } from "@/api/auth";
+import { registerUser, requestOtp } from "@/api/auth";
 import "/src/assets/forumAuth.css";
 
 const router = useRouter();
@@ -29,10 +29,17 @@ async function createAccount() {
 
     // User was succesfuly stored in database and routes to OTP page
     if (res.ok) {
-      router.push({ path: "/verify", query: { email: payload.email } });
+      const resOtp = await requestOtp(payload.email);
+      if (resOtp.ok) {
+        router.push({ path: '/verify', query: { email: payload.email } });
+      } else {
+        alert(resOtp.message || 'Failed to send passcode.');
+      }
+    } else {
+      alert(res.message || 'Failed to create account. Please try again.');
     }
   } catch (err) {
-    // User email already exists or something else went wrong
+    // User email already exists or OTP email failed to send
     if (err.response && err.response.data) {
       alert(err.response.data.message);
     } else {
@@ -41,25 +48,6 @@ async function createAccount() {
   } finally {
     loading.value = false;
   }
-
-  /*
-  loading.value = true;
-  try {
-    // (Optional) Send registration data first
-    // await fetch('/auth/register', { ... });
-
-    const res = await requestOtp(email.value.trim());
-    if (res.ok) {
-      router.push({ path: '/verify', query: { email: email.value.trim() } });
-    } else {
-      alert(res.message || 'Failed to send passcode.');
-    }
-  } catch {
-    alert('Network error.');
-  } finally {
-    loading.value = false;
-  }
-    */
 }
 </script>
 

@@ -1,7 +1,7 @@
 import client from "./client";
 
 export async function requestOtp(email) {
-  const { data } = await client.post("../auth/request-otp", { email });
+  const { data } = await client.post("/request-otp", { email });
   return data;
 }
 
