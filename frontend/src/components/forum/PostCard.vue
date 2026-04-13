@@ -178,7 +178,7 @@ function canViewReportButton() {
         </div>
 
         <div class="title-and-meta-column">
-          <div class="mobile-author-header">
+          <RouterLink class="mobile-author-header" style="text-decoration: none;" :to="`/posts/${post.postId}`">
             <div class="author-info-wrap-v2">
               <div class="avatar-box-v2">
                 <RouterLink :to="`/profile?id=${post.authorId}`">
@@ -202,7 +202,7 @@ function canViewReportButton() {
             <div class="text-secondary date">
               {{ timeAgo(post.createdAt) }}
             </div>
-          </div>
+          </RouterLink>
 
           <div class="title-row">
             <RouterLink :to="`/posts/${post.postId}`" class="post-title-link">

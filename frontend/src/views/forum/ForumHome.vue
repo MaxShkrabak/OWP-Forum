@@ -393,7 +393,7 @@ onMounted(async () => {
               <div class="search-results-box mb-4">
                 <div class="search-results-header">
                   <h5 class="mb-1">Search Results</h5>
-                  <p class="mb-0 search-results-count text-muted">
+                  <p class="mb-0 search-results-count">
                     {{ searchMeta.totalPosts }} results
                   </p>
                 </div>
@@ -677,15 +677,15 @@ onMounted(async () => {
 }
 
 .sort-select {
-  background: linear-gradient(165deg, #004b3375 0%, #003d4c35 70%);
+  background: white;
   border: 1px solid transparent;
   color: #081424;
-  font-size: 0.85rem;
+  font-size: 0.90rem;
   font-weight: 700;
   outline: none;
   cursor: pointer;
   padding: 6px 8px;
-  border-radius: 6px;
+  border-radius: 8px;
   transition: all 0.2s ease;
 }
 .sort-select option {
@@ -718,6 +718,7 @@ onMounted(async () => {
 }
 
 .search-results-count {
+  color: white;
   font-size: 0.75rem;
   text-transform: uppercase;
   font-weight: 900;
