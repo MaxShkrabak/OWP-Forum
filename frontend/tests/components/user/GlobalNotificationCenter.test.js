@@ -14,6 +14,21 @@ import { mount, flushPromises } from "@vue/test-utils";
 import GlobalNotificationCenter from "@/components/user/GlobalNotificationCenter.vue";
 
 const pushMock = vi.fn();
+const mountedWrappers = [];
+
+function mountCenter() {
+  const wrapper = mount(GlobalNotificationCenter);
+  mountedWrappers.push(wrapper);
+  return wrapper;
+}
+
+afterEach(() => {
+  while (mountedWrappers.length > 0) {
+    mountedWrappers.pop().unmount();
+  }
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+});
 
 vi.mock("vue-router", () => ({
   useRouter: () => ({
@@ -126,11 +141,6 @@ describe("Global notifications — component behavior", () => {
     mockMarkNotificationsRead.mockResolvedValue({ ok: true });
   });
 
-  afterEach(() => {
-    vi.useRealTimers();
-    vi.restoreAllMocks();
-  });
-
   it("renders popup when unread allowed notifications are fetched", async () => {
     mockFetchNotifications.mockResolvedValue({
       ok: true,
@@ -146,7 +156,7 @@ describe("Global notifications — component behavior", () => {
       ],
     });
 
-    const wrapper = mount(GlobalNotificationCenter);
+    const wrapper = mountCenter();
     await flushPromises();
 
     expect(wrapper.text()).toContain("Post liked");
@@ -178,7 +188,7 @@ describe("Global notifications — component behavior", () => {
       ],
     });
 
-    const wrapper = mount(GlobalNotificationCenter);
+    const wrapper = mountCenter();
     await flushPromises();
 
     expect(wrapper.text()).not.toContain("Post liked");
@@ -200,7 +210,7 @@ describe("Global notifications — component behavior", () => {
       ],
     });
 
-    const wrapper = mount(GlobalNotificationCenter);
+    const wrapper = mountCenter();
     await flushPromises();
 
     const buttons = wrapper.findAll("button");
@@ -229,7 +239,7 @@ describe("Global notifications — component behavior", () => {
       ],
     });
 
-    const wrapper = mount(GlobalNotificationCenter);
+    const wrapper = mountCenter();
     await flushPromises();
 
     const buttons = wrapper.findAll("button");
@@ -260,7 +270,7 @@ describe("Global notifications — component behavior", () => {
       ],
     });
 
-    const wrapper = mount(GlobalNotificationCenter);
+    const wrapper = mountCenter();
     await flushPromises();
 
     expect(wrapper.text()).toContain("Auto dismiss post");
@@ -311,7 +321,7 @@ describe("Global notifications — component behavior", () => {
       ],
     });
 
-    const wrapper = mount(GlobalNotificationCenter);
+    const wrapper = mountCenter();
     await flushPromises();
 
     const popups = wrapper.findAll(".notification-popup");
@@ -323,6 +333,49 @@ describe("Global notifications — component behavior", () => {
     expect(wrapper.text()).not.toContain("Post 4");
 
     expect(mockMarkNotificationsRead).toHaveBeenCalledWith([4]);
+  });
+
+  it("refreshes notifications while the tab stays visible", async () => {
+    vi.useFakeTimers();
+
+    mockFetchNotifications
+      .mockResolvedValueOnce({
+        ok: true,
+        items: [
+          {
+            notificationId: 701,
+            postId: 12,
+            type: "postLike",
+            isRead: false,
+            title: "First poll",
+            createdAt: "2026-03-19T12:00:00Z",
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        items: [
+          {
+            notificationId: 702,
+            postId: 13,
+            type: "postReply",
+            isRead: false,
+            title: "Second poll",
+            createdAt: "2026-03-19T12:00:30Z",
+          },
+        ],
+      });
+
+    const wrapper = mountCenter();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("First poll");
+
+    vi.advanceTimersByTime(30_000);
+    await flushPromises();
+
+    expect(mockFetchNotifications).toHaveBeenCalledTimes(2);
+    expect(wrapper.text()).toContain("Second poll");
   });
 });
 
@@ -352,7 +405,7 @@ it("discards notifications with disabled types and marks them as read", async ()
     ],
   });
 
-  const wrapper = mount(GlobalNotificationCenter);
+  const wrapper = mountCenter();
   await flushPromises();
 
   expect(wrapper.text()).not.toContain("Disabled like");
