@@ -1,14 +1,38 @@
 import { ref } from "vue";
 import { checkAuth, logout } from "@/api/auth";
+import { clearNotificationPreferences } from "@/utils/notificationPreferences";
 
-const POST_COOLDOWN_KEY = "createPostBlockedUntil";
+const LEGACY_POST_COOLDOWN_KEY = "createPostBlockedUntil";
+
+function getPostCooldownKey(userId = localStorage.getItem("uid")) {
+  return userId ? `${LEGACY_POST_COOLDOWN_KEY}:${userId}` : null;
+}
+
+function clearStoredBlockedUntil(userId = localStorage.getItem("uid")) {
+  const scopedKey = getPostCooldownKey(userId);
+  if (scopedKey) {
+    localStorage.removeItem(scopedKey);
+  }
+  localStorage.removeItem(LEGACY_POST_COOLDOWN_KEY);
+}
 
 function getStoredBlockedUntil() {
-  const stored = Number(localStorage.getItem(POST_COOLDOWN_KEY) ?? 0);
+  const scopedKey = getPostCooldownKey();
+  const raw = scopedKey
+    ? localStorage.getItem(scopedKey) ?? localStorage.getItem(LEGACY_POST_COOLDOWN_KEY)
+    : null;
+  const stored = Number(raw ?? 0);
+
   if (!Number.isFinite(stored) || stored <= Date.now()) {
-    localStorage.removeItem(POST_COOLDOWN_KEY);
+    clearStoredBlockedUntil();
     return 0;
   }
+
+  if (scopedKey && localStorage.getItem(LEGACY_POST_COOLDOWN_KEY) != null) {
+    localStorage.setItem(scopedKey, String(stored));
+    localStorage.removeItem(LEGACY_POST_COOLDOWN_KEY);
+  }
+
   return stored;
 }
 
@@ -18,10 +42,13 @@ export function blockPostCreationFor(seconds) {
   const safeSeconds = Math.max(0, Number(seconds) || 0);
   const blockedUntil = safeSeconds > 0 ? Date.now() + safeSeconds * 1000 : 0;
   createPostBlockedUntil.value = blockedUntil;
-  if (blockedUntil > Date.now()) {
-    localStorage.setItem(POST_COOLDOWN_KEY, String(blockedUntil));
+  const scopedKey = getPostCooldownKey();
+
+  if (blockedUntil > Date.now() && scopedKey) {
+    localStorage.setItem(scopedKey, String(blockedUntil));
+    localStorage.removeItem(LEGACY_POST_COOLDOWN_KEY);
   } else {
-    localStorage.removeItem(POST_COOLDOWN_KEY);
+    clearStoredBlockedUntil();
   }
 }
 
@@ -83,6 +110,7 @@ export const syncProfileOnLoad = async () => {
       localStorage.setItem("isBanned", isBanned.value ? "true" : "false");
       localStorage.setItem("banType", banType.value || "");
       localStorage.setItem("bannedUntil", bannedUntil.value || "");
+      createPostBlockedUntil.value = getStoredBlockedUntil();
     } else {
       resetStore();
     }
@@ -95,6 +123,8 @@ export const syncProfileOnLoad = async () => {
 };
 
 const resetStore = () => {
+  const currentUserId = uid.value || localStorage.getItem("uid");
+
   isLoggedIn.value = false;
   fullName.value = "";
   userRole.value = "Guest";
@@ -105,6 +135,10 @@ const resetStore = () => {
   banType.value = null;
   bannedUntil.value = null;
   termsAccepted.value = false;
+  createPostBlockedUntil.value = 0;
+
+  clearStoredBlockedUntil(currentUserId);
+  clearNotificationPreferences(currentUserId);
 
   localStorage.removeItem("fullName");
   localStorage.removeItem("userRole");

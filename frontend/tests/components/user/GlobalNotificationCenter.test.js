@@ -41,6 +41,7 @@ vi.mock("@/stores/userStore", () => ({
 describe("Global notifications — preference helpers", () => {
   beforeEach(() => {
     localStorage.clear();
+    localStorage.setItem("uid", "42");
   });
 
   it("returns default preferences when localStorage is empty", async () => {
@@ -55,7 +56,7 @@ describe("Global notifications — preference helpers", () => {
 
   it("disables notifications when pushNotifications is false", async () => {
     localStorage.setItem(
-      "notificationPreferences",
+      "notificationPreferences:42",
       JSON.stringify({
         pushNotifications: false,
         postLikes: true,
@@ -70,7 +71,7 @@ describe("Global notifications — preference helpers", () => {
 
   it("enables only the matching notification type", async () => {
     localStorage.setItem(
-      "notificationPreferences",
+      "notificationPreferences:42",
       JSON.stringify({
         pushNotifications: true,
         postLikes: true,
@@ -82,14 +83,38 @@ describe("Global notifications — preference helpers", () => {
     expect(mod.isNotificationEnabled("postLike")).toBe(true);
     expect(mod.isNotificationEnabled("postReply")).toBe(false);
   });
+
+  it("uses the current user's scoped preferences instead of another user's", async () => {
+    localStorage.setItem(
+      "notificationPreferences:7",
+      JSON.stringify({
+        pushNotifications: false,
+        postLikes: false,
+        postReplies: false,
+      }),
+    );
+    localStorage.setItem(
+      "notificationPreferences:42",
+      JSON.stringify({
+        pushNotifications: true,
+        postLikes: true,
+        postReplies: true,
+      }),
+    );
+
+    const mod = await import("@/utils/notificationPreferences");
+    expect(mod.isNotificationEnabled("postLike")).toBe(true);
+    expect(mod.isNotificationEnabled("postReply")).toBe(true);
+  });
 });
 
 describe("Global notifications — component behavior", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    localStorage.setItem("uid", "42");
     localStorage.setItem(
-      "notificationPreferences",
+      "notificationPreferences:42",
       JSON.stringify({
         emailNotifications: true,
         pushNotifications: true,
@@ -130,7 +155,7 @@ describe("Global notifications — component behavior", () => {
 
   it("does not render popup when matching preference is disabled", async () => {
     localStorage.setItem(
-      "notificationPreferences",
+      "notificationPreferences:42",
       JSON.stringify({
         emailNotifications: true,
         pushNotifications: true,
@@ -302,8 +327,9 @@ describe("Global notifications — component behavior", () => {
 });
 
 it("discards notifications with disabled types and marks them as read", async () => {
+  localStorage.setItem("uid", "42");
   localStorage.setItem(
-    "notificationPreferences",
+    "notificationPreferences:42",
     JSON.stringify({
       emailNotifications: true,
       pushNotifications: true,

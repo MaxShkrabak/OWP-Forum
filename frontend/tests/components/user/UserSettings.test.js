@@ -39,6 +39,7 @@ describe("UserSettings.vue", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    localStorage.setItem("uid", "42");
     mockGetNotificationSettings.mockResolvedValue({
       ok: true,
       settings: { emailNotifications: true },
@@ -90,6 +91,7 @@ describe("UserSettings.vue", () => {
     expect(mockUpdateUserAvatar).toHaveBeenCalledTimes(1);
     expect(mockSaveNotificationSettings).toHaveBeenCalledTimes(1);
     expect(localStorage.getItem("userAvatar")).toBeTruthy();
+    expect(localStorage.getItem("notificationPreferences:42")).toBeTruthy();
     expect(hide).toHaveBeenCalledTimes(1);
   });
 });
