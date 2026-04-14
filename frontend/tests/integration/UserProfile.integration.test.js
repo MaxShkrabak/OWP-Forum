@@ -6,14 +6,19 @@
  */
 import { mount, flushPromises } from "@vue/test-utils";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { ref } from "vue";
 import UserProfile from "@/views/forum/UserProfile.vue";
 import { fetchUser } from "@/api/users";
 import { fetchPosts, fetchLikedPosts } from "@/api/posts";
+import { uid as mockUid } from "@/stores/userStore";
 
 vi.mock("@/api/users", () => ({
   fetchUser: vi.fn(),
   fetchUserStats: vi.fn(() =>
-    Promise.resolve({ ok: true, postCount: 5, commentCount: 10, likedCount: 3 }),
+    Promise.resolve({
+      ok: true,
+      stats: { postCount: 5, voteScore: 0, commentCount: 10 },
+    }),
   ),
 }));
 
@@ -24,11 +29,10 @@ vi.mock("@/api/posts", () => ({
   togglePostPin: vi.fn(),
 }));
 
-const { mockRoute, mockRouterPush, mockRouterBack, mockUid } = vi.hoisted(() => ({
+const { mockRoute, mockRouterPush, mockRouterBack } = vi.hoisted(() => ({
   mockRoute: vi.fn(),
   mockRouterPush: vi.fn(),
   mockRouterBack: vi.fn(),
-  mockUid: { value: 1 },
 }));
 
 vi.mock("vue-router", () => ({
@@ -41,14 +45,18 @@ vi.mock("vue-router", () => ({
   },
 }));
 
-vi.mock("@/stores/userStore", () => ({
-  uid: mockUid,
-  isLoggedIn: { value: true },
-  fullName: { value: "Test User" },
-  userAvatar: { value: "pfp-0.png" },
-  userRole: { value: "user" },
-  userRoleId: { value: 1 },
-}));
+vi.mock("@/stores/userStore", async () => {
+  const { ref } = await import("vue");
+  return {
+    uid: ref(1),
+    isLoggedIn: ref(true),
+    fullName: ref("Test User"),
+    userAvatar: ref("pfp-0.png"),
+    userRole: ref("user"),
+    userRoleId: ref(1),
+  };
+});
+
 
 vi.mock("@/utils/pagination", () => ({
   getPaginationRange: vi.fn(() => [1]),
@@ -83,6 +91,7 @@ function makeWrapper() {
         pfpModal: true,
         ReportingModal: true,
         UserRole: true,
+        RouterLink: { template: "<a><slot /></a>" },
       },
     },
   });

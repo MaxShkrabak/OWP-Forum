@@ -28,25 +28,19 @@ water programs and initiatives. The platform provides a space for posts, comment
 | --------------------------- | ------------------------------------------------------------------------------- |
 | **Admin**                   | Assign roles, post with official tagging, view all reports, full system control |
 | **Moderator**               | Edit and recategorize posts, remove content, view reports                       |
-| **Student**                 | Create posts, comment, like, report content                                     |
+| **User / Student**                 | Create posts, comment, like, report content                                     |
 | **Guest (Unauthenticated)** | Read-only access — no login required                                            |
 
 ### 📝 Posting & Interaction Features
 
 * Create discussion threads with:
-
-  * Text
+  * Rich Text
+  * Hyperlinks
   * Images
-  * Video support
 * Upvote / Downvote system for engagement
 * Commenting system with email notifications
-* Search functionality for posts, topics, and tags
-
-### ♿ Accessibility & Design
-
-* Developed to meet **WCAG accessibility standards**
-* Fully responsive UI — mobile, tablet, and desktop supported
-* Styled with Sac State colors and branding
+* Upvoting and commenting with browser notifications
+* Search functionality for posts, categories, tags, and users
 
 ### 🗄 Technology Stack
 
@@ -162,16 +156,15 @@ Follow these instructions to get a local copy of the project up and running.
 
 ### Prerequisites
 
-Before you begin, ensure you have the following installed:
-* [Node.js and npm](https://nodejs.org/)
-  
-* [PHP](https://www.php.net/downloads.php)
-  thread-safe preferred version: 8.3
-  
-* [Composer](https://getcomposer.org/)
-  
+Before you begin, ensure you have the following installed. The versions listed are what the project has been developed and tested against — other versions may work but are not guaranteed.
+
+* [Node.js and npm](https://nodejs.org/) - **Node.js v24.14.0**, **npm 11.9.0**
+
+* [PHP](https://www.php.net/downloads.php) - **PHP 8.3.26**, Thread-Safe
+
+* [Composer](https://getcomposer.org/) — **Composer 2.8.12**
+
 * [PHP SQL Server Drivers](https://learn.microsoft.com/en-us/sql/connect/php/download-drivers-php-sql-server?view=sql-server-ver17)
-  PHP SQL server drivers from Microsoft & ODBC driver
 
 ## ⚙️ Setup Instructions
 
@@ -222,49 +215,105 @@ Before you begin, ensure you have the following installed:
    * Next, open the new `.env` file.
    * Fill in the required parameters (database credentials, application secrets) with your correct development values.
 
+### 3. Database Migrations
+
+The database schema is managed through versioned SQL migration scripts in [backend/database/migrations/](backend/database/migrations/). A runner script at [backend/database/migrate.php](backend/database/migrate.php) applies any migrations that haven't been run yet and records them in a `Forum_SchemaVersions` tracking table, so it is safe to run repeatedly.
+
+**Before running migrations:**
+
+1. Make sure your SQL Server instance is running and that the target database already exists (the runner does **not** create the database itself, only the tables inside it).
+2. Confirm your `backend/.env` file has the correct values for at least:
+   ```bash
+   DB_SERVER=your-sql-server-host
+   DB_DATABASE=your-database-name
+   DB_USERNAME=your-username
+   DB_PASSWORD=your-password
+   ```
+3. Ensure `composer install` has been run so `vendor/autoload.php` exists.
+
+**Run the migrations** from the backend directory:
+
+```bash
+cd backend
+php database/migrate.php
+```
+
+Expected output looks like:
+
+```
+== Database migrations ==
+Server: <server> | DB: <database>
+Scanning: .../backend/database/migrations
+
+APPLY 001_user_roles.sql ... OK
+APPLY 002_users_and_auth.sql ... OK
+...
+Done. Applied: N, Skipped: 0
+```
+
+On subsequent runs, any already-applied scripts will be listed as `SKIP` and only new migration files will be executed. If a migration fails, the script rolls back that batch and exits with a non-zero status so the database is left in a consistent state.
+
+**Adding a new migration:**
+
+1. Create a new file in [backend/database/migrations/](backend/database/migrations/) using the next sequential prefix (e.g., `010_my_change.sql`).
+2. Write T-SQL compatible with Microsoft SQL Server; use `GO` on its own line to separate batches if needed.
+3. Commit the file along with the code change that depends on it, and run `php database/migrate.php` locally to verify.
+
 ---
 
-## 📅 Timeline
-This timeline tracks our project's progress across CSC 190 and CSC 191
+## 🧪 Testing
 
-### Phase I: 🍂 Fall 2025 (CSC 190)
+The project uses automated testing on both the frontend and backend to ensure correctness of components, API endpoints, and multi-component feature flows.
 
-| Sprint | Key Features / Goals | Status |
-| ------ | ------------------- | ------ |
-| **01** | Developed and finalized Figma Prototypes, established project scope in the **Project Charter**, and defined initial requirements/tech stack. | **DONE** |
-| **02** | Set up **Git/Jira environment**, implemented the **Login/Register UI**, connected Authentication to the database backend, and built base site components (Headers/Footer). | **DONE** |
-| **03** | Implemented **Authentication Logic**, developed **Create Post Page**, initiated backend for Tags/Categories, and built the **User Profile Page** for settings. | **DONE** |
-| **04** | Fixed issues with **Create Post Page**, implemented functional **Category View**, updated **Homepage** to display posts, and signed the Project Charter. | **DONE** |
+### Frontend Testing
 
-### Phase I Summary
-Focused on planning, UI design, project setup, and building core authentication and posting features.
+The frontend is tested with **[Vitest](https://vitest.dev/)**. Tests live under [frontend/tests/](frontend/tests/) and are organized into:
 
+- [frontend/tests/components/](frontend/tests/components/) - Unit tests for individual Vue components (admin, forum, user).
+- [frontend/tests/views/](frontend/tests/views/) - Tests for full page-level views (auth, forum, terms gate, etc.).
+- [frontend/tests/integration/](frontend/tests/integration/) - Integration tests that mount multiple components together with mocked API/router/store layers to verify complete feature flows (e.g., UserProfile, CommentSection).
 
-### Phase II: 🌷 Spring 2026 (CSC 191)
+**Run the frontend tests:**
 
-| Sprint | Key Features / Goals | Status |
-| ------ | ------------------- | ------ |
-| **05** | Adjustments to **Homepage** layout, convert the **Create Post Page into a Modal**, create the **Post View Page**, implement **Commenting**, and enable user **Post Reporting** functionality.| **TODO** |
-| **06** | Implement **Admin Panel** for role assignment, user **Notifications**, author **Post Editing Privileges**, and Admin/Mod post moderation (Move/Delete posts). | **TODO** |
-| **07** | Work on **Bug Fixes**, perform full-site **Testing**, and make necessary final adjustments based on testing results. | **TODO** |
-| **08** | Final application preparation and official environment **Deployment** for production. | **TODO** |
+```bash
+cd frontend
+npm install
+npx vitest run                 # run all tests
+npx vitest                     # run in watch mode
+npx vitest run path/to/file    # run a specific test file
+```
 
-### Phase II Summary
-TBD
+### Backend Testing
 
-### Key Milestones
-- Project Charter finalized  
-- Figma UI completed  
-- Authentication system implemented  
-- Admin Panel introduced  
-- Commenting and moderation added  
-- Full testing phase completed  
-- Deployment ready
+The backend is tested with **[PHPUnit](https://phpunit.de/)**. Tests live under [backend/tests/](backend/tests/) and are split into:
 
----
+- [backend/tests/](backend/tests/) — Controller-level unit tests (Auth, User, Post, Comment, Report, Admin, Terms).
+- [backend/tests/Integration/](backend/tests/Integration/) — Integration tests that exercise full request/response flows through the Slim app (e.g., creating and fetching posts, commenting on posts, user profile pages, notification settings).
 
-## 🧪 Testing 
-TBD
+**Run the backend tests:**
+
+```bash
+cd backend
+composer install
+./vendor/bin/phpunit                         # run all tests
+./vendor/bin/phpunit tests/NameOfTest.php    # run a specific test file
+./vendor/bin/phpunit tests/Integration       # run only integration tests
+```
+
+### Tested On
+
+The test suites have been verified against the following environment:
+
+| Component | Version |
+| :--- | :--- |
+| **OS** | Windows 11 Pro |
+| **Node.js** | v24.14.0 |
+| **npm** | 11.9.0 |
+| **PHP** | 8.3.26 (ZTS, VC++ 2019, x64) |
+| **Composer** | 2.8.12 |
+| **PHPUnit** | ^12.5 |
+
+Other versions may work but have not been validated. If you hit environment-related test failures, try matching the versions above.
 
 ---
 
@@ -322,7 +371,7 @@ This project is developed as part of the CSC 190/191 Senior Project sequence at
 We would like to thank:
 
 - **Instructor:** Dr. Kenneth Elliot  
-- **Lab Advisor:** Prof. Harvin Singh  
+- **Lab Advisor:** Prof. Harvin Singh & Maryam Siddique
 - **Office of Water Programs (OWP)** for partnering with us and providing project requirements and feedback.
 
 ---
@@ -341,7 +390,7 @@ We would like to thank:
 ---
 
 <p align="center">
- <img width="100" height="95" alt="Bug Busters Logo" src="https://github.com/user-attachments/assets/e83ab8a5-90ef-4d55-8795-6aac07eb77b2" />
+ <strong>Team Bug Busters</strong>
  <br>
- <strong>Copyright © 2025 OWP Forum | Team Bug Busters</strong>
+ <img width="120" height="95" alt="Bug Busters Logo" src="https://github.com/user-attachments/assets/e83ab8a5-90ef-4d55-8795-6aac07eb77b2" />
 </p>
