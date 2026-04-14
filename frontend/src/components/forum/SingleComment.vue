@@ -719,6 +719,11 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+.comment-body :deep(*) {
+  white-space: pre-wrap !important;
+  word-break: break-word !important;
+  overflow-wrap: anywhere !important;
+}
 .avatar-col {
   width: 40px;
   position: relative;
