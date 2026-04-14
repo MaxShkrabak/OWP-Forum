@@ -587,11 +587,11 @@ onMounted(async () => {
 
 .no-results-box button {
   margin-top: 12px;
-  background: #145a32;
+  background: linear-gradient(135deg, #064e3b 0%, #065f46 100%);
   color: white;
   border: none;
   padding: 6px 14px;
-  border-radius: 20px;
+  border-radius: 8px;
   font-weight: 600;
   cursor: pointer;
 }
