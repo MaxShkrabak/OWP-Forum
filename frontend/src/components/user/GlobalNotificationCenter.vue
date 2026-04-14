@@ -22,6 +22,7 @@ const RATE_WINDOW_MS = 60_000;
 const FETCH_COOLDOWN_MS = 30_000;
 
 let lastFetchedAt = 0;
+let refreshTimerId = null;
 
 function getMessage(item) {
   if (item.type === "postLike") {
@@ -160,18 +161,40 @@ async function loadNotifications() {
   }
 }
 
+function startRefreshTimer() {
+  if (refreshTimerId !== null) return;
+  if (document.visibilityState === "hidden") return;
+
+  refreshTimerId = window.setInterval(() => {
+    loadNotifications();
+  }, FETCH_COOLDOWN_MS);
+}
+
+function stopRefreshTimer() {
+  if (refreshTimerId === null) return;
+
+  window.clearInterval(refreshTimerId);
+  refreshTimerId = null;
+}
+
 function onVisibilityChange() {
   if (document.visibilityState === "visible") {
     loadNotifications();
+    startRefreshTimer();
+    return;
   }
+
+  stopRefreshTimer();
 }
 
 onMounted(() => {
   loadNotifications();
+  startRefreshTimer();
   document.addEventListener("visibilitychange", onVisibilityChange);
 });
 
 onBeforeUnmount(() => {
+  stopRefreshTimer();
   document.removeEventListener("visibilitychange", onVisibilityChange);
 });
 </script>

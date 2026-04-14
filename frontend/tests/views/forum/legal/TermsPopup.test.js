@@ -8,6 +8,17 @@
 import { mount } from "@vue/test-utils";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+const { mockTermsAccepted } = vi.hoisted(() => {
+  const vue = require("vue");
+  return {
+    mockTermsAccepted: vue.ref(false),
+  };
+});
+
+vi.mock("@/stores/userStore", () => ({
+  termsAccepted: mockTermsAccepted,
+}));
+
 import TermsModal from "@/components/legal/TermsModal.vue";
 
 const RouterLinkStub = {
@@ -30,6 +41,7 @@ import client from "@/api/client";
 describe("TermsModal.vue (unit)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockTermsAccepted.value = false;
   });
 
   it("shows links to Terms and Privacy policy", () => {
@@ -98,6 +110,7 @@ describe("TermsModal.vue (unit)", () => {
     await button.trigger("click");
 
     expect(client.post).toHaveBeenCalled();
+    expect(mockTermsAccepted.value).toBe(true);
     expect(wrapper.emitted("accepted")).toBeTruthy();
   });
 });

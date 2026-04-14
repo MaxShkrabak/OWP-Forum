@@ -179,6 +179,9 @@ class ReportController extends BaseController
             $tagId    = $body['tagID'] ?? null;
             $type     = $body['type'] ?? 'post';
 
+            $banResponse = \Forum\Helpers\checkUserBan($pdo, (int)$userId, $res);
+            if ($banResponse) return $banResponse;
+
             if (!$targetId || !$tagId) {
                 return json($res, ['ok' => false, 'error' => 'Missing required fields'], 400);
             }

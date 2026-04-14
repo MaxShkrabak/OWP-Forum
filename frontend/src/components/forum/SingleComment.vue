@@ -10,6 +10,10 @@ import {
   deleteComment as apiDeleteComment,
   formatCommentData,
 } from "@/api/comments";
+import {
+  createDeletedCommentPlaceholder,
+  normalizeDeletedCommentEvent,
+} from "@/utils/commentState";
 import { isLoggedIn, uid, userRole, userRoleId } from "@/stores/userStore";
 import TextEditor from "./TextEditor.vue";
 import ReportingModal from "../user/ReportingModal.vue";
@@ -277,6 +281,35 @@ const askDeleteComment = () => {
   showDeleteConfirm.value = true;
 };
 
+const handleDeletedReply = (payload) => {
+  const { id, keepPlaceholder } = normalizeDeletedCommentEvent(payload);
+
+  if (keepPlaceholder) {
+    localReplies.value = localReplies.value.map((reply) =>
+      reply.id === id
+        ? createDeletedCommentPlaceholder(reply)
+        : reply,
+    );
+  } else {
+    const previousLength = localReplies.value.length;
+    localReplies.value = localReplies.value.filter(
+      (reply) => reply.id !== id,
+    );
+
+    if (localReplies.value.length !== previousLength) {
+      props.comment.replyCount = Math.max(0, (props.comment.replyCount || 0) - 1);
+    }
+  }
+
+  emit("deleted", payload);
+};
+
+const shouldKeepDeletedPlaceholder = () => {
+  return (
+    Number(props.comment.replyCount || 0) > 0 || localReplies.value.length > 0
+  );
+};
+
 const confirmDeleteComment = async () => {
   if (isDeleting.value) return;
 
@@ -284,8 +317,13 @@ const confirmDeleteComment = async () => {
   try {
     const data = await apiDeleteComment(props.comment.id);
     if (data?.ok) {
+      const deletedPayload = {
+        id: props.comment.id,
+        keepPlaceholder: shouldKeepDeletedPlaceholder(),
+      };
+
       showDeleteConfirm.value = false;
-      emit("deleted", props.comment.id);
+      emit("deleted", deletedPayload);
     } else {
       alert(data?.error || "Failed to delete comment.");
     }
@@ -293,7 +331,6 @@ const confirmDeleteComment = async () => {
     alert("Failed to delete comment.");
   } finally {
     isDeleting.value = false;
-    window.location.reload();
   }
 };
 
@@ -600,7 +637,7 @@ onBeforeUnmount(() => {
             :comment="reply"
             :depth="depth + 1"
             :is-last-child="index === localReplies.length - 1"
-            @deleted="emit('deleted', $event)"
+            @deleted="handleDeletedReply"
           />
         </div>
       </div>

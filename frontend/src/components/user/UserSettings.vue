@@ -3,6 +3,10 @@ import { ref, computed, onMounted, watch } from "vue";
 import { updateUserAvatar } from "@/api/auth";
 import { getNotificationSettings, saveNotificationSettings } from "@/api/users";
 import { userAvatar } from "@/stores/userStore";
+import {
+  getNotificationPreferences,
+  saveNotificationPreferences as saveNotificationPreferencesLocal,
+} from "@/utils/notificationPreferences";
 
 const allImages = import.meta.glob(
   "/src/assets/img/user-pfps-premade/*.(png|jpeg|jpg|svg)",
@@ -14,6 +18,7 @@ const images = computed(() => {
 });
 
 const selectedAvatar = ref("");
+const originalAvatar = ref("");
 const notificationPrefs = ref({
   emailNotifications: true,
   pushNotifications: true,
@@ -21,29 +26,18 @@ const notificationPrefs = ref({
   postLikes: true,
 });
 
-const syncPrefsToLocalStorage = () => {
-  localStorage.setItem(
-    "notificationPreferences",
-    JSON.stringify(notificationPrefs.value),
-  );
-};
-
 // Load saved settings from localStorage + server
 const loadSettings = async () => {
   const savedAvatar =
     localStorage.getItem("userAvatar") || images.value[0] || "";
-  const savedNotifications = localStorage.getItem("notificationPreferences");
 
   selectedAvatar.value = savedAvatar;
+  originalAvatar.value = savedAvatar;
 
-  if (savedNotifications) {
-    try {
-      const prefs = JSON.parse(savedNotifications);
-      notificationPrefs.value = { ...notificationPrefs.value, ...prefs };
-    } catch (e) {
-      console.error("Failed to parse notification preferences", e);
-    }
-  }
+  notificationPrefs.value = {
+    ...notificationPrefs.value,
+    ...getNotificationPreferences(),
+  };
 
   try {
     const result = await getNotificationSettings();
@@ -52,7 +46,7 @@ const loadSettings = async () => {
         ...notificationPrefs.value,
         emailNotifications: !!result.settings.emailNotifications,
       };
-      syncPrefsToLocalStorage();
+      saveNotificationPreferencesLocal(notificationPrefs.value);
     }
   } catch (e) {
     console.error("Failed to load notification settings from server", e);
@@ -64,11 +58,16 @@ const saveSettings = async () => {
   try {
     const fullPath = selectedAvatar.value;
     const filename = fullPath.split("/").pop();
-    const avatarResult = await updateUserAvatar(filename);
+    const originalFilename = originalAvatar.value.split("/").pop();
+    const avatarChanged = filename !== originalFilename;
 
-    if (!avatarResult.ok) {
-      alert("Could not save your icon, please try again later.");
-      return;
+    if (avatarChanged) {
+      const avatarResult = await updateUserAvatar(filename);
+
+      if (!avatarResult.ok) {
+        alert("Could not save your icon, please try again later.");
+        return;
+      }
     }
 
     const notificationResult = await saveNotificationSettings({
@@ -79,6 +78,13 @@ const saveSettings = async () => {
     });
 
     if (!notificationResult.ok) {
+      if (avatarChanged) {
+        try {
+          await updateUserAvatar(originalFilename);
+        } catch (rollbackError) {
+          console.error("Failed to roll back avatar change", rollbackError);
+        }
+      }
       alert(
         "Could not save your notification preferences, please try again later.",
       );
@@ -86,8 +92,9 @@ const saveSettings = async () => {
     }
 
     localStorage.setItem("userAvatar", selectedAvatar.value);
-    syncPrefsToLocalStorage();
+    saveNotificationPreferencesLocal(notificationPrefs.value);
     userAvatar.value = selectedAvatar.value;
+    originalAvatar.value = selectedAvatar.value;
 
     const modalElement = document.getElementById("userSettingsModal");
     if (modalElement) {

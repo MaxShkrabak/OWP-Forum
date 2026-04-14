@@ -315,4 +315,15 @@ describe("CommentSection.vue", () => {
 
     userRoleId.value = 1; // reset for other tests
   });
+
+  it("keeps a deleted placeholder visible when a comment with replies is removed", async () => {
+    await flushPromises();
+
+    const comment = wrapper.findComponent({ name: "SingleComment" });
+    comment.vm.$emit("deleted", { id: 1, keepPlaceholder: true });
+    await flushPromises();
+
+    expect(wrapper.find(".comments-header").text()).toContain("Comments (14)");
+    expect(wrapper.text()).toContain("[deleted]");
+  });
 });

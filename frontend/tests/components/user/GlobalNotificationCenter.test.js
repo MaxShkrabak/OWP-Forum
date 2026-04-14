@@ -14,6 +14,21 @@ import { mount, flushPromises } from "@vue/test-utils";
 import GlobalNotificationCenter from "@/components/user/GlobalNotificationCenter.vue";
 
 const pushMock = vi.fn();
+const mountedWrappers = [];
+
+function mountCenter() {
+  const wrapper = mount(GlobalNotificationCenter);
+  mountedWrappers.push(wrapper);
+  return wrapper;
+}
+
+afterEach(() => {
+  while (mountedWrappers.length > 0) {
+    mountedWrappers.pop().unmount();
+  }
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+});
 
 vi.mock("vue-router", () => ({
   useRouter: () => ({
@@ -41,6 +56,7 @@ vi.mock("@/stores/userStore", () => ({
 describe("Global notifications — preference helpers", () => {
   beforeEach(() => {
     localStorage.clear();
+    localStorage.setItem("uid", "42");
   });
 
   it("returns default preferences when localStorage is empty", async () => {
@@ -55,7 +71,7 @@ describe("Global notifications — preference helpers", () => {
 
   it("disables notifications when pushNotifications is false", async () => {
     localStorage.setItem(
-      "notificationPreferences",
+      "notificationPreferences:42",
       JSON.stringify({
         pushNotifications: false,
         postLikes: true,
@@ -70,7 +86,7 @@ describe("Global notifications — preference helpers", () => {
 
   it("enables only the matching notification type", async () => {
     localStorage.setItem(
-      "notificationPreferences",
+      "notificationPreferences:42",
       JSON.stringify({
         pushNotifications: true,
         postLikes: true,
@@ -82,14 +98,38 @@ describe("Global notifications — preference helpers", () => {
     expect(mod.isNotificationEnabled("postLike")).toBe(true);
     expect(mod.isNotificationEnabled("postReply")).toBe(false);
   });
+
+  it("uses the current user's scoped preferences instead of another user's", async () => {
+    localStorage.setItem(
+      "notificationPreferences:7",
+      JSON.stringify({
+        pushNotifications: false,
+        postLikes: false,
+        postReplies: false,
+      }),
+    );
+    localStorage.setItem(
+      "notificationPreferences:42",
+      JSON.stringify({
+        pushNotifications: true,
+        postLikes: true,
+        postReplies: true,
+      }),
+    );
+
+    const mod = await import("@/utils/notificationPreferences");
+    expect(mod.isNotificationEnabled("postLike")).toBe(true);
+    expect(mod.isNotificationEnabled("postReply")).toBe(true);
+  });
 });
 
 describe("Global notifications — component behavior", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    localStorage.setItem("uid", "42");
     localStorage.setItem(
-      "notificationPreferences",
+      "notificationPreferences:42",
       JSON.stringify({
         emailNotifications: true,
         pushNotifications: true,
@@ -99,11 +139,6 @@ describe("Global notifications — component behavior", () => {
     );
 
     mockMarkNotificationsRead.mockResolvedValue({ ok: true });
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
-    vi.restoreAllMocks();
   });
 
   it("renders popup when unread allowed notifications are fetched", async () => {
@@ -121,7 +156,7 @@ describe("Global notifications — component behavior", () => {
       ],
     });
 
-    const wrapper = mount(GlobalNotificationCenter);
+    const wrapper = mountCenter();
     await flushPromises();
 
     expect(wrapper.text()).toContain("Post liked");
@@ -130,7 +165,7 @@ describe("Global notifications — component behavior", () => {
 
   it("does not render popup when matching preference is disabled", async () => {
     localStorage.setItem(
-      "notificationPreferences",
+      "notificationPreferences:42",
       JSON.stringify({
         emailNotifications: true,
         pushNotifications: true,
@@ -153,7 +188,7 @@ describe("Global notifications — component behavior", () => {
       ],
     });
 
-    const wrapper = mount(GlobalNotificationCenter);
+    const wrapper = mountCenter();
     await flushPromises();
 
     expect(wrapper.text()).not.toContain("Post liked");
@@ -175,7 +210,7 @@ describe("Global notifications — component behavior", () => {
       ],
     });
 
-    const wrapper = mount(GlobalNotificationCenter);
+    const wrapper = mountCenter();
     await flushPromises();
 
     const buttons = wrapper.findAll("button");
@@ -204,7 +239,7 @@ describe("Global notifications — component behavior", () => {
       ],
     });
 
-    const wrapper = mount(GlobalNotificationCenter);
+    const wrapper = mountCenter();
     await flushPromises();
 
     const buttons = wrapper.findAll("button");
@@ -235,7 +270,7 @@ describe("Global notifications — component behavior", () => {
       ],
     });
 
-    const wrapper = mount(GlobalNotificationCenter);
+    const wrapper = mountCenter();
     await flushPromises();
 
     expect(wrapper.text()).toContain("Auto dismiss post");
@@ -286,7 +321,7 @@ describe("Global notifications — component behavior", () => {
       ],
     });
 
-    const wrapper = mount(GlobalNotificationCenter);
+    const wrapper = mountCenter();
     await flushPromises();
 
     const popups = wrapper.findAll(".notification-popup");
@@ -299,11 +334,55 @@ describe("Global notifications — component behavior", () => {
 
     expect(mockMarkNotificationsRead).toHaveBeenCalledWith([4]);
   });
+
+  it("refreshes notifications while the tab stays visible", async () => {
+    vi.useFakeTimers();
+
+    mockFetchNotifications
+      .mockResolvedValueOnce({
+        ok: true,
+        items: [
+          {
+            notificationId: 701,
+            postId: 12,
+            type: "postLike",
+            isRead: false,
+            title: "First poll",
+            createdAt: "2026-03-19T12:00:00Z",
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        items: [
+          {
+            notificationId: 702,
+            postId: 13,
+            type: "postReply",
+            isRead: false,
+            title: "Second poll",
+            createdAt: "2026-03-19T12:00:30Z",
+          },
+        ],
+      });
+
+    const wrapper = mountCenter();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("First poll");
+
+    vi.advanceTimersByTime(30_000);
+    await flushPromises();
+
+    expect(mockFetchNotifications).toHaveBeenCalledTimes(2);
+    expect(wrapper.text()).toContain("Second poll");
+  });
 });
 
 it("discards notifications with disabled types and marks them as read", async () => {
+  localStorage.setItem("uid", "42");
   localStorage.setItem(
-    "notificationPreferences",
+    "notificationPreferences:42",
     JSON.stringify({
       emailNotifications: true,
       pushNotifications: true,
@@ -326,7 +405,7 @@ it("discards notifications with disabled types and marks them as read", async ()
     ],
   });
 
-  const wrapper = mount(GlobalNotificationCenter);
+  const wrapper = mountCenter();
   await flushPromises();
 
   expect(wrapper.text()).not.toContain("Disabled like");

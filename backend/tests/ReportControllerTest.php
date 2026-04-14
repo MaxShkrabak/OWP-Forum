@@ -49,12 +49,12 @@ class ReportControllerTest extends TestCase
             'tagID' => 2
         ]);
 
-        $this->pdo->expects($this->exactly(2))
+        $this->pdo->expects($this->exactly(3))
             ->method('prepare')
             ->willReturn($this->stmt);
 
         $this->stmt->method('execute')->willReturn(true);
-        $this->stmt->method('fetch')->willReturn(false);
+        $this->stmt->method('fetch')->willReturnOnConsecutiveCalls(false, false);
 
         $response = $this->controller->submitReport($req, new Response());
 
@@ -75,12 +75,12 @@ class ReportControllerTest extends TestCase
             'tagID' => 2
         ]);
 
-        $this->pdo->expects($this->once())
+        $this->pdo->expects($this->exactly(2))
             ->method('prepare')
             ->willReturn($this->stmt);
 
         $this->stmt->method('execute')->willReturn(true);
-        $this->stmt->method('fetch')->willReturn(['ReportID' => 2]);
+        $this->stmt->method('fetch')->willReturnOnConsecutiveCalls(false, ['ReportID' => 2]);
 
         $response = $this->controller->submitReport($req, new Response());
 
