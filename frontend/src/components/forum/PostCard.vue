@@ -122,6 +122,7 @@ watch(isLoggedIn, (loggedIn) => {
   }
 });
 
+// Styling for ONLY "Official" tag
 function isOfficialTag(name) {
   return name === "Official";
 }

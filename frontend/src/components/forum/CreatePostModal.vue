@@ -30,11 +30,9 @@ const showPublishedConfirmation = ref(false);
 
 const isPublishing = ref(false);
 
-// isRestricted = moderator editing another user's post metadata only (category, tags, comments toggle).
 // isEditMode = author editing their own post (full edit).
-// isCreateMode = new post.
+// isMetadataMode = moderator editing another user's post metadata only (category, tags, comments toggle).
 const isEditMode = computed(() => !!props.postData && !props.isRestricted);
-const isCreateMode = computed(() => !props.postData && !props.isRestricted);
 const isMetadataMode = computed(() => !!props.isRestricted);
 
 const form = ref({
@@ -52,8 +50,6 @@ const originalForm = ref({
   tags: [],
   disableComments: false,
 });
-
-const editor = ref(null);
 
 const showWarningDialog = ref(false);
 const showPublishConfirm = ref(false);
