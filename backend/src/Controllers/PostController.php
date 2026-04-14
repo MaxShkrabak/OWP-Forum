@@ -25,7 +25,7 @@ class PostController extends BaseController
             return ['error' => 'Post not found.', 'status' => 404];
         }
 
-        $roleStmt = $pdo->prepare("SELECT ISNULL(RoleID, 1) FROM dbo.Forum_Users WHERE User_ID = :uid");
+        $roleStmt = $pdo->prepare("SELECT ISNULL(RoleID, 1) FROM dbo.Forum_Users WHERE UserID = :uid");
         $roleStmt->execute(['uid' => $userId]);
         $userRoleId = (int)($roleStmt->fetchColumn() ?? 1);
         if ($userRoleId <= 0) $userRoleId = 1;
@@ -124,10 +124,10 @@ class PostController extends BaseController
                         c.Name AS CategoryName,
                         ISNULL(pv.VoteValue, 0) AS myVote
                 FROM dbo.Forum_Posts p
-                LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.User_ID
+                LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.UserID
                 LEFT JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
                 LEFT JOIN dbo.Forum_Categories c ON p.CategoryID = c.CategoryID
-                LEFT JOIN dbo.Forum_PostVotes pv ON p.PostID = pv.PostID AND pv.User_ID = :userId
+                LEFT JOIN dbo.Forum_PostVotes pv ON p.PostID = pv.PostID AND pv.UserID = :userId
                 WHERE p.PostID = :id AND p.IsDeleted = 0
             ";
 
@@ -239,7 +239,7 @@ public function searchPosts(Request $req, Response $res): Response
         $countSql = "
             SELECT COUNT(*)
             FROM dbo.Forum_Posts p
-            LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.User_ID
+            LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.UserID
             LEFT JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
             LEFT JOIN dbo.Forum_Categories c ON p.CategoryID = c.CategoryID
             $where
@@ -282,7 +282,7 @@ public function searchPosts(Request $req, Response $res): Response
                     u.FirstName,
                     u.LastName,
                     u.Avatar,
-                    u.User_ID,
+                    u.UserID,
                     r.Name AS RoleName,
                     c.Name AS CategoryName,
                     ISNULL(c.VisibleFromRoleID, 0) AS VisibleFromRoleID,
@@ -296,10 +296,10 @@ public function searchPosts(Request $req, Response $res): Response
                         ELSE 0
                     END AS IsPinned
                 FROM dbo.Forum_Posts p
-                LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.User_ID
+                LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.UserID
                 LEFT JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
                 LEFT JOIN dbo.Forum_Categories c ON p.CategoryID = c.CategoryID
-                LEFT JOIN dbo.Forum_PostVotes pv ON p.PostID = pv.PostID AND pv.User_ID = :userId
+                LEFT JOIN dbo.Forum_PostVotes pv ON p.PostID = pv.PostID AND pv.UserID = :userId
                 $where
             )
             SELECT *
@@ -351,7 +351,7 @@ public function searchPosts(Request $req, Response $res): Response
                 'visibleFromRoleId' => (int)($row['VisibleFromRoleID'] ?? 0),
                 'title' => $row['Title'],
                 'createdAt' => $row['CreatedAt'],
-                'authorId' => (int)($row['User_ID'] ?? 0),
+                'authorId' => (int)($row['UserID'] ?? 0),
                 'authorName' => trim(($row['FirstName'] ?? '') . ' ' . ($row['LastName'] ?? '')),
                 'authorRole' => $row['RoleName'] ?? 'User',
                 'authorAvatar' => $row['Avatar'] ?? null,
@@ -464,7 +464,7 @@ public function searchPosts(Request $req, Response $res): Response
             $countSql  = "
                 SELECT COUNT(*)
                 FROM dbo.Forum_Posts p
-                LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.User_ID
+                LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.UserID
                 WHERE p.CategoryID = :id AND p.IsDeleted = 0
                 AND p.PostID NOT IN (SELECT PostID FROM dbo.Forum_Pinned)
                 $searchWhere
@@ -503,12 +503,12 @@ public function searchPosts(Request $req, Response $res): Response
             $sql = "
                 SELECT p.PostID, p.Title, p.CreatedAt, p.TotalScore,
                        (SELECT COUNT(*) FROM dbo.Forum_Comments cm WHERE cm.PostID = p.PostID AND cm.IsDeleted = 0) AS commentCount,
-                       u.FirstName, u.LastName, u.Avatar, u.User_ID, r.Name AS RoleName,
+                       u.FirstName, u.LastName, u.Avatar, u.UserID, r.Name AS RoleName,
                        ISNULL(pv.VoteValue, 0) AS myVote
                 FROM dbo.Forum_Posts p
-                LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.User_ID
+                LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.UserID
                 LEFT JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
-                LEFT JOIN dbo.Forum_PostVotes pv ON p.PostID = pv.PostID AND pv.User_ID = :userId
+                LEFT JOIN dbo.Forum_PostVotes pv ON p.PostID = pv.PostID AND pv.UserID = :userId
                 WHERE p.CategoryID = :categoryId AND p.IsDeleted = 0
                 AND p.PostID NOT IN (SELECT PostID FROM dbo.Forum_Pinned)
                 $searchWhere
@@ -544,7 +544,7 @@ public function searchPosts(Request $req, Response $res): Response
                         'postId'       => $pid,
                         'title'        => $row['Title'],
                         'createdAt'    => $row['CreatedAt'],
-                        'authorId'     => (int)($row['User_ID'] ?? 0),
+                        'authorId'     => (int)($row['UserID'] ?? 0),
                         'authorName'   => trim(($row['FirstName'] ?? '') . ' ' . ($row['LastName'] ?? '')),
                         'authorRole'   => $row['RoleName'] ?? 'User',
                         'authorAvatar' => $row['Avatar'] ?? null,
@@ -627,7 +627,7 @@ public function searchPosts(Request $req, Response $res): Response
             $sql = "
                 SELECT TagID, Name
                 FROM dbo.Forum_Tags
-                WHERE UsableByRoleID <= ISNULL((SELECT RoleID FROM dbo.Forum_Users WHERE User_ID = :userId), 1)
+                WHERE UsableByRoleID <= ISNULL((SELECT RoleID FROM dbo.Forum_Users WHERE UserID = :userId), 1)
                 ORDER BY Name ASC
             ";
 
@@ -715,16 +715,16 @@ public function searchPosts(Request $req, Response $res): Response
                         u.FirstName,
                         u.LastName,
                         u.Avatar,
-                        u.User_ID,
+                        u.UserID,
                         r.Name AS RoleName,
                         c.Name AS CategoryName,
                         ISNULL(c.VisibleFromRoleID, 0) AS VisibleFromRoleID,
                         ISNULL(pv.VoteValue, 0) AS myVote
                     FROM dbo.Forum_Posts p
-                    LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.User_ID
+                    LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.UserID
                     LEFT JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
                     LEFT JOIN dbo.Forum_Categories c ON p.CategoryID = c.CategoryID
-                    LEFT JOIN dbo.Forum_PostVotes pv ON p.PostID = pv.PostID AND pv.User_ID = :userId
+                    LEFT JOIN dbo.Forum_PostVotes pv ON p.PostID = pv.PostID AND pv.UserID = :userId
                     WHERE p.IsDeleted = 0
                 ),
                 RankedPosts AS (
@@ -753,16 +753,16 @@ public function searchPosts(Request $req, Response $res): Response
                         u.FirstName,
                         u.LastName,
                         u.Avatar,
-                        u.User_ID,
+                        u.UserID,
                         r.Name AS RoleName,
                         c.Name AS CategoryName,
                         ISNULL(c.VisibleFromRoleID, 0) AS VisibleFromRoleID,
                         ISNULL(pv.VoteValue, 0) AS myVote
                     FROM dbo.Forum_Posts p
-                    LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.User_ID
+                    LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.UserID
                     LEFT JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
                     LEFT JOIN dbo.Forum_Categories c ON p.CategoryID = c.CategoryID
-                    LEFT JOIN dbo.Forum_PostVotes pv ON p.PostID = pv.PostID AND pv.User_ID = :userId
+                    LEFT JOIN dbo.Forum_PostVotes pv ON p.PostID = pv.PostID AND pv.UserID = :userId
                     WHERE p.IsDeleted = 0
                       AND ISNULL(c.VisibleFromRoleID, 0) <= :roleIdVisible
                 ),
@@ -802,7 +802,7 @@ public function searchPosts(Request $req, Response $res): Response
                     'categoryId' => $catId,
                     'title' => $row['Title'],
                     'createdAt' => $row['CreatedAt'],
-                    'authorId' => (int)($row['User_ID'] ?? 0),
+                    'authorId' => (int)($row['UserID'] ?? 0),
                     'authorName' => trim(($row['FirstName'] ?? '') . ' ' . ($row['LastName'] ?? '')),
                     'authorRole' => $row['RoleName'] ?? 'User',
                     'authorAvatar' => $row['Avatar'] ?? null,
@@ -849,8 +849,11 @@ public function searchPosts(Request $req, Response $res): Response
             $userId = (int)($req->getAttribute("user_id") ?? 0);
             $userRoleId = $this->getUserRoleId($pdo, $userId);
 
-            if ($userRoleId >= 4) {
-                $sql = "
+            $visibilityClause = $userRoleId >= 4
+                ? ''
+                : 'AND ISNULL(c.VisibleFromRoleID, 0) <= :roleIdVisible';
+
+            $sql = "
                 SELECT
                     p.PostID,
                     p.Title,
@@ -861,59 +864,29 @@ public function searchPosts(Request $req, Response $res): Response
                     u.FirstName,
                     u.LastName,
                     u.Avatar,
-                    u.User_ID,
+                    u.UserID,
                     r.Name AS RoleName,
                     c.Name AS CategoryName,
                     ISNULL(c.VisibleFromRoleID, 0) AS VisibleFromRoleID,
                     ISNULL(pv.VoteValue, 0) AS myVote
                 FROM dbo.Forum_Pinned pin
                 INNER JOIN dbo.Forum_Posts p ON pin.PostID = p.PostID
-                LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.User_ID
+                LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.UserID
                 LEFT JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
                 LEFT JOIN dbo.Forum_Categories c ON p.CategoryID = c.CategoryID
-                LEFT JOIN dbo.Forum_PostVotes pv ON p.PostID = pv.PostID AND pv.User_ID = :userId
+                LEFT JOIN dbo.Forum_PostVotes pv ON p.PostID = pv.PostID AND pv.UserID = :userId
                 WHERE p.IsDeleted = 0
+                  {$visibilityClause}
                 ORDER BY pin.CreatedAt DESC, p.CreatedAt DESC
             ";
 
-                $stmt = $pdo->prepare($sql);
-                $stmt->execute([
-                    ':userId' => $userId,
-                ]);
-            } else {
-                $sql = "
-                SELECT
-                    p.PostID,
-                    p.Title,
-                    p.CreatedAt,
-                    p.CategoryID,
-                    p.TotalScore,
-                    (SELECT COUNT(*) FROM dbo.Forum_Comments cm WHERE cm.PostID = p.PostID AND cm.IsDeleted = 0) AS commentCount,
-                    u.FirstName,
-                    u.LastName,
-                    u.Avatar,
-                    u.User_ID,
-                    r.Name AS RoleName,
-                    c.Name AS CategoryName,
-                    ISNULL(c.VisibleFromRoleID, 0) AS VisibleFromRoleID,
-                    ISNULL(pv.VoteValue, 0) AS myVote
-                FROM dbo.Forum_Pinned pin
-                INNER JOIN dbo.Forum_Posts p ON pin.PostID = p.PostID
-                LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.User_ID
-                LEFT JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
-                LEFT JOIN dbo.Forum_Categories c ON p.CategoryID = c.CategoryID
-                LEFT JOIN dbo.Forum_PostVotes pv ON p.PostID = pv.PostID AND pv.User_ID = :userId
-                WHERE p.IsDeleted = 0
-                  AND ISNULL(c.VisibleFromRoleID, 0) <= :roleIdVisible
-                ORDER BY pin.CreatedAt DESC, p.CreatedAt DESC
-            ";
-
-                $stmt = $pdo->prepare($sql);
-                $stmt->execute([
-                    ':userId' => $userId,
-                    ':roleIdVisible' => $userRoleId,
-                ]);
+            $params = [':userId' => $userId];
+            if ($userRoleId < 4) {
+                $params[':roleIdVisible'] = $userRoleId;
             }
+
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
 
             $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -935,7 +908,7 @@ public function searchPosts(Request $req, Response $res): Response
                     'visibleFromRoleId' => (int)($row['VisibleFromRoleID'] ?? 0),
                     'title' => $row['Title'],
                     'createdAt' => $row['CreatedAt'],
-                    'authorId' => (int)($row['User_ID'] ?? 0),
+                    'authorId' => (int)($row['UserID'] ?? 0),
                     'authorName' => trim(($row['FirstName'] ?? '') . ' ' . ($row['LastName'] ?? '')),
                     'authorRole' => $row['RoleName'] ?? 'User',
                     'authorAvatar' => $row['Avatar'] ?? null,
@@ -984,6 +957,12 @@ public function searchPosts(Request $req, Response $res): Response
                 return json($res, ['ok' => false, 'error' => 'Title, content, and category are required.'], 400);
             }
 
+            if (mb_strlen($content) > 50000) {
+                return json($res, ['ok' => false, 'error' => 'Content must be 50,000 characters or fewer.'], 400);
+            }
+
+            $content = \Forum\Helpers\sanitizeHtml($content);
+
             $tagsIn = (array)($data['tags'] ?? []);
             $tagsIn = array_values(array_unique(array_map('intval', $tagsIn)));
             $tagsIn = array_slice(array_filter($tagsIn, fn($v) => $v > 0), 0, 5);
@@ -997,7 +976,7 @@ public function searchPosts(Request $req, Response $res): Response
             $roleStmt = $pdo->prepare("
                 SELECT ISNULL(RoleID, 1)
                 FROM dbo.Forum_Users
-                WHERE User_ID = :uid
+                WHERE UserID = :uid
             ");
             $roleStmt->execute([':uid' => $userId]);
             $currentRoleId = (int)($roleStmt->fetchColumn() ?? 1);
@@ -1123,7 +1102,7 @@ public function searchPosts(Request $req, Response $res): Response
                 $checkTagsSql = "
                     SELECT TagID FROM dbo.Forum_Tags 
                     WHERE TagID IN ($placeholders)
-                    AND UsableByRoleID <= ISNULL((SELECT RoleID FROM dbo.Forum_Users WHERE User_ID = ?), 1)
+                    AND UsableByRoleID <= ISNULL((SELECT RoleID FROM dbo.Forum_Users WHERE UserID = ?), 1)
                 ";
 
                 $checkStmt = $pdo->prepare($checkTagsSql);
@@ -1174,19 +1153,19 @@ public function searchPosts(Request $req, Response $res): Response
 
             $val = ($action === 'up') ? 1 : (($action === 'down') ? -1 : 0);
 
-            $prevStmt = $pdo->prepare("SELECT VoteValue FROM dbo.Forum_PostVotes WHERE PostID = ? AND User_ID = ?");
+            $prevStmt = $pdo->prepare("SELECT VoteValue FROM dbo.Forum_PostVotes WHERE PostID = ? AND UserID = ?");
             $prevStmt->execute([$postId, $userId]);
             $previousVote = $prevStmt->fetchColumn();
             $previousVote = ($previousVote === false) ? 0 : (int)$previousVote;
 
             $pdo->prepare("
                 MERGE dbo.Forum_PostVotes AS target
-                USING (SELECT ? AS PostID, ? AS User_ID, ? AS VoteValue) AS source
-                    ON target.PostID = source.PostID AND target.User_ID = source.User_ID
+                USING (SELECT ? AS PostID, ? AS UserID, ? AS VoteValue) AS source
+                    ON target.PostID = source.PostID AND target.UserID = source.UserID
                 WHEN MATCHED AND source.VoteValue = 0 THEN DELETE
                 WHEN MATCHED THEN UPDATE SET VoteValue = source.VoteValue
                 WHEN NOT MATCHED AND source.VoteValue != 0 THEN
-                    INSERT (PostID, User_ID, VoteValue) VALUES (source.PostID, source.User_ID, source.VoteValue);
+                    INSERT (PostID, UserID, VoteValue) VALUES (source.PostID, source.UserID, source.VoteValue);
             ")->execute([$postId, $userId, $val]);
 
             if ($val === 1 && $previousVote !== 1) {
@@ -1241,12 +1220,12 @@ public function searchPosts(Request $req, Response $res): Response
                 SELECT ISNULL(r.Name, '') AS RoleName
                 FROM dbo.Forum_Users u
                 LEFT JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
-                WHERE u.User_ID = :uid
+                WHERE u.UserID = :uid
             ");
             $roleStmt->execute([':uid' => $userId]);
             $roleName = trim((string)$roleStmt->fetchColumn());
 
-            if (strtolower($roleName) !== 'admin') {
+            if (strtolower($roleName) !== 'admin' && strtolower($roleName) !== 'moderator') {
                 return json($res, ['ok' => false, 'error' => 'Forbidden'], 403);
             }
 
@@ -1262,35 +1241,43 @@ public function searchPosts(Request $req, Response $res): Response
                 return json($res, ['ok' => false, 'error' => 'Post not found.'], 404);
             }
 
-            $checkStmt = $pdo->prepare("SELECT 1 FROM dbo.Forum_Pinned WHERE PostID = :pid");
+            $pdo->beginTransaction();
+
+            $checkStmt = $pdo->prepare("SELECT 1 FROM dbo.Forum_Pinned WITH (UPDLOCK, ROWLOCK) WHERE PostID = :pid");
             $checkStmt->execute([':pid' => $postId]);
             $alreadyPinned = (bool)$checkStmt->fetchColumn();
 
             if ($alreadyPinned) {
                 $deleteStmt = $pdo->prepare("DELETE FROM dbo.Forum_Pinned WHERE PostID = :pid");
                 $deleteStmt->execute([':pid' => $postId]);
+                $pdo->commit();
 
                 return json($res, ['ok' => true, 'isPinned' => false]);
             }
 
             $limitStmt = $pdo->prepare("
-                SELECT COUNT(*) FROM dbo.Forum_Pinned pin
+                SELECT COUNT(*) FROM dbo.Forum_Pinned pin WITH (HOLDLOCK)
                 JOIN dbo.Forum_Posts p ON p.PostID = pin.PostID
                 WHERE p.CategoryID = :categoryId
             ");
             $limitStmt->execute([':categoryId' => $post['CategoryID']]);
             if ((int)$limitStmt->fetchColumn() >= 2) {
-                return json($res, ['ok' => false, 'error' => 'Maximum of 2 pinned posts per category reached.']);
+                $pdo->rollBack();
+                return json($res, ['ok' => false, 'error' => 'Maximum of 2 pinned posts per category reached.'], 409);
             }
 
             $insertStmt = $pdo->prepare("INSERT INTO dbo.Forum_Pinned (PostID) VALUES (:pid)");
             $insertStmt->execute([':pid' => $postId]);
+            $pdo->commit();
 
             return json($res, [
                 'ok' => true,
                 'isPinned' => true
             ]);
         } catch (Throwable $e) {
+            if (isset($pdo) && $pdo instanceof PDO && $pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
             return json($res, ['ok' => false, 'error' => 'Failed to update pin.'], 500);
         }
     }
@@ -1371,6 +1358,12 @@ public function searchPosts(Request $req, Response $res): Response
             if ($title === '' || $content === '' || $categoryIdIn === 0) {
                 return json($res, ['ok' => false, 'error' => 'Title, content, and category are required.'], 400);
             }
+
+            if (mb_strlen($content) > 50000) {
+                return json($res, ['ok' => false, 'error' => 'Content must be 50,000 characters or fewer.'], 400);
+            }
+
+            $content = \Forum\Helpers\sanitizeHtml($content);
 
             $tagsIn = (array)($data['tags'] ?? []);
             $tagsIn = array_values(array_unique(array_map('intval', $tagsIn)));

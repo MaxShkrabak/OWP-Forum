@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
 import { getAdminTags, createTag, updateTag, deleteTag } from "@/api/admin";
-import { useAdminRoles } from "@/composables/useAdminRoles";
+import { useAdminRoles } from "@/utils/useAdminRoles";
 import { normalizeName, isDuplicateName } from "@/utils/string";
 
 const q = ref("");

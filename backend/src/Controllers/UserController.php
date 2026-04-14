@@ -31,7 +31,7 @@ final class UserController extends BaseController
             $pdo = ($this->makePdo)();
 
             $pdo->prepare("
-                UPDATE dbo.Forum_Users SET Avatar = :avatar WHERE User_ID = :uid
+                UPDATE dbo.Forum_Users SET Avatar = :avatar WHERE UserID = :uid
             ")->execute([':avatar' => $avatarFilename, ':uid' => $userId]);
 
             return json($res, [
@@ -40,7 +40,8 @@ final class UserController extends BaseController
                 'newAvatar' => $avatarFilename,
             ]);
         } catch (Throwable $e) {
-            return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+            error_log($e->getMessage());
+            return json($res, ['ok' => false, 'error' => 'Internal server error.'], 500);
         }
     }
 
@@ -50,8 +51,8 @@ final class UserController extends BaseController
             [$err, $pdo, $userId] = $this->requireAuth($req, $res);
             if ($err !== null) return $err;
             $stmt = $pdo->prepare("
-                SELECT ISNULL(EmailNotificationsEnabled, 1) as EmailNotificationsEnabled
-                FROM dbo.Forum_Users WHERE User_ID = :uid
+                SELECT ISNULL(EmailNotificationsEnabled, 1) AS EmailNotificationsEnabled
+                FROM dbo.Forum_Users WHERE UserID = :uid
             ");
             $stmt->execute([':uid' => $userId]);
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -67,7 +68,8 @@ final class UserController extends BaseController
                 ],
             ]);
         } catch (Throwable $e) {
-            return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+            error_log($e->getMessage());
+            return json($res, ['ok' => false, 'error' => 'Internal server error.'], 500);
         }
     }
 
@@ -88,7 +90,7 @@ final class UserController extends BaseController
             }
 
             $pdo->prepare("
-                UPDATE dbo.Forum_Users SET EmailNotificationsEnabled = :enabled WHERE User_ID = :uid
+                UPDATE dbo.Forum_Users SET EmailNotificationsEnabled = :enabled WHERE UserID = :uid
             ")->execute([':enabled' => $emailNotifications ? 1 : 0, ':uid' => $userId]);
 
             return json($res, [
@@ -96,7 +98,8 @@ final class UserController extends BaseController
                 'settings' => ['emailNotifications' => $emailNotifications],
             ]);
         } catch (Throwable $e) {
-            return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+            error_log($e->getMessage());
+            return json($res, ['ok' => false, 'error' => 'Internal server error.'], 500);
         }
     }
 
@@ -110,7 +113,7 @@ final class UserController extends BaseController
                 SELECT TOP 20
                     n.NotificationID,
                     n.PostID,
-                    n.[Type],
+                    n.NotificationType,
                     n.IsRead,
                     n.CreatedAt,
                     p.Title
@@ -130,7 +133,7 @@ final class UserController extends BaseController
                 return [
                     'notificationId' => (int)$row['NotificationID'],
                     'postId'         => (int)$row['PostID'],
-                    'type'           => (string)$row['Type'],
+                    'type'           => (string)$row['NotificationType'],
                     'isRead'         => (bool)$row['IsRead'],
                     'title'          => (string)$row['Title'],
                     'createdAt'      => $row['CreatedAt']
@@ -139,7 +142,8 @@ final class UserController extends BaseController
 
             return json($res, ['ok' => true, 'items' => $items]);
         } catch (Throwable $e) {
-            return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+            error_log($e->getMessage());
+            return json($res, ['ok' => false, 'error' => 'Internal server error.'], 500);
         }
     }
 
@@ -160,7 +164,8 @@ final class UserController extends BaseController
 
             return json($res, ['ok' => $ok]);
         } catch (Throwable $e) {
-            return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+            error_log($e->getMessage());
+            return json($res, ['ok' => false, 'error' => 'Internal server error.'], 500);
         }
     }
 
@@ -172,13 +177,14 @@ final class UserController extends BaseController
 
             $pdo->prepare("
                 UPDATE dbo.Forum_Users
-                SET termsAccepted = 1, termsAcceptedAt = GETDATE()
-                WHERE User_ID = :uid
+                SET TermsAccepted = 1, TermsAcceptedAt = SYSUTCDATETIME()
+                WHERE UserID = :uid
             ")->execute([':uid' => $userId]);
 
             return json($res, ['ok' => true], 200);
         } catch (Throwable $e) {
-            return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+            error_log($e->getMessage());
+            return json($res, ['ok' => false, 'error' => 'Internal server error.'], 500);
         }
     }
 
@@ -186,8 +192,8 @@ final class UserController extends BaseController
     {
         $pdo->prepare("
             UPDATE dbo.Forum_Users
-            SET termsAccepted = 1, termsAcceptedAt = GETDATE()
-            WHERE User_ID = :uid
+            SET TermsAccepted = 1, TermsAcceptedAt = SYSUTCDATETIME()
+            WHERE UserID = :uid
         ")->execute([':uid' => $userId]);
     }
 
@@ -198,10 +204,10 @@ final class UserController extends BaseController
             $pdo = ($this->makePdo)();
 
             $stmt = $pdo->prepare("
-                SELECT User_ID, FirstName, LastName, Avatar, Name AS RoleName
+                SELECT u.UserID, u.FirstName, u.LastName, u.Avatar, r.Name AS RoleName
                 FROM dbo.Forum_Users u
                 LEFT JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
-                WHERE User_ID = :uid
+                WHERE u.UserID = :uid
             ");
             $stmt->execute([':uid' => $userId]);
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -211,14 +217,15 @@ final class UserController extends BaseController
             }
 
             return json($res, ['ok' => true, 'user' => [
-                'userId'    => (int)$user['User_ID'],
+                'userId'    => (int)$user['UserID'],
                 'firstName' => $user['FirstName'],
                 'lastName'  => $user['LastName'],
                 'avatar'    => $user['Avatar'],
                 'roleName'  => $user['RoleName'],
             ]]);
         } catch (Throwable $e) {
-            return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+            error_log($e->getMessage());
+            return json($res, ['ok' => false, 'error' => 'Internal server error.'], 500);
         }
     }
 
@@ -246,7 +253,8 @@ final class UserController extends BaseController
                 ],
             ]);
         } catch (Throwable $e) {
-            return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+            error_log($e->getMessage());
+            return json($res, ['ok' => false, 'error' => 'Internal server error.'], 500);
         }
     }
 
@@ -281,14 +289,14 @@ final class UserController extends BaseController
             $getPostsSql = "
                 SELECT p.AuthorID, p.PostID, p.Title, p.CreatedAt, p.TotalScore,
                        (SELECT COUNT(*) FROM dbo.Forum_Comments cm WHERE cm.PostID = p.PostID AND cm.IsDeleted = 0) AS commentCount,
-                       u.FirstName, u.LastName, u.Avatar, u.User_ID,
+                       u.FirstName, u.LastName, u.Avatar, u.UserID,
                        r.Name AS RoleName,
                        ISNULL(pv.VoteValue, 0) AS myVote,
                        CASE WHEN pin.PostID IS NOT NULL THEN 1 ELSE 0 END AS isPinned
                 FROM dbo.Forum_Posts p
-                LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.User_ID
+                LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.UserID
                 LEFT JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
-                LEFT JOIN dbo.Forum_PostVotes pv ON p.PostID = pv.PostID AND pv.User_ID = :viewerId
+                LEFT JOIN dbo.Forum_PostVotes pv ON p.PostID = pv.PostID AND pv.UserID = :viewerId
                 LEFT JOIN dbo.Forum_Pinned pin ON p.PostID = pin.PostID
                 WHERE p.AuthorID = :uid AND p.IsDeleted = 0
                 ORDER BY $orderBy
@@ -319,7 +327,7 @@ final class UserController extends BaseController
                     'postId'       => $pid,
                     'title'        => $row['Title'],
                     'createdAt'    => $row['CreatedAt'],
-                    'authorId'     => (int)($row['User_ID'] ?? 0),
+                    'authorId'     => (int)($row['UserID'] ?? 0),
                     'authorName'   => trim(($row['FirstName'] ?? '') . ' ' . ($row['LastName'] ?? '')),
                     'authorRole'   => $row['RoleName'] ?? 'User',
                     'authorAvatar' => $row['Avatar'] ?? null,
@@ -346,7 +354,8 @@ final class UserController extends BaseController
                 ],
             ]);
         } catch (Throwable $e) {
-            return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+            error_log($e->getMessage());
+            return json($res, ['ok' => false, 'error' => 'Internal server error.'], 500);
         }
     }
 
@@ -374,7 +383,7 @@ final class UserController extends BaseController
                 SELECT COUNT(*)
                 FROM dbo.Forum_PostVotes pov
                 JOIN dbo.Forum_Posts p ON p.PostID = pov.PostID
-                WHERE pov.User_ID = :uid AND pov.VoteValue = 1 AND p.IsDeleted = 0
+                WHERE pov.UserID = :uid AND pov.VoteValue = 1 AND p.IsDeleted = 0
             ");
             $countStmt->execute([':uid' => $profileUserId]);
             $totalPosts = (int)$countStmt->fetchColumn();
@@ -386,17 +395,17 @@ final class UserController extends BaseController
             $stmt = $pdo->prepare("
                 SELECT p.PostID, p.Title, p.CreatedAt, p.TotalScore,
                        (SELECT COUNT(*) FROM dbo.Forum_Comments cm WHERE cm.PostID = p.PostID AND cm.IsDeleted = 0) AS commentCount,
-                       u.FirstName, u.LastName, u.Avatar, u.User_ID,
+                       u.FirstName, u.LastName, u.Avatar, u.UserID,
                        r.Name AS RoleName,
                        ISNULL(pv.VoteValue, 0) AS myVote,
                        CASE WHEN pin.PostID IS NOT NULL THEN 1 ELSE 0 END AS isPinned
                 FROM dbo.Forum_PostVotes pov
                 JOIN dbo.Forum_Posts p ON p.PostID = pov.PostID
-                LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.User_ID
+                LEFT JOIN dbo.Forum_Users u ON p.AuthorID = u.UserID
                 LEFT JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
-                LEFT JOIN dbo.Forum_PostVotes pv ON p.PostID = pv.PostID AND pv.User_ID = :viewerId
+                LEFT JOIN dbo.Forum_PostVotes pv ON p.PostID = pv.PostID AND pv.UserID = :viewerId
                 LEFT JOIN dbo.Forum_Pinned pin ON p.PostID = pin.PostID
-                WHERE pov.User_ID = :profileId AND pov.VoteValue = 1 AND p.IsDeleted = 0
+                WHERE pov.UserID = :profileId AND pov.VoteValue = 1 AND p.IsDeleted = 0
                 ORDER BY $orderBy
                 OFFSET :offset ROWS FETCH NEXT :limit ROWS ONLY
             ");
@@ -416,10 +425,7 @@ final class UserController extends BaseController
             }
 
             $postIds = array_map(fn($r) => (int)$r['PostID'], $rows);
-            $placeholders = implode(',', array_fill(0, count($postIds), '?'));
-
             $tagsByPostId = fetchTagNamesByPostIds($pdo, $postIds);
-            $likeCounts = fetchCounts($pdo, 'dbo.PostLikes', $placeholders, $postIds, 'LikeCount');
 
             $posts = [];
             foreach ($rows as $row) {
@@ -428,13 +434,12 @@ final class UserController extends BaseController
                     'postId'       => $pid,
                     'title'        => $row['Title'],
                     'createdAt'    => $row['CreatedAt'],
-                    'authorId'     => (int)($row['User_ID'] ?? 0),
+                    'authorId'     => (int)($row['UserID'] ?? 0),
                     'authorName'   => trim(($row['FirstName'] ?? '') . ' ' . ($row['LastName'] ?? '')),
                     'authorRole'   => $row['RoleName'] ?? 'User',
                     'authorAvatar' => $row['Avatar'] ?? null,
                     'tags'         => $tagsByPostId[$pid] ?? [],
                     'commentCount' => (int)($row['commentCount'] ?? 0),
-                    'likeCount'    => $likeCounts[$pid] ?? 0,
                     'totalScore'   => (int)($row['TotalScore'] ?? 0),
                     'myVote'       => (int)($row['myVote'] ?? 0),
                     'isPinned'     => (bool)($row['isPinned'] ?? false),
@@ -453,7 +458,8 @@ final class UserController extends BaseController
                 ],
             ]);
         } catch (Throwable $e) {
-            return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+            error_log($e->getMessage());
+            return json($res, ['ok' => false, 'error' => 'Internal server error.'], 500);
         }
     }
 }

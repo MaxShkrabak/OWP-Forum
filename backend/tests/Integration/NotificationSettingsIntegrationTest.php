@@ -51,12 +51,12 @@ final class NotificationSettingsIntegrationTest extends TestCase
         }
 
         foreach (array_unique($this->sessionHashes) as $sessionHash) {
-            $this->pdo->prepare('DELETE FROM dbo.Forum_Sessions WHERE Token_Hash = :hash')
+            $this->pdo->prepare('DELETE FROM dbo.Forum_Sessions WHERE TokenHash = :hash')
                 ->execute([':hash' => $sessionHash]);
         }
 
         foreach (array_reverse(array_unique($this->userIds)) as $userId) {
-            $this->pdo->prepare('DELETE FROM dbo.Forum_Users WHERE User_ID = :id')
+            $this->pdo->prepare('DELETE FROM dbo.Forum_Users WHERE UserID = :id')
                 ->execute([':id' => $userId]);
         }
     }
@@ -97,7 +97,7 @@ final class NotificationSettingsIntegrationTest extends TestCase
         self::assertTrue($finalJson['ok']);
         self::assertFalse($finalJson['settings']['emailNotifications']);
 
-        $stmt = $this->pdo->prepare("SELECT emailNotificationsEnabled FROM dbo.Forum_Users WHERE User_ID = :id");
+        $stmt = $this->pdo->prepare("SELECT emailNotificationsEnabled FROM dbo.Forum_Users WHERE UserID = :id");
         $stmt->execute([':id' => $userId]);
 
         self::assertSame(0, (int)$stmt->fetchColumn());
@@ -110,7 +110,7 @@ final class NotificationSettingsIntegrationTest extends TestCase
         self::assertGreaterThan(0, $roleId, 'User role not found in database.');
 
         $stmt = $this->pdo->prepare("INSERT INTO dbo.Forum_Users (Email, FirstName, LastName, EmailVerified, termsAccepted, RoleID, emailNotificationsEnabled) 
-        OUTPUT INSERTED.User_ID
+        OUTPUT INSERTED.UserID
         VALUES (:email, :firstName, :lastName, :emailVerified, :termsAccepted, :roleId, :emailNotifications)");
         
         $stmt->execute([
@@ -133,7 +133,7 @@ final class NotificationSettingsIntegrationTest extends TestCase
         $sessionHash = bin2hex(random_bytes(32));
         $tokenHash = hash_hmac('sha256', $sessionHash, $_ENV['HMAC_KEY']);
 
-        $stmt = $this->pdo->prepare("INSERT INTO dbo.Forum_Sessions (User_ID, Token_Hash, Expires) VALUES (:userId, :hash, DATEADD(HOUR, 24, SYSUTCDATETIME()))");
+        $stmt = $this->pdo->prepare("INSERT INTO dbo.Forum_Sessions (UserID, TokenHash, ExpiresAt) VALUES (:userId, :hash, DATEADD(HOUR, 24, SYSUTCDATETIME()))");
         $stmt->execute([':userId' => $userId, ':hash' => $tokenHash]);
         $this->sessionHashes[] = $tokenHash;
 

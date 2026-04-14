@@ -6,7 +6,7 @@ import {
   updateCategory,
   deleteCategory,
 } from "@/api/admin";
-import { useAdminRoles } from "@/composables/useAdminRoles";
+import { useAdminRoles } from "@/utils/useAdminRoles";
 import { isDuplicateName } from "@/utils/string";
 
 const { roles, loadRoles, roleLabel } = useAdminRoles();

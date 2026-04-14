@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import { useEditor, EditorContent } from "@tiptap/vue-3";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
@@ -37,6 +37,9 @@ const activeHighlightColor = ref(DEFAULT_HIGHLIGHT_COLOR);
 
 const editor = useEditor({
   content: props.modelValue,
+  parseOptions: {
+    preserveWhitespace: "full",
+  },
   extensions: [
     StarterKit.configure({ underline: false, link: false }),
     Underline,
@@ -201,6 +204,17 @@ const clearFormatting = () => {
 
 onMounted(() => window.addEventListener("click", handleClickOutside));
 onUnmounted(() => window.removeEventListener("click", handleClickOutside));
+
+watch(
+  () => props.modelValue,
+  (newVal) => {
+    if (editor.value && newVal !== editor.value.getHTML()) {
+      editor.value.commands.setContent(newVal || "", false, {
+        preserveWhitespace: "full",
+      });
+    }
+  },
+);
 
 defineExpose({
   editor,

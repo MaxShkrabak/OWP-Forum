@@ -28,15 +28,13 @@ const emit = defineEmits(["close", "published", "cooldown"]);
 const router = useRouter();
 const showPublishedConfirmation = ref(false);
 
-// Prevent double submit when user spams Publish
 const isPublishing = ref(false);
 
-// distinguish full edit vs create vs restricted metadata
+// isEditMode = author editing their own post (full edit).
+// isMetadataMode = moderator editing another user's post metadata only (category, tags, comments toggle).
 const isEditMode = computed(() => !!props.postData && !props.isRestricted);
-const isCreateMode = computed(() => !props.postData && !props.isRestricted);
 const isMetadataMode = computed(() => !!props.isRestricted);
 
-// Form state
 const form = ref({
   title: "",
   category: "",
@@ -45,7 +43,6 @@ const form = ref({
   disableComments: false,
 });
 
-// Original state tracker for edits
 const originalForm = ref({
   title: "",
   category: "",
@@ -54,9 +51,6 @@ const originalForm = ref({
   disableComments: false,
 });
 
-const editor = ref(null);
-
-// UI State
 const showWarningDialog = ref(false);
 const showPublishConfirm = ref(false);
 const tagSearch = ref("");
@@ -65,7 +59,6 @@ const allTags = ref([]);
 const tagContainerRef = ref(null);
 const allCategories = ref([]);
 
-// Tag Logic
 async function loadTags() {
   try {
     allTags.value = await getTags();
@@ -74,7 +67,6 @@ async function loadTags() {
   }
 }
 
-// Category Logic
 async function loadCategories() {
   try {
     allCategories.value = await getCategories();
@@ -133,7 +125,6 @@ function populateForm() {
         ? props.postData.tags.map((t) => Number(t.tagId || t))
         : [];
 
-    // Set current form values
     form.value.title = title;
     form.value.content = content;
     form.value.category = cat;
@@ -151,7 +142,6 @@ function populateForm() {
   }
 }
 
-// Validation
 const hasUnsavedChanges = computed(() => {
   if (props.postData) {
     // Edit mode: only warn if they actually changed something from the original
@@ -210,7 +200,6 @@ const canPublish = computed(() => {
   );
 });
 
-// Handle closing create post modal
 function handleCloseRequest() {
   if (hasUnsavedChanges.value) {
     showWarningDialog.value = true;
@@ -234,7 +223,6 @@ onMounted(async () => {
   document.addEventListener("mousedown", handleClickOutside);
   populateForm();
 
-  // Now that data is here, turn off the loader
   isInitialLoading.value = false;
 });
 
@@ -249,7 +237,6 @@ watch(
   { immediate: true },
 );
 
-// Publish / Save
 async function doPublish() {
   let newRoute = ``;
   if (isPublishing.value) return;
@@ -302,6 +289,8 @@ async function doPublish() {
 
       if (!props.isRestricted) {
         if (isEditMode.value) {
+          // ViewPost fetches post content on mount. Reloading is simpler than
+          // threading a refresh event back through multiple component layers.
           location.reload();
         } else {
           router.push(newRoute || "/");
@@ -332,7 +321,6 @@ async function doPublish() {
   }
 }
 
-//header/button for edit
 const modalTitle = computed(() => {
   if (isMetadataMode.value) return "UPDATE POST";
   if (isEditMode.value) return "EDIT POST ";

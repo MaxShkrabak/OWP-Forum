@@ -1,6 +1,14 @@
+/**
+ * ForumHome search — unit tests.
+ * Covers:
+ * - no search triggered while typing, only fires on Enter
+ * - shows results and active filter label after Enter is pressed
+ * - paginates results when next/prev page buttons are clicked
+ * - shows no-results state when the search returns zero posts
+ */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { mount, flushPromises } from "@vue/test-utils";
-import ForumHome from "../../src/views/forum/ForumHome.vue";
+import ForumHome from "@/views/forum/ForumHome.vue";
 
 const {
   fetchPostsMock,
@@ -12,37 +20,37 @@ const {
   searchPostsMock: vi.fn(),
 }));
 
-vi.mock("../../src/api/posts", () => ({
+vi.mock("@/api/posts", () => ({
   fetchPosts: fetchPostsMock,
   fetchPinnedPosts: fetchPinnedPostsMock,
   searchPosts: searchPostsMock,
 }));
 
-vi.mock("../../src/stores/userStore", () => ({
+vi.mock("@/stores/userStore", () => ({
   isLoggedIn: false,
 }));
 
-vi.mock("../../src/components/layout/ForumHeader.vue", () => ({
+vi.mock("@/components/layout/ForumHeader.vue", () => ({
   default: { template: "<div data-test='forum-header' />" },
 }));
 
-vi.mock("../../src/components/user/UserCard.vue", () => ({
+vi.mock("@/components/user/UserCard.vue", () => ({
   default: { template: "<div data-test='user-card' />" },
 }));
 
-vi.mock("../../src/components/forum/CreatePostButton.vue", () => ({
+vi.mock("@/components/forum/CreatePostButton.vue", () => ({
   default: { template: "<button data-test='create-post'>Create</button>" },
 }));
 
-vi.mock("../../src/components/admin/ViewReportsButton.vue", () => ({
+vi.mock("@/components/admin/ViewReportsButton.vue", () => ({
   default: { template: "<button data-test='view-reports'>Reports</button>" },
 }));
 
-vi.mock("../../src/components/admin/AdminPanelButton.vue", () => ({
+vi.mock("@/components/admin/AdminPanelButton.vue", () => ({
   default: { template: "<button data-test='admin-panel'>Admin</button>" },
 }));
 
-vi.mock("../../src/components/forum/PostCard.vue", () => ({
+vi.mock("@/components/forum/PostCard.vue", () => ({
   default: {
     props: ["post"],
     template: `
@@ -132,7 +140,7 @@ describe("ForumHome search acceptance criteria", () => {
     expect(wrapper.text()).not.toContain("No posts match your search or filters");
   });
 
-  it("meets the search-bar acceptance criteria after Enter is pressed", async () => {
+  it("shows results and active filter label after Enter is pressed", async () => {
     const wrapper = mountPage();
     await flushPromises();
 
@@ -142,26 +150,14 @@ describe("ForumHome search acceptance criteria", () => {
         { postId: 101, title: "Database Match 1", authorName: "Alex", tags: [] },
         { postId: 102, title: "Database Match 2", authorName: "Sam", tags: [] },
       ],
-      meta: {
-        page: 1,
-        limit: 10,
-        totalPosts: 12,
-        totalPages: 2,
-        hasNextPage: true,
-        hasPrevPage: false,
-      },
+      meta: { page: 1, limit: 10, totalPosts: 12, totalPages: 2, hasNextPage: true, hasPrevPage: false },
     });
 
     await triggerSearch(wrapper, "database");
 
     expect(searchPostsMock).toHaveBeenCalledWith({
-      q: "database",
-      page: 1,
-      limit: 10,
-      sort: "latest",
-      categoryIds: [],
+      q: "database", page: 1, limit: 10, sort: "latest", categoryIds: [],
     });
-
     expect(wrapper.text()).toContain("Filters active:");
     expect(wrapper.text()).toContain('Search "database"');
     expect(wrapper.text()).toContain("Search Results");
@@ -169,42 +165,37 @@ describe("ForumHome search acceptance criteria", () => {
     expect(wrapper.text()).toContain("Database Match 2");
     expect(wrapper.findAll('[data-test="post-card"]')).toHaveLength(2);
     expect(wrapper.text()).toContain("12 results");
-    expect(wrapper.text()).toContain("Page 1 of 2");
+    expect(wrapper.text()).toContain("1 / 2");
+  });
 
-    const nextButton = wrapper
-      .findAll("button")
-      .find((button) => button.text().trim() === ">");
-
-    expect(nextButton).toBeTruthy();
-    expect(nextButton.element.disabled).toBe(false);
+  it("paginates search results when next page is clicked", async () => {
+    const wrapper = mountPage();
+    await flushPromises();
 
     searchPostsMock.mockResolvedValueOnce({
       ok: true,
-      posts: [
-        { postId: 103, title: "Database Match 3", authorName: "Taylor", tags: [] },
-      ],
-      meta: {
-        page: 2,
-        limit: 10,
-        totalPosts: 12,
-        totalPages: 2,
-        hasNextPage: false,
-        hasPrevPage: true,
-      },
+      posts: [{ postId: 101, title: "Database Match 1", authorName: "Alex", tags: [] }],
+      meta: { page: 1, limit: 10, totalPosts: 12, totalPages: 2, hasNextPage: true, hasPrevPage: false },
     });
 
+    await triggerSearch(wrapper, "database");
+
+    searchPostsMock.mockResolvedValueOnce({
+      ok: true,
+      posts: [{ postId: 103, title: "Database Match 3", authorName: "Taylor", tags: [] }],
+      meta: { page: 2, limit: 10, totalPosts: 12, totalPages: 2, hasNextPage: false, hasPrevPage: true },
+    });
+
+    const navBtns = wrapper.findAll(".page-nav-btn");
+    const nextButton = navBtns[navBtns.length - 1]; // last page-nav-btn is always "next"
+    expect(nextButton.element.disabled).toBe(false);
     await nextButton.trigger("click");
     await flushPromises();
 
     expect(searchPostsMock).toHaveBeenLastCalledWith({
-      q: "database",
-      page: 2,
-      limit: 10,
-      sort: "latest",
-      categoryIds: [],
+      q: "database", page: 2, limit: 10, sort: "latest", categoryIds: [],
     });
-
-    expect(wrapper.text()).toContain("Page 2 of 2");
+    expect(wrapper.text()).toContain("2 / 2");
     expect(wrapper.text()).toContain("Database Match 3");
   });
 

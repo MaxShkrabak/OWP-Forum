@@ -1,6 +1,12 @@
 /**
- * Ban User (Admin) — unit tests.
- * Ban date formatting (no DOM) + AdminUsers component DOM tests.
+ * AdminUsers — unit tests.
+ * Covers:
+ * - ban date utility formatting (null/empty, ISO datetime, short styles)
+ * - loads users and shows Ban button only for non-admin active users
+ * - admin user rows do not show a Ban button
+ * - clicking Ban opens modal; confirming updates row to banned state
+ * - empty state shown when no users are found
+ * - role select rendered for each user; current user's own select is disabled
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount, flushPromises } from "@vue/test-utils";
@@ -43,7 +49,7 @@ describe("Ban User (Admin) — ban date formatting", () => {
   it("formatBannedUntilDateTime parses ISO date and appends UTC", () => {
     const result = formatBannedUntilDateTime("2025-03-15T14:30:00");
     expect(result).toContain("UTC");
-    expect(result).toMatch(/\d/); // has some date part
+    expect(result).toMatch(/\d/);
   });
 
   it("formatBannedUntilDateTime accepts short dateStyle and timeStyle options", () => {
@@ -85,7 +91,6 @@ describe("Ban User (Admin) — AdminUsers.vue DOM", () => {
     const wrapper = mount(AdminUsers);
     await flushPromises();
     const rows = wrapper.findAll(".admin-table tbody tr");
-    // Find John Smith's row (the admin user) by name
     const adminRow = rows.find(r => r.text().includes("John"));
     expect(adminRow).toBeDefined();
     expect(adminRow.find(".btn-ban").exists()).toBe(false);
@@ -117,7 +122,6 @@ describe("Assign Role (Admin)", () => {
     const wrapper = mount(AdminUsers);
     await flushPromises();
 
-    // Assert the empty state message appears
     expect(wrapper.text()).toContain("No users found");
   });
 

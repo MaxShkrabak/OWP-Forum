@@ -1,38 +1,50 @@
 <script setup>
 import { ref } from "vue";
 import { useRouter } from "vue-router";
-import { registerUser } from "@/api/auth";
+import { registerUser, requestOtp } from "@/api/auth";
 import "/src/assets/forumAuth.css";
 
 const router = useRouter();
 const first = ref("");
 const last = ref("");
+const ssn = ref("");
 const email = ref("");
 const loading = ref(false);
+const nameRegex = /^[A-Za-z]+$/;
+const ssnRegex = /^\d{4}$/;
+const emailRegex = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
 
 async function createAccount() {
-  if (!first.value || !last.value || !/^\S+@\S+\.\S+$/.test(email.value))
+  if (
+    !nameRegex.test(first.value) ||
+    !nameRegex.test(last.value) ||
+    !ssnRegex.test(ssn.value) ||
+    !emailRegex.test(email.value)
+  )
     return;
 
   loading.value = true;
 
   try {
-    // Load users data into payload for backend
     const payload = {
       first: first.value,
       last: last.value,
       email: email.value,
     };
 
-    // Send the data to backend and store repsonse in res
     const res = await registerUser(payload);
 
-    // User was succesfuly stored in database and routes to OTP page
     if (res.ok) {
-      router.push({ path: "/verify", query: { email: payload.email } });
+      const resOtp = await requestOtp(payload.email);
+      if (resOtp.ok) {
+        router.push({ path: '/verify', query: { email: payload.email } });
+      } else {
+        alert(resOtp.message || 'Failed to send passcode.');
+      }
+    } else {
+      alert(res.message || 'Failed to create account. Please try again.');
     }
   } catch (err) {
-    // User email already exists or something else went wrong
     if (err.response && err.response.data) {
       alert(err.response.data.message);
     } else {
@@ -41,25 +53,6 @@ async function createAccount() {
   } finally {
     loading.value = false;
   }
-
-  /*
-  loading.value = true;
-  try {
-    // (Optional) Send registration data first
-    // await fetch('/auth/register', { ... });
-
-    const res = await requestOtp(email.value.trim());
-    if (res.ok) {
-      router.push({ path: '/verify', query: { email: email.value.trim() } });
-    } else {
-      alert(res.message || 'Failed to send passcode.');
-    }
-  } catch {
-    alert('Network error.');
-  } finally {
-    loading.value = false;
-  }
-    */
 }
 </script>
 
@@ -100,6 +93,7 @@ async function createAccount() {
           </div>
           <input
             id="ssn"
+            v-model.trim="ssn"
             type="text"
             placeholder="1234"
             maxlength="4"
@@ -122,7 +116,11 @@ async function createAccount() {
             class="btn"
             type="submit"
             :disabled="
-              loading || !first || !last || !/^\S+@\S+\.\S+$/.test(email)
+              loading ||
+              !nameRegex.test(first) ||
+              !nameRegex.test(last) ||
+              !ssnRegex.test(ssn) ||
+              !emailRegex.test(email)
             "
           >
             <span v-if="!loading">Create Account</span>

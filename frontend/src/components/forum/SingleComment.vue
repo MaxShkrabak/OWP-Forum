@@ -1,5 +1,6 @@
 <script setup>
-import { ref, inject, computed, watch, provide, onMounted } from "vue";
+import { ref, inject, computed, watch, provide, onBeforeUnmount } from "vue";
+import DOMPurify from 'dompurify';
 import { useRouter } from "vue-router";
 import UserRole from "@/components/user/UserRole.vue";
 import {
@@ -10,7 +11,6 @@ import {
   formatCommentData,
 } from "@/api/comments";
 import { isLoggedIn, uid, userRole, userRoleId } from "@/stores/userStore";
-import { timeAgo } from "@/utils/timeAgo";
 import TextEditor from "./TextEditor.vue";
 import ReportingModal from "../user/ReportingModal.vue";
 
@@ -56,6 +56,9 @@ const markEditDirty = inject("markEditDirty");
 const maxDepthContext = inject("maxDepthContext", null);
 const autoExpandCommentId = inject("autoExpandCommentId", ref(null));
 
+// Replies are capped at two levels deep (top-level comment + one reply layer).
+// Any reply typed on a depth-2 comment is redirected up to its depth-1 ancestor
+// via maxDepthContext, so the UI stays flat rather than infinitely nesting.
 if (props.depth === 1) {
   provide("maxDepthContext", {
     parentId: props.comment.id,
@@ -85,14 +88,13 @@ const showSaveConfirm = ref(false);
 const editIsUploading = ref(false);
 const replyIsUploading = ref(false);
 
-const linkedImage = computed(() => {
-  return (
-    props.comment.text?.replace(
-      /<img[^>]+src="([^"]+)"[^>]*\/?>/gi,
-      (match, src) => {
-        return `<a href="${src}" target="_blank" rel="noopener noreferrer">${match}</a>`;
-      },
-    ) ?? ""
+const safeContent = computed(() => {
+  const sanitized = DOMPurify.sanitize(props.comment.text ?? '');
+  // Wrap images in an anchor so clicking them opens the full-size URL in a new tab.
+  return sanitized.replace(
+    /<img[^>]+src="([^"]+)"[^>]*\/?>/gi,
+    (match, src) =>
+      `<a href="${src}" target="_blank" rel="noopener noreferrer">${match}</a>`,
   );
 });
 
@@ -201,6 +203,7 @@ const confirmSaveEdit = async () => {
 };
 
 function getAvatarSrc(file) {
+  if (!file) return "";
   return new URL(`../../assets/img/user-pfps-premade/${file}`, import.meta.url)
     .href;
 }
@@ -289,6 +292,7 @@ const confirmDeleteComment = async () => {
     alert("Failed to delete comment.");
   } finally {
     isDeleting.value = false;
+    window.location.reload();
   }
 };
 
@@ -345,7 +349,7 @@ watch(isEditing, (active) => {
 const hasOptions = computed(
   () =>
     !props.comment.isDeleted &&
-    (isAuthor.value || canDelete.value || canReport.value),
+    (canDelete.value || canReport.value),
 );
 
 const toggleOptionsMenu = () => {
@@ -364,6 +368,10 @@ watch(showOptionsMenu, (val) => {
   } else {
     document.removeEventListener("click", handleClickOutsideOptions, true);
   }
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener("click", handleClickOutsideOptions, true);
 });
 </script>
 
@@ -499,7 +507,7 @@ watch(showOptionsMenu, (val) => {
         >
           [deleted]
         </div>
-        <div v-else class="comment-body mb-2 small" v-html="linkedImage"></div>
+        <div v-else class="comment-body mb-2 small" v-html="safeContent"></div>
 
         <div
           v-if="!comment.isDeleted"
@@ -712,6 +720,11 @@ watch(showOptionsMenu, (val) => {
 </template>
 
 <style scoped>
+.comment-body :deep(*) {
+  white-space: pre-wrap !important;
+  word-break: break-word !important;
+  overflow-wrap: anywhere !important;
+}
 .avatar-col {
   width: 40px;
   position: relative;
@@ -743,6 +756,10 @@ watch(showOptionsMenu, (val) => {
 .comment-body {
   overflow-wrap: break-word;
   word-break: break-word;
+}
+
+.comment-body :deep(a:has(> img)) {
+  display: inline-block;
 }
 
 .comment-body :deep(img) {

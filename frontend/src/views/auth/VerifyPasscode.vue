@@ -29,7 +29,6 @@ async function onSubmit() {
     loading.value = true;
     const res = await verifyOtp(email.value.trim(), otp.value.trim());
     
-    // User entered the correct passcode
     if (res?.ok) {
       await syncProfileOnLoad(); // get user data
       router.push({ name: "ForumHome" });
@@ -46,7 +45,6 @@ async function onSubmit() {
 </script>
 
 <template>
-  <!-- Match login layout -->
   <section class="auth-wrap" aria-label="Verify Passcode">
     <div class="auth-card">
       <div class="form-inner">

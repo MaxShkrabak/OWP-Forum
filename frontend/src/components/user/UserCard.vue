@@ -1,6 +1,6 @@
 <script setup>
 import { onMounted, ref, watch } from "vue";
-import UserIcon from "@/assets/img/user-pfps-premade/pfp-0.png";
+import UserIcon from "@/assets/img/user-pfps-premade/waves.svg";
 import {
   isLoggedIn,
   fullName,
@@ -84,7 +84,7 @@ function getAvatarSrc(file) {
             />
             <img
               v-else
-              src="@\assets\img\user-pfps-premade\pfp-0.png"
+              :src="UserIcon"
               class="img-fluid profile-img"
               alt="Default avatar"
             />
@@ -131,13 +131,16 @@ function getAvatarSrc(file) {
         </div>
       </div>
       <button
-        class="btn-edit-prof text-center mb-3"
+        class="btn-edit-prof shadow-sm mb-3"
         data-bs-toggle="modal"
         data-bs-target="#userSettingsModal"
         v-if="isProfile && isCurrUser"
       >
-        <!--Edit Profile button-->
-        <span class="edit-prof-text text-center"> Edit Profile </span>
+        <div class="btn-content">
+          <div class="btn-text-wrap">
+            <span class="btn-text-primary">Edit Profile</span>
+          </div>
+        </div>
       </button>
     </div>
 
@@ -159,22 +162,18 @@ function getAvatarSrc(file) {
           <h5 class="user-name mt-2 mb-1">{{ newFullName }}</h5>
           <UserRole :role="newRole" />
         </div>
-        <!-- User Stats Section -->
         <div class="stats-divider my-3"></div>
         <div class="stats-container d-flex justify-content-around text-center">
-          <!-- Posts count-->
           <div class="stat-item">
             <span class="stat-value">{{ postCount }}</span>
             <span class="stat-label text-uppercase"
               >Post{{ postCount !== 1 ? "s" : "" }}</span
             >
           </div>
-          <!-- Reputation score -->
           <div class="stat-item">
             <span class="stat-value">{{ voteScore }}</span>
             <span class="stat-label text-uppercase">Reputation</span>
           </div>
-          <!-- Comment count -->
           <div class="stat-item">
             <span class="stat-value">{{ commentCount }}</span>
             <span class="stat-label text-uppercase"
@@ -216,10 +215,19 @@ function getAvatarSrc(file) {
 </template>
 
 <style scoped>
+.btn-edit-prof:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
 .btn-edit-prof {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 85%;
-  max-width: 250px;
   min-height: 80px;
+  max-width: 250px;
+  margin: auto;
   padding: 10px 15px;
 
   background: linear-gradient(135deg, #007c8a 0%, #004750 100%);
@@ -227,21 +235,54 @@ function getAvatarSrc(file) {
   border: none;
   border-radius: 12px;
 
+  overflow: hidden;
   cursor: pointer;
   transition: all 0.3s ease;
 }
-.btn-edit-prof:hover {
-  transform: translateY(-3px);
-  box-shadow: -2px 3px 5px black;
+.btn-edit-prof::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.15),
+    transparent
+  );
+  transition: 0.6s;
 }
-.edit-prof-text {
+.btn-edit-prof:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px -6px #00475063 !important;
+  background: linear-gradient(135deg, #007c8a 0%, #004750 100%);
+}
+.btn-edit-prof:hover::after {
+  left: 100%;
+}
+
+.btn-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.btn-text-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  line-height: 1.1;
+}
+.btn-text-primary {
   font-weight: 700;
   font-family: "Roboto", sans-serif;
   text-transform: uppercase;
-  font-size: 1rem;
+  font-size: 1.15rem;
   letter-spacing: 1px;
-  text-align: center;
-  line-height: 1.2;
 }
 
 .user-main-card {

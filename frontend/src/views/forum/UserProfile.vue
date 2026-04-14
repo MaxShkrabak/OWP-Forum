@@ -14,7 +14,7 @@ import PostCard from "@/components/forum/PostCard.vue";
 import UserCard from "@/components/user/UserCard.vue";
 
 const activeTab = ref("yourPosts");
-const isExistingUser = ref(true); // Used to check if the user exists when visiting other user's profile
+const isExistingUser = ref(true); // check if the user exists when visiting other user's profile
 
 const route = useRoute();
 const router = useRouter();
@@ -25,11 +25,11 @@ const isPageResolved = ref(false);
 
 const currentPage = ref(1);
 const totalPages = ref(1);
-const limit = ref(Number(localStorage.getItem("category_limit")) || 5);
+const limit = ref(Number(localStorage.getItem("category_limit")) || 10);
 const sort = ref(localStorage.getItem("category_sort") || "latest");
 
 // Used for user card if it's not the current user
-const setAvatar = ref("pfp-0.png");
+const setAvatar = ref("waves.svg");
 const setFullName = ref("Loading...");
 const setRole = ref("Guest");
 
@@ -50,7 +50,7 @@ async function checkAndSetUser() {
     try {
       const data = await fetchUser(userId);
       if (data.ok) {
-        setAvatar.value = data.user.avatar || "pfp-0.png";
+        setAvatar.value = data.user.avatar || "waves.svg";
         setFullName.value = data.user.firstName + " " + data.user.lastName;
         setRole.value = data.user.roleName || "User";
       }
@@ -323,6 +323,10 @@ onMounted(() => {
 </template>
 
 <style scoped>
+body {
+  background-color: #cbdad5 !important;
+  min-height: 100vh;
+}
 .filter-header {
   background: linear-gradient(135deg, #004b33 0%, #003d4c 100%);
   padding: 1.25rem 1.75rem;

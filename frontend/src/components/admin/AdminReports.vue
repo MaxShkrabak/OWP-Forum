@@ -1,8 +1,7 @@
-<!-- AdminReports.vue -->
 <script setup>
 import { ref, computed, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
-import { timeAgo } from "@/utils/timeAgo";
+import { timeAgo } from "@/utils/time";
 
 import { fetchReports, resolveReport } from "@/api/reports";
 import AdminPaginationControls from "@/components/admin/AdminPaginationControls.vue";
@@ -180,7 +179,7 @@ const reportPage = ref(1);
 const reportPerPage = ref(25);
 const reportTotal = ref(0);
 
-const sortMode = ref("newest"); // newest | oldest
+const sortMode = ref("newest");
 
 function stripHTML(html) {
   return String(html ?? "").replace(/<[^>]*>/g, "");

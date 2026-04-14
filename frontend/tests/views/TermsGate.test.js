@@ -1,3 +1,9 @@
+/**
+ * Terms gate (App.vue) — unit tests.
+ * Covers:
+ * - shows TermsModal when user is logged in but has not accepted terms
+ * - suppresses TermsModal when terms have already been accepted
+ */
 import { mount, flushPromises } from "@vue/test-utils";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 

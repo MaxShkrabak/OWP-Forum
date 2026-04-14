@@ -4,13 +4,11 @@ import { updateUserAvatar } from "@/api/auth";
 import { getNotificationSettings, saveNotificationSettings } from "@/api/users";
 import { userAvatar } from "@/stores/userStore";
 
-// Import all images from the 'src/assets/images' folder
 const allImages = import.meta.glob(
   "/src/assets/img/user-pfps-premade/*.(png|jpeg|jpg|svg)",
   { eager: true },
 );
 
-// Extract the image paths for use in the template
 const images = computed(() => {
   return Object.values(allImages).map((module) => module.default);
 });
@@ -120,7 +118,6 @@ const saveSettings = async () => {
   }
 };
 
-// Watch for changes in store
 watch(userAvatar, (newAvatar) => {
   selectedAvatar.value = newAvatar;
 });
@@ -181,9 +178,9 @@ const selectAvatar = (imagePath) => {
             <div class="notification-options">
               <div class="notification-item">
                 <div class="notification-info">
-                  <label class="notification-label">Email Notifications</label>
+                  <label class="notification-label">Comment Email Notifications</label>
                   <span class="notification-description"
-                    >Receive notifications via email</span
+                    >Receive notifications via email for comments on your posts</span
                   >
                 </div>
                 <div class="form-check form-switch">
@@ -198,7 +195,7 @@ const selectAvatar = (imagePath) => {
 
               <div class="notification-item">
                 <div class="notification-info">
-                  <label class="notification-label">Push Notifications</label>
+                  <label class="notification-label">Browser Push Notifications</label>
                   <span class="notification-description"
                     >Receive browser popup notifications in the app</span
                   >
@@ -215,9 +212,9 @@ const selectAvatar = (imagePath) => {
 
               <div class="notification-item">
                 <div class="notification-info">
-                  <label class="notification-label">Post Replies</label>
+                  <label class="notification-label">Post Comments</label>
                   <span class="notification-description"
-                    >Notify when someone replies to your posts</span
+                    >Browser popup when someone comments on your posts</span
                   >
                 </div>
                 <div class="form-check form-switch">
@@ -226,6 +223,7 @@ const selectAvatar = (imagePath) => {
                     type="checkbox"
                     id="postReplies"
                     v-model="notificationPrefs.postReplies"
+                    :disabled="!notificationPrefs.pushNotifications"
                   />
                 </div>
               </div>
@@ -234,7 +232,7 @@ const selectAvatar = (imagePath) => {
                 <div class="notification-info">
                   <label class="notification-label">Post Likes</label>
                   <span class="notification-description"
-                    >Notify when someone likes your posts</span
+                    >Browser popup when someone likes your posts</span
                   >
                 </div>
                 <div class="form-check form-switch">
@@ -243,6 +241,7 @@ const selectAvatar = (imagePath) => {
                     type="checkbox"
                     id="postLikes"
                     v-model="notificationPrefs.postLikes"
+                    :disabled="!notificationPrefs.pushNotifications"
                   />
                 </div>
               </div>
@@ -347,7 +346,7 @@ const selectAvatar = (imagePath) => {
   cursor: pointer;
   transition: all 0.15s ease-in-out;
   object-fit: cover;
-  border: 2px solid transparent;
+  border: 3px solid transparent;
 }
 
 .pfp-selector:hover {

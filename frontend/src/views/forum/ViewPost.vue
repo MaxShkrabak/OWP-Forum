@@ -1,11 +1,12 @@
 <script setup>
 import { ref, onMounted, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import DOMPurify from "dompurify";
 import { getPost } from "@/api/posts";
+import { formatPostTimestamp } from "@/utils/time";
 
 import UserRole from "@/components/user/UserRole.vue";
 import CommentSection from "@/components/forum/CommentSection.vue";
-import ViewPostContent from "@/components/forum/ViewPostContent.vue";
 import PostModerationSidebar from "@/components/admin/PostModerationSidebar.vue";
 
 const route = useRoute();
@@ -19,22 +20,10 @@ const error = ref(null);
 const linkCopiedVisible = ref(false);
 let linkCopiedTimeout = null;
 
+// Copies the current page URL to the clipboard and shows a temporary confirmation toast
 async function copyPostUrlToClipboard() {
-  const url = window.location.href;
   try {
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(url);
-    } else {
-      const ta = document.createElement("textarea");
-      ta.value = url;
-      ta.setAttribute("readonly", "");
-      ta.style.position = "fixed";
-      ta.style.left = "-9999px";
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand("copy");
-      document.body.removeChild(ta);
-    }
+    await navigator.clipboard.writeText(window.location.href);
     linkCopiedVisible.value = true;
     if (linkCopiedTimeout) clearTimeout(linkCopiedTimeout);
     linkCopiedTimeout = setTimeout(() => {
@@ -45,37 +34,13 @@ async function copyPostUrlToClipboard() {
   }
 }
 
-const getLocalDate = (input) => {
-  if (!input) return null;
-  const dateStr = input.trim().replace(" ", "T") + "Z";
-  return new Date(dateStr);
-};
+const postTimestamp = computed(() =>
+  formatPostTimestamp(post.value?.createdAt, post.value?.updatedAt)
+);
 
-const dateSource = computed(() => {
-  return post.value?.updatedAt || post.value?.createdAt;
-});
-
-const dateLabel = computed(() => {
-  return post.value?.updatedAt ? "Edited" : "Posted";
-});
-
-const dateText = computed(() => {
-  const d = getLocalDate(dateSource.value);
-  return d
-    ? d.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      })
-    : "";
-});
-
-const timeText = computed(() => {
-  const d = getLocalDate(dateSource.value);
-  return d
-    ? d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
-    : "";
-});
+const safeContent = computed(() =>
+  DOMPurify.sanitize(post.value?.content ?? "")
+);
 
 function getAvatarSrc(file) {
   if (!file) return "";
@@ -195,17 +160,14 @@ onMounted(async () => {
                   </div>
                 </RouterLink>
                 <div class="post-timestamp">
-                  <span>{{ dateLabel }} {{ dateText }} at {{ timeText }}</span>
+                  <span>{{ postTimestamp }}</span>
                 </div>
               </div>
             </div>
             <h1 class="post-title fs-2 m-0 text-break">{{ post.title }}</h1>
           </div>
 
-          <ViewPostContent
-            :content="post.content"
-            class="px-3 px-md-4 pt-3 pt-md-4"
-          />
+          <div class="content-body px-3 px-md-4 pt-3 pt-md-4" v-html="safeContent"></div>
 
           <section class="post-footer">
             <div
@@ -522,6 +484,22 @@ onMounted(async () => {
   padding: 2px 3px 1px !important;
   font-size: 0.45rem !important;
   vertical-align: middle !important;
+}
+
+.content-body {
+  min-height: 150px;
+  color: #1a2e22;
+  font-size: 1rem;
+  line-height: 1.8;
+}
+.content-body :deep(> *:first-child) {
+  margin-top: 0;
+}
+.content-body :deep(*) {
+  white-space: pre-wrap !important;
+  word-break: break-word !important;
+  overflow-wrap: anywhere !important;
+  max-width: 100%;
 }
 
 .post-footer {

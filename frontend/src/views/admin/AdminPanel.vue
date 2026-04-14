@@ -141,7 +141,7 @@ onBeforeUnmount(() => {
               </div>
 
               <transition name="fade-slide">
-                <span v-if="!isCollapsed" class="back-text">
+                <span v-if="!isCollapsed" class="back-text d-none d-sm-block">
                   Back to Forum
                 </span>
               </transition>
@@ -187,7 +187,7 @@ onBeforeUnmount(() => {
 
                 <div class="current-section-text">
                   <span class="current-section-title">{{ activeTab }}</span>
-                  <span class="current-section-subtitle">
+                  <span class="current-section-subtitle d-none d-sm-block">
                     Admin management area
                   </span>
                 </div>
@@ -226,13 +226,6 @@ onBeforeUnmount(() => {
             <button class="menu-btn" @click="toggleNav" aria-label="Open navigation">
               <i class="bi bi-list"></i>
             </button>
-
-            <div>
-              <h1 class="page-title">{{ activeTab }}</h1>
-              <p class="page-subtitle">
-                Manage {{ activeTab.toLowerCase() }} from your dashboard
-              </p>
-            </div>
           </div>
         </header>
 
@@ -278,15 +271,14 @@ onBeforeUnmount(() => {
   position: fixed;
   top: 0;
   left: 0;
-  height: 1750px;
-  border-radius: 0px 0px 50px 0px;
+  min-height: 100%;
   transform: translateX(-100%);
   transition: width 0.28s ease, transform 0.28s ease, box-shadow 0.28s ease;
   z-index: 1000;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.22);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow-y: auto;
 }
 
 .sidebar.open {
@@ -841,6 +833,9 @@ onBeforeUnmount(() => {
   .page-subtitle {
     font-size: 0.88rem;
   }
+  .page-heading-title {
+  font-size: 1.5rem;
+}
 }
 
 </style>

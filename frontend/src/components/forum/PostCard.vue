@@ -1,7 +1,7 @@
 <script setup>
 import { ref, watch, computed } from "vue";
 import { RouterLink, useRouter } from "vue-router";
-import { timeAgo } from "@/utils/timeAgo";
+import { timeAgo } from "@/utils/time";
 import UserRole from "@/components/user/UserRole.vue";
 import { votePost, togglePostPin } from "@/api/posts";
 import { isLoggedIn, userRole, uid, userRoleId } from "@/stores/userStore";
@@ -22,11 +22,12 @@ let pinMessageTimeout = null;
 
 const router = useRouter();
 
-const isAdmin = computed(() => {
-  return (userRole.value || "").trim().toLowerCase() === "admin";
+const isModOrAdmin = computed(() => {
+    const role = (userRole.value || "").trim().toLowerCase();
+    return role === "admin" || role === "moderator";
 });
 
-const canShowPinIcon = computed(() => isAdmin.value);
+const canShowPinIcon = computed(() => isModOrAdmin.value);
 function showPinMessage(message, type = "success") {
   pinMessage.value = message;
   pinMessageType.value = type;
@@ -91,7 +92,8 @@ async function handlePinToggle() {
     }
   } catch (err) {
     console.error("Pin toggle error:", err);
-    showPinMessage("Failed to update pin state", "error");
+    const msg = err.response?.data?.error || "Failed to update pin state";
+    showPinMessage(msg, "error");
   } finally {
     isPinning.value = false;
   }
@@ -120,6 +122,7 @@ watch(isLoggedIn, (loggedIn) => {
   }
 });
 
+// Styling for ONLY "Official" tag
 function isOfficialTag(name) {
   return name === "Official";
 }
@@ -177,7 +180,7 @@ function canViewReportButton() {
         </div>
 
         <div class="title-and-meta-column">
-          <div class="mobile-author-header">
+          <RouterLink class="mobile-author-header" style="text-decoration: none;" :to="`/posts/${post.postId}`">
             <div class="author-info-wrap-v2">
               <div class="avatar-box-v2">
                 <RouterLink :to="`/profile?id=${post.authorId}`">
@@ -201,7 +204,7 @@ function canViewReportButton() {
             <div class="text-secondary date">
               {{ timeAgo(post.createdAt) }}
             </div>
-          </div>
+          </RouterLink>
 
           <div class="title-row">
             <RouterLink :to="`/posts/${post.postId}`" class="post-title-link">

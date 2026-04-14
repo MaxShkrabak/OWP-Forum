@@ -1,3 +1,10 @@
+/**
+ * UserSettings — unit tests.
+ * Covers:
+ * - renders profile picture and notification preference sections
+ * - clicking an avatar marks it as selected
+ * - saving persists the chosen avatar and notification preferences, then closes the modal
+ */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount, flushPromises } from "@vue/test-utils";
 import UserSettings from "@/components/user/UserSettings.vue";

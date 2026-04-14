@@ -24,6 +24,7 @@ onUnmounted(() => {
   clearInterval(timer);
 });
 
+// Moderators (roleId 3) and Admins (roleId 4+) are exempt from post creation cooldowns
 const isCooldownExempt = computed(() => Number(userRoleId.value) >= 3);
 
 const secondsRemaining = computed(() =>

@@ -1,4 +1,10 @@
-/** @vitest-environment jsdom */
+/**
+ * TermsModal — unit tests.
+ * Covers:
+ * - shows links to Terms of Service and Privacy Policy
+ * - Continue button is disabled until the I Agree checkbox is checked
+ * - emits accepted and calls the API when Continue is clicked
+ */
 import { mount } from "@vue/test-utils";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 

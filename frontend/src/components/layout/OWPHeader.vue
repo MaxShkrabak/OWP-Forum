@@ -3,7 +3,6 @@ import { useRoute, useRouter, RouterLink } from 'vue-router';
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { isLoggedIn, fullName, userRole, logoutUser } from '@/stores/userStore';
 
-// Image imports
 import owpLogo from '@/assets/img/svg/owp-logo-horizontal-WHT-2color.svg';
 import owpSymbol from '@/assets/img/svg/owp-symbol-2color.svg';
 import cart from '@/assets/img/svg/cart.svg';
@@ -30,10 +29,9 @@ onBeforeUnmount(() => {
   window.removeEventListener('resize', handleResize);
 });
 
-// Function to log user out
 async function handleLogout() {
   await logoutUser();
-  router.push('/'); // redirect to home after logout
+  router.push('/');
 }
 </script>
 

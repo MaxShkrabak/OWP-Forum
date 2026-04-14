@@ -45,7 +45,7 @@ class AuthControllerTest extends TestCase
 
         $this->stmt->method('execute')->willReturn(true);
         $this->stmt->method('fetch')->willReturn([
-            'User_ID' => 42,
+            'UserID' => 42,
             'Email' => 'test@example.com',
             'FirstName' => 'Jane',
             'LastName' => 'Doe',
@@ -95,7 +95,7 @@ class AuthControllerTest extends TestCase
 
         $this->stmt->method('execute')->willReturn(true);
         $this->stmt->method('fetch')->willReturn([
-            'User_ID' => 1,
+            'UserID' => 1,
             'Email' => 'banned@example.com',
             'FirstName' => 'Ban',
             'LastName' => 'User',
@@ -238,6 +238,110 @@ class AuthControllerTest extends TestCase
         $this->assertEquals(400, $response->getStatusCode());
         $body = json_decode((string)$response->getBody(), true);
         $this->assertFalse($body['ok']);
-        $this->assertEquals('Password required', $body['error']);
+        $this->assertEquals('One-Time Passcode required', $body['error']);
+    }
+
+    public function test_requestOtp_returns_400_for_invalid_email(): void
+    {
+        $req = $this->createStub(Request::class);
+        $req->method('getParsedBody')->willReturn(['email' => 'bad-email']);
+
+        $response = $this->controller->requestOtp($req, new Response());
+
+        $this->assertEquals(400, $response->getStatusCode());
+        $body = json_decode((string)$response->getBody(), true);
+        $this->assertFalse($body['ok']);
+        $this->assertEquals('Valid email required', $body['error']);
+    }
+
+    public function test_requestOtp_returns_404_when_email_not_found(): void
+    {
+        $req = $this->createStub(Request::class);
+        $req->method('getParsedBody')->willReturn(['email' => 'nobody@test.com']);
+
+        $this->stmt->method('execute')->willReturn(true);
+        $this->stmt->method('fetchColumn')->willReturn(false);
+
+        $this->pdo->method('prepare')->willReturn($this->stmt);
+
+        // Ensure GLOBAL_OTP is not set to not break the test
+        unset($_ENV['GLOBAL_OTP']);
+
+        $response = $this->controller->requestOtp($req, new Response());
+
+        $this->assertEquals(404, $response->getStatusCode());
+        $body = json_decode((string)$response->getBody(), true);
+        $this->assertFalse($body['ok']);
+        $this->assertStringContainsString('Email not found', $body['error']);
+    }
+
+    public function test_requestOtp_sends_otp_and_stores_hash(): void
+    {
+        $_ENV['HMAC_KEY'] = 'test-secret';
+        unset($_ENV['GLOBAL_OTP']);
+
+        $emailSent = false;
+        $controller = new AuthController(
+            fn() => $this->pdo,
+            function (array $message) use (&$emailSent) { $emailSent = true; }
+        );
+
+        $req = $this->createStub(Request::class);
+        $req->method('getParsedBody')->willReturn(['email' => 'user@test.com']);
+
+        $userStmt = $this->createStub(PDOStatement::class);
+        $userStmt->method('execute')->willReturn(true);
+        $userStmt->method('fetchColumn')->willReturn('Jane');
+        $userStmt->method('fetch')->willReturn(['FirstName' => 'Jane', 'LastName' => 'Doe']);
+
+        $insertStmt = $this->createStub(PDOStatement::class);
+        $insertStmt->method('execute')->willReturn(true);
+
+        $this->pdo->method('prepare')->willReturnCallback(
+            function (string $sql) use ($userStmt, $insertStmt) {
+                $l = strtolower($sql);
+                if (str_contains($l, 'insert into')) return $insertStmt;
+                return $userStmt;
+            }
+        );
+
+        $response = $controller->requestOtp($req, new Response());
+
+        $this->assertEquals(200, $response->getStatusCode());
+        $body = json_decode((string)$response->getBody(), true);
+        $this->assertTrue($body['ok']);
+        $this->assertStringContainsString('OTP code sent', $body['message']);
+        $this->assertTrue($emailSent);
+    }
+
+    public function test_logout_deletes_session_and_returns_ok(): void
+    {
+        $_ENV['HMAC_KEY'] = 'test-secret';
+
+        $req = $this->createStub(Request::class);
+        $req->method('getCookieParams')->willReturn(['session' => 'abc123']);
+
+        $deleteStmt = $this->createStub(PDOStatement::class);
+        $deleteStmt->method('execute')->willReturn(true);
+
+        $this->pdo->method('prepare')->willReturn($deleteStmt);
+
+        $response = @$this->controller->logout($req, new Response());
+
+        $this->assertEquals(200, $response->getStatusCode());
+        $body = json_decode((string)$response->getBody(), true);
+        $this->assertTrue($body['ok']);
+    }
+
+    public function test_logout_returns_ok_without_session_cookie(): void
+    {
+        $req = $this->createStub(Request::class);
+        $req->method('getCookieParams')->willReturn([]);
+
+        $response = @$this->controller->logout($req, new Response());
+
+        $this->assertEquals(200, $response->getStatusCode());
+        $body = json_decode((string)$response->getBody(), true);
+        $this->assertTrue($body['ok']);
     }
 }

@@ -1,3 +1,17 @@
+/**
+ * CommentSection — unit tests.
+ * Covers:
+ * - displays total comment count in the header
+ * - sort dropdown renders with the correct options
+ * - submit button disabled until text is entered
+ * - only one reply box open at a time
+ * - Show More appends the next page of comments
+ * - author can edit their own comment (shows edited label after save)
+ * - refetches comments when sort option changes
+ * - rate limit banner with formatted minutes and seconds remaining
+ * - comments disabled notice shown to regular users
+ * - moderator sees comment box with a disabled-notice instead of full block
+ */
 import { mount, flushPromises, DOMWrapper } from "@vue/test-utils";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { ref } from "vue";
@@ -33,7 +47,7 @@ vi.mock("@/api/comments", () => ({
     Promise.resolve({
       ok: true,
       total: 15,
-      // We dynamically generate 10 items here so the "Show More" button stays visible
+      // Generate 10 items here so the "Show More" button stays visible
       items: Array.from({ length: 10 }, (_, i) => ({
         commentId: i + 1,
         content: `This is comment ${i + 1}`,
@@ -49,8 +63,8 @@ vi.mock("@/api/comments", () => ({
       comment: {
         commentId: 1,
         content: "Updated comment content",
-        createdAt: 1700000000,
-        updatedAt: 1700001000,
+        createdAt: "2024-11-14 20:53:20",
+        updatedAt: "2024-11-14 20:55:00",
         user: { userId: 1, firstName: "John", lastName: "Rogers" },
       },
     }),
@@ -101,7 +115,7 @@ describe("CommentSection.vue", () => {
   it("renders a sort dropdown with the correct options", () => {
     const select = wrapper.find("#comment-sort");
     const options = select.findAll("option").map((o) => o.text());
-    expect(options).toEqual(["Newest", "Oldest", "Most Liked"]);
+    expect(options).toEqual(["Newest", "Oldest", "Most Upvoted"]);
   });
 
   it("disables the submit button if there is no data, and enables it when text is entered", async () => {
@@ -204,7 +218,7 @@ describe("CommentSection.vue", () => {
     await new DOMWrapper(confirmButtonEl).trigger("click");
     await flushPromises();
 
-    expect(updateComment).toHaveBeenCalledWith(1, "Updated comment content");
+    expect(updateComment).toHaveBeenCalledWith(1, "<p>Updated comment content</p>");
     const editedLabel = wrapper.find(".edited-label");
     expect(editedLabel.exists()).toBe(true);
   });
@@ -221,7 +235,8 @@ describe("CommentSection.vue", () => {
     expect(lastCallArgs[3]).toBe("mostLiked");
   });
 
-  it("shows a centered rate limit modal with minutes and seconds", async () => {
+  it("shows an inline rate limit banner with minutes and seconds", async () => {
+    Element.prototype.scrollIntoView = vi.fn();
     await flushPromises();
 
     submitComment.mockRejectedValueOnce({
@@ -250,8 +265,8 @@ describe("CommentSection.vue", () => {
     await submitBtn.trigger("click");
     await flushPromises();
 
-    expect(document.body.textContent).toContain("You're commenting too fast");
-    expect(document.body.textContent).toContain("1 minute 15 seconds");
+    expect(wrapper.text()).toContain("You're commenting too fast");
+    expect(wrapper.text()).toContain("1m 15s");
   });
 
   it("hides the comment box and shows the disabled notice for a regular user when commentsDisabled is true", async () => {

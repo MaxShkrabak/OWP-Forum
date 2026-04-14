@@ -1,3 +1,12 @@
+/**
+ * ViewPost — unit tests.
+ * Covers:
+ * - renders post title, author, category, tags, and date
+ * - view count formatting (plural, singular, locale-grouped large numbers)
+ * - hides view count element when viewCount is absent
+ * - Share button copies URL to clipboard and shows a toast
+ * - shows error empty-state when post fetch fails
+ */
 import { mount, flushPromises } from "@vue/test-utils";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import ViewPost from "@/views/forum/ViewPost.vue";
@@ -178,7 +187,6 @@ describe("ViewPost.vue", () => {
   });
 
   it("shows error state if post fetch fails", async () => {
-    // component expects an error in the console if fetch fails
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     getPost.mockRejectedValue(new Error("Failed"));

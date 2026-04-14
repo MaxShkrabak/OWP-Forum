@@ -1,3 +1,13 @@
+/**
+ * ReportingModal — unit tests.
+ * Covers:
+ * - opens when isOpen prop changes to true
+ * - displays the report type and target title
+ * - renders all seeded report tags
+ * - submit button enabled only when a tag is selected
+ * - error banner on duplicate report (with shake animation)
+ * - success view and close emission after a successful submit
+ */
 import { describe, it, expect, vi } from "vitest";
 import { mount, flushPromises } from "@vue/test-utils";
 import ReportingModal from "@/components/user/ReportingModal.vue";
@@ -70,7 +80,6 @@ describe("ReportingModal.vue", () => {
 
     expect(submitButton.element.disabled).toBe(false);
 
-    // to check that the submit button is disabled again
     await wrapper.find(".reason-card").trigger("click"); // unselect tag
     expect(submitButton.element.disabled).toBe(true);
   });
@@ -86,7 +95,6 @@ describe("ReportingModal.vue", () => {
 
     await wrapper.find(".reason-card").trigger("click");
 
-    // submit to get the error message from API
     await wrapper.find(".btn-primary-action").trigger("click");
     await flushPromises();
 

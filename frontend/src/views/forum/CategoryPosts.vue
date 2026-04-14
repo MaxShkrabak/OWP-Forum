@@ -67,14 +67,16 @@ async function loadCategoryPosts() {
     );
 
     const pinnedIds = new Set(
-      pinnedForCategory.map((p) => Number(p.PostID ?? p.postId)),
+      pinnedForCategory.map((p) => Number(p.postId)),
     );
 
     const normalPosts = (data.posts || []).filter(
-      (p) => !pinnedIds.has(Number(p.PostID ?? p.postId)),
+      (p) => !pinnedIds.has(Number(p.postId)),
     );
 
     pinnedPosts.value = pinnedForCategory;
+    // Pinned posts only appear on page 1, prepended and counted against the limit
+    // so the total shown stays consistent regardless of how many are pinned.
     posts.value =
       currentPage.value === 1
         ? [...pinnedForCategory, ...normalPosts].slice(0, limit.value)
@@ -107,12 +109,14 @@ function clearTags() {
 
 watch(
   [sort, selectedTags, limit],
-  ([newSort, newTags, newLimit]) => {
-    currentPage.value = 1;
+  ([newSort, , newLimit]) => {
     localStorage.setItem("category_sort", newSort);
     localStorage.setItem("category_limit", newLimit);
-
-    loadCategoryPosts();
+    if (currentPage.value === 1) {
+      loadCategoryPosts();
+    } else {
+      currentPage.value = 1;
+    }
   },
   { deep: true },
 );
@@ -256,7 +260,7 @@ onMounted(async () => {
 
             <PostCard
               v-for="post in posts"
-              :key="post.postId ?? post.PostID"
+              :key="post.postId"
               :post="post"
               class="mb-3"
               @post-refresh="loadCategoryPosts"
