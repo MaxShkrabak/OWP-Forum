@@ -43,6 +43,7 @@ vi.mock("vue-router", () => ({
 
 import SingleComment from "@/components/forum/SingleComment.vue";
 import { deleteComment } from "@/api/comments";
+import { fetchCommentReplies } from "@/api/comments";
 import * as userStore from "@/stores/userStore";
 
 const mockComment = {
@@ -61,10 +62,13 @@ const mockComment = {
   },
 };
 
-function mountComment() {
+function mountComment(commentOverrides = {}) {
   return mount(SingleComment, {
     props: {
-      comment: mockComment,
+      comment: {
+        ...mockComment,
+        ...commentOverrides,
+      },
     },
     global: {
       stubs: {
@@ -137,6 +141,65 @@ describe("SingleComment Admin Permissions", () => {
     await nextTick();
 
     expect(deleteComment).toHaveBeenCalledWith(1);
-    expect(wrapper.emitted("deleted")).toEqual([[1]]);
+    expect(wrapper.emitted("deleted")).toEqual([
+      [{ id: 1, keepPlaceholder: false }],
+    ]);
+  });
+
+  it("keeps a deleted placeholder when the deleted comment still has replies", async () => {
+    userStore.uid.value = 1;
+
+    const wrapper = mountComment({ replyCount: 2 });
+
+    await wrapper.find(".comment-menu-btn").trigger("click");
+    await nextTick();
+
+    await wrapper.find(".comment-menu-item-delete").trigger("click");
+    await nextTick();
+
+    const buttons = wrapper.findAll(".btn-submit");
+    await buttons.at(-1).trigger("click");
+    await nextTick();
+
+    expect(wrapper.emitted("deleted")).toEqual([
+      [{ id: 1, keepPlaceholder: true }],
+    ]);
+  });
+
+  it("turns a deleted reply into a placeholder instead of removing it", async () => {
+    fetchCommentReplies.mockResolvedValueOnce({
+      ok: true,
+      items: [
+        {
+          id: 2,
+          commentId: 2,
+          text: "Reply text",
+          content: "Reply text",
+          score: 0,
+          myVote: 0,
+          time: "Just now",
+          author: "User Two",
+          isDeleted: false,
+          replyCount: 1,
+          user: {
+            userId: 2,
+            avatar: "default.png",
+            role: "Student",
+          },
+        },
+      ],
+    });
+
+    const wrapper = mountComment({ replyCount: 1 });
+
+    await wrapper.find(".btn-toggle-replies").trigger("click");
+    await nextTick();
+
+    expect(wrapper.text()).toContain("Reply text");
+
+    wrapper.vm.$.setupState.handleDeletedReply({ id: 2, keepPlaceholder: true });
+    await nextTick();
+
+    expect(wrapper.text()).toContain("[deleted]");
   });
 });

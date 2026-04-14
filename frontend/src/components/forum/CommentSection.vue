@@ -9,6 +9,10 @@ import {
   submitComment as apiSubmitComment,
   formatCommentData,
 } from "@/api/comments";
+import {
+  createDeletedCommentPlaceholder,
+  normalizeDeletedCommentEvent,
+} from "@/utils/commentState";
 import { isLoggedIn, userRoleId } from "@/stores/userStore";
 
 const props = defineProps({
@@ -332,10 +336,21 @@ onMounted(async () => {
   }
 });
 
-const handleDeletedComment = (deletedCommentId) => {
-  flatCommentsList.value = flatCommentsList.value.filter(
-    (comment) => comment.id !== deletedCommentId,
-  );
+const handleDeletedComment = (payload) => {
+  const { id, keepPlaceholder } = normalizeDeletedCommentEvent(payload);
+
+  if (keepPlaceholder) {
+    flatCommentsList.value = flatCommentsList.value.map((comment) =>
+      comment.id === id
+        ? createDeletedCommentPlaceholder(comment)
+        : comment,
+    );
+  } else {
+    flatCommentsList.value = flatCommentsList.value.filter(
+      (comment) => comment.id !== id,
+    );
+  }
+
   commentTotalCount.value = Math.max(0, commentTotalCount.value - 1);
   commentsTree.value = buildCommentTree(flatCommentsList.value);
 };
