@@ -46,7 +46,7 @@ async function onSubmit() {
       openErrorModal(msg);
     }
   } catch {
-    const msg = 'Incorrect or expired code.';
+    const msg = 'Network error while verifying.';
     errorMsg.value = msg;
     openErrorModal(msg);
   } finally {
