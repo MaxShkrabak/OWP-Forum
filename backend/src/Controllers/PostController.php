@@ -1225,7 +1225,7 @@ public function searchPosts(Request $req, Response $res): Response
             $roleStmt->execute([':uid' => $userId]);
             $roleName = trim((string)$roleStmt->fetchColumn());
 
-            if (strtolower($roleName) !== 'admin') {
+            if (strtolower($roleName) !== 'admin' && strtolower($roleName) !== 'moderator') {
                 return json($res, ['ok' => false, 'error' => 'Forbidden'], 403);
             }
 

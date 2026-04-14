@@ -681,7 +681,7 @@ final class PostControllerTest extends TestCase
         $this->assertEquals(401, $response->getStatusCode());
     }
 
-    public function testPinPostReturns403ForNonAdmin(): void
+    public function testPinPostReturns403ForNonModOrAdmin(): void
     {
         $userId = 5;
         $request = (new ServerRequestFactory())->createServerRequest('POST', '/api/posts/1/pin')
@@ -691,7 +691,7 @@ final class PostControllerTest extends TestCase
 
         $roleStmt = $this->createStub(PDOStatement::class);
         $roleStmt->method('execute')->willReturn(true);
-        $roleStmt->method('fetchColumn')->willReturn('Moderator');
+        $roleStmt->method('fetchColumn')->willReturn('Student');
 
         $this->pdo->method('prepare')->willReturnCallback(
             function (string $sql) use ($termsStmt, $roleStmt) {

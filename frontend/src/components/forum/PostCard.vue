@@ -22,11 +22,12 @@ let pinMessageTimeout = null;
 
 const router = useRouter();
 
-const isAdmin = computed(() => {
-  return (userRole.value || "").trim().toLowerCase() === "admin";
+const isModOrAdmin = computed(() => {
+    const role = (userRole.value || "").trim().toLowerCase();
+    return role === "admin" || role === "moderator";
 });
 
-const canShowPinIcon = computed(() => isAdmin.value);
+const canShowPinIcon = computed(() => isModOrAdmin.value);
 function showPinMessage(message, type = "success") {
   pinMessage.value = message;
   pinMessageType.value = type;
