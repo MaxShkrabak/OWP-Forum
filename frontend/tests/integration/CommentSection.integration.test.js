@@ -117,7 +117,7 @@ describe("CommentSection - Create Comment and Refresh", () => {
     await submitBtn.trigger("click");
     await flushPromises();
 
-    expect(submitComment).toHaveBeenCalledWith(POST_ID, "This is my newly created comment");
+    expect(submitComment).toHaveBeenCalledWith(POST_ID, "<p>This is my newly created comment</p>");
 
     const allComments = wrapper.findAllComponents({ name: "SingleComment" });
     expect(allComments.length).toBe(2);

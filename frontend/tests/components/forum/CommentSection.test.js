@@ -218,7 +218,7 @@ describe("CommentSection.vue", () => {
     await new DOMWrapper(confirmButtonEl).trigger("click");
     await flushPromises();
 
-    expect(updateComment).toHaveBeenCalledWith(1, "Updated comment content");
+    expect(updateComment).toHaveBeenCalledWith(1, "<p>Updated comment content</p>");
     const editedLabel = wrapper.find(".edited-label");
     expect(editedLabel.exists()).toBe(true);
   });
