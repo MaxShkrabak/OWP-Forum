@@ -277,6 +277,19 @@ const askDeleteComment = () => {
   showDeleteConfirm.value = true;
 };
 
+const handleDeletedReply = (deletedReplyId) => {
+  const previousLength = localReplies.value.length;
+  localReplies.value = localReplies.value.filter(
+    (reply) => reply.id !== deletedReplyId,
+  );
+
+  if (localReplies.value.length !== previousLength) {
+    props.comment.replyCount = Math.max(0, (props.comment.replyCount || 0) - 1);
+  }
+
+  emit("deleted", deletedReplyId);
+};
+
 const confirmDeleteComment = async () => {
   if (isDeleting.value) return;
 
@@ -293,7 +306,6 @@ const confirmDeleteComment = async () => {
     alert("Failed to delete comment.");
   } finally {
     isDeleting.value = false;
-    window.location.reload();
   }
 };
 
@@ -600,7 +612,7 @@ onBeforeUnmount(() => {
             :comment="reply"
             :depth="depth + 1"
             :is-last-child="index === localReplies.length - 1"
-            @deleted="emit('deleted', $event)"
+            @deleted="handleDeletedReply"
           />
         </div>
       </div>

@@ -8,6 +8,16 @@ import { mount } from "@vue/test-utils";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { nextTick } from "vue";
 
+vi.mock(
+  "dompurify",
+  () => ({
+    default: {
+      sanitize: vi.fn((value) => value),
+    },
+  }),
+  { virtual: true },
+);
+
 vi.mock("@/stores/userStore", async () => {
   const { ref } = await import("vue");
   return {
@@ -18,12 +28,21 @@ vi.mock("@/stores/userStore", async () => {
   };
 });
 
+vi.mock("@/api/comments", () => ({
+  voteComment: vi.fn(),
+  fetchCommentReplies: vi.fn(),
+  updateComment: vi.fn(),
+  deleteComment: vi.fn(() => Promise.resolve({ ok: true })),
+  formatCommentData: vi.fn((data) => data),
+}));
+
 vi.mock("vue-router", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
   useRoute: () => ({ params: {}, query: {} }),
 }));
 
 import SingleComment from "@/components/forum/SingleComment.vue";
+import { deleteComment } from "@/api/comments";
 import * as userStore from "@/stores/userStore";
 
 const mockComment = {
@@ -100,5 +119,24 @@ describe("SingleComment Admin Permissions", () => {
     await nextTick();
 
     expect(wrapper.text()).not.toContain("Edit");
+  });
+
+  it("emits deleted when the author confirms deletion", async () => {
+    userStore.uid.value = 1;
+
+    const wrapper = mountComment();
+
+    await wrapper.find(".comment-menu-btn").trigger("click");
+    await nextTick();
+
+    await wrapper.find(".comment-menu-item-delete").trigger("click");
+    await nextTick();
+
+    const buttons = wrapper.findAll(".btn-submit");
+    await buttons.at(-1).trigger("click");
+    await nextTick();
+
+    expect(deleteComment).toHaveBeenCalledWith(1);
+    expect(wrapper.emitted("deleted")).toEqual([[1]]);
   });
 });
