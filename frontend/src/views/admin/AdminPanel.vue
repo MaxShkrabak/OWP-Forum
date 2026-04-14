@@ -271,15 +271,14 @@ onBeforeUnmount(() => {
   position: fixed;
   top: 0;
   left: 0;
-  height: 1750px;
-  border-radius: 0px 0px 50px 0px;
+  min-height: 100%;
   transform: translateX(-100%);
   transition: width 0.28s ease, transform 0.28s ease, box-shadow 0.28s ease;
   z-index: 1000;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.22);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow-y: auto;
 }
 
 .sidebar.open {

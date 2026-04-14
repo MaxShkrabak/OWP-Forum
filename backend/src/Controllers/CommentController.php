@@ -645,7 +645,7 @@ class CommentController extends BaseController
                 $userRoleId = 1;
             }
 
-            if ((int)$row['UserID'] !== (int)$userId && $userRoleId < 4) {
+            if ((int)$row['UserID'] !== (int)$userId && $userRoleId < 3) {
                 return json($res, ['ok' => false, 'error' => 'You cannot edit this comment'], 403);
             }
 

@@ -237,6 +237,9 @@ function clearAllFilters() {
   fetchHomepageData();
 }
 
+// Manually seeded categories with icons. 
+// Follow same format to custom icons for added categoroies in the future.
+// Any new category has default icon of 'pi pi-folder-open' if not specified here.
 const categories = [
   { name: 'Announcements & News', icon: 'pi pi-megaphone' },
   { name: 'General', icon: 'pi pi-folder-open' },
@@ -250,7 +253,7 @@ function getCategoryIcon(categoryName) {
   return (
     categories.find(
       (cat) => cat.name.toLowerCase() === categoryName.toLowerCase()
-    )?.icon || "pi-folder-open"
+    )?.icon || "pi pi-folder-open"
   );
 }
 

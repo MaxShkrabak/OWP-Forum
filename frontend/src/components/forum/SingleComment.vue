@@ -292,6 +292,7 @@ const confirmDeleteComment = async () => {
     alert("Failed to delete comment.");
   } finally {
     isDeleting.value = false;
+    window.location.reload();
   }
 };
 
