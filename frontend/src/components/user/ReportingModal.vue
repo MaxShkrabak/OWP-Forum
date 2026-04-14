@@ -48,7 +48,6 @@ const closeModal = () => {
 const submitReport = async () => {
   if (!selectedTagID.value) return;
 
-  // Shake if already reported, then stop
   if (errorMessage.value.includes("already reported")) {
     isShaking.value = true;
     setTimeout(() => {

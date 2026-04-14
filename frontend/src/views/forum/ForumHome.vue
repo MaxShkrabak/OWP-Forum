@@ -139,6 +139,7 @@ async function clearSearch() {
   await fetchHomepageData();
 }
 
+// Shows a toast message at the top of the page when a post is pinned/unpinned
 function showGlobalPinMessage(message, type = "success") {
   globalPinMessage.value = message;
   globalPinMessageType.value = type;

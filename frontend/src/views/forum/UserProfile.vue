@@ -14,7 +14,7 @@ import PostCard from "@/components/forum/PostCard.vue";
 import UserCard from "@/components/user/UserCard.vue";
 
 const activeTab = ref("yourPosts");
-const isExistingUser = ref(true); // Used to check if the user exists when visiting other user's profile
+const isExistingUser = ref(true); // check if the user exists when visiting other user's profile
 
 const route = useRoute();
 const router = useRouter();

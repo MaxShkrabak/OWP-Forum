@@ -20,6 +20,7 @@ const error = ref(null);
 const linkCopiedVisible = ref(false);
 let linkCopiedTimeout = null;
 
+// Copies the current page URL to the clipboard and shows a temporary confirmation toast
 async function copyPostUrlToClipboard() {
   try {
     await navigator.clipboard.writeText(window.location.href);

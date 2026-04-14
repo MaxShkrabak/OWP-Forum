@@ -92,7 +92,9 @@ export const voteComment = async (commentId, dir) => {
   }
 };
 
-// TODO: Maybe add a limit to it same as comments
+// There is no fetching limit for replies
+// If a comment has a large amount of replies it could cause problems
+// Realistically this should not be a problem as most comments will have a small amount of replies
 export const fetchCommentReplies = async (parentId) => {
   try {
     const response = await client.get(`/comments/${parentId}/replies`);

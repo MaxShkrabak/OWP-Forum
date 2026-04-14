@@ -118,7 +118,6 @@ const saveSettings = async () => {
   }
 };
 
-// Watch for changes in store
 watch(userAvatar, (newAvatar) => {
   selectedAvatar.value = newAvatar;
 });

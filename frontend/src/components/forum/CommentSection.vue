@@ -47,6 +47,7 @@ const clearRateLimit = () => {
   }
 };
 
+// helper to format rate limit timer
 const formatTime = (s) => {
   const m = Math.floor(s / 60);
   const sec = s % 60;
@@ -55,6 +56,9 @@ const formatTime = (s) => {
   return `${m}m ${sec}s`;
 };
 
+// Banner the user will see when they hit a comment rate limit by posting too fast
+// Calculates remaining time from server data and starts a timer to update the UI
+// Located right above the main comment textarea
 const showRateLimitBanner = (error) => {
   clearRateLimit();
   const data = error?.response?.data ?? {};

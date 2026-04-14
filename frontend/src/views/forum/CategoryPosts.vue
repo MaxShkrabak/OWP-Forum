@@ -115,7 +115,7 @@ watch(
     if (currentPage.value === 1) {
       loadCategoryPosts();
     } else {
-      currentPage.value = 1; // triggers the currentPage watcher which calls loadCategoryPosts
+      currentPage.value = 1;
     }
   },
   { deep: true },
