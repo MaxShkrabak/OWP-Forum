@@ -18,6 +18,7 @@ const images = computed(() => {
 });
 
 const selectedAvatar = ref("");
+const originalAvatar = ref("");
 const notificationPrefs = ref({
   emailNotifications: true,
   pushNotifications: true,
@@ -31,6 +32,7 @@ const loadSettings = async () => {
     localStorage.getItem("userAvatar") || images.value[0] || "";
 
   selectedAvatar.value = savedAvatar;
+  originalAvatar.value = savedAvatar;
 
   notificationPrefs.value = {
     ...notificationPrefs.value,
@@ -56,11 +58,16 @@ const saveSettings = async () => {
   try {
     const fullPath = selectedAvatar.value;
     const filename = fullPath.split("/").pop();
-    const avatarResult = await updateUserAvatar(filename);
+    const originalFilename = originalAvatar.value.split("/").pop();
+    const avatarChanged = filename !== originalFilename;
 
-    if (!avatarResult.ok) {
-      alert("Could not save your icon, please try again later.");
-      return;
+    if (avatarChanged) {
+      const avatarResult = await updateUserAvatar(filename);
+
+      if (!avatarResult.ok) {
+        alert("Could not save your icon, please try again later.");
+        return;
+      }
     }
 
     const notificationResult = await saveNotificationSettings({
@@ -71,6 +78,13 @@ const saveSettings = async () => {
     });
 
     if (!notificationResult.ok) {
+      if (avatarChanged) {
+        try {
+          await updateUserAvatar(originalFilename);
+        } catch (rollbackError) {
+          console.error("Failed to roll back avatar change", rollbackError);
+        }
+      }
       alert(
         "Could not save your notification preferences, please try again later.",
       );
@@ -80,6 +94,7 @@ const saveSettings = async () => {
     localStorage.setItem("userAvatar", selectedAvatar.value);
     saveNotificationPreferencesLocal(notificationPrefs.value);
     userAvatar.value = selectedAvatar.value;
+    originalAvatar.value = selectedAvatar.value;
 
     const modalElement = document.getElementById("userSettingsModal");
     if (modalElement) {

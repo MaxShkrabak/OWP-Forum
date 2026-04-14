@@ -38,6 +38,7 @@ vi.mock("@/stores/userStore", async () => {
 describe("UserSettings.vue", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.spyOn(window, "alert").mockImplementation(() => {});
     localStorage.clear();
     localStorage.setItem("uid", "42");
     mockGetNotificationSettings.mockResolvedValue({
@@ -83,7 +84,7 @@ describe("UserSettings.vue", () => {
     await flushPromises();
 
     const avatars = wrapper.findAll(".pfp-selector");
-    await avatars[0].trigger("click");
+    await avatars[1].trigger("click");
     await wrapper.find("#pushNotifications").setValue(false);
     await wrapper.find(".save-btn").trigger("click");
     await flushPromises();
@@ -93,5 +94,26 @@ describe("UserSettings.vue", () => {
     expect(localStorage.getItem("userAvatar")).toBeTruthy();
     expect(localStorage.getItem("notificationPreferences:42")).toBeTruthy();
     expect(hide).toHaveBeenCalledTimes(1);
+  });
+
+  it("rolls back the avatar if notification settings fail after avatar save", async () => {
+    mockSaveNotificationSettings.mockResolvedValueOnce({ ok: false });
+
+    const wrapper = mount(UserSettings);
+    await flushPromises();
+
+    const avatars = wrapper.findAll(".pfp-selector");
+    await avatars[1].trigger("click");
+    await wrapper.find(".save-btn").trigger("click");
+    await flushPromises();
+
+    expect(mockUpdateUserAvatar).toHaveBeenCalledTimes(2);
+    expect(mockUpdateUserAvatar.mock.calls[0][0]).not.toBe(
+      mockUpdateUserAvatar.mock.calls[1][0],
+    );
+    expect(localStorage.getItem("userAvatar")).toBeNull();
+    expect(window.alert).toHaveBeenCalledWith(
+      "Could not save your notification preferences, please try again later.",
+    );
   });
 });
