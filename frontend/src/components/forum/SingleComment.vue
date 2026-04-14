@@ -752,6 +752,10 @@ onBeforeUnmount(() => {
   word-break: break-word;
 }
 
+.comment-body :deep(a:has(> img)) {
+  display: inline-block;
+}
+
 .comment-body :deep(img) {
   max-width: 100%;
   max-height: 400px;
