@@ -62,6 +62,12 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(),
   routes,
+  scrollBehavior(to, from, savedPosition) {
+    if (savedPosition && to.path === from.path) {
+      return savedPosition;
+    }
+    return { left: 0, top: 0 };
+  },
 });
 
 // Route guard
@@ -101,12 +107,6 @@ router.beforeEach(async (to, from, next) => {
   }
 
   next();
-});
-
-router.afterEach((to, from) => {
-  if (to.path !== from.path) {
-    scrollTo(0, 0);
-  }
 });
 
 export default router;
