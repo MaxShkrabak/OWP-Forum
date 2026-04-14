@@ -13,8 +13,15 @@ const otp = ref('');
 const loading = ref(false);
 const message = ref('');
 const errorMsg = ref('');
+const showErrorModal = ref(false);
+const errorMessage = ref('');
 
 const canSubmit = computed(() => otp.value.trim().length === 6 && !!email.value);
+
+function openErrorModal(msg) {
+  errorMessage.value = msg;
+  showErrorModal.value = true;
+}
 
 async function onSubmit() {
   errorMsg.value = '';
@@ -30,14 +37,18 @@ async function onSubmit() {
     const res = await verifyOtp(email.value.trim(), otp.value.trim());
     
     if (res?.ok) {
-      await syncProfileOnLoad(); // get user data
+      await syncProfileOnLoad();
       router.push({ name: "ForumHome" });
       message.value = 'Verified! You are now signed in.';
     } else {
-      errorMsg.value = res?.message || 'Incorrect or expired code.';
+      const msg = res?.message || 'Incorrect or expired code.';
+      errorMsg.value = msg;
+      openErrorModal(msg);
     }
   } catch {
-    errorMsg.value = 'Network error while verifying.';
+    const msg = 'Network error while verifying.';
+    errorMsg.value = msg;
+    openErrorModal(msg);
   } finally {
     loading.value = false;
   }
@@ -90,12 +101,21 @@ async function onSubmit() {
         <div class="resend">
           <span>First time here? Please
             <RouterLink to="/register" class="link-btn">Register</RouterLink>
-        </span>
-          
+          </span>
         </div>
 
         <p v-if="message" class="notice success">{{ message }}</p>
         <p v-if="errorMsg" class="notice error">{{ errorMsg }}</p>
+      </div>
+    </div>
+
+    <div v-if="showErrorModal" class="modal-mask" @click.self="showErrorModal = false">
+      <div class="modal-container">
+        <h3 class="modal-title">Verification Failed</h3>
+        <p class="modal-message">{{ errorMessage }}</p>
+        <div class="modal-actions">
+          <button class="modal-btn" @click="showErrorModal = false">OK</button>
+        </div>
       </div>
     </div>
   </section>
@@ -110,7 +130,6 @@ async function onSubmit() {
   color: #000000;
   margin-bottom: 0.65rem;
 }
-
 
 .btn {
   display: inline-flex;
@@ -129,7 +148,6 @@ async function onSubmit() {
 .btn:hover { filter: brightness(1.05); }
 .btn:disabled { opacity: 0.65; cursor: not-allowed; }
 
-
 /* Resend section */
 .resend {
   margin-top: 8em;
@@ -142,6 +160,58 @@ async function onSubmit() {
   font-weight: 700;
   text-decoration: underline;
   cursor: pointer;
+}
+
+/* Modal */
+.modal-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.modal-container {
+  width: min(460px, calc(100vw - 32px));
+  background: #fff;
+  border-radius: 10px;
+  padding: 24px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.modal-title {
+  margin: 0 0 12px 0;
+  font-size: 22px;
+  color: #264e44;
+}
+
+.modal-message {
+  margin: 0;
+  font-size: 16px;
+  color: #222;
+  line-height: 1.5;
+}
+
+.modal-actions {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.modal-btn {
+  background: #00573f;
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 10px 24px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.modal-btn:hover {
+  background: #004832;
 }
 
 </style>
