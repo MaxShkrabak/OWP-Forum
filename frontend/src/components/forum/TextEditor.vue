@@ -164,8 +164,15 @@ const triggerImageUpload = async () => {
         const data = await uploadImage(file);
         editor.value.chain().focus().setImage({ src: data.url }).run();
       } catch (err) {
-        uploadError.value =
-          "Image could not be uploaded. Try a smaller image (under 5 MB) in JPEG, PNG, or WebP format.";
+        const status = err?.response?.status;
+        const msg = err?.response?.data?.error || '';
+        if (status === 422 && msg) {
+          uploadError.value = msg;
+        } else if (status === 422) {
+          uploadError.value = "Only image files (JPEG, PNG, WebP) under 5 MB are allowed.";
+        } else {
+          uploadError.value = "Image upload failed due to a server issue. Please try again later.";
+        }
         clearTimeout(uploadErrorTimer);
         uploadErrorTimer = setTimeout(() => {
           uploadError.value = "";

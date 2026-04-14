@@ -1146,6 +1146,9 @@ public function searchPosts(Request $req, Response $res): Response
                 return $termsRes;
             }
 
+            $banResponse = \Forum\Helpers\checkUserBan($pdo, (int)$userId, $res);
+            if ($banResponse) return $banResponse;
+
             $postId = (int)$args['id'];
 
             $body = $req->getParsedBody();

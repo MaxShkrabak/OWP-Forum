@@ -155,6 +155,8 @@ final class AuthController extends BaseController
         }
     }
 
+    // TODO: Add rate limiting to login and requestOtp endpoints before production.
+    // Currently no limit on OTP requests or login attempts per IP/email.
     public function login(Request $req, Response $res): Response
     {
         $data = $req->getParsedBody() ?? [];
@@ -282,7 +284,14 @@ final class AuthController extends BaseController
             $data = $req->getParsedBody() ?? [];
             $first = trim((string)($data['first'] ?? ''));
             $last = trim((string)($data['last'] ?? ''));
-            $email = trim((string)($data['email'] ?? ''));
+            $email = strtolower(trim((string)($data['email'] ?? '')));
+
+            if ($first === '' || $last === '') {
+                return json($res, ['ok' => false, 'error' => 'First and last name are required.'], 400);
+            }
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                return json($res, ['ok' => false, 'error' => 'Valid email required.'], 400);
+            }
 
             $pdo = ($this->makePdo)();
 

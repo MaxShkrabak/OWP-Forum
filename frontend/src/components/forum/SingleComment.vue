@@ -91,11 +91,12 @@ const replyIsUploading = ref(false);
 const safeContent = computed(() => {
   const sanitized = DOMPurify.sanitize(props.comment.text ?? '');
   // Wrap images in an anchor so clicking them opens the full-size URL in a new tab.
-  return sanitized.replace(
+  const withLinks = sanitized.replace(
     /<img[^>]+src="([^"]+)"[^>]*\/?>/gi,
     (match, src) =>
       `<a href="${src}" target="_blank" rel="noopener noreferrer">${match}</a>`,
   );
+  return DOMPurify.sanitize(withLinks);
 });
 
 const isAuthor = computed(() => {

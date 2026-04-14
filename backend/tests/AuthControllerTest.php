@@ -333,6 +333,44 @@ class AuthControllerTest extends TestCase
         $this->assertTrue($body['ok']);
     }
 
+    public function test_register_lowercases_email_before_insert(): void
+    {
+        $capturedEmail = null;
+
+        $checkStmt = $this->createStub(PDOStatement::class);
+        $checkStmt->method('execute')->willReturn(true);
+        $checkStmt->method('fetchColumn')->willReturn(false);
+
+        $insertStmt = $this->createStub(PDOStatement::class);
+        $insertStmt->method('execute')->willReturnCallback(
+            function (array $params) use (&$capturedEmail) {
+                $capturedEmail = $params[':email'] ?? null;
+                return true;
+            }
+        );
+
+        $this->pdo->method('prepare')->willReturnCallback(
+            function (string $sql) use ($checkStmt, $insertStmt) {
+                if (str_contains(strtolower($sql), 'insert into')) return $insertStmt;
+                return $checkStmt;
+            }
+        );
+
+        $req = $this->createStub(Request::class);
+        $req->method('getParsedBody')->willReturn([
+            'first' => 'Jeff',
+            'last' => 'Test',
+            'email' => 'Jeff.Test@GMAIL.COM',
+        ]);
+
+        $response = $this->controller->register($req, new Response());
+
+        $this->assertEquals(200, $response->getStatusCode());
+        $body = json_decode((string)$response->getBody(), true);
+        $this->assertTrue($body['ok']);
+        $this->assertEquals('jeff.test@gmail.com', $capturedEmail, 'Email should be lowercased before DB insert to match login behavior');
+    }
+
     public function test_logout_returns_ok_without_session_cookie(): void
     {
         $req = $this->createStub(Request::class);
