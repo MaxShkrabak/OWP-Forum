@@ -50,7 +50,7 @@ function onPerPageChange(e) {
     <div class="admin-pag-summary" aria-live="polite">
       <span v-if="total === 0">No results</span>
       <span v-else>
-        {{ rangeFrom }}–{{ rangeTo }} of {{ total }}
+        {{ rangeFrom }}-{{ rangeTo }} of {{ total }}
       </span>
     </div>
 
