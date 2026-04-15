@@ -316,6 +316,11 @@ Before you begin, ensure you have the following installed. The versions listed a
    npm run dev
    ```
 
+4. Click or type the Local link:
+   ```bash
+   ➜ Local:  http://localhost:5173/
+   ```
+
 ### 2. Backend Setup
 1. Extract PHP to the desired directory and create a new **system environmental variable** for the path to the PHP installation.
 2. From the **SQLSRV512.ZIP** file you downloaded, copy the drivers **php_pdo_sqlsrv_83_ts_x64.dll** & **php_sqlsrv_83_ts_x64.dll** or equivalent drivers for the version of PHP you downloaded and paste them into the **ext** file inside your PHP installation
@@ -325,26 +330,30 @@ Before you begin, ensure you have the following installed. The versions listed a
    extension=php_sqlsrv_83_ts_x64.dll
    extension=php_pdo_sqlsrv_83_ts_x64.dll
    ```
-6. Copy the path of the **ext** file, inside your PHP installation file, and paste it inside the double quotes of the extension directory inside php.ini then save php.ini.
+5. Copy the path of the **ext** file, inside your PHP installation file, and paste it inside the double quotes of the extension directory inside php.ini then save php.ini.
    ```bash
    ; On windows:
    extension_dir = "paste directory here"
    ```
-7. In a **new terminal window**, navigate to the backend directory from the project root:
+6. In a **new terminal window**, navigate to the backend directory from the project root:
    ```bash
    cd backend
    ```
-8. Install the required PHP dependencies using Composer:
+7. Install the required PHP dependencies using Composer:
    ```bash
    composer require slim/slim slim/psr7 vlucas/phpdotenv
    ```
-9. **Ensure You Have Configured Your Environment Variables:** The backend needs credentials to run.
+8. **Ensure You Have Configured Your Environment Variables:** The backend needs credentials to run.
    * First, copy the example `.env.example` file to create your own local configuration file:
    ```bash
    cp .env.example .env
    ```
    * Next, open the new `.env` file.
    * Fill in the required parameters (database credentials, application secrets) with your correct development values.
+9. **After creating your .env file and configuring environment variables:** Run your backend **Local** Development Server while in the <em>/backend</em> folder.
+   ```base
+   php -S localhost:8080 -t public
+   ```
 
 ### 3. Database Migrations
 
