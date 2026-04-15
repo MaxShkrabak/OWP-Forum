@@ -130,7 +130,7 @@ Similar for all roles.
    <h6>╭┈➤&emsp;🙍‍♂️ User's own profile. View posts you liked/upvoted.</h6>
    <img width="900" alt="Image" src="https://github.com/user-attachments/assets/fadf8d1d-a39b-49e4-85a1-a91b3118da1e" />
 
-   <h6>╭┈➤&emsp;🙍‍♂️ User's own profile. Edit your profile, with editable pre-made avatars and notification preferences.</h6>
+   <h6>╭┈➤&emsp;🙍‍♂️ User's own profile. Edit your profile, with editable pre-made avatars designed by Ruzanna Shomakhova and notification preferences.</h6>
    <img width="900" alt="Image" src="https://github.com/user-attachments/assets/c76a68ff-ef07-48f4-a29e-a9b62bdf2c64" />
 </details>
 
