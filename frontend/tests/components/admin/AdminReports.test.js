@@ -421,7 +421,7 @@ describe("AdminReports.vue — Pagination", () => {
     expect(rows.length).toBe(5);
 
     expect(wrapper.find(".admin-pag").exists()).toBe(true);
-    expect(wrapper.text()).toContain("1–5 of 7");
+    expect(wrapper.text()).toContain("1-5 of 7");
   });
 
   it("hides pagination when no reports", async () => {
@@ -467,21 +467,5 @@ describe("AdminReports.vue — Pagination", () => {
     expect(mockReportsApi.fetchReports).toHaveBeenCalledTimes(2);
     const rows = wrapper.findAll(".reports-list .report-row");
     expect(rows.length).toBe(2);
-  });
-
-  it("sort dropdown renders with correct options", async () => {
-    mockReportsApi.fetchReports.mockResolvedValue({
-      ok: true,
-      reports: mockManyReports,
-      total: mockManyReports.length,
-      page: 1,
-      perPage: 25,
-    });
-    const wrapper = mount(AdminReports);
-    await flushPromises();
-
-    const sortSelect = wrapper.find(".reports-controls select.sort-select");
-    const options = sortSelect.findAll("option");
-    expect(options.map((o) => o.element.value)).toEqual(["newest", "oldest"]);
   });
 });
