@@ -1,0 +1,30 @@
+@media screen and (max-width: 768px) {
+    .col-sm-4 {
+        flex: 0 0 auto;
+        width: 100% !important;
+    }
+    .col-sm-2 {
+        flex: 0 0 auto;
+        width: 100% !important;
+    }
+    .col-sm-3 {
+        flex: 0 0 auto;
+        width: 100% !important;
+    }
+    .col-sm-6 {
+        flex: 0 0 auto;
+        width: 100% !important;
+    }
+    .col-sm-7 {
+        flex: 0 0 auto;
+        width: 100% !important;
+    }
+    .py-3 {
+        padding-top: .5rem !important;
+        padding-bottom: .5rem !important;
+    }
+    .row {
+        padding-top: 15px;
+        padding-bottom: 15px;
+    }
+}

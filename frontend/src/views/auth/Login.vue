@@ -1,8 +1,8 @@
 <script setup>
 import { ref } from "vue";
 import { useRouter } from "vue-router";
-import { verifyEmail } from "@/api/auth";
-import '/src/assets/style.css'
+import { verifyEmail, requestOtp } from "@/api/auth";
+import '/src/assets/forumAuth.css'
 
 const router = useRouter();
 
@@ -26,13 +26,17 @@ async function onSubmit() {
   sending.value = true;
 
   try {
-    const data = await verifyEmail(email.value); // calls backend to verify if email exists
-    const exists = data?.emailExists ?? false;  // true if email exists, false otherwise
+    const data = await verifyEmail(email.value);
+    const exists = data?.emailExists ?? false;
 
-    // Handles the response from the backend
     if (data.ok && exists) {
-      status.value = "sent";
-      router.push({ name: "VerifyPasscode", query: { email: email.value } });
+      const resOtp = await requestOtp(email.value);
+      if (resOtp.ok) {
+        router.push({ path: '/verify', query: { email: email.value } });
+        status.value = "sent";
+      } else {
+        alert(resOtp.message || 'Failed to send passcode.');
+      }
     } else if (data.ok && !exists) {
       status.value = "error";
       errorMsg.value = "This email has not been registered. Please register first.";
@@ -51,7 +55,6 @@ async function onSubmit() {
 </script>
 
 <template>
-  <!-- ====================== BODY ====================== -->
   <section class="auth-wrap" aria-label="Login">
     <div class="auth-card" role="region" aria-labelledby="login-title">
       <div class="form-inner">
@@ -99,19 +102,16 @@ async function onSubmit() {
 </template>
 
 <style scoped>
-/* NAV */
 .inline-nav {
   display: inline-block;
   margin-bottom: 1rem;
   font-size: 0.95rem;
 }
 
-/* Extra spacing before "First time here?" */
 .auth-card .tiny {
   margin-top: 2em;
 }
 
-/* Mobile tweaks */
 @media (max-width: 768px) {
   .login-wrap { --section-gutter: clamp(8px, 4vw, 16px); }
 
@@ -126,7 +126,6 @@ async function onSubmit() {
   }
 }
 
-/* Typography */
 .card-title {
   margin: 0 0 3.75rem 0;
   font-size: 2.5rem;
@@ -142,7 +141,6 @@ async function onSubmit() {
   margin-bottom: 0.65rem;
 }
 
-/* Button */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -160,7 +158,6 @@ async function onSubmit() {
 .btn:hover { filter: brightness(1.05); }
 .btn:disabled { opacity: 0.65; cursor: not-allowed; }
 
-/* Tiny note & link emphasis */
 .tiny {
   margin-top: 2.5rem;
   font-size: 1.1rem;

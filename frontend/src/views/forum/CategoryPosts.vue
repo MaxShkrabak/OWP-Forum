@@ -1,30 +1,34 @@
 <script setup>
-import { ref, onMounted, watch, computed } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
-import ForumHeader from '@/components/layout/ForumHeader.vue';
-import PostCard from '@/components/forum/PostCard.vue';
-import UserCard from '@/components/user/UserCard.vue';
-import CreatePostButton from '@/components/forum/CreatePostButton.vue';
-import ViewReportsButton from '@/components/admin/ViewReportsButton.vue';
-import { isLoggedIn } from '@/stores/userStore';
-import { fetchPosts as apiGetPosts, fetchPinnedPosts as apiGetPinnedPosts, getFilterTags as apiGetTags } from '@/api/posts';
-import { getPaginationRange } from '@/utils/pagination';
-import AdminPanelButton from '@/components/admin/AdminPanelButton.vue';
+import { ref, onMounted, watch, computed } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import ForumHeader from "@/components/layout/ForumHeader.vue";
+import PostCard from "@/components/forum/PostCard.vue";
+import UserCard from "@/components/user/UserCard.vue";
+import CreatePostButton from "@/components/forum/CreatePostButton.vue";
+import ViewReportsButton from "@/components/admin/ViewReportsButton.vue";
+import { isLoggedIn } from "@/stores/userStore";
+import {
+  fetchPosts as apiGetPosts,
+  fetchPinnedPosts as apiGetPinnedPosts,
+  getFilterTags as apiGetTags,
+} from "@/api/posts";
+import { getPaginationRange } from "@/utils/pagination";
+import AdminPanelButton from "@/components/admin/AdminPanelButton.vue";
 
 const route = useRoute();
 const router = useRouter();
 
 const posts = ref([]);
 const pinnedPosts = ref([]);
-const categoryName = ref('Loading...');
+const categoryName = ref("Loading...");
 const loading = ref(true);
 const error = ref(null);
 
 const currentPage = ref(1);
 const totalPages = ref(1);
 const totalPosts = ref(0);
-const limit = ref(Number(localStorage.getItem('category_limit')) || 10);
-const sort = ref(localStorage.getItem('category_sort') || 'latest');
+const limit = ref(Number(localStorage.getItem("category_limit")) || 10);
+const sort = ref(localStorage.getItem("category_sort") || "latest");
 
 const allTags = ref([]);
 const selectedTags = ref([]);
@@ -48,38 +52,43 @@ async function loadCategoryPosts() {
       sort: sort.value,
       page: currentPage.value,
       limit: limit.value,
-      tags: selectedTags.value
+      tags: selectedTags.value,
     };
 
     const [data, pinnedData] = await Promise.all([
       apiGetPosts(args),
-      apiGetPinnedPosts()
+      apiGetPinnedPosts(),
     ]);
 
     const categoryIdNum = Number(route.params.categoryId);
 
     const pinnedForCategory = (pinnedData?.posts || []).filter(
-      (p) => Number(p.categoryId) === categoryIdNum
+      (p) => Number(p.categoryId) === categoryIdNum,
     );
 
     const pinnedIds = new Set(
-      pinnedForCategory.map((p) => Number(p.PostID ?? p.postId))
+      pinnedForCategory.map((p) => Number(p.postId)),
     );
 
     const normalPosts = (data.posts || []).filter(
-      (p) => !pinnedIds.has(Number(p.PostID ?? p.postId))
+      (p) => !pinnedIds.has(Number(p.postId)),
     );
 
     pinnedPosts.value = pinnedForCategory;
-    posts.value = [...pinnedForCategory, ...normalPosts];
-    categoryName.value = data.categoryName || 'Category';
+    // Pinned posts only appear on page 1, prepended and counted against the limit
+    // so the total shown stays consistent regardless of how many are pinned.
+    posts.value =
+      currentPage.value === 1
+        ? [...pinnedForCategory, ...normalPosts].slice(0, limit.value)
+        : normalPosts;
+    categoryName.value = data.categoryName || "Category";
 
     if (data.meta) {
       totalPages.value = data.meta.totalPages || 1;
       totalPosts.value = data.meta.totalPosts ?? 0;
     }
   } catch (e) {
-    console.error('Fetch error:', e);
+    console.error("Fetch error:", e);
     error.value = e.message;
     posts.value = [];
     pinnedPosts.value = [];
@@ -98,13 +107,19 @@ function clearTags() {
   selectedTags.value = [];
 }
 
-watch([sort, selectedTags, limit], ([newSort, newTags, newLimit]) => {
-  currentPage.value = 1;
-  localStorage.setItem('category_sort', newSort);
-  localStorage.setItem('category_limit', newLimit);
-
-  loadCategoryPosts();
-}, { deep: true });
+watch(
+  [sort, selectedTags, limit],
+  ([newSort, , newLimit]) => {
+    localStorage.setItem("category_sort", newSort);
+    localStorage.setItem("category_limit", newLimit);
+    if (currentPage.value === 1) {
+      loadCategoryPosts();
+    } else {
+      currentPage.value = 1;
+    }
+  },
+  { deep: true },
+);
 
 const displayedPages = computed(() => {
   return getPaginationRange(currentPage.value, totalPages.value, 2);
@@ -117,14 +132,11 @@ watch(
   () => {
     currentPage.value = 1;
     loadCategoryPosts();
-  }
+  },
 );
 
 onMounted(async () => {
-  await Promise.all([
-    loadCategoryPosts(),
-    fetchTags()
-  ]);
+  await Promise.all([loadCategoryPosts(), fetchTags()]);
 });
 </script>
 
@@ -147,8 +159,12 @@ onMounted(async () => {
 
             <!-- Tag Filter -->
             <div class="card border-0 shadow-sm rounded-3 mt-4 overflow-hidden">
-              <div class="filter-header px-3 py-2 d-flex justify-content-between align-items-center">
-                <span class="fw-bold small text-uppercase tracking-wider">Filter By Tags</span>
+              <div
+                class="filter-header px-3 py-2 d-flex justify-content-between align-items-center"
+              >
+                <span class="fw-bold small text-uppercase tracking-wider"
+                  >Filter By Tags</span
+                >
                 <button
                   v-if="selectedTags.length > 0"
                   @click="clearTags"
@@ -168,7 +184,14 @@ onMounted(async () => {
                   class="tag-pill bi"
                   :class="{ active: selectedTags.includes(tag.name) }"
                 >
-                  <i class="tag-pill-icon" :class="{ 'bi-check-circle-fill pe-1': selectedTags.includes(tag.name) }"></i>
+                  <i
+                    class="tag-pill-icon"
+                    :class="{
+                      'bi-check-circle-fill pe-1': selectedTags.includes(
+                        tag.name,
+                      ),
+                    }"
+                  ></i>
                   {{ tag.name }}
                 </button>
               </div>
@@ -237,7 +260,7 @@ onMounted(async () => {
 
             <PostCard
               v-for="post in posts"
-              :key="post.postId ?? post.PostID"
+              :key="post.postId"
               :post="post"
               class="mb-3"
               @post-refresh="loadCategoryPosts"
@@ -546,10 +569,6 @@ onMounted(async () => {
     padding: 1px 2px;
   }
 }
-
-/* =========================
-   TAG FILTER CARD STYLES
-   ========================= */
 
 .filter-header {
   background: linear-gradient(135deg, #0b5f43 0%, #0a4f3b 100%);

@@ -141,7 +141,7 @@ onBeforeUnmount(() => {
               </div>
 
               <transition name="fade-slide">
-                <span v-if="!isCollapsed" class="back-text">
+                <span v-if="!isCollapsed" class="back-text d-none d-sm-block">
                   Back to Forum
                 </span>
               </transition>
@@ -187,7 +187,7 @@ onBeforeUnmount(() => {
 
                 <div class="current-section-text">
                   <span class="current-section-title">{{ activeTab }}</span>
-                  <span class="current-section-subtitle">
+                  <span class="current-section-subtitle d-none d-sm-block">
                     Admin management area
                   </span>
                 </div>
@@ -226,13 +226,6 @@ onBeforeUnmount(() => {
             <button class="menu-btn" @click="toggleNav" aria-label="Open navigation">
               <i class="bi bi-list"></i>
             </button>
-
-            <div>
-              <h1 class="page-title">{{ activeTab }}</h1>
-              <p class="page-subtitle">
-                Manage {{ activeTab.toLowerCase() }} from your dashboard
-              </p>
-            </div>
           </div>
         </header>
 
@@ -258,6 +251,7 @@ onBeforeUnmount(() => {
   display: flex;
   min-height: 100vh;
   position: relative;
+  min-width: 0;
 }
 
 .sidebar-backdrop {
@@ -277,15 +271,14 @@ onBeforeUnmount(() => {
   position: fixed;
   top: 0;
   left: 0;
-  height: 1750px;
-  border-radius: 0px 0px 50px 0px;
+  min-height: 100%;
   transform: translateX(-100%);
   transition: width 0.28s ease, transform 0.28s ease, box-shadow 0.28s ease;
   z-index: 1000;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.22);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow-y: auto;
 }
 
 .sidebar.open {
@@ -707,6 +700,7 @@ onBeforeUnmount(() => {
 .main-panel {
   flex: 1;
   width: 100%;
+  min-width: 0;
   padding: 1rem;
   transition: all 0.28s ease;
 }
@@ -756,6 +750,7 @@ onBeforeUnmount(() => {
   border-radius: 28px;
   padding: 1rem;
   min-height: calc(100vh - 110px);
+  min-width: 0;
   box-shadow:
     0 20px 45px rgba(0, 71, 80, 0.08),
     inset 0 0 0 1px rgba(255, 255, 255, 0.45);
@@ -838,6 +833,9 @@ onBeforeUnmount(() => {
   .page-subtitle {
     font-size: 0.88rem;
   }
+  .page-heading-title {
+  font-size: 1.5rem;
+}
 }
 
 </style>

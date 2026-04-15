@@ -31,6 +31,7 @@
 <script setup>
 import { ref } from "vue";
 import client from "@/api/client";
+import { termsAccepted } from "@/stores/userStore";
 
 const emit = defineEmits(["accepted"]);
 
@@ -45,6 +46,7 @@ async function submit() {
   try {
     const res = await client.post("/accept-terms");
     if (res.data?.ok) {
+      termsAccepted.value = true;
       emit("accepted");
       return;
     }

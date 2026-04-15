@@ -1,7 +1,7 @@
 import client from "./client";
 
 export async function requestOtp(email) {
-  const { data } = await client.post("../auth/request-otp", { email });
+  const { data } = await client.post("/request-otp", { email });
   return data;
 }
 
@@ -42,7 +42,6 @@ export async function getName() {
   return null;
 }
 
-// Function to store users icon type in database
 export async function updateUserAvatar(avatarPath) {
   const { data } = await client.post("/user/avatar", { avatar: avatarPath });
   return data;

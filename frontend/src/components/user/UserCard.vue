@@ -1,7 +1,13 @@
 <script setup>
 import { onMounted, ref, watch } from "vue";
-import UserIcon from "@/assets/img/user-pfps-premade/pfp-0.png";
-import { isLoggedIn, fullName, userAvatar, userRole, uid } from "@/stores/userStore";
+import UserIcon from "@/assets/img/user-pfps-premade/waves.svg";
+import {
+  isLoggedIn,
+  fullName,
+  userAvatar,
+  userRole,
+  uid,
+} from "@/stores/userStore";
 import { fetchUserStats } from "@/api/users";
 import UserRole from "@/components/user/UserRole.vue";
 
@@ -11,7 +17,7 @@ const props = defineProps({
   avatar: String,
   newFullName: String,
   newRole: String,
-  userId: [String, Number]
+  userId: [String, Number],
 });
 
 const postCount = ref(0);
@@ -37,12 +43,16 @@ onMounted(() => {
   if (id) loadStats(id);
 });
 
-watch(() => props.userId, (newId) => {
-  if (newId) loadStats(newId);
-});
+watch(
+  () => props.userId,
+  (newId) => {
+    if (newId) loadStats(newId);
+  },
+);
 
 function getAvatarSrc(file) {
-  return new URL(`../../assets/img/user-pfps-premade/${file}`, import.meta.url).href;
+  return new URL(`../../assets/img/user-pfps-premade/${file}`, import.meta.url)
+    .href;
 }
 </script>
 
@@ -52,18 +62,48 @@ function getAvatarSrc(file) {
     <div class="user-main-card shadow-sm border" v-if="isLoggedIn">
       <div class="card-header-gradient"></div>
       <div class="card-body-content px-3 pb-3">
-        <div class="profile-section text-center" >
-          <RouterLink to="/profile" class="pfp-wrapper shadow-sm" v-if="!isProfile">
+        <div class="profile-section text-center">
+          <RouterLink
+            to="/profile"
+            class="pfp-wrapper shadow-sm"
+            v-if="!isProfile"
+          >
             <img :src="userAvatar" alt="avatar" class="img-fluid profile-img" />
           </RouterLink>
-          <button class="pfp-wrapper-profile shadow-sm" data-bs-toggle="modal" data-bs-target="#pfpChange" v-else-if="isProfile && isCurrUser">
-                <img v-if="userAvatar" :src="userAvatar" class="img-fluid profile-img" alt="User avatar">
-                <img v-else src="@\assets\img\user-pfps-premade\pfp-0.png" class="img-fluid profile-img" alt="Default avatar">
+          <button
+            class="pfp-wrapper-profile shadow-sm"
+            data-bs-toggle="modal"
+            data-bs-target="#userSettingsModal"
+            v-else-if="isProfile && isCurrUser"
+          >
+            <img
+              v-if="userAvatar"
+              :src="userAvatar"
+              class="img-fluid profile-img"
+              alt="User avatar"
+            />
+            <img
+              v-else
+              :src="UserIcon"
+              class="img-fluid profile-img"
+              alt="Default avatar"
+            />
           </button>
-          <div class="pfp-wrapper-profile shadow-sm" v-else-if="isProfile && !isCurrUser">
-                <img v-if="avatar" :src="getAvatarSrc(avatar)" class="profile-img" alt="User avatar">
+          <div
+            class="pfp-wrapper-profile shadow-sm"
+            style="cursor: initial"
+            v-else-if="isProfile && !isCurrUser"
+          >
+            <img
+              v-if="avatar"
+              :src="getAvatarSrc(avatar)"
+              class="profile-img"
+              alt="User avatar"
+            />
           </div>
-          <h5 class="user-name mt-2 mb-1">{{ isCurrUser ? fullName : newFullName || fullName}}</h5>
+          <h5 class="user-name mt-2 mb-1">
+            {{ isCurrUser ? fullName : newFullName || fullName }}
+          </h5>
           <UserRole :role="isCurrUser ? userRole : newRole || userRole" />
         </div>
         <!-- User Stats Section -->
@@ -72,7 +112,9 @@ function getAvatarSrc(file) {
           <!-- Posts count-->
           <div class="stat-item">
             <span class="stat-value">{{ postCount }}</span>
-            <span class="stat-label text-uppercase">Posts</span>
+            <span class="stat-label text-uppercase"
+              >Post{{ postCount !== 1 ? "s" : "" }}</span
+            >
           </div>
           <!-- Reputation score -->
           <div class="stat-item">
@@ -82,46 +124,61 @@ function getAvatarSrc(file) {
           <!-- Comment count -->
           <div class="stat-item">
             <span class="stat-value">{{ commentCount }}</span>
-            <span class="stat-label text-uppercase">Comments</span>
+            <span class="stat-label text-uppercase"
+              >Comment{{ commentCount !== 1 ? "s" : "" }}</span
+            >
           </div>
         </div>
       </div>
-      <button class="btn-edit-prof text-center mb-3" 
-      data-bs-toggle="modal" data-bs-target="#userSettingsModal"
-      v-if="isProfile && isCurrUser"> <!--Edit Profile button-->
-        <span class="edit-prof-text text-center">
-           Edit Profile
-        </span>
+      <button
+        class="btn-edit-prof shadow-sm mb-3"
+        data-bs-toggle="modal"
+        data-bs-target="#userSettingsModal"
+        v-if="isProfile && isCurrUser"
+      >
+        <div class="btn-content">
+          <div class="btn-text-wrap">
+            <span class="btn-text-primary">Edit Profile</span>
+          </div>
+        </div>
       </button>
     </div>
 
-    <div class="user-main-card shadow-sm border" v-else-if="!isLoggedIn && isProfile">
+    <div
+      class="user-main-card shadow-sm border"
+      v-else-if="!isLoggedIn && isProfile"
+    >
       <div class="card-header-gradient"></div>
       <div class="card-body-content px-3 pb-3">
-        <div class="profile-section text-center" >
-          <div class="pfp-wrapper-profile shadow-sm">
-                <img v-if="avatar" :src="getAvatarSrc(avatar)" class="profile-img" alt="User avatar">
+        <div class="profile-section text-center">
+          <div class="pfp-wrapper-profile shadow-sm" style="cursor: initial">
+            <img
+              v-if="avatar"
+              :src="getAvatarSrc(avatar)"
+              class="profile-img"
+              alt="User avatar"
+            />
           </div>
           <h5 class="user-name mt-2 mb-1">{{ newFullName }}</h5>
           <UserRole :role="newRole" />
         </div>
-        <!-- User Stats Section -->
         <div class="stats-divider my-3"></div>
         <div class="stats-container d-flex justify-content-around text-center">
-          <!-- Posts count-->
           <div class="stat-item">
             <span class="stat-value">{{ postCount }}</span>
-            <span class="stat-label text-uppercase">Posts</span>
+            <span class="stat-label text-uppercase"
+              >Post{{ postCount !== 1 ? "s" : "" }}</span
+            >
           </div>
-          <!-- Reputation score -->
           <div class="stat-item">
             <span class="stat-value">{{ voteScore }}</span>
             <span class="stat-label text-uppercase">Reputation</span>
           </div>
-          <!-- Comment count -->
           <div class="stat-item">
             <span class="stat-value">{{ commentCount }}</span>
-            <span class="stat-label text-uppercase">Comments</span>
+            <span class="stat-label text-uppercase"
+              >Comment{{ commentCount !== 1 ? "s" : "" }}</span
+            >
           </div>
         </div>
       </div>
@@ -139,12 +196,16 @@ function getAvatarSrc(file) {
               <UserRole role="Guest" />
             </div>
           </div>
-          
+
           <div class="col-7">
             <h5 class="mb-1">Welcome!</h5>
             <p class="welcome-msg mb-0">
-              Here you'll find your activity report once you 
-              <RouterLink to="/login" class="fw-bold text-success text-decoration-none">sign in</RouterLink>!
+              Here you'll find your activity report once you
+              <RouterLink
+                to="/login"
+                class="fw-bold text-success text-decoration-none"
+                >sign in</RouterLink
+              >!
             </p>
           </div>
         </div>
@@ -154,33 +215,74 @@ function getAvatarSrc(file) {
 </template>
 
 <style scoped>
-
+.btn-edit-prof:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
 .btn-edit-prof {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 85%;
-  max-width: 250px;
   min-height: 80px;
+  max-width: 250px;
+  margin: auto;
   padding: 10px 15px;
 
-  background: linear-gradient(135deg, #007C8A 0%, #004750 100%);
+  background: linear-gradient(135deg, #007c8a 0%, #004750 100%);
   color: white;
   border: none;
   border-radius: 12px;
 
+  overflow: hidden;
   cursor: pointer;
   transition: all 0.3s ease;
 }
-.btn-edit-prof:hover {
-  transform: translateY(-3px);
-  box-shadow: -2px 3px 5px black;
+.btn-edit-prof::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.15),
+    transparent
+  );
+  transition: 0.6s;
 }
-.edit-prof-text {
-  font-weight: 700;
-  font-family: 'Roboto', sans-serif;
-  text-transform: uppercase;
-  font-size: 1rem;
-  letter-spacing: 1px;
+.btn-edit-prof:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px -6px #00475063 !important;
+  background: linear-gradient(135deg, #007c8a 0%, #004750 100%);
+}
+.btn-edit-prof:hover::after {
+  left: 100%;
+}
+
+.btn-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.btn-text-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   text-align: center;
-  line-height: 1.2;
+  line-height: 1.1;
+}
+.btn-text-primary {
+  font-weight: 700;
+  font-family: "Roboto", sans-serif;
+  text-transform: uppercase;
+  font-size: 1.15rem;
+  letter-spacing: 1px;
 }
 
 .user-main-card {
@@ -199,7 +301,8 @@ function getAvatarSrc(file) {
   margin-top: -38px;
 }
 
-.pfp-wrapper, .guest-pfp {
+.pfp-wrapper,
+.guest-pfp {
   display: inline-block;
   width: 75px;
   height: 75px;
@@ -222,12 +325,12 @@ function getAvatarSrc(file) {
   overflow: hidden;
   border: 2px solid #7e9291;
 }
-@media (max-width: 767px){
+@media (max-width: 767px) {
   .pfp-wrapper-profile {
     width: 200px;
   }
 }
-@media (min-width: 992px){
+@media (min-width: 992px) {
   .pfp-wrapper-profile {
     width: 180px;
   }
@@ -252,7 +355,7 @@ function getAvatarSrc(file) {
 }
 
 .user-name {
-  font-family: 'Roboto', sans-serif;
+  font-family: "Roboto", sans-serif;
   font-weight: 700;
   color: #1a1a1b;
   font-size: 1.1rem;
@@ -267,6 +370,7 @@ function getAvatarSrc(file) {
   background-color: #007a4b17;
   border-radius: 8px;
   padding: 10px 0;
+  gap: 5px;
 }
 .stat-value {
   font-weight: 800;

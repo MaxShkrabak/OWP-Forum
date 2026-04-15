@@ -6,113 +6,134 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Throwable;
 use PDO;
-use Closure;
 use function Forum\Helpers\json;
 
-class ReportController
+class ReportController extends BaseController
 {
-    private Closure $makePdo;
-
-    public function __construct(Closure $makePdo)
+    /**
+     * @param array<int, array<string, mixed>> $rows
+     * @return array<int, array<string, mixed>>
+     */
+    private function mapReportRows(array $rows): array
     {
-        $this->makePdo = $makePdo;
-    }
-
-    private function requireModOrAdmin(Request $req, Response $res): array|Response
-    {
-        $userId = $req->getAttribute('user_id');
-        if ($userId === null) {
-            return json($res, ['ok' => false, 'error' => 'Not Authenticated'], 401);
+        $reports = [];
+        foreach ($rows as $row) {
+            $reports[] = [
+                'reportId'      => (int)$row['ReportID'],
+                'postId'        => (int)($row['PostID'] ?? 0) ?: null,
+                'postTitle'     => $row['PostTitle'] ?? null,
+                'postAuthor'    => $row['PostAuthor'] ?? null,
+                'postAuthorId'  => (int)($row['PostAuthorId'] ?? 0) ?: null,
+                'commentId'     => (int)($row['CommentID'] ?? 0) ?: null,
+                'parentCommentId' => (int)($row['CommentParentId'] ?? 0) ?: null,
+                'commentText'   => $row['CommentText'] ?? null,
+                'commentAuthor' => $row['CommentAuthor'] ?? null,
+                'source'        => (int)($row['CommentID'] ?? 0) > 0 ? 'Comment' : 'Post',
+                'reason'        => $row['Reason'] ?? 'Other',
+                'createdAt'     => $row['CreatedAt'],
+                'reporter'      => [
+                    'id'       => (int)$row['ReporterId'],
+                    'fullName' => $row['ReporterName'] ?? null,
+                ],
+            ];
         }
 
-        $pdo = ($this->makePdo)();
-        $roleStmt = $pdo->prepare("SELECT r.Name FROM dbo.Users u LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID WHERE u.User_ID = :uid");
-        $roleStmt->execute([':uid' => $userId]);
-        $role = $roleStmt->fetchColumn();
-
-        if (!in_array($role, ['moderator', 'admin'], true)) {
-            return json($res, ['ok' => false, 'error' => 'Forbidden'], 403);
-        }
-
-        return ['userId' => (int)$userId, 'pdo' => $pdo];
+        return $reports;
     }
 
     public function getReports(Request $req, Response $res): Response
     {
         try {
-            $auth = $this->requireModOrAdmin($req, $res);
-            if ($auth instanceof Response) {
-                return $auth;
-            }
+            [$err, $pdo] = $this->requireRole(3, $req, $res);
+            if ($err !== null) return $err;
 
-            $pdo = $auth['pdo'];
+            $queryParams = $req->getQueryParams();
+            $wantPaginate = array_key_exists('page', $queryParams) || array_key_exists('perPage', $queryParams);
 
-            $sql = "
+            $sortRaw = strtolower(trim((string)($queryParams['sort'] ?? 'newest')));
+            $orderSql = ($sortRaw === 'oldest') ? 'r.CreatedAt ASC' : 'r.CreatedAt DESC';
+
+            $selectCols = "
                 SELECT
                     r.ReportID,
-                    r.PostID,
+                    COALESCE(r.PostID, c.PostID) AS PostID,
                     p.Title AS PostTitle,
+                    p.AuthorID AS PostAuthorId,
                     CONCAT(up.FirstName, ' ', up.LastName) AS PostAuthor,
                     r.CommentID,
+                    c.ParentCommentID AS CommentParentId,
                     c.Content AS CommentText,
+                    c.UserID AS CommentAuthorId,
                     NULLIF(CONCAT(uc.FirstName, ' ', uc.LastName),'') AS CommentAuthor,
                     r.CreatedAt,
                     rt.TagName AS Reason,
-                    r.ReportUserID AS ReporterId,
+                    r.ReporterID AS ReporterId,
                     CONCAT(ur.FirstName, ' ', ur.LastName) AS ReporterName
-                FROM dbo.Reports r
-                INNER JOIN dbo.ReportTags rt ON r.ReportTagID = rt.ReportTagID
-                LEFT JOIN dbo.Posts p ON r.PostID = p.PostID
-                LEFT JOIN dbo.Comments c ON r.CommentID = c.CommentId
-                LEFT JOIN dbo.Users up ON up.User_ID = p.AuthorID
-                LEFT JOIN dbo.Users uc ON uc.User_ID = c.UserId
-                LEFT JOIN dbo.Users ur ON ur.User_ID = r.ReportUserID
-                WHERE r.Resolved = 0
-                ORDER BY r.CreatedAt DESC
             ";
+
+            $fromWhere = "
+                FROM dbo.Forum_Reports r
+                INNER JOIN dbo.Forum_ReportTags rt ON r.ReportTagID = rt.ReportTagID
+                LEFT JOIN dbo.Forum_Comments c ON r.CommentID = c.CommentID
+                LEFT JOIN dbo.Forum_Posts p ON p.PostID = COALESCE(r.PostID, c.PostID)
+                LEFT JOIN dbo.Forum_Users up ON up.UserID = p.AuthorID
+                LEFT JOIN dbo.Forum_Users uc ON uc.UserID = c.UserID
+                LEFT JOIN dbo.Forum_Users ur ON ur.UserID = r.ReporterID
+                WHERE r.IsResolved = 0
+            ";
+
+            if (!$wantPaginate) {
+                $sql = $selectCols . $fromWhere . " ORDER BY $orderSql";
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute();
+                $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+                return json($res, ['ok' => true, 'reports' => $this->mapReportRows($rows)]);
+            }
+
+            $page = (int)($queryParams['page'] ?? 1);
+            $perPage = (int)($queryParams['perPage'] ?? 25);
+            if ($page < 1) {
+                $page = 1;
+            }
+            $allowedSizes = [5, 10, 25, 50, 100];
+            if (!in_array($perPage, $allowedSizes, true)) {
+                $perPage = 25;
+            }
+            $offset = ($page - 1) * $perPage;
+
+            $countSql = "SELECT COUNT(*) AS cnt $fromWhere";
+            $countStmt = $pdo->prepare($countSql);
+            $countStmt->execute();
+            $total = (int)$countStmt->fetchColumn();
+
+            $sql = $selectCols . $fromWhere . " ORDER BY $orderSql OFFSET $offset ROWS FETCH NEXT $perPage ROWS ONLY";
             $stmt = $pdo->prepare($sql);
             $stmt->execute();
             $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            $reports = [];
-            foreach ($rows as $row) {
-                $reports[] = [
-                    'reportId'      => (int)$row['ReportID'],
-                    'postId'        => (int)($row['PostID'] ?? 0) ?: null,
-                    'postTitle'     => $row['PostTitle'] ?? null,
-                    'postAuthor'    => $row['PostAuthor'] ?? null,
-                    'commentId'     => (int)($row['CommentID'] ?? 0) ?: null,
-                    'commentText'   => $row['CommentText'] ?? null,
-                    'commentAuthor' => $row['CommentAuthor'] ?? null,
-                    'source'        => (int)($row['CommentID'] ?? 0) > 0 ? 'Comment' : 'Post',
-                    'reason'        => $row['Reason'] ?? 'Other',
-                    'createdAt'     => $row['CreatedAt'],
-                    'reporter'      => [
-                        'id'       => (int)$row['ReporterId'],
-                        'fullName' => $row['ReporterName'] ?? null,
-                    ],
-                ];
-            }
-
-            return json($res, ['ok' => true, 'reports' => $reports]);
+            return json($res, [
+                'ok' => true,
+                'reports' => $this->mapReportRows($rows),
+                'total' => $total,
+                'page' => $page,
+                'perPage' => $perPage,
+            ]);
         } catch (Throwable $e) {
-            return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+            error_log($e->getMessage());
+            return json($res, ['ok' => false, 'error' => 'Internal server error.'], 500);
         }
     }
 
     public function resolveReport(Request $req, Response $res, array $args): Response
     {
         try {
-            $auth = $this->requireModOrAdmin($req, $res);
-            if ($auth instanceof Response) {
-                return $auth;
-            }
+            [$err, $pdo, $userId] = $this->requireRole(3, $req, $res);
+            if ($err !== null) return $err;
 
-            $pdo = $auth['pdo'];
-            $userId = $auth['userId'];
             $reportId = (int)$args['id'];
 
-            $stmt = $pdo->prepare("UPDATE dbo.Reports SET Resolved = 1, ResolvedBy = :uid, ResolvedAt = SYSUTCDATETIME() WHERE ReportID = :id AND Resolved = 0");
+            $stmt = $pdo->prepare("UPDATE dbo.Forum_Reports SET IsResolved = 1, ResolverID = :uid, ResolvedAt = SYSUTCDATETIME() WHERE ReportID = :id AND IsResolved = 0");
             $stmt->execute([':uid' => $userId, ':id' => $reportId]);
 
             if ($stmt->rowCount() === 0) {
@@ -121,41 +142,45 @@ class ReportController
 
             return json($res, ['ok' => true]);
         } catch (Throwable $e) {
-            return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+            error_log($e->getMessage());
+            return json($res, ['ok' => false, 'error' => 'Internal server error.'], 500);
         }
     }
 
     public function getReportTags(Request $req, Response $res): Response
     {
         try {
-            if (($userId = $req->getAttribute('user_id')) === null) {
-                return json($res, ['ok' => false, 'error' => 'Not Authenticated'], 401);
-            }
+            [$err, $pdo] = $this->requireAuth($req, $res);
+            if ($err !== null) return $err;
 
-            $pdo = ($this->makePdo)();
-
-            $sql = "SELECT ReportTagID, TagName FROM dbo.ReportTags
+            $sql = "SELECT ReportTagID, TagName FROM dbo.Forum_ReportTags
                     ORDER BY CASE WHEN TagName = 'Other' THEN 1 ELSE 0 END, TagName ASC";
 
-            $tags = $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+            $tags = array_map(
+                fn($r) => ['tagId' => (int)$r['ReportTagID'], 'name' => $r['TagName']],
+                $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC)
+            );
 
             return json($res, ['ok' => true, 'tags' => $tags]);
         } catch (Throwable $e) {
-            return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+            error_log($e->getMessage());
+            return json($res, ['ok' => false, 'error' => 'Internal server error.'], 500);
         }
     }
 
     public function submitReport(Request $req, Response $res): Response
     {
         try {
-            if (($userId = $req->getAttribute('user_id')) === null) {
-                return json($res, ['ok' => false, 'error' => 'Not Authenticated'], 401);
-            }
+            [$err, $pdo, $userId] = $this->requireAuth($req, $res);
+            if ($err !== null) return $err;
 
             $body = $req->getParsedBody();
             $targetId = $body['id'] ?? null;
             $tagId    = $body['tagID'] ?? null;
             $type     = $body['type'] ?? 'post';
+
+            $banResponse = \Forum\Helpers\checkUserBan($pdo, (int)$userId, $res);
+            if ($banResponse) return $banResponse;
 
             if (!$targetId || !$tagId) {
                 return json($res, ['ok' => false, 'error' => 'Missing required fields'], 400);
@@ -164,13 +189,11 @@ class ReportController
             $postId    = ($type === 'post') ? $targetId : null;
             $commentId = ($type === 'comment') ? $targetId : null;
 
-            $pdo = ($this->makePdo)();
-
-            $checkSql = "SELECT TOP 1 ReportID FROM dbo.Reports
-                         WHERE ReportUserID = :userId
+            $checkSql = "SELECT TOP 1 ReportID FROM dbo.Forum_Reports
+                         WHERE ReporterID = :userId
                          AND COALESCE(PostID, 0) = :postId
                          AND COALESCE(CommentID, 0) = :commentId
-                         AND Resolved = 0";
+                         AND IsResolved = 0";
 
             $checkStmt = $pdo->prepare($checkSql);
             $checkStmt->execute([
@@ -183,8 +206,8 @@ class ReportController
                 return json($res, ['ok' => false, 'error' => "You have already reported this $type."], 400);
             }
 
-            $sql = "INSERT INTO dbo.Reports (ReportUserID, PostID, CommentID, ReportTagID, CreatedAt, Resolved)
-                    VALUES (:userId, :postId, :commentId, :tagId, SYSUTCDATETIME(), 0)";
+            $sql = "INSERT INTO dbo.Forum_Reports (ReporterID, PostID, CommentID, ReportTagID)
+                    VALUES (:userId, :postId, :commentId, :tagId)";
 
             $stmt = $pdo->prepare($sql);
             $success = $stmt->execute([
@@ -196,7 +219,8 @@ class ReportController
 
             return json($res, ['ok' => $success, 'message' => 'Report submitted successfully']);
         } catch (Throwable $e) {
-            return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+            error_log($e->getMessage());
+            return json($res, ['ok' => false, 'error' => 'Internal server error.'], 500);
         }
     }
 }

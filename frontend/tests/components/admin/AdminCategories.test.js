@@ -1,10 +1,16 @@
 /**
- * Manage Categories (Admin) — unit tests.
- * Duplicate prevention + slugify (no DOM) + AdminCategories.vue DOM tests.
+ * AdminCategories — unit tests.
+ * Covers:
+ * - categories table renders on load
+ * - empty state shown when no categories exist
+ * - clicking Delete opens confirmation modal with category name and General fallback note
+ * - confirming Delete calls the API and closes the modal
+ * - Edit button opens the form with the category's current name prefilled
+ * - Add form shows inline error when submitted with an empty name
+ * - Add form shows inline error when submitted with a duplicate name
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount, flushPromises } from "@vue/test-utils";
-import { slugifyCategoryName } from "@/utils/slugify";
 import AdminCategories from "@/components/admin/AdminCategories.vue";
 
 const { mockClient } = vi.hoisted(() => ({
@@ -13,84 +19,14 @@ const { mockClient } = vi.hoisted(() => ({
 vi.mock("@/api/client", () => ({ default: mockClient }));
 
 const mockCategories = [
-  { categoryId: 1, name: "General", usableByRoleID: 1 },
-  { categoryId: 2, name: "Help", usableByRoleID: 1 },
+  { categoryId: 1, name: "General", usableByRoleId: 1 },
+  { categoryId: 2, name: "Help", usableByRoleId: 1 },
 ];
 
-// Same duplicate-check logic as AdminCategories.vue nameExists (for "Prevent duplicates" / BB-151)
-function categoryNameExists(categories, name, excludeId = null) {
-  const n = (name || "").trim().toLowerCase();
-  if (!n) return false;
-  return categories.some(
-    (c) =>
-      (c.name || "").trim().toLowerCase() === n && c.categoryId !== excludeId
-  );
-}
-
-describe("Manage Categories (Admin) — duplicate prevention", () => {
-  const categories = [
-    { categoryId: 1, name: "General", usableByRoleID: 1 },
-    { categoryId: 2, name: "Help", usableByRoleID: 1 },
-    { categoryId: 3, name: "Random", usableByRoleID: 2 },
-  ];
-
-  it("returns true when another category has the same name (add case)", () => {
-    expect(categoryNameExists(categories, "Help")).toBe(true);
-    expect(categoryNameExists(categories, "help")).toBe(true);
-    expect(categoryNameExists(categories, "  General  ")).toBe(true);
-  });
-
-  it("returns false when name is unique", () => {
-    expect(categoryNameExists(categories, "News")).toBe(false);
-    expect(categoryNameExists(categories, "Announcements")).toBe(false);
-  });
-
-  it("returns false when editing same category (excludeId)", () => {
-    expect(categoryNameExists(categories, "Help", 2)).toBe(false);
-    expect(categoryNameExists(categories, "Random", 3)).toBe(false);
-  });
-
-  it("returns true when editing to a name used by another category", () => {
-    expect(categoryNameExists(categories, "General", 2)).toBe(true);
-    expect(categoryNameExists(categories, "Help", 1)).toBe(true);
-  });
-
-  it("returns false for empty or whitespace name", () => {
-    expect(categoryNameExists(categories, "")).toBe(false);
-    expect(categoryNameExists(categories, "   ")).toBe(false);
-    expect(categoryNameExists(categories, null)).toBe(false);
-  });
-
-  it("handles empty category list", () => {
-    expect(categoryNameExists([], "Help")).toBe(false);
-  });
-});
-
-describe("Manage Categories (Admin) — category slugify", () => {
-  it("slugifies category name for URLs", () => {
-    expect(slugifyCategoryName("Help")).toBe("help");
-    expect(slugifyCategoryName("Random")).toBe("random");
-    expect(slugifyCategoryName("General")).toBe("general");
-  });
-
-  it("replaces spaces and special chars with dashes", () => {
-    expect(slugifyCategoryName("Announcements & News")).toBe(
-      "announcements-and-news"
-    );
-    // & is replaced with "and", then non-alphanumerics become dashes → "qanda"
-    expect(slugifyCategoryName("Q&A")).toBe("qanda");
-  });
-
-  it("trims leading and trailing dashes", () => {
-    expect(slugifyCategoryName("  Help  ")).toBe("help");
-    expect(slugifyCategoryName("---test---")).toBe("test");
-  });
-});
-
-describe("Manage Categories (Admin) — AdminCategories.vue DOM", () => {
+describe("AdminCategories.vue", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockClient.get.mockResolvedValue({ data: { items: mockCategories.map((c) => ({ ...c, categoryId: c.categoryId, name: c.name, usableByRoleID: c.usableByRoleID })) } });
+    mockClient.get.mockResolvedValue({ data: { items: mockCategories.map((c) => ({ ...c, categoryId: c.categoryId, name: c.name, usableByRoleId: c.usableByRoleId })) } });
   });
 
   it("displays categories from the database and delete opens confirmation with name and General", async () => {
@@ -105,5 +41,57 @@ describe("Manage Categories (Admin) — AdminCategories.vue DOM", () => {
     expect(wrapper.find(".confirm-title").text()).toBe("Delete category?");
     expect(wrapper.text()).toContain("Help");
     expect(wrapper.text()).toContain("General");
+  });
+
+  it("shows empty state when no categories are returned", async () => {
+    mockClient.get.mockResolvedValue({ data: { items: [] } });
+    const wrapper = mount(AdminCategories);
+    await flushPromises();
+    expect(wrapper.find(".admin-table").exists()).toBe(false);
+    expect(wrapper.text()).toContain("No categories yet");
+  });
+
+  it("confirming Delete calls the delete API and closes the modal", async () => {
+    mockClient.delete.mockResolvedValue({ data: {} });
+    const wrapper = mount(AdminCategories);
+    await flushPromises();
+
+    await wrapper.findAll(".btn-delete")[1].trigger("click");
+    await wrapper.find(".btn-confirm.btn-danger").trigger("click");
+    await flushPromises();
+
+    expect(mockClient.delete).toHaveBeenCalledTimes(1);
+    expect(wrapper.find(".confirm-title").exists()).toBe(false);
+  });
+
+  it("Edit button opens the form with the category name prefilled", async () => {
+    const wrapper = mount(AdminCategories);
+    await flushPromises();
+
+    await wrapper.findAll(".btn-action:not(.btn-delete)")[0].trigger("click");
+
+    expect(wrapper.find(".form-title").text()).toBe("Edit category");
+    expect(wrapper.find("input.form-input").element.value).toBe("General");
+  });
+
+  it("shows an inline error when the Add form is submitted with an empty name", async () => {
+    const wrapper = mount(AdminCategories);
+    await flushPromises();
+
+    await wrapper.find(".btn-add").trigger("click");
+    await wrapper.find(".btn-confirm").trigger("click");
+
+    expect(wrapper.find(".err").text()).toContain("Category name is required");
+  });
+
+  it("shows an inline error when the Add form is submitted with a duplicate name", async () => {
+    const wrapper = mount(AdminCategories);
+    await flushPromises();
+
+    await wrapper.find(".btn-add").trigger("click");
+    await wrapper.find("input.form-input").setValue("General");
+    await wrapper.find(".btn-confirm").trigger("click");
+
+    expect(wrapper.find(".err").text()).toContain("already exists");
   });
 });

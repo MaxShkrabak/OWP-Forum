@@ -1,15 +1,18 @@
 <script setup>
-import { ref, watch } from 'vue';
-import { getReportTags, submitReport as apiSubmitReport } from "@/api/reports.js";
+import { ref, watch } from "vue";
+import {
+  getReportTags,
+  submitReport as apiSubmitReport,
+} from "@/api/reports.js";
 
 const props = defineProps({
   isOpen: Boolean,
   targetId: [String, Number],
   targetTitle: String,
-  type: { type: String, default: 'content' }
+  type: { type: String, default: "content" },
 });
 
-const emit = defineEmits(['close', 'submit']);
+const emit = defineEmits(["close", "submit"]);
 
 const reportTags = ref([]);
 const selectedTagID = ref(null);
@@ -39,26 +42,27 @@ const closeModal = () => {
   selectedTagID.value = null;
   isSubmitted.value = false;
   errorMessage.value = "";
-  emit('close');
+  emit("close");
 };
 
 const submitReport = async () => {
   if (!selectedTagID.value) return;
 
-  // Shake if already reported, then stop
   if (errorMessage.value.includes("already reported")) {
     isShaking.value = true;
-    setTimeout(() => { isShaking.value = false; }, 300);
+    setTimeout(() => {
+      isShaking.value = false;
+    }, 300);
     return;
   }
-  
+
   errorMessage.value = "";
   isLoading.value = true;
 
   const payload = {
     tagID: selectedTagID.value,
     id: props.targetId,
-    type: props.type
+    type: props.type,
   };
 
   const result = await apiSubmitReport(payload);
@@ -70,47 +74,69 @@ const submitReport = async () => {
   isLoading.value = false;
 };
 
-watch(() => props.isOpen, (isVisible) => {
-  if (isVisible) {
-    isSubmitted.value = false;
-    errorMessage.value = "";
-    loadReportTags();
-  }
-});
+watch(
+  () => props.isOpen,
+  (isVisible) => {
+    if (isVisible) {
+      isSubmitted.value = false;
+      errorMessage.value = "";
+      loadReportTags();
+    }
+  },
+);
 </script>
 
 <template>
   <Teleport to="body">
     <Transition name="modal-fade">
-      <div v-if="isOpen" class="custom-modal-overlay d-flex justify-content-center align-items-center"
-        @click.self="closeModal">
+      <div
+        v-if="isOpen"
+        class="custom-modal-overlay d-flex justify-content-center align-items-center"
+        @click.self="closeModal"
+      >
         <Transition name="modal-pop">
           <div v-if="isOpen" class="report-body">
             <!-- Report header -->
-            <header class="report-header d-flex align-items-center justify-content-between p-1" v-if="!isSubmitted">
-              <div class="header-content d-flex gap-3 align-items-center m-3 flex-grow-1">
+            <header
+              class="report-header d-flex align-items-center justify-content-between p-1"
+              v-if="!isSubmitted"
+            >
+              <div
+                class="header-content d-flex gap-3 align-items-center m-3 flex-grow-1"
+              >
                 <div
-                  class="header-icon rounded-2 d-none d-sm-flex align-items-center justify-content-center flex-shrink-0">
+                  class="header-icon rounded-2 d-none d-sm-flex align-items-center justify-content-center flex-shrink-0"
+                >
                   <i class="pi pi-flag-fill fs-5"></i>
                 </div>
 
-                <div class="d-flex flex-column flex-grow-1" style="min-width: 0;">
+                <div
+                  class="d-flex flex-column flex-grow-1"
+                  style="min-width: 0"
+                >
                   <h3 class="report-title m-0">Report {{ type }}</h3>
-                  <p v-if="targetTitle" class="target-subtitle text-truncate m-0 pt-1">
+                  <p
+                    v-if="targetTitle"
+                    class="target-subtitle text-truncate m-0 pt-1"
+                  >
                     "{{ targetTitle }}"
                   </p>
                 </div>
               </div>
 
-              <button class="icon-close d-flex align-items-center justify-content-center me-3 flex-shrink-0"
-                @click="closeModal">
+              <button
+                class="icon-close d-flex align-items-center justify-content-center me-3 flex-shrink-0"
+                @click="closeModal"
+              >
                 <i class="pi pi-times"></i>
               </button>
             </header>
 
             <div class="report-content">
-              <div v-if="isLoading || isSubmitted"
-                class="d-flex flex-column align-items-center text-center p-3 success-fade">
+              <div
+                v-if="isLoading || isSubmitted"
+                class="d-flex flex-column align-items-center text-center p-3 success-fade"
+              >
                 <!-- Fetching report options-->
                 <template v-if="isLoading && reportTags.length === 0">
                   <div class="spinner-wrapper">
@@ -118,57 +144,82 @@ watch(() => props.isOpen, (isVisible) => {
                   </div>
                   <p class="state-text mt-2">Loading options...</p>
                 </template>
-                
+
                 <!-- Submitting report load -->
                 <template v-else-if="isLoading">
                   <div class="custom-loader mb-3"></div>
                   <h4 class="fw-bold">Submitting Report</h4>
-                  <p class="state-text">Please wait while we process your request...</p>
+                  <p class="state-text">
+                    Please wait while we process your request...
+                  </p>
                 </template>
 
                 <!-- Report confirmation -->
                 <template v-else-if="isSubmitted">
                   <div class="d-flex align-items-center mb-2">
-                    <div class="success-icon-bg d-flex align-items-center justify-content-center me-2">
+                    <div
+                      class="success-icon-bg d-flex align-items-center justify-content-center me-2"
+                    >
                       <i class="pi pi-check"></i>
                     </div>
                     <h4 class="success-title m-0">Thank You</h4>
                   </div>
                   <p class="state-text pt-4">
-                    We've received your report for this <strong>{{ type }}</strong>.
-                    Our moderation team will review it shortly.
+                    We've received your report for this
+                    <strong>{{ type }}</strong
+                    >. Our moderation team will review it shortly.
                   </p>
-                  <button class="btn-primary-action mt-3 w-50 " @click="closeModal">
+                  <button
+                    class="btn-primary-action mt-3 w-50"
+                    @click="closeModal"
+                  >
                     Got it, thanks!
                   </button>
                 </template>
               </div>
 
               <div v-else class="selection-view">
-                <p class="helper-text">Why are you reporting this {{ type }}?</p>
+                <p class="helper-text">
+                  Why are you reporting this {{ type }}?
+                </p>
 
                 <!-- Error popup -->
-                <div v-if="errorMessage" 
-                     class="error-banner d-flex align-items-center fs-6 gap-2 mb-3 p-2 rounded-2"
-                     :class="{ 'shake-err': isShaking }">
+                <div
+                  v-if="errorMessage"
+                  class="error-banner d-flex align-items-center fs-6 gap-2 mb-3 p-2 rounded-2"
+                  :class="{ 'shake-err': isShaking }"
+                >
                   <i class="pi pi-exclamation-triangle"></i>
                   <span>{{ errorMessage }}</span>
                 </div>
 
                 <!-- Report tag list -->
                 <div class="reason-list d-flex flex-column gap-3">
-                  <button v-for="tag in reportTags" :key="tag.tagID"
+                  <button
+                    v-for="tag in reportTags"
+                    :key="tag.tagId"
                     class="reason-card d-flex align-items-center justify-content-left justify-content-between p-3 rounded-3"
-                    :class="{ 'is-selected': selectedTagID === tag.tagID }" @click="toggleTagSelection(tag.tagID)">
+                    :class="{ 'is-selected': selectedTagID === tag.tagId }"
+                    @click="toggleTagSelection(tag.tagId)"
+                  >
                     <span class="reason-label">{{ tag.name }}</span>
-                    <div class="report-radio d-flex justify-content-center align-items-center">
+                    <div
+                      class="report-radio d-flex justify-content-center align-items-center"
+                    >
                       <div class="radio-dot"></div>
                     </div>
                   </button>
                 </div>
                 <div class="report-footer-inline d-flex flex-column mt-4 gap-2">
-                  <button class="btn-primary-action" @click="submitReport" :disabled="!selectedTagID || isLoading">
-                    <span v-if="isLoading" class="pi pi-spin pi-spinner me-2"></span>
+                  <button
+                    class="btn-primary-action"
+                    @click="submitReport"
+                    :disabled="!selectedTagID || isLoading"
+                  >
+                    <span
+                      v-if="isLoading"
+                      class="pi pi-spin pi-spinner me-2"
+                    ></span>
                     Submit Report
                   </button>
                   <button class="btn-cancel" @click="closeModal">
@@ -355,12 +406,25 @@ watch(() => props.isOpen, (isVisible) => {
   color: #9f3323;
 }
 @keyframes shake {
-  10%, 90% { transform: translate3d(-1px, 0, 0); }
-  20%, 80% { transform: translate3d(2px, 0, 0); }
-  30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
-  40%, 60% { transform: translate3d(4px, 0, 0); }
+  10%,
+  90% {
+    transform: translate3d(-1px, 0, 0);
+  }
+  20%,
+  80% {
+    transform: translate3d(2px, 0, 0);
+  }
+  30%,
+  50%,
+  70% {
+    transform: translate3d(-4px, 0, 0);
+  }
+  40%,
+  60% {
+    transform: translate3d(4px, 0, 0);
+  }
 }
 .shake-err {
-  animation: shake 0.3s cubic-bezier(.36,.07,.19,.97) both;
+  animation: shake 0.3s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
 }
 </style>

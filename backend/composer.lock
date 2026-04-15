@@ -4,8 +4,69 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "9f4299edd72682092f64abfd22a2841a",
+    "content-hash": "885fd7d9cdc6d65609ad79a90db9e37b",
     "packages": [
+        {
+            "name": "ezyang/htmlpurifier",
+            "version": "v4.19.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/ezyang/htmlpurifier.git",
+                "reference": "b287d2a16aceffbf6e0295559b39662612b77fcf"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/ezyang/htmlpurifier/zipball/b287d2a16aceffbf6e0295559b39662612b77fcf",
+                "reference": "b287d2a16aceffbf6e0295559b39662612b77fcf",
+                "shasum": ""
+            },
+            "require": {
+                "php": "~5.6.0 || ~7.0.0 || ~7.1.0 || ~7.2.0 || ~7.3.0 || ~7.4.0 || ~8.0.0 || ~8.1.0 || ~8.2.0 || ~8.3.0 || ~8.4.0 || ~8.5.0"
+            },
+            "require-dev": {
+                "cerdic/css-tidy": "^1.7 || ^2.0",
+                "simpletest/simpletest": "dev-master"
+            },
+            "suggest": {
+                "cerdic/css-tidy": "If you want to use the filter 'Filter.ExtractStyleBlocks'.",
+                "ext-bcmath": "Used for unit conversion and imagecrash protection",
+                "ext-iconv": "Converts text to and from non-UTF-8 encodings",
+                "ext-tidy": "Used for pretty-printing HTML"
+            },
+            "type": "library",
+            "autoload": {
+                "files": [
+                    "library/HTMLPurifier.composer.php"
+                ],
+                "psr-0": {
+                    "HTMLPurifier": "library/"
+                },
+                "exclude-from-classmap": [
+                    "/library/HTMLPurifier/Language/"
+                ]
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "LGPL-2.1-or-later"
+            ],
+            "authors": [
+                {
+                    "name": "Edward Z. Yang",
+                    "email": "admin@htmlpurifier.org",
+                    "homepage": "http://ezyang.com"
+                }
+            ],
+            "description": "Standards compliant HTML filter written in PHP",
+            "homepage": "http://htmlpurifier.org/",
+            "keywords": [
+                "html"
+            ],
+            "support": {
+                "issues": "https://github.com/ezyang/htmlpurifier/issues",
+                "source": "https://github.com/ezyang/htmlpurifier/tree/v4.19.0"
+            },
+            "time": "2025-10-17T16:34:55+00:00"
+        },
         {
             "name": "fig/http-message-util",
             "version": "1.1.5",
@@ -448,73 +509,6 @@
                 }
             ],
             "time": "2025-08-23T21:21:41+00:00"
-        },
-        {
-            "name": "james-heinrich/getid3",
-            "version": "v1.9.24",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/JamesHeinrich/getID3.git",
-                "reference": "1e11b9b6eb468b522fe604a42a9fdc8ee759bf8a"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/JamesHeinrich/getID3/zipball/1e11b9b6eb468b522fe604a42a9fdc8ee759bf8a",
-                "reference": "1e11b9b6eb468b522fe604a42a9fdc8ee759bf8a",
-                "shasum": ""
-            },
-            "require": {
-                "php": ">=5.3.0"
-            },
-            "require-dev": {
-                "php-parallel-lint/php-parallel-lint": "^1.0"
-            },
-            "suggest": {
-                "ext-SimpleXML": "SimpleXML extension is required to analyze RIFF/WAV/BWF audio files (also requires `ext-libxml`).",
-                "ext-com_dotnet": "COM extension is required when loading files larger than 2GB on Windows.",
-                "ext-ctype": "ctype extension is required when loading files larger than 2GB on 32-bit PHP (also on 64-bit PHP on Windows) or executing `getid3_lib::CopyTagsToComments`.",
-                "ext-dba": "DBA extension is required to use the DBA database as a cache storage.",
-                "ext-exif": "EXIF extension is required for graphic modules.",
-                "ext-iconv": "iconv extension is required to work with different character sets (when `ext-mbstring` is not available).",
-                "ext-json": "JSON extension is required to analyze Apple Quicktime videos.",
-                "ext-libxml": "libxml extension is required to analyze RIFF/WAV/BWF audio files.",
-                "ext-mbstring": "mbstring extension is required to work with different character sets.",
-                "ext-mysql": "MySQL extension is required to use the MySQL database as a cache storage (deprecated in PHP 5.5, removed in PHP >= 7.0, use `ext-mysqli` instead).",
-                "ext-mysqli": "MySQLi extension is required to use the MySQL database as a cache storage.",
-                "ext-rar": "RAR extension is required for RAR archive module.",
-                "ext-sqlite3": "SQLite3 extension is required to use the SQLite3 database as a cache storage.",
-                "ext-xml": "XML extension is required for graphic modules to analyze the XML metadata.",
-                "ext-zlib": "Zlib extension is required for archive modules and compressed metadata."
-            },
-            "type": "library",
-            "extra": {
-                "branch-alias": {
-                    "dev-master": "1.9.x-dev"
-                }
-            },
-            "autoload": {
-                "classmap": [
-                    "getid3/"
-                ]
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "GPL-1.0-or-later",
-                "LGPL-3.0-only",
-                "MPL-2.0"
-            ],
-            "description": "PHP script that extracts useful information from popular multimedia file formats",
-            "homepage": "https://www.getid3.org/",
-            "keywords": [
-                "codecs",
-                "php",
-                "tags"
-            ],
-            "support": {
-                "issues": "https://github.com/JamesHeinrich/getID3/issues",
-                "source": "https://github.com/JamesHeinrich/getID3/tree/v1.9.24"
-            },
-            "time": "2025-10-09T17:48:17+00:00"
         },
         {
             "name": "microsoft/azure-storage-blob",

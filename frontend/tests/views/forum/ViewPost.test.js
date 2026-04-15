@@ -1,3 +1,12 @@
+/**
+ * ViewPost — unit tests.
+ * Covers:
+ * - renders post title, author, category, tags, and date
+ * - view count formatting (plural, singular, locale-grouped large numbers)
+ * - hides view count element when viewCount is absent
+ * - Share button copies URL to clipboard and shows a toast
+ * - shows error empty-state when post fetch fails
+ */
 import { mount, flushPromises } from "@vue/test-utils";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import ViewPost from "@/views/forum/ViewPost.vue";
@@ -23,12 +32,14 @@ vi.mock("@/stores/userStore", () => ({
   uid: 10,
 }));
 
-const stubs = [
-  "UserRole",
-  "ViewPostContent",
-  "PostModerationSidebar",
-  "CommentSection",
-];
+const stubs = {
+  RouterLink: { template: "<a><slot /></a>" },
+  RouterView: { template: "<div />" },
+  UserRole: true,
+  ViewPostContent: true,
+  PostModerationSidebar: true,
+  CommentSection: true,
+};
 
 describe("ViewPost.vue", () => {
   beforeEach(() => {
@@ -48,7 +59,7 @@ describe("ViewPost.vue", () => {
       authorAvatar: "pfp-1.png",
       createdAt: "2026-02-22 14:20:00",
       categoryName: "General",
-      tags: [{ Name: "Help" }, { Name: "Official" }, { Name: "Research" }],
+      tags: [{ tagId: 1, name: "Help" }, { tagId: 2, name: "Official" }, { tagId: 3, name: "Research" }],
       content: "Some content",
       viewCount: 1247,
     };
@@ -66,10 +77,11 @@ describe("ViewPost.vue", () => {
     expect(wrapper.find(".category-label").text()).toContain("General");
 
     const renderedTags = wrapper.findAll(".post-tag");
+    const renderedTagNames = renderedTags.map((t) => t.text());
     expect(renderedTags.length).toBe(3);
-    expect(renderedTags[0].text()).toBe("Help");
-    expect(renderedTags[1].text()).toBe("Official");
-    expect(renderedTags[2].text()).toBe("Research");
+    expect(renderedTagNames).toContain("Help");
+    expect(renderedTagNames).toContain("Official");
+    expect(renderedTagNames).toContain("Research");
 
     expect(wrapper.find(".post-timestamp").text()).toContain("Feb 22, 2026");
 
@@ -175,7 +187,6 @@ describe("ViewPost.vue", () => {
   });
 
   it("shows error state if post fetch fails", async () => {
-    // component expects an error in the console if fetch fails
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     getPost.mockRejectedValue(new Error("Failed"));

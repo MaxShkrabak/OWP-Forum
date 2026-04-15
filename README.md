@@ -28,25 +28,19 @@ water programs and initiatives. The platform provides a space for posts, comment
 | --------------------------- | ------------------------------------------------------------------------------- |
 | **Admin**                   | Assign roles, post with official tagging, view all reports, full system control |
 | **Moderator**               | Edit and recategorize posts, remove content, view reports                       |
-| **Student**                 | Create posts, comment, like, report content                                     |
+| **User / Student**                 | Create posts, comment, like, report content                                     |
 | **Guest (Unauthenticated)** | Read-only access — no login required                                            |
 
 ### 📝 Posting & Interaction Features
 
 * Create discussion threads with:
-
-  * Text
+  * Rich Text
+  * Hyperlinks
   * Images
-  * Video support
 * Upvote / Downvote system for engagement
 * Commenting system with email notifications
-* Search functionality for posts, topics, and tags
-
-### ♿ Accessibility & Design
-
-* Developed to meet **WCAG accessibility standards**
-* Fully responsive UI — mobile, tablet, and desktop supported
-* Styled with Sac State colors and branding
+* Upvoting and commenting with browser notifications
+* Search functionality for posts, categories, tags, and users
 
 ### 🗄 Technology Stack
 
@@ -102,32 +96,163 @@ Similar for all roles.
 
 ---
 
-## 📸 Actual Website Images
-
-Screenshots of the live, implemented OWP Forum application.
-
+## 📸 Live Website Images
 <details>
- <summary><img width="20" height="20" alt="Home Page" src="https://github.com/user-attachments/assets/45f9e5dc-6d26-4be0-a425-7d5bd9d322ac" /> Home Page</summary>
+ <summary><img height="20" alt="Image" src="https://github.com/user-attachments/assets/8aa3dffd-54c1-481c-a67c-32cf698c9099" /></summary>
 
-| Not Logged in  | Logged in   | Logged in as Mod/Admin |
-| -------------- | ----------- | ---------------------- |
-| <img width="500" height="500" alt="Home Page - Not Logged In" src="./docs/images/home-not-logged-in.png" /> | <img width="500" height="500" alt="Home Page - Logged In" src="./docs/images/home-logged-in.png" /> | <img width="500" height="500" alt="Home Page - Mod/Admin" src="./docs/images/home-mod-admin.png" /> |
+   <h6>╭┈➤&emsp;🏠 Browser Notifications for signed up users visible on any page for comments and upvotes by other people on your post.</h6>
+   <img width="900" alt="Image" src="https://github.com/user-attachments/assets/f20c3928-cf08-4721-8d5a-37460f795e97" />
+
+   <h6>╭┈➤&emsp;🏠 Search up posts that have a matching Title, Category, Tag, Author Name, or Role. Additionally filter with the category filter.</h6>
+   <img width="900" alt="Image" src="https://github.com/user-attachments/assets/380fcd7c-4f5f-4a1a-bc3f-018695103a25" />
+
+   <h6>╭┈➤&emsp;🏠 When you receive no results on a too-specific search.</h6>
+   <img width="900" alt="Image" src="https://github.com/user-attachments/assets/987bf5c0-bc9e-4835-9404-39069d629abf" />
+
+   <h6>╭┈➤&emsp;🏠 Category filter to only see selected categories on the home page, limited to 5 posts per category by default. Click Category header to visit Category-specific view.</h6>
+   <img width="900" alt="Image" src="https://github.com/user-attachments/assets/7fdc194f-9852-49c0-bcf4-b4f2bddd137f" />
+
+   <h6>╭┈➤&emsp;📁 Tag Filter usable within the page of Category-specific view.</h6>
+   <img width="900" alt="Image" src="https://github.com/user-attachments/assets/f1cc52cc-77f0-4b46-8bbd-b4f16db2e14b" />
+
+   <h6>╭┈➤&emsp;📝 View a post. Share button to copy link, Upvote/Downvote, see view counter, and click on author to visit their profile!</h6>
+   <img width="900" alt="Image" src="https://github.com/user-attachments/assets/dfe1454c-cbfa-492c-9a22-c410ee626073" />
+
+   <h6>╭┈➤&emsp;📝 Comment section past the post, with nested replies of depth 2 at most. Sort button for comments. Click author to route to their profile.</h6>
+   <img width="900" alt="Image" src="https://github.com/user-attachments/assets/84364bf7-d2b6-4689-8ab9-27427e3541f9" />
+
+   <h6>╭┈➤&emsp;🙍‍♂️ Other Users' profiles. See their statistics and posts with sort options.</h6>
+   <img width="900" alt="Image" src="https://github.com/user-attachments/assets/be79e624-ee6e-4c76-a08f-ebb2b6b3c693" />
+
+   <h6>╭┈➤&emsp;🙍‍♂️ User's own profile. View your own statistics and posts with sort options.</h6>
+   <img width="900" alt="Image" src="https://github.com/user-attachments/assets/714d2c12-8e40-491b-b2e6-78cc5d3002e9" />
+
+   <h6>╭┈➤&emsp;🙍‍♂️ User's own profile. View posts you liked/upvoted.</h6>
+   <img width="900" alt="Image" src="https://github.com/user-attachments/assets/fadf8d1d-a39b-49e4-85a1-a91b3118da1e" />
+
+   <h6>╭┈➤&emsp;🙍‍♂️ User's own profile. Edit your profile, with editable pre-made avatars and notification preferences.</h6>
+   <img width="900" alt="Image" src="https://github.com/user-attachments/assets/c76a68ff-ef07-48f4-a29e-a9b62bdf2c64" />
 </details>
 
 <details>
- <summary><img width="20" height="20" alt="image" src="https://github.com/user-attachments/assets/4a7adb12-d4d5-4f59-b016-823ef2fe0fd5" /> Category View</summary>
+   <summary>
+   <img height="20" alt="Image" src="https://github.com/user-attachments/assets/9fca0489-b74f-433f-b396-46ee83567473" /></summary>
 
-Similar for all roles.
+   <h6>╭┈➤&emsp;🔑 Registration Page for new users with valid Names, SSNs, and Emails. </h6>
+   <img width="900" alt="Image" src="https://github.com/user-attachments/assets/32ec4c6c-78f5-4e15-9724-75b9a3766986" />
 
-<img width="800" height="800" alt="Category View" src="./docs/images/category-view.png" />
+   <h6>╭┈➤&emsp;🔑 Login Page for returning users. Enter email to receive an email in-return to proceed further.</h6>
+   <img width="900" alt="Image" src="https://github.com/user-attachments/assets/0727cfee-37d9-4821-a6b2-76fc57bfa794" />
+
+   <h6>╭┈➤&emsp;🔑 Verification Page. Enter received One-Time Password from the email to procceed as logged in.</h6>
+   <img width="900" alt="Image" src="https://github.com/user-attachments/assets/fde156a7-6fa1-4041-91bd-8dc831d73c02" />
+
+   <h6>╭┈➤&emsp;🏠 Guest Users' homepage with no ability to makes posts, reports, or upvote/downvote.</h6>
+   <img width="900" alt="Image" src="https://github.com/user-attachments/assets/516bfb7f-378b-4a4f-9c02-d55bb53a9cc0" />
+
+   <h6>╭┈➤&emsp;📁 Guest Users' Category-specific view.</h6>
+   <img width="900" alt="Image" src="https://github.com/user-attachments/assets/152f51dd-1000-4a09-9645-3d1715e76b3f" />
+
+   <h6>╭┈➤&emsp;📁 Guest Users' Category-specific view.</h6>
+   <img width="900" alt="Image" src="https://github.com/user-attachments/assets/6c5be111-aaf4-4bc6-b525-fffdbe24be8c" />
+
+   <h6>╭┈➤&emsp;📝 View posts as guest with no ability to report, upvote/downvote.</h6>
+   <img width="900" alt="Image" src="https://github.com/user-attachments/assets/1b7762c1-cded-4bec-b693-681476268e15" />
+
+   <h6>╭┈➤&emsp;📝 View posts' comments with no ability to comment/reply, upvote/downvote, or report comments.</h6>
+   <img width="900" alt="Image" src="https://github.com/user-attachments/assets/2ef2857a-3399-4df5-9b01-c8c4321b49e9" />
+</details>
+
+
+<details>
+ <summary><strong><img height="20" alt="Image" src="https://github.com/user-attachments/assets/f49d6806-ff8d-4dba-945b-b2482886a066"/></strong></summary>
+
+   <h6>╭┈➤&emsp;🏠 Homepage as User with ability to create, upvote/downvote, and report posts.</h6>
+   <img width="900" alt="Image" src="https://github.com/user-attachments/assets/4f34b111-b7eb-4a7c-9775-dfa3638f8557" />
+
+   <h6>╭┈➤&emsp;🏠 Create post with fields for title, category, up to 5 tags, and main content with rich text editor.</h6>
+   <img width="900" alt="Image" src="https://github.com/user-attachments/assets/9920cee5-2bff-4b28-9936-cfba38857c22" />
+
+   <h6>╭┈➤&emsp;📁 Category-specific view with ability to create posts.</h6>
+   <img width="900" alt="Image" src="https://github.com/user-attachments/assets/de15b07a-26f1-4dee-b278-31db636537a3" />
+
+   <h6>╭┈➤&emsp;📁 Category-specific view with ability to create posts.</h6>
+   <img width="900" alt="Image" src="https://github.com/user-attachments/assets/6966fa7b-1d06-431b-9807-181e72c5e292" />
+
+   <h6>╭┈➤&emsp;📝 View others' posts with ability to upvote/downvote, report, and count toward view count.</h6>
+   <img width="900" alt="Image" src="https://github.com/user-attachments/assets/02655355-14a6-48ce-a96c-e05d83afe50f" />
+
+   <h6>╭┈➤&emsp;📝 View your own post with ability to edit or delete it.</h6>
+   <img width="900" alt="Image" src="https://github.com/user-attachments/assets/1c196f5d-4d05-49fa-b514-85125fc9d35a" />
+
+   <h6>╭┈➤&emsp;📝 Viewing a post with disabled comments, without the ability to comment.</h6>
+   <img width="900" alt="Image" src="https://github.com/user-attachments/assets/a7edc307-95d1-40a1-9776-b060dfb71d88" />
+
+   <h6>╭┈➤&emsp;📝 Report a post that you are not the author of.</h6>
+   <img width="900" alt="Image" src="https://github.com/user-attachments/assets/f3ab0fa0-943f-445e-a7ab-6d457a89fbc3" />
+
+   <h6>╭┈➤&emsp;📝 Report a comment that you are not the author of.</h6>
+   <img width="900" alt="Image" src="https://github.com/user-attachments/assets/6b218e1d-40bf-45a8-998b-21071bad182c" />
 </details>
 
 <details>
- <summary><img width="20" height="20" alt="image" src="https://github.com/user-attachments/assets/f8dd55bc-f59f-4c34-bd29-59b16af789f9" /> User Profile</summary>
+ <summary><img height="20" alt="Image" src="https://github.com/user-attachments/assets/fe63f747-1f23-4a4c-8ac9-95bb062ff0fe"/></summary>
 
-Similar for all roles.
+   <h6>╭┈➤&emsp;🏠 Homepage as moderator with the button to view users' and students' post/comment reports.</h6>
+   <img width="900" alt="Image" src="https://github.com/user-attachments/assets/7b74a70d-7d69-4eba-bc0b-5a04b970282a" />
 
-<img width="800" height="800" alt="User Profile" src="./docs/images/user-profile.png" />
+   <h6>╭┈➤&emsp;📁 Category-specific view as moderator with the button to view users' and students' post/comment reports.</h6>
+   <img width="900" alt="Image" src="https://github.com/user-attachments/assets/e7403e68-f257-4ec1-8069-8b6e3f00cf21" />
+</details>
+
+<details>
+ <summary><img height="20" alt="Image" src="https://github.com/user-attachments/assets/c3631737-7431-4d7b-9aa0-69ba42c482d6" /></summary>
+
+   <h6>╭┈➤&emsp;🏠 Homepage with the ability to pin posts to the top of their categories.</h6>
+   <img width="900" alt="Image" src="https://github.com/user-attachments/assets/e0583159-3ba1-4d5a-89d8-7c4dafa5496b" />
+
+   <h6>╭┈➤&emsp;🏠 Homepage with the ability to create posts using Announcements category, official tag, and disable comments on the post.</h6>
+   <img width="900" alt="Image" src="https://github.com/user-attachments/assets/4417ab71-0315-4365-b1e5-75c635268730" />
+
+   <h6>╭┈➤&emsp;🏠 Homepage with ability to view reports by users and students. Sort reports, route to them (scroll to comment for comment reports), or resolve.</h6>
+   <img width="900" alt="Image" src="https://github.com/user-attachments/assets/3c30b363-cf07-4d7b-aeb3-999245eae9ba" />
+
+   <h6>╭┈➤&emsp;📝 View post with ability to edit or delete any post, no matter if you are the author or not.</h6>
+   <img width="900" alt="Image" src="https://github.com/user-attachments/assets/9c592539-c905-4d30-a628-3e107ad428bb" />
+
+   <h6>╭┈➤&emsp;📝 View comments with ability to edit or delete and comments, no matter if you are the author or not.</h6>
+   <img width="900" alt="Image" src="https://github.com/user-attachments/assets/4b57de4a-9a81-4202-92d4-e83da2d84c8c" />
+</details>
+
+<details>
+ <summary><img height="20" alt="Image" src="https://github.com/user-attachments/assets/4d8d7bb2-3c62-4bf0-8f61-68a7e908608b" /></summary>
+
+   <h6>╭┈➤&emsp;🏠 Homepage with button to route to the Admin Panel.</h6>
+   <img width="900" alt="Image" src="https://github.com/user-attachments/assets/4c4b1eeb-c601-444f-9f92-c1306d0d98cf" />
+
+   <h6>╭┈➤&emsp;📁 Category-specific view with button to route to the Admin Panel.</h6>
+   <img width="900" alt="Image" src="https://github.com/user-attachments/assets/3c6e25da-f82f-44cc-b02a-ff479906ee8c" />
+
+   <h6>╭┈➤&emsp;🛡️ Admin Panel with ability to view/search and sort users, and modify their roles and ban status.</h6>
+   <img width="900" alt="Image" src="https://github.com/user-attachments/assets/800970ef-280d-4f46-a49d-3ee90bd02ab5" />
+
+   <h6>╭┈➤&emsp;🛡️ Admin Panel to manage category names, who it is useable by, who it is visible to, and delete them.</h6>
+   <img width="900" alt="Image" src="https://github.com/user-attachments/assets/f869a0e7-4795-4188-abd2-896f0e9fc696" />
+
+   <h6>╭┈➤&emsp;🛡️ Admin panel form to create a category.</h6>
+   <img width="900" alt="Image" src="https://github.com/user-attachments/assets/8332a466-e72c-4fa5-973b-3d70af8fed8e" />
+
+   <h6>╭┈➤&emsp;🛡️ Admin Panel to manage tag names, who it is useable by, and delete them.</h6>
+   <img width="900" alt="Image" src="https://github.com/user-attachments/assets/cbe095fa-407b-4d8c-8ab0-2e24845e77dd" />
+
+   <h6>╭┈➤&emsp;🛡️ Admin panel form to create a tag.</h6>
+   <img width="900" alt="Image" src="https://github.com/user-attachments/assets/963c2298-b551-4464-96db-f2a7cb19ce9e" />
+
+   <h6>╭┈➤&emsp;🛡️ Admin panel to manage report tag names and delete them. Alternative way to view users' and students' reports with more information.</h6>
+   <img width="900" alt="Image" src="https://github.com/user-attachments/assets/f3c968a5-ebe4-4e10-9899-62a57a79fb70" />
+
+   <h6>╭┈➤&emsp;🛡️ Admin panel form to create a report tag.</h6>
+   <img width="900" alt="Image" src="https://github.com/user-attachments/assets/2be6283e-994b-436e-81dc-b513cd44415f" />
 </details>
 
 ---
@@ -162,16 +287,15 @@ Follow these instructions to get a local copy of the project up and running.
 
 ### Prerequisites
 
-Before you begin, ensure you have the following installed:
-* [Node.js and npm](https://nodejs.org/)
-  
-* [PHP](https://www.php.net/downloads.php)
-  thread-safe preferred version: 8.3
-  
-* [Composer](https://getcomposer.org/)
-  
+Before you begin, ensure you have the following installed. The versions listed are what the project has been developed and tested against — other versions may work but are not guaranteed.
+
+* [Node.js and npm](https://nodejs.org/) - **Node.js v24.14.0**, **npm 11.9.0**
+
+* [PHP](https://www.php.net/downloads.php) - **PHP 8.3.26**, Thread-Safe
+
+* [Composer](https://getcomposer.org/) — **Composer 2.8.12**
+
 * [PHP SQL Server Drivers](https://learn.microsoft.com/en-us/sql/connect/php/download-drivers-php-sql-server?view=sql-server-ver17)
-  PHP SQL server drivers from Microsoft & ODBC driver
 
 ## ⚙️ Setup Instructions
 
@@ -222,49 +346,105 @@ Before you begin, ensure you have the following installed:
    * Next, open the new `.env` file.
    * Fill in the required parameters (database credentials, application secrets) with your correct development values.
 
+### 3. Database Migrations
+
+The database schema is managed through versioned SQL migration scripts in [backend/database/migrations/](backend/database/migrations/). A runner script at [backend/database/migrate.php](backend/database/migrate.php) applies any migrations that haven't been run yet and records them in a `Forum_SchemaVersions` tracking table, so it is safe to run repeatedly.
+
+**Before running migrations:**
+
+1. Make sure your SQL Server instance is running and that the target database already exists (the runner does **not** create the database itself, only the tables inside it).
+2. Confirm your `backend/.env` file has the correct values for at least:
+   ```bash
+   DB_SERVER=your-sql-server-host
+   DB_DATABASE=your-database-name
+   DB_USERNAME=your-username
+   DB_PASSWORD=your-password
+   ```
+3. Ensure `composer install` has been run so `vendor/autoload.php` exists.
+
+**Run the migrations** from the backend directory:
+
+```bash
+cd backend
+php database/migrate.php
+```
+
+Expected output looks like:
+
+```
+== Database migrations ==
+Server: <server> | DB: <database>
+Scanning: .../backend/database/migrations
+
+APPLY 001_user_roles.sql ... OK
+APPLY 002_users_and_auth.sql ... OK
+...
+Done. Applied: N, Skipped: 0
+```
+
+On subsequent runs, any already-applied scripts will be listed as `SKIP` and only new migration files will be executed. If a migration fails, the script rolls back that batch and exits with a non-zero status so the database is left in a consistent state.
+
+**Adding a new migration:**
+
+1. Create a new file in [backend/database/migrations/](backend/database/migrations/) using the next sequential prefix (e.g., `010_my_change.sql`).
+2. Write T-SQL compatible with Microsoft SQL Server; use `GO` on its own line to separate batches if needed.
+3. Commit the file along with the code change that depends on it, and run `php database/migrate.php` locally to verify.
+
 ---
 
-## 📅 Timeline
-This timeline tracks our project's progress across CSC 190 and CSC 191
+## 🧪 Testing
 
-### Phase I: 🍂 Fall 2025 (CSC 190)
+The project uses automated testing on both the frontend and backend to ensure correctness of components, API endpoints, and multi-component feature flows.
 
-| Sprint | Key Features / Goals | Status |
-| ------ | ------------------- | ------ |
-| **01** | Developed and finalized Figma Prototypes, established project scope in the **Project Charter**, and defined initial requirements/tech stack. | **DONE** |
-| **02** | Set up **Git/Jira environment**, implemented the **Login/Register UI**, connected Authentication to the database backend, and built base site components (Headers/Footer). | **DONE** |
-| **03** | Implemented **Authentication Logic**, developed **Create Post Page**, initiated backend for Tags/Categories, and built the **User Profile Page** for settings. | **DONE** |
-| **04** | Fixed issues with **Create Post Page**, implemented functional **Category View**, updated **Homepage** to display posts, and signed the Project Charter. | **DONE** |
+### Frontend Testing
 
-### Phase I Summary
-Focused on planning, UI design, project setup, and building core authentication and posting features.
+The frontend is tested with **[Vitest](https://vitest.dev/)**. Tests live under [frontend/tests/](frontend/tests/) and are organized into:
 
+- [frontend/tests/components/](frontend/tests/components/) - Unit tests for individual Vue components (admin, forum, user).
+- [frontend/tests/views/](frontend/tests/views/) - Tests for full page-level views (auth, forum, terms gate, etc.).
+- [frontend/tests/integration/](frontend/tests/integration/) - Integration tests that mount multiple components together with mocked API/router/store layers to verify complete feature flows (e.g., UserProfile, CommentSection).
 
-### Phase II: 🌷 Spring 2026 (CSC 191)
+**Run the frontend tests:**
 
-| Sprint | Key Features / Goals | Status |
-| ------ | ------------------- | ------ |
-| **05** | Adjustments to **Homepage** layout, convert the **Create Post Page into a Modal**, create the **Post View Page**, implement **Commenting**, and enable user **Post Reporting** functionality.| **TODO** |
-| **06** | Implement **Admin Panel** for role assignment, user **Notifications**, author **Post Editing Privileges**, and Admin/Mod post moderation (Move/Delete posts). | **TODO** |
-| **07** | Work on **Bug Fixes**, perform full-site **Testing**, and make necessary final adjustments based on testing results. | **TODO** |
-| **08** | Final application preparation and official environment **Deployment** for production. | **TODO** |
+```bash
+cd frontend
+npm install
+npx vitest run                 # run all tests
+npx vitest                     # run in watch mode
+npx vitest run path/to/file    # run a specific test file
+```
 
-### Phase II Summary
-TBD
+### Backend Testing
 
-### Key Milestones
-- Project Charter finalized  
-- Figma UI completed  
-- Authentication system implemented  
-- Admin Panel introduced  
-- Commenting and moderation added  
-- Full testing phase completed  
-- Deployment ready
+The backend is tested with **[PHPUnit](https://phpunit.de/)**. Tests live under [backend/tests/](backend/tests/) and are split into:
 
----
+- [backend/tests/](backend/tests/) — Controller-level unit tests (Auth, User, Post, Comment, Report, Admin, Terms).
+- [backend/tests/Integration/](backend/tests/Integration/) — Integration tests that exercise full request/response flows through the Slim app (e.g., creating and fetching posts, commenting on posts, user profile pages, notification settings).
 
-## 🧪 Testing 
-TBD
+**Run the backend tests:**
+
+```bash
+cd backend
+composer install
+./vendor/bin/phpunit tests                   # run all tests
+./vendor/bin/phpunit tests/NameOfTest.php    # run a specific test file
+./vendor/bin/phpunit tests/Integration       # run only integration tests
+```
+
+### Tested On
+
+The test suites have been verified against the following environment:
+
+| Component | Version |
+| :--- | :--- |
+| **OS** | Windows 11 Pro |
+| **Node.js** | v24.14.0 |
+| **npm** | 11.9.0 |
+| **PHP** | 8.3.26 (ZTS, VC++ 2019, x64) |
+| **Composer** | 2.8.12 |
+| **PHPUnit** | ^12.5 |
+
+Other versions may work but have not been validated. If you hit environment-related test failures, try matching the versions above.
 
 ---
 
@@ -321,8 +501,8 @@ This project is developed as part of the CSC 190/191 Senior Project sequence at
 
 We would like to thank:
 
-- **Instructor:** Dr. Kenneth Elliot  
-- **Lab Advisor:** Prof. Harvin Singh  
+- **Instructor:** Dr. Kenneth Elliott
+- **Lab Advisor:** Prof. Harvin Singh & Maryam Siddique
 - **Office of Water Programs (OWP)** for partnering with us and providing project requirements and feedback.
 
 ---
@@ -341,7 +521,7 @@ We would like to thank:
 ---
 
 <p align="center">
- <img width="100" height="95" alt="Bug Busters Logo" src="https://github.com/user-attachments/assets/e83ab8a5-90ef-4d55-8795-6aac07eb77b2" />
+ <img width="120" height="95" alt="Bug Busters Logo" src="https://github.com/user-attachments/assets/e83ab8a5-90ef-4d55-8795-6aac07eb77b2" />
  <br>
- <strong>Copyright © 2025 OWP Forum | Team Bug Busters</strong>
+ <strong>Team Bug Busters</strong>
 </p>

@@ -33,11 +33,12 @@ final class TermsControllerTest extends TestCase
                 $this->stmt = $stmt;
             }
 
+            #[\ReturnTypeWillChange]
             public function prepare($query, $options = null)
             {
-                TestCase::assertStringContainsString('UPDATE dbo.Users', (string)$query);
-                TestCase::assertStringContainsString('termsAccepted = 1', (string)$query);
-                TestCase::assertStringContainsString('WHERE User_ID = :uid', (string)$query);
+                TestCase::assertStringContainsString('UPDATE dbo.Forum_Users', (string)$query);
+                TestCase::assertStringContainsString('TermsAccepted = 1', (string)$query);
+                TestCase::assertStringContainsString('WHERE UserID = :uid', (string)$query);
 
                 return $this->stmt;
             }

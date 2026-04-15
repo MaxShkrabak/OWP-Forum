@@ -1,18 +1,24 @@
 <script setup>
 import CreatePostButton from "@/components/forum/CreatePostButton.vue";
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted, computed, watch } from "vue";
 import { RouterLink } from "vue-router";
 import ForumHeader from "@/components/layout/ForumHeader.vue";
-import { fetchPosts as apiGetPosts, fetchPinnedPosts as apiGetPinnedPosts } from "@/api/posts";
+import {
+  fetchPosts as apiGetPosts,
+  fetchPinnedPosts as apiGetPinnedPosts,
+  searchPosts as apiSearchPosts,
+} from "@/api/posts";
 import { isLoggedIn } from "@/stores/userStore";
 import UserCard from "@/components/user/UserCard.vue";
 import ViewReportsButton from "@/components/admin/ViewReportsButton.vue";
 import PostCard from "@/components/forum/PostCard.vue";
 import AdminPanelButton from "@/components/admin/AdminPanelButton.vue";
+import { getPaginationRange } from "@/utils/pagination";
 
 const postsByCategory = ref([]);
 const pinnedPosts = ref([]);
 const totalPosts = ref(0);
+
 const loading = ref(true);
 const error = ref(null);
 
@@ -21,15 +27,30 @@ const globalPinMessageType = ref("success");
 let globalPinMessageTimeout = null;
 
 const searchQuery = ref("");
+const activeSearchQuery = ref("");
 const categorySearch = ref("");
 const selectedCategories = ref([]);
 const sort = ref("latest");
 
 const INITIAL_LIMIT = 5;
+const SEARCH_LIMIT = 10;
 
-async function fetchPosts() {
+const searchResults = ref([]);
+const searchMeta = ref({
+  page: 1,
+  limit: SEARCH_LIMIT,
+  totalPosts: 0,
+  totalPages: 1,
+  hasNextPage: false,
+  hasPrevPage: false,
+});
+
+const isSearchMode = computed(() => activeSearchQuery.value !== "");
+
+async function fetchHomepageData() {
   loading.value = true;
   error.value = null;
+
   try {
     const [postsData, pinnedData] = await Promise.all([
       apiGetPosts({ sort: sort.value }),
@@ -41,22 +62,84 @@ async function fetchPosts() {
       totalPosts.value = postsData.totalPosts || 0;
     }
 
-    if (pinnedData?.posts) {
-      pinnedPosts.value = pinnedData.posts.map((post) => ({
-        ...post,
-        isPinned: true,
-      }));
-    } else {
-      pinnedPosts.value = [];
-    }
+    pinnedPosts.value = pinnedData?.posts || [];
   } catch (e) {
-    console.error("Error fetching posts:", e);
-    error.value = e.message;
+    console.error("Error fetching homepage posts:", e);
+    error.value = e.message || "Failed to load posts.";
   } finally {
     loading.value = false;
   }
 }
 
+function resetSearchState() {
+  searchResults.value = [];
+  searchMeta.value = {
+    page: 1,
+    limit: SEARCH_LIMIT,
+    totalPosts: 0,
+    totalPages: 1,
+    hasNextPage: false,
+    hasPrevPage: false,
+  };
+}
+
+async function fetchSearchResults(page = 1) {
+  const q = activeSearchQuery.value.trim();
+
+  if (!q) {
+    resetSearchState();
+    return;
+  }
+
+  loading.value = true;
+  error.value = null;
+
+  try {
+    const data = await apiSearchPosts({
+      q,
+      page,
+      limit: SEARCH_LIMIT,
+      sort: sort.value,
+      categoryIds: selectedCategories.value,
+    });
+
+    searchResults.value = data?.posts || [];
+    searchMeta.value = {
+      page: data?.meta?.page ?? 1,
+      limit: data?.meta?.limit ?? SEARCH_LIMIT,
+      totalPosts: data?.meta?.totalPosts ?? 0,
+      totalPages: data?.meta?.totalPages ?? 1,
+      hasNextPage: data?.meta?.hasNextPage ?? false,
+      hasPrevPage: data?.meta?.hasPrevPage ?? false,
+    };
+  } catch (e) {
+    console.error("Error searching posts:", e);
+    error.value = e.message || "Failed to search posts.";
+    searchResults.value = [];
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function handleSearchSubmit() {
+  activeSearchQuery.value = searchQuery.value.trim();
+
+  if (activeSearchQuery.value) {
+    await fetchSearchResults(1);
+  } else {
+    resetSearchState();
+    await fetchHomepageData();
+  }
+}
+
+async function clearSearch() {
+  searchQuery.value = "";
+  activeSearchQuery.value = "";
+  resetSearchState();
+  await fetchHomepageData();
+}
+
+// Shows a toast message at the top of the page when a post is pinned/unpinned
 function showGlobalPinMessage(message, type = "success") {
   globalPinMessage.value = message;
   globalPinMessageType.value = type;
@@ -71,7 +154,11 @@ function showGlobalPinMessage(message, type = "success") {
 }
 
 async function handlePostRefresh(payload = null) {
-  await fetchPosts();
+  if (isSearchMode.value) {
+    await fetchSearchResults(searchMeta.value.page || 1);
+  } else {
+    await fetchHomepageData();
+  }
 
   if (payload?.pinMessage) {
     showGlobalPinMessage(payload.pinMessage, payload.pinMessageType || "success");
@@ -82,28 +169,7 @@ function normalize(str) {
   return (str ?? "").toString().trim().toLowerCase();
 }
 
-function postMatchesGeneralSearch(post, categoryName, q) {
-  if (!q) return true;
-  const nq = normalize(q);
-
-  const title = normalize(post?.title);
-  const author = normalize(post?.authorName);
-  const cat = normalize(categoryName);
-  const tags = Array.isArray(post?.tags) ? post.tags : [];
-  const authorRole = normalize(post?.authorRole);
-
-  return (
-    title.includes(nq) ||
-    author.includes(nq) ||
-    cat.includes(nq) ||
-    authorRole.includes(nq) ||
-    tags.some((t) => normalize(t).includes(nq))
-  );
-}
-
-
 const filteredCategories = computed(() => {
-  const q = normalize(searchQuery.value);
   const catQ = normalize(categorySearch.value);
 
   return postsByCategory.value
@@ -129,26 +195,20 @@ const filteredCategories = computed(() => {
           ...p,
           categoryName: cat.categoryName,
           categoryId: cat.categoryId,
-        }))
-        .filter((p) => postMatchesGeneralSearch(p, cat.categoryName, q));
+        }));
 
       const pinnedIds = new Set(
-        pinnedForCategory.map((p) => Number(p.PostID ?? p.postId))
+        pinnedForCategory.map((p) => Number(p.postId))
       );
 
       const homepagePosts = normalizedCategoryPosts
-        .filter((p) => !pinnedIds.has(Number(p.PostID ?? p.postId)))
-        .slice(0, INITIAL_LIMIT)
-        .filter((p) => postMatchesGeneralSearch(p, cat.categoryName, q));
+        .filter((p) => !pinnedIds.has(Number(p.postId)))
+        .slice(0, Math.max(0, INITIAL_LIMIT - pinnedForCategory.length));
 
       return {
         ...cat,
         _homepagePosts: [...pinnedForCategory, ...homepagePosts],
       };
-    })
-    .filter((cat) => {
-      if (!q) return true;
-      return (cat._homepagePosts?.length || 0) > 0;
     });
 });
 
@@ -156,29 +216,77 @@ const filtersActive = computed(
   () =>
     selectedCategories.value.length > 0 ||
     categorySearch.value.trim() !== "" ||
-    searchQuery.value.trim() !== "",
+    activeSearchQuery.value !== "",
 );
+
+const noResults = computed(() => {
+  if (loading.value || error.value) return false;
+
+  if (activeSearchQuery.value) {
+    return searchResults.value.length === 0;
+  }
+
+  return filteredCategories.value.length === 0;
+});
 
 function clearAllFilters() {
   selectedCategories.value = [];
   categorySearch.value = "";
   searchQuery.value = "";
+  activeSearchQuery.value = "";
+  resetSearchState();
+  fetchHomepageData();
 }
 
-const noResults = computed(
-  () => !loading.value && !error.value && filteredCategories.value.length === 0,
-);
+// Manually seeded categories with icons. 
+// Follow same format to custom icons for added categoroies in the future.
+// Any new category has default icon of 'pi pi-folder-open' if not specified here.
+const categories = [
+  { name: 'Announcements & News', icon: 'pi pi-megaphone' },
+  { name: 'General', icon: 'pi pi-folder-open' },
+  { name: 'Wastewater Collection', icon: 'bi-droplet-half' },
+  { name: 'Wastewater Treatment', icon: 'bi-droplet-half' },
+  { name: 'Water Distribution', icon: 'bi-droplet' },
+  { name: 'Water Treatment', icon: 'bi-droplet' },
+]
 
 function getCategoryIcon(categoryName) {
-  const name = (categoryName || "").toLowerCase();
-  if (name.includes("announcement")) return "pi pi-megaphone";
-  if (name.includes("research")) return "pi pi-chart-line";
-  if (name.includes("help")) return "pi pi-question-circle";
-  return "pi pi-folder-open";
+  return (
+    categories.find(
+      (cat) => cat.name.toLowerCase() === categoryName.toLowerCase()
+    )?.icon || "pi pi-folder-open"
+  );
 }
 
+function goToSearchPage(page) {
+  if (page < 1 || page > searchMeta.value.totalPages) return;
+  fetchSearchResults(page);
+}
+
+const displayedPages = computed(() => {
+  return getPaginationRange(searchMeta.value.page, searchMeta.value.totalPages, 2);
+});
+
+watch(sort, async () => {
+  if (isSearchMode.value) {
+    await fetchSearchResults(1);
+  } else {
+    await fetchHomepageData();
+  }
+});
+
+watch(
+  selectedCategories,
+  async () => {
+    if (isSearchMode.value) {
+      await fetchSearchResults(1);
+    }
+  },
+  { deep: true },
+);
+
 onMounted(async () => {
-  await fetchPosts();
+  await fetchHomepageData();
 });
 </script>
 
@@ -194,11 +302,11 @@ onMounted(async () => {
 
             <div class="action-buttons-container mt-3" v-if="isLoggedIn">
               <AdminPanelButton />
-              <CreatePostButton @post-refresh="fetchPosts" />
+              <CreatePostButton @post-refresh="handlePostRefresh" />
               <ViewReportsButton />
             </div>
 
-            <div class="card border-0 shadow-sm rounded-3 mt-4 d-none d-lg-block overflow-hidden">
+            <div class="card border-0 shadow-sm rounded-3 mt-4 overflow-hidden">
               <div class="filter-header px-3 py-2 d-flex justify-content-between align-items-center">
                 <span class="fw-bold small text-uppercase tracking-wider">Categories</span>
                 <button v-if="selectedCategories.length > 0" @click="selectedCategories = []" class="clear-btn">
@@ -206,19 +314,12 @@ onMounted(async () => {
                 </button>
               </div>
               <div class="list-group list-group-flush">
-                <label
-                  v-for="cat in postsByCategory"
-                  :key="cat.categoryId"
+                <label v-for="cat in postsByCategory" :key="cat.categoryId"
                   class="list-group-item list-group-item-action d-flex align-items-center justify-content-between border-0 py-2 px-3 clickable-label"
-                  :class="{ 'active-category': selectedCategories.includes(cat.categoryId) }"
-                >
+                  :class="{ 'active-category': selectedCategories.includes(cat.categoryId) }">
                   <div class="d-flex align-items-center">
-                    <input
-                      type="checkbox"
-                      class="form-check-input me-3 mt-0"
-                      :value="cat.categoryId"
-                      v-model="selectedCategories"
-                    />
+                    <input type="checkbox" class="form-check-input me-3 mt-0" :value="cat.categoryId"
+                      v-model="selectedCategories" />
                     <i :class="getCategoryIcon(cat.categoryName)" class="me-2 text-muted"></i>
                     <span class="category-name-text">{{ cat.categoryName }}</span>
                   </div>
@@ -234,13 +335,9 @@ onMounted(async () => {
             <div class="d-flex gap-2 align-items-center flex-grow-1">
               <div class="category-search-wrap shadow-sm">
                 <i class="pi pi-search ms-3 text-muted"></i>
-                <input
-                  v-model="searchQuery"
-                  type="text"
-                  placeholder="Search posts..."
-                  class="category-search-input"
-                />
-                <button v-if="searchQuery" @click="searchQuery = ''" class="search-clear-btn">
+                <input v-model="searchQuery" @keyup.enter="handleSearchSubmit" type="text"
+                  placeholder="Search all posts..." class="category-search-input" />
+                <button v-if="searchQuery" @click="clearSearch" class="search-clear-btn">
                   ✕
                 </button>
               </div>
@@ -248,22 +345,24 @@ onMounted(async () => {
 
             <div class="d-flex align-items-center gap-4">
               <div class="small text-secondary fw-bold text-uppercase tracking-wider">
-                {{ totalPosts }} posts
+                <template v-if="isSearchMode">
+                  {{ searchMeta.totalPosts }} results
+                </template>
+                <template v-else>
+                  {{ totalPosts }} posts
+                </template>
               </div>
-              <select v-model="sort" @change="fetchPosts" class="sort-select shadow-sm">
-                <option value="latest">Latest</option>
-                <option value="oldest">Oldest</option>
-                <option value="upvotes">Most Upvotes</option>
-                <option value="comments">Most Comments</option>
-              </select>
+
+                <select v-model="sort" class="sort-select">
+                  <option value="latest">Latest</option>
+                  <option value="oldest">Oldest</option>
+                  <option value="upvotes">Most Upvotes</option>
+                  <option value="comments">Most Comments</option>
+                </select>
             </div>
           </div>
 
-          <div
-            v-if="globalPinMessage"
-            class="global-pin-toast"
-            :class="{ error: globalPinMessageType === 'error' }"
-          >
+          <div v-if="globalPinMessage" class="global-pin-toast" :class="{ error: globalPinMessageType === 'error' }">
             {{ globalPinMessage }}
           </div>
 
@@ -279,7 +378,7 @@ onMounted(async () => {
             <div v-if="filtersActive" class="active-filter-banner mb-3">
               <div>
                 <strong>Filters active:</strong>
-                <span v-if="searchQuery"> Search "{{ searchQuery }}"</span>
+                <span v-if="activeSearchQuery"> Search "{{ activeSearchQuery }}"</span>
                 <span v-if="selectedCategories.length">
                   Categories ({{ selectedCategories.length }})
                 </span>
@@ -294,26 +393,63 @@ onMounted(async () => {
               <button @click="clearAllFilters">Reset everything</button>
             </div>
 
-            <div
-              v-for="category in filteredCategories"
-              :key="category.categoryId"
-              :id="`category-${category.categoryId}`"
-              class="category-group mb-5"
-            >
-              <RouterLink :to="`/categories/${category.categoryId}`">
-                <div class="category-banner mb-3 shadow-sm">
-                  <i :class="getCategoryIcon(category.categoryName) + ' me-2'"></i>
-                  <span class="category-title">{{ category.categoryName }}</span>
+            <template v-else-if="isSearchMode">
+              <div class="search-results-box mb-4">
+                <div class="search-results-header">
+                  <h5 class="mb-1">Search Results</h5>
+                  <p class="mb-0 search-results-count">
+                    {{ searchMeta.totalPosts }} results
+                  </p>
                 </div>
-              </RouterLink>
 
-              <PostCard
-                v-for="post in category._homepagePosts"
-                :key="post.postId ?? post.PostID"
-                :post="post"
-                @post-refresh="handlePostRefresh"
-              />
-            </div>
+                <PostCard v-for="post in searchResults" :key="post.postId" :post="post"
+                  @post-refresh="handlePostRefresh" />
+
+                <nav v-if="searchMeta.totalPages > 1" class="page-nav-wraper mt-5">
+                  <button class="page-nav-btn" :disabled="searchMeta.page === 1"
+                    @click="goToSearchPage(searchMeta.page - 1)">
+                    <i class="pi pi-chevron-left"></i>
+                  </button>
+
+                  <div class="page-pages d-none d-sm-flex">
+                    <template v-for="p in displayedPages" :key="p">
+                      <button v-if="typeof p === 'number'" class="page-num" :class="{ active: p === searchMeta.page }"
+                        @click="goToSearchPage(p)">
+                        {{ p }}
+                      </button>
+
+                      <span v-else class="page-dots">
+                        {{ p }}
+                      </span>
+                    </template>
+                  </div>
+
+                  <div class="d-sm-none text-muted small fw-bold">
+                    {{ searchMeta.page }} / {{ searchMeta.totalPages }}
+                  </div>
+
+                  <button class="page-nav-btn" :disabled="searchMeta.page === searchMeta.totalPages"
+                    @click="goToSearchPage(searchMeta.page + 1)">
+                    <i class="pi pi-chevron-right"></i>
+                  </button>
+                </nav>
+              </div>
+            </template>
+
+            <template v-else>
+              <div v-for="category in filteredCategories" :key="category.categoryId"
+                :id="`category-${category.categoryId}`" class="category-group mb-5">
+                <RouterLink :to="`/categories/${category.categoryId}`">
+                  <div class="category-banner mb-3 shadow-sm">
+                    <i :class="getCategoryIcon(category.categoryName) + ' me-2'"></i>
+                    <span class="category-title">{{ category.categoryName }}</span>
+                  </div>
+                </RouterLink>
+
+                <PostCard v-for="post in category._homepagePosts" :key="post.postId" :post="post"
+                  @post-refresh="handlePostRefresh" />
+              </div>
+            </template>
           </template>
         </div>
       </div>
@@ -351,6 +487,7 @@ onMounted(async () => {
     opacity: 0;
     transform: translateY(-6px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -373,7 +510,7 @@ onMounted(async () => {
   background: #c62828;
   color: white;
   padding: 5px 10px;
-  border-radius: 20px;
+  border-radius: 8px;
   font-weight: 600;
   cursor: pointer;
 }
@@ -454,11 +591,11 @@ onMounted(async () => {
 
 .no-results-box button {
   margin-top: 12px;
-  background: #145a32;
+  background: linear-gradient(135deg, #064e3b 0%, #065f46 100%);
   color: white;
   border: none;
   padding: 6px 14px;
-  border-radius: 20px;
+  border-radius: 8px;
   font-weight: 600;
   cursor: pointer;
 }
@@ -544,12 +681,22 @@ onMounted(async () => {
 }
 
 .sort-select {
-  padding: 3px 8px 3px 8px;
-  color: #201e0f;
-  font-size: 0.85rem;
-  font-weight: 600;
-  border-radius: 8px;
+  background: white;
+  border: 1px solid transparent;
+  color: #081424;
+  font-size: 0.90rem;
+  font-weight: 700;
   outline: none;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+.sort-select option {
+  background-color: #ffffff;
+  color: #000000;
+  font-weight: 600;
+  padding: 10px;
 }
 
 @media (min-width: 992px) {
@@ -558,5 +705,90 @@ onMounted(async () => {
     top: 1.5rem;
     height: fit-content;
   }
+}
+
+.search-results-box {
+  background: linear-gradient(165deg, #00475085 0%, #008a7825 70%);
+  border-radius: 8px;
+  padding: 18px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
+}
+
+.search-results-header {
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  color: #ffffff;
+}
+
+.search-results-count {
+  color: white;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  font-weight: 900;
+  letter-spacing: 1.5px;
+}
+
+.page-nav-wraper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  padding: 0 0 2rem;
+}
+
+.page-dots {
+  color: rgba(255, 255, 255, 0.85);
+  align-self: center;
+}
+
+.page-pages {
+  display: flex;
+  gap: 8px;
+  background: #7e9291;
+  padding: 6px;
+  border-radius: 14px;
+}
+
+.page-num {
+  width: 42px;
+  height: 42px;
+  border: none;
+  background: transparent;
+  border-radius: 10px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.page-num:hover {
+  background: rgba(255, 255, 255, 0.226);
+  color: #ffffff;
+}
+
+.page-num.active {
+  background: #035157;
+  color: #ffffff;
+  box-shadow: 0 6px 16px rgba(3, 81, 87, 0.35);
+}
+
+.page-nav-btn {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 2px solid #7e9291;
+  background: #ffffff;
+  color: #004b33;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.page-nav-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  filter: grayscale(1);
 }
 </style>

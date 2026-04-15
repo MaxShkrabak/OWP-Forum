@@ -12,21 +12,20 @@ use function Forum\Helpers\json;
 use function Forum\Helpers\checkUserBan;
 use function Forum\Helpers\createNotification;
 
-class CommentController
+class CommentController extends BaseController
 {
-    private Closure $makePdo;
     private Closure $sendCommentEmail;
 
     public function __construct(Closure $makePdo, ?Closure $sendCommentEmail = null)
     {
-        $this->makePdo = $makePdo;
+        parent::__construct($makePdo);
         $this->sendCommentEmail = $sendCommentEmail ?? fn(array $message) => $this->dispatchCommentNotification($message);
     }
 
     private function formatUserRow(array $row): array
     {
         return [
-            'userId'    => (int)($row['UserId'] ?? $row['UserID'] ?? 0),
+            'userId'    => (int)($row['UserID'] ?? 0),
             'firstName' => $row['FirstName'] ?? null,
             'lastName'  => $row['LastName'] ?? null,
             'avatar'    => $row['Avatar'] ?? null,
@@ -40,8 +39,8 @@ class CommentController
             SELECT p.PostID, p.Title, p.AuthorID, p.LastCommentNotificationSentAt,
                    u.Email, u.FirstName, u.LastName,
                    ISNULL(u.EmailNotificationsEnabled, 1) AS EmailNotificationsEnabled
-            FROM dbo.Posts p
-            JOIN dbo.Users u ON u.User_ID = p.AuthorID
+            FROM dbo.Forum_Posts p
+            JOIN dbo.Forum_Users u ON u.UserID = p.AuthorID
             WHERE p.PostID = :postId");
         $postOwnerStmt->execute([':postId' => $postId]);
         $post = $postOwnerStmt->fetch(PDO::FETCH_ASSOC);
@@ -57,7 +56,7 @@ class CommentController
             $sent = ($this->sendCommentEmail)($message);
 
             if ($sent) {
-                $updateStmt = $pdo->prepare("UPDATE dbo.Posts SET LastCommentNotificationSentAt = SYSUTCDATETIME() WHERE PostID = :postId");
+                $updateStmt = $pdo->prepare("UPDATE dbo.Forum_Posts SET LastCommentNotificationSentAt = SYSUTCDATETIME() WHERE PostID = :postId");
                 $updateStmt->execute([':postId' => $postId]);
             }
         } catch (Throwable $e) {
@@ -72,7 +71,7 @@ class CommentController
         $cooldownMinutes = (int)($_ENV['COMMENT_EMAIL_COOLDOWN_MINUTES'] ?? 10);
         $lastTime = strtotime($lastSentAt);
 
-        if ($lastTime === false) return true; // If parsing fails, allow sending
+        if ($lastTime === false) return true;
 
         return $lastTime <= time() - ($cooldownMinutes * 60);
     }
@@ -82,8 +81,8 @@ class CommentController
         $fromEmail = $_ENV['EMAIL_FROM_ADDRESS'] ?? '';
         $fromName = $_ENV['EMAIL_FROM_NAME'] ?? 'OWP Forum';
 
-        $safeName = htmlspecialchars($name !== '' ? $name : $email, ENT_QUOTES,'UTF-8');
-        $safeTitle = htmlspecialchars($postTitle, ENT_QUOTES,'UTF-8');
+        $safeName = htmlspecialchars($name !== '' ? $name : $email, ENT_QUOTES, 'UTF-8');
+        $safeTitle = htmlspecialchars($postTitle, ENT_QUOTES, 'UTF-8');
 
         return [
             'sender' => [
@@ -111,9 +110,9 @@ class CommentController
         }
 
         $headers = [
-                'accept: application/json',
-                'api-key: ' . $apiKey,
-                'content-type: application/json'
+            'accept: application/json',
+            'api-key: ' . $apiKey,
+            'content-type: application/json'
         ];
 
         if ($useSandbox) {
@@ -147,44 +146,48 @@ class CommentController
 
         return true;
     }
-    private function getCommentRateLimitRole(PDO $pdo, int $userId): ?string {
+
+    private function getCommentRateLimitRole(PDO $pdo, int $userId): ?string
+    {
         $roleStmt = $pdo->prepare("
             SELECT LOWER(r.NAME)
-            FROM dbo.Users u
-            LEFT JOIN dbo.Roles r ON u.RoleID = r.RoleID
-            WHERE u.User_ID = :uid
+            FROM dbo.Forum_Users u
+            LEFT JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
+            WHERE u.UserID = :uid
         ");
 
         $roleStmt->execute([':uid' => $userId]);
         $roleName = $roleStmt->fetchColumn();
 
-        return is_string($roleName)?trim($roleName):null;
+        return is_string($roleName) ? trim($roleName) : null;
     }
 
-    private function ApplyCommentRateLimit(?string $roleName):bool {
-        if($roleName === null || $roleName === ''){
+    private function ApplyCommentRateLimit(?string $roleName): bool
+    {
+        if ($roleName === null || $roleName === '') {
             return true;
         }
 
         return in_array($roleName, ['user', 'student'], true);
     }
 
-    private function getHourlyCommentResetSeconds(PDO $pdo, int $userId, int $commentsPerHourLimit): ?int {
+    private function getHourlyCommentResetSeconds(PDO $pdo, int $userId, int $commentsPerHourLimit): ?int
+    {
         $offset = max($commentsPerHourLimit - 1, 0);
 
         $hourlyResetTimeStmt = $pdo->prepare("
-            Select CreatedAt
-            FROM dbo.Comments
+            SELECT CreatedAt
+            FROM dbo.Forum_Comments
             WHERE UserID = :uid
-            AND isDeleted = 0
-            AND CreatedAt >= DATEADD(HOUR, -1, SYSUTCDATETIME())
+              AND IsDeleted = 0
+              AND CreatedAt >= DATEADD(HOUR, -1, SYSUTCDATETIME())
             ORDER BY CreatedAt DESC
-            OFFSET ($offset) ROWS FETCH NEXT 1 ROWS ONLY 
+            OFFSET ($offset) ROWS FETCH NEXT 1 ROWS ONLY
         ");
         $hourlyResetTimeStmt->execute([':uid' => $userId]);
         $createdAt = $hourlyResetTimeStmt->fetchColumn();
 
-        if(!$createdAt){
+        if (!$createdAt) {
             return null;
         }
 
@@ -197,13 +200,12 @@ class CommentController
 
     private function createCommentRateLimit(PDO $pdo, int $userId, Response $res): ?Response
     {
-        //Make thes into ENVs if desired
         $commentCooldownSeconds = 15;
-        $commentsPerHourLimit = 50; 
+        $commentsPerHourLimit = 50;
 
         $roleName = $this->getCommentRateLimitRole($pdo, $userId);
 
-        if(!$this->ApplyCommentRateLimit($roleName)){
+        if (!$this->ApplyCommentRateLimit($roleName)) {
             return null;
         }
 
@@ -226,8 +228,8 @@ class CommentController
 
         $recentCommentStmt = $pdo->prepare("
             SELECT COUNT(*)
-            FROM dbo.Comments
-            WHERE UserId = :uid
+            FROM dbo.Forum_Comments
+            WHERE UserID = :uid
               AND IsDeleted = 0
               AND CreatedAt >= DATEADD(HOUR, -1, SYSUTCDATETIME())
         ");
@@ -256,8 +258,8 @@ class CommentController
 
         $lastCommentStmt = $pdo->prepare("
             SELECT TOP 1 CreatedAt
-            FROM dbo.Comments
-            WHERE UserId = :uid AND IsDeleted = 0
+            FROM dbo.Forum_Comments
+            WHERE UserID = :uid AND IsDeleted = 0
             ORDER BY CreatedAt DESC
         ");
         $lastCommentStmt->execute([':uid' => $userId]);
@@ -284,19 +286,14 @@ class CommentController
             ], 429);
         }
 
-        return null; 
+        return null;
     }
 
     public function createComment(Request $req, Response $res, array $args): Response
     {
         try {
-            $userId = $req->getAttribute("user_id");
-
-            if (!$userId) {
-                return json($res, ['ok' => false, 'error' => 'Not Authenticated'], 401);
-            }
-
-            $pdo = ($this->makePdo)();
+            [$err, $pdo, $userId] = $this->requireAuth($req, $res);
+            if ($err !== null) return $err;
 
             $banResponse = checkUserBan($pdo, (int)$userId, $res);
             if ($banResponse) return $banResponse;
@@ -310,14 +307,39 @@ class CommentController
                 return json($res, ['ok' => false, 'error' => 'Missing post_id or content'], 400);
             }
 
+            if (mb_strlen($content) > 1000) {
+                return json($res, ['ok' => false, 'error' => 'Comment must be 1,000 characters or fewer.'], 400);
+            }
+
+            $content = \Forum\Helpers\sanitizeHtml($content);
+
+            $postCheckStmt = $pdo->prepare("
+                SELECT IsCommentsDisabled FROM dbo.Forum_Posts WHERE PostID = :pid AND IsDeleted = 0
+            ");
+            $postCheckStmt->execute([':pid' => $postId]);
+            $postCheck = $postCheckStmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$postCheck) {
+                return json($res, ['ok' => false, 'error' => 'Post not found.'], 404);
+            }
+
+            if ((int)$postCheck['IsCommentsDisabled'] === 1) {
+                $roleStmt = $pdo->prepare("SELECT ISNULL(RoleID, 1) FROM dbo.Forum_Users WHERE UserID = :uid");
+                $roleStmt->execute([':uid' => $userId]);
+                $userRoleId = (int)($roleStmt->fetchColumn() ?? 1);
+                if ($userRoleId < 3) {
+                    return json($res, ['ok' => false, 'error' => 'Comments are disabled on this post.'], 403);
+                }
+            }
+
             $pdo->beginTransaction();
 
-            if($rateLimitResponse = $this->createCommentRateLimit($pdo, (int)$userId, $res)) {
+            if ($rateLimitResponse = $this->createCommentRateLimit($pdo, (int)$userId, $res)) {
                 return $rateLimitResponse;
             }
 
-            $insertSql = "INSERT INTO dbo.Comments (PostID, UserId, Content, ParentCommentId) 
-                          OUTPUT INSERTED.CommentId, INSERTED.CreatedAt 
+            $insertSql = "INSERT INTO dbo.Forum_Comments (PostID, UserID, Content, ParentCommentID)
+                          OUTPUT INSERTED.CommentID, INSERTED.CreatedAt
                           VALUES (:postId, :userId, :content, :parentCommentId)";
 
             $stmt = $pdo->prepare($insertSql);
@@ -329,41 +351,33 @@ class CommentController
             ]);
             $inserted = $stmt->fetch(PDO::FETCH_ASSOC);
 
-$postOwnerStmt = $pdo->prepare("
-    SELECT p.AuthorID,
-           ISNULL(u.PushNotificationsEnabled, 1) AS PushNotificationsEnabled,
-           ISNULL(u.PostReplyNotificationsEnabled, 1) AS PostReplyNotificationsEnabled
-    FROM dbo.Posts p
-    JOIN dbo.Users u ON u.User_ID = p.AuthorID
-    WHERE p.PostID = :postId
-");
-$postOwnerStmt->execute([':postId' => $postId]);
-$postOwner = $postOwnerStmt->fetch(PDO::FETCH_ASSOC);
+            $postOwnerStmt = $pdo->prepare("
+                SELECT AuthorID FROM dbo.Forum_Posts WHERE PostID = :postId
+            ");
+            $postOwnerStmt->execute([':postId' => $postId]);
+            $postOwner = $postOwnerStmt->fetch(PDO::FETCH_ASSOC);
 
-if ($postOwner) {
-    $postOwnerId = (int)($postOwner['AuthorID'] ?? 0);
-    $pushEnabled = (int)($postOwner['PushNotificationsEnabled'] ?? 1) === 1;
-    $repliesEnabled = (int)($postOwner['PostReplyNotificationsEnabled'] ?? 1) === 1;
-
-    if ($postOwnerId > 0 && $postOwnerId !== (int)$userId && $pushEnabled && $repliesEnabled) {
-        createNotification($pdo, $postOwnerId, $postId, 'postReply');
-    }
-}
+            if ($postOwner) {
+                $postOwnerId = (int)($postOwner['AuthorID'] ?? 0);
+                if ($postOwnerId > 0 && $postOwnerId !== (int)$userId) {
+                    createNotification($pdo, $postOwnerId, $postId, 'postReply');
+                }
+            }
 
             $commentDetailsSql = $pdo->prepare("
-                SELECT c.CommentId, c.PostId, c.ParentCommentId, c.Content, c.CreatedAt, c.UpdatedAt, c.UserId, c.TotalScore,
+                SELECT c.CommentID, c.PostID, c.ParentCommentID, c.Content, c.CreatedAt, c.UpdatedAt, c.UserID, c.TotalScore,
                        u.FirstName, u.LastName, u.Avatar, r.Name AS RoleName,
                        0 AS MyVote,
-                       (SELECT COUNT(*) FROM dbo.Comments r WHERE r.ParentCommentId = c.CommentId AND r.IsDeleted = 0) AS ReplyCount
-                FROM dbo.Comments c
-                JOIN dbo.Users u ON u.User_ID = c.UserId
-                JOIN dbo.Roles r ON u.RoleID = r.RoleID
-                WHERE c.CommentId = :commentId
+                       (SELECT COUNT(*) FROM dbo.Forum_Comments rc WHERE rc.ParentCommentID = c.CommentID AND rc.IsDeleted = 0) AS ReplyCount
+                FROM dbo.Forum_Comments c
+                JOIN dbo.Forum_Users u ON u.UserID = c.UserID
+                JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
+                WHERE c.CommentID = :commentId
             ");
-            $commentDetailsSql->execute([':commentId' => (int)$inserted['CommentId']]);
+            $commentDetailsSql->execute([':commentId' => (int)$inserted['CommentID']]);
             $row = $commentDetailsSql->fetch(PDO::FETCH_ASSOC);
 
-            if(!$row) {
+            if (!$row) {
                 $pdo->rollBack();
                 return json($res, ['ok' => false, 'error' => 'Failed to load created comment'], 500);
             }
@@ -374,26 +388,24 @@ if ($postOwner) {
             return json($res, [
                 'ok' => true,
                 'comment' => [
-                    'commentId' => (int)$row['CommentId'],
-                    'postId'    => (int)$row['PostId'],
-                    'score'     => (int)$row['TotalScore'],
-                    'myVote'    => 0,
-                    'user'      => $this->formatUserRow($row),
-                    'content'   => $row['Content'],
-                    'createdAt' => strtotime($row['CreatedAt']),
-                    'updatedAt' => isset($row['UpdatedAt']) && $row['UpdatedAt'] !== null
-                        ? strtotime($row['UpdatedAt'])
-                        : null,
-                    'replyCount' => (int)$row['ReplyCount'],
-                    'parentCommentId' => $row['ParentCommentId'] ? (int)$row['ParentCommentId'] : null,
-                    'isDeleted' => false
+                    'commentId'       => (int)$row['CommentID'],
+                    'postId'          => $postId,
+                    'score'           => (int)$row['TotalScore'],
+                    'myVote'          => 0,
+                    'user'            => $this->formatUserRow($row),
+                    'content'         => $row['Content'],
+                    'createdAt'       => $row['CreatedAt'],
+                    'updatedAt'       => $row['UpdatedAt'] ?? null,
+                    'replyCount'      => (int)$row['ReplyCount'],
+                    'parentCommentId' => $row['ParentCommentID'] ? (int)$row['ParentCommentID'] : null,
+                    'isDeleted'       => false
                 ]
             ], 201);
         } catch (Throwable $e) {
             if (isset($pdo) && $pdo instanceof PDO && $pdo->inTransaction()) {
                 $pdo->rollBack();
             }
-            return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+            return json($res, ['ok' => false, 'error' => 'Failed to create comment.'], 500);
         }
     }
 
@@ -424,19 +436,26 @@ if ($postOwner) {
 
             $pdo = ($this->makePdo)();
 
-            $countStmt = $pdo->prepare("SELECT COUNT(*) FROM dbo.Comments WHERE PostId = :postId AND IsDeleted = 0");
+            $countStmt = $pdo->prepare("SELECT COUNT(*) FROM dbo.Forum_Comments WHERE PostID = :postId AND IsDeleted = 0");
             $countStmt->execute([':postId' => $postId]);
             $totalComments = (int)$countStmt->fetchColumn();
 
-            $sql = "SELECT c.CommentId, c.PostId, c.ParentCommentId, c.Content, c.CreatedAt, c.UpdatedAt, c.UserId, c.TotalScore,
+            $sql = "SELECT c.CommentID, c.PostID, c.ParentCommentID, c.Content, c.CreatedAt, c.UpdatedAt, c.UserID, c.TotalScore, c.IsDeleted,
                            u.FirstName, u.LastName, u.Avatar, r.Name AS RoleName,
                            ISNULL(cv.VoteValue, 0) AS MyVote,
-                           (SELECT COUNT(*) FROM dbo.Comments r WHERE r.ParentCommentId = c.CommentId AND IsDeleted = 0) AS ReplyCount
-                    FROM dbo.Comments c
-                    JOIN dbo.Users u ON u.User_ID = c.UserId
-                    JOIN dbo.Roles r ON u.RoleID = r.RoleID
-                    LEFT JOIN dbo.CommentVotes cv ON cv.CommentId = c.CommentId AND cv.UserId = :currentUserId
-                    WHERE c.PostId = :postId AND c.IsDeleted = 0 AND c.ParentCommentId IS NULL
+                           (SELECT COUNT(*) FROM dbo.Forum_Comments cr
+                                WHERE cr.ParentCommentID = c.CommentID
+                                  AND (cr.IsDeleted = 0 OR (SELECT COUNT(*) FROM dbo.Forum_Comments sub WHERE sub.ParentCommentID = cr.CommentID AND sub.IsDeleted = 0) > 0)
+                           ) AS ReplyCount
+                    FROM dbo.Forum_Comments c
+                    JOIN dbo.Forum_Users u ON u.UserID = c.UserID
+                    JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
+                    LEFT JOIN dbo.Forum_CommentVotes cv ON cv.CommentID = c.CommentID AND cv.UserID = :currentUserId
+                    WHERE c.PostID = :postId AND c.ParentCommentID IS NULL
+                      AND (c.IsDeleted = 0 OR (SELECT COUNT(*) FROM dbo.Forum_Comments cr
+                                WHERE cr.ParentCommentID = c.CommentID
+                                  AND (cr.IsDeleted = 0 OR (SELECT COUNT(*) FROM dbo.Forum_Comments sub WHERE sub.ParentCommentID = cr.CommentID AND sub.IsDeleted = 0) > 0)
+                           ) > 0)
                     ORDER BY {$orderBy}
                     OFFSET :offset ROWS FETCH NEXT :limit ROWS ONLY";
 
@@ -449,60 +468,59 @@ if ($postOwner) {
 
             $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
             $items = array_map(function ($row) {
+                $isDeleted = (int)$row['IsDeleted'] === 1;
                 return [
-                    'commentId' => (int)$row['CommentId'],
-                    'postId'    => (int)$row['PostId'],
-                    'score'     => (int)$row['TotalScore'],
-                    'myVote'    => (int)$row['MyVote'],
-                    'user'      => $this->formatUserRow($row),
-                    'content'   => $row['Content'],
-                    'createdAt' => strtotime($row['CreatedAt']),
-                    'updatedAt' => isset($row['UpdatedAt']) && $row['UpdatedAt'] !== null
-                        ? strtotime($row['UpdatedAt'])
-                        : null,
-                    'replyCount' => (int)$row['ReplyCount'],
-                    'parentCommentId' => $row['ParentCommentId'] ? (int)$row['ParentCommentId'] : null,
-                    'isDeleted' => false
+                    'commentId'       => (int)$row['CommentID'],
+                    'postId'          => (int)$row['PostID'],
+                    'score'           => $isDeleted ? 0 : (int)$row['TotalScore'],
+                    'myVote'          => $isDeleted ? 0 : (int)$row['MyVote'],
+                    'user'            => $isDeleted ? null : $this->formatUserRow($row),
+                    'content'         => $isDeleted ? null : $row['Content'],
+                    'createdAt'       => $row['CreatedAt'],
+                    'updatedAt'       => $row['UpdatedAt'] ?? null,
+                    'replyCount'      => (int)$row['ReplyCount'],
+                    'parentCommentId' => $row['ParentCommentID'] ? (int)$row['ParentCommentID'] : null,
+                    'isDeleted'       => $isDeleted
                 ];
             }, $rows);
 
             return json($res, ['ok' => true, 'items' => $items, 'total' => $totalComments]);
         } catch (Throwable $e) {
-            return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+            error_log($e->getMessage());
+            return json($res, ['ok' => false, 'error' => 'Internal server error.'], 500);
         }
     }
 
     public function deleteComment(Request $req, Response $res, array $args): Response
     {
         try {
-            if (!($userId = $req->getAttribute("user_id"))) {
-                return json($res, ['ok' => false, 'error' => 'Not authenticated'], 401);
-            }
+            [$err, $pdo, $userId] = $this->requireAuth($req, $res);
+            if ($err !== null) return $err;
+
             $commentId = (int)$args['id'];
-            $pdo = ($this->makePdo)();
 
             $commentStmt = $pdo->prepare("
-                SELECT c.CommentId, c.UserId, c.IsDeleted, r.Name AS RequesterRole
-                FROM dbo.Comments c
+                SELECT c.CommentID, c.UserID, c.IsDeleted, r.Name AS RequesterRole
+                FROM dbo.Forum_Comments c
                 CROSS APPLY (
                     SELECT rr.Name
-                    FROM dbo.Users u
-                    LEFT JOIN dbo.Roles rr ON u.RoleID = rr.RoleID
-                    WHERE u.User_ID = :uid
+                    FROM dbo.Forum_Users u
+                    LEFT JOIN dbo.Forum_Roles rr ON u.RoleID = rr.RoleID
+                    WHERE u.UserID = :uid
                 ) r
-                WHERE c.CommentId = :id
+                WHERE c.CommentID = :id
             ");
             $commentStmt->execute([
                 ':id' => $commentId,
                 ':uid' => (int)$userId
             ]);
             $row = $commentStmt->fetch(PDO::FETCH_ASSOC);
-            
+
             if (!$row || (int)$row['IsDeleted'] === 1) {
                 return json($res, ['ok' => false, 'error' => 'Comment not found'], 404);
             }
-            
-            $isOwner = (int)$row['UserId'] === (int)$userId;
+
+            $isOwner = (int)$row['UserID'] === (int)$userId;
             $role = strtolower((string)($row['RequesterRole'] ?? ''));
             $isModeratorOrAdmin = in_array($role, ['moderator', 'admin'], true);
 
@@ -510,16 +528,25 @@ if ($postOwner) {
                 return json($res, ['ok' => false, 'error' => 'You cannot delete this comment'], 403);
             }
 
-            $stmt = $pdo->prepare("UPDATE dbo.Comments SET IsDeleted = 1, DeletedAt = SYSUTCDATETIME() WHERE CommentId = :id AND IsDeleted = 0");
+            $stmt = $pdo->prepare("UPDATE dbo.Forum_Comments SET IsDeleted = 1, DeletedAt = SYSUTCDATETIME() WHERE CommentID = :id AND IsDeleted = 0");
             $stmt->execute([':id' => $commentId]);
 
             if ($stmt->rowCount() === 0) {
                 return json($res, ['ok' => false, 'error' => 'Failed to delete comment'], 500);
             }
-            
+
+            // Auto-resolve any unresolved reports for this comment
+            $resolveStmt = $pdo->prepare("
+                UPDATE dbo.Forum_Reports
+                SET IsResolved = 1, ResolverID = :uid, ResolvedAt = SYSUTCDATETIME()
+                WHERE CommentID = :commentId AND IsResolved = 0
+            ");
+            $resolveStmt->execute([':uid' => $userId, ':commentId' => $commentId]);
+
             return json($res, ['ok' => true]);
         } catch (Throwable $e) {
-            return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+            error_log($e->getMessage());
+            return json($res, ['ok' => false, 'error' => 'Internal server error.'], 500);
         }
     }
 
@@ -530,15 +557,19 @@ if ($postOwner) {
             $userId = $req->getAttribute("user_id") ?? 0;
             $pdo = ($this->makePdo)();
 
-            $sql = "SELECT c.CommentId, c.PostId, c.ParentCommentId, c.Content, c.CreatedAt, c.UpdatedAt, c.UserId, c.TotalScore,
+            $sql = "SELECT c.CommentID, c.PostID, c.ParentCommentID, c.Content, c.CreatedAt, c.UpdatedAt, c.UserID, c.TotalScore, c.IsDeleted,
                            u.FirstName, u.LastName, u.Avatar, r.Name AS RoleName,
                            ISNULL(cv.VoteValue, 0) AS MyVote,
-                           (SELECT COUNT(*) FROM dbo.Comments r WHERE r.ParentCommentId = c.CommentId AND IsDeleted = 0) AS ReplyCount
-                    FROM dbo.Comments c
-                    JOIN dbo.Users u ON u.User_ID = c.UserId
-                    JOIN dbo.Roles r ON u.RoleID = r.RoleID
-                    LEFT JOIN dbo.CommentVotes cv ON cv.CommentId = c.CommentId AND cv.UserId = :currentUserId
-                    WHERE c.ParentCommentId = :parentId AND c.IsDeleted = 0
+                           (SELECT COUNT(*) FROM dbo.Forum_Comments cr
+                                WHERE cr.ParentCommentID = c.CommentID
+                                  AND (cr.IsDeleted = 0 OR (SELECT COUNT(*) FROM dbo.Forum_Comments sub WHERE sub.ParentCommentID = cr.CommentID AND sub.IsDeleted = 0) > 0)
+                           ) AS ReplyCount
+                    FROM dbo.Forum_Comments c
+                    JOIN dbo.Forum_Users u ON u.UserID = c.UserID
+                    JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
+                    LEFT JOIN dbo.Forum_CommentVotes cv ON cv.CommentID = c.CommentID AND cv.UserID = :currentUserId
+                    WHERE c.ParentCommentID = :parentId
+                      AND (c.IsDeleted = 0 OR (SELECT COUNT(*) FROM dbo.Forum_Comments cr WHERE cr.ParentCommentID = c.CommentID AND cr.IsDeleted = 0) > 0)
                     ORDER BY c.CreatedAt ASC";
 
             $stmt = $pdo->prepare($sql);
@@ -546,35 +577,33 @@ if ($postOwner) {
             $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
             $items = array_map(function ($row) {
+                $isDeleted = (int)$row['IsDeleted'] === 1;
                 return [
-                    'commentId' => (int)$row['CommentId'],
-                    'postId'    => (int)$row['PostId'],
-                    'score'     => (int)$row['TotalScore'],
-                    'myVote'    => (int)$row['MyVote'],
-                    'user'      => $this->formatUserRow($row),
-                    'content'   => $row['Content'],
-                    'createdAt' => strtotime($row['CreatedAt']),
-                    'updatedAt' => isset($row['UpdatedAt']) && $row['UpdatedAt'] !== null
-                        ? strtotime($row['UpdatedAt'])
-                        : null,
-                    'replyCount' => (int)$row['ReplyCount'],
-                    'parentCommentId' => (int)$row['ParentCommentId']
+                    'commentId'       => (int)$row['CommentID'],
+                    'score'           => $isDeleted ? 0 : (int)$row['TotalScore'],
+                    'myVote'          => $isDeleted ? 0 : (int)$row['MyVote'],
+                    'user'            => $isDeleted ? null : $this->formatUserRow($row),
+                    'content'         => $isDeleted ? null : $row['Content'],
+                    'createdAt'       => $row['CreatedAt'],
+                    'updatedAt'       => $row['UpdatedAt'] ?? null,
+                    'replyCount'      => (int)$row['ReplyCount'],
+                    'parentCommentId' => (int)$row['ParentCommentID'],
+                    'isDeleted'       => $isDeleted
                 ];
             }, $rows);
 
             return json($res, ['ok' => true, 'items' => $items]);
         } catch (Throwable $e) {
-            return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+            error_log($e->getMessage());
+            return json($res, ['ok' => false, 'error' => 'Internal server error.'], 500);
         }
     }
 
     public function updateComment(Request $req, Response $res, array $args): Response
     {
         try {
-            $userId = $req->getAttribute("user_id");
-            if (!$userId) {
-                return json($res, ['ok' => false, 'error' => 'Not Authenticated'], 401);
-            }
+            [$err, $pdo, $userId] = $this->requireAuth($req, $res);
+            if ($err !== null) return $err;
 
             $commentId = (int)($args['id'] ?? 0);
             if ($commentId <= 0) {
@@ -587,13 +616,16 @@ if ($postOwner) {
                 return json($res, ['ok' => false, 'error' => 'Content cannot be empty'], 400);
             }
 
-            /** @var PDO $pdo */
-            $pdo = ($this->makePdo)();
+            if (mb_strlen($content) > 1000) {
+                return json($res, ['ok' => false, 'error' => 'Comment must be 1,000 characters or fewer.'], 400);
+            }
+
+            $content = \Forum\Helpers\sanitizeHtml($content);
 
             $banResponse = checkUserBan($pdo, (int)$userId, $res);
             if ($banResponse) return $banResponse;
 
-            $stmt = $pdo->prepare("SELECT CommentId, UserId, IsDeleted FROM dbo.Comments WHERE CommentId = :id");
+            $stmt = $pdo->prepare("SELECT CommentID, UserID, IsDeleted FROM dbo.Forum_Comments WHERE CommentID = :id");
             $stmt->execute([':id' => $commentId]);
             $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -601,15 +633,27 @@ if ($postOwner) {
                 return json($res, ['ok' => false, 'error' => 'Comment not found'], 404);
             }
 
-            if ((int)$row['UserId'] !== (int)$userId) {
+            $roleStmt = $pdo->prepare("
+                SELECT ISNULL(RoleID, 1)
+                FROM dbo.Forum_Users
+                WHERE UserID = :uid
+            ");
+            $roleStmt->execute([':uid' => $userId]);
+            $userRoleId = (int)($roleStmt->fetchColumn() ?? 1);
+
+            if ($userRoleId <= 0) {
+                $userRoleId = 1;
+            }
+
+            if ((int)$row['UserID'] !== (int)$userId && $userRoleId < 3) {
                 return json($res, ['ok' => false, 'error' => 'You cannot edit this comment'], 403);
             }
 
             $update = $pdo->prepare("
-                UPDATE dbo.Comments
+                UPDATE dbo.Forum_Comments
                 SET Content = :content,
                     UpdatedAt = SYSUTCDATETIME()
-                WHERE CommentId = :id AND IsDeleted = 0
+                WHERE CommentID = :id AND IsDeleted = 0
             ");
             $update->execute([
                 ':content' => $content,
@@ -621,14 +665,14 @@ if ($postOwner) {
             }
 
             $detailsStmt = $pdo->prepare("
-                SELECT c.CommentId, c.PostId, c.ParentCommentId, c.Content, c.CreatedAt, c.UpdatedAt, c.UserId, c.TotalScore,
+                SELECT c.CommentID, c.PostID, c.ParentCommentID, c.Content, c.CreatedAt, c.UpdatedAt, c.UserID, c.TotalScore,
                        u.FirstName, u.LastName, u.Avatar, r.Name AS RoleName,
                        0 AS MyVote,
-                       (SELECT COUNT(*) FROM dbo.Comments r WHERE r.ParentCommentId = c.CommentId AND r.IsDeleted = 0) AS ReplyCount
-                FROM dbo.Comments c
-                JOIN dbo.Users u ON u.User_ID = c.UserId
-                JOIN dbo.Roles r ON u.RoleID = r.RoleID
-                WHERE c.CommentId = :commentId
+                       (SELECT COUNT(*) FROM dbo.Forum_Comments rc WHERE rc.ParentCommentID = c.CommentID AND rc.IsDeleted = 0) AS ReplyCount
+                FROM dbo.Forum_Comments c
+                JOIN dbo.Forum_Users u ON u.UserID = c.UserID
+                JOIN dbo.Forum_Roles r ON u.RoleID = r.RoleID
+                WHERE c.CommentID = :commentId
             ");
             $detailsStmt->execute([':commentId' => $commentId]);
             $details = $detailsStmt->fetch(PDO::FETCH_ASSOC);
@@ -640,46 +684,41 @@ if ($postOwner) {
             return json($res, [
                 'ok' => true,
                 'comment' => [
-                    'commentId' => (int)$details['CommentId'],
-                    'postId'    => (int)$details['PostId'],
-                    'score'     => (int)$details['TotalScore'],
-                    'myVote'    => 0,
-                    'user'      => $this->formatUserRow($details),
-                    'content'   => $details['Content'],
-                    'createdAt' => strtotime($details['CreatedAt']),
-                    'updatedAt' => isset($details['UpdatedAt']) && $details['UpdatedAt'] !== null
-                        ? strtotime($details['UpdatedAt'])
-                        : null,
-                    'replyCount' => (int)$details['ReplyCount'],
-                    'parentCommentId' => $details['ParentCommentId'] ? (int)$details['ParentCommentId'] : null,
-                    'isDeleted' => false
+                    'commentId'       => (int)$details['CommentID'],
+                    'score'           => (int)$details['TotalScore'],
+                    'myVote'          => 0,
+                    'user'            => $this->formatUserRow($details),
+                    'content'         => $details['Content'],
+                    'createdAt'       => $details['CreatedAt'],
+                    'updatedAt'       => $details['UpdatedAt'] ?? null,
+                    'replyCount'      => (int)$details['ReplyCount'],
+                    'parentCommentId' => $details['ParentCommentID'] ? (int)$details['ParentCommentID'] : null,
+                    'isDeleted'       => false
                 ]
             ]);
         } catch (Throwable $e) {
-            return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+            error_log($e->getMessage());
+            return json($res, ['ok' => false, 'error' => 'Internal server error.'], 500);
         }
     }
 
     public function vote(Request $req, Response $res, array $args): Response
     {
         try {
-            if (($userId = $req->getAttribute('user_id')) === null) {
-                return json($res, ['ok' => false, 'error' => 'Not Authenticated'], 401);
-            }
+            [$err, $pdo, $userId] = $this->requireAuth($req, $res);
+            if ($err !== null) return $err;
 
             $commentId = (int)($args['id'] ?? 0);
             $data = $req->getParsedBody() ?? [];
 
             $action = strtolower((string)($data['dir'] ?? $data['action'] ?? ''));
 
-            $pdo = ($this->makePdo)();
-
             $banResponse = checkUserBan($pdo, (int)$userId, $res);
             if ($banResponse) return $banResponse;
 
             $pdo->beginTransaction();
 
-            $del = $pdo->prepare("DELETE FROM dbo.CommentVotes WHERE CommentId = :cid AND UserId = :uid");
+            $del = $pdo->prepare("DELETE FROM dbo.Forum_CommentVotes WHERE CommentID = :cid AND UserID = :uid");
             $del->execute([':cid' => $commentId, ':uid' => (int)$userId]);
 
             $newVoteValue = 0;
@@ -690,13 +729,13 @@ if ($postOwner) {
             }
 
             if ($newVoteValue !== 0) {
-                $ins = $pdo->prepare("INSERT INTO dbo.CommentVotes (CommentId, UserId, VoteValue) VALUES (:cid, :uid, :val)");
+                $ins = $pdo->prepare("INSERT INTO dbo.Forum_CommentVotes (CommentID, UserID, VoteValue) VALUES (:cid, :uid, :val)");
                 $ins->execute([':cid' => $commentId, ':uid' => (int)$userId, ':val' => $newVoteValue]);
             }
 
             $pdo->commit();
 
-            $scoreStmt = $pdo->prepare("SELECT TotalScore FROM dbo.Comments WHERE CommentId = :cid");
+            $scoreStmt = $pdo->prepare("SELECT TotalScore FROM dbo.Forum_Comments WHERE CommentID = :cid");
             $scoreStmt->execute([':cid' => $commentId]);
             $totalScore = (int)$scoreStmt->fetchColumn();
 
@@ -707,7 +746,8 @@ if ($postOwner) {
             ]);
         } catch (Throwable $e) {
             if ($pdo && $pdo->inTransaction()) $pdo->rollBack();
-            return json($res, ['ok' => false, 'error' => $e->getMessage()], 500);
+            error_log($e->getMessage());
+            return json($res, ['ok' => false, 'error' => 'Internal server error.'], 500);
         }
     }
 }

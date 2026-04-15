@@ -1,0 +1,53 @@
+export function parseUTCDate(input) {
+  if (!input) return null;
+  let dateStr = input;
+  if (typeof input === "string" && !input.includes("Z") && !input.includes("+")) {
+    dateStr = input.trim().replace(" ", "T") + "Z";
+  }
+  const d = new Date(dateStr);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+export function timeAgo(input) {
+  if (!input) return "";
+
+  const d = parseUTCDate(input);
+  if (!d) return "";
+
+  const diffSec = Math.max(0, Math.round((Date.now() - d.getTime()) / 1000));
+  const abs = Math.abs(diffSec);
+
+  const MIN = 60;
+  const HOUR = 60 * MIN;
+  const DAY = 24 * HOUR;
+  const MONTH = 30 * DAY;
+  const YEAR = 365 * DAY;
+
+  const fmt = (n, unit) => `${n} ${unit}${n === 1 ? "" : "s"} ago`;
+
+  if (abs < 45) return "just now";
+  if (abs < 90) return fmt(1, "minute");
+  if (abs < 45 * MIN) return fmt(Math.round(abs / MIN), "minute");
+  if (abs < 90 * MIN) return fmt(1, "hour");
+  if (abs < 24 * HOUR) return fmt(Math.round(abs / HOUR), "hour");
+
+  if (abs < 48 * HOUR) return fmt(1, "day");
+  if (abs < 30 * DAY) return fmt(Math.round(abs / DAY), "day");
+
+  if (abs < 60 * DAY) return fmt(1, "month");
+  if (abs < 365 * DAY) return fmt(Math.round(abs / MONTH), "month");
+
+  if (abs < 545 * DAY) return fmt(1, "year");
+  return fmt(Math.round(abs / YEAR), "year");
+}
+
+// Returns e.g. "Posted Apr 12, 2026 at 3:45 PM" or "Edited Apr 12, 2026 at 3:45 PM"
+export function formatPostTimestamp(createdAt, updatedAt) {
+  const source = updatedAt || createdAt;
+  const d = parseUTCDate(source);
+  if (!d) return "";
+  const label = updatedAt ? "Edited" : "Posted";
+  const date = d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  const time = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  return `${label} ${date} at ${time}`;
+}

@@ -1,21 +1,28 @@
-<!-- AdminReports.vue (FULLY UPDATED: Report Tags + Manage Reports via /api/admin/reports + Post Enrichment) -->
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
+import { timeAgo } from "@/utils/time";
 
-import client from "@/api/client";
-import { resolveReport } from "@/api/reports";
+import { fetchReports, resolveReport } from "@/api/reports";
+import AdminPaginationControls from "@/components/admin/AdminPaginationControls.vue";
+import {
+  getAdminReportTags,
+  createReportTag,
+  updateReportTag,
+  deleteReportTag,
+} from "@/api/admin";
 
-/* =========================
-   REPORT TAGS (OLD CODE)
-   ========================= */
 const q = ref("");
-const items = ref([]); // report tags
+const items = ref([]);
 const loading = ref(false);
 const error = ref("");
-
-/** Info + confirm modal */
-const modal = ref({ open: false, type: "info", title: "", message: "", onConfirm: null });
+const modal = ref({
+  open: false,
+  type: "info",
+  title: "",
+  message: "",
+  onConfirm: null,
+});
 function showInfo(title, message) {
   modal.value = { open: true, type: "info", title, message, onConfirm: null };
 }
@@ -27,7 +34,6 @@ function closeModal() {
   modal.value.onConfirm = null;
 }
 
-/** Add/Edit modal */
 const form = ref({ open: false, mode: "add", id: null, tagName: "" });
 function openAdd() {
   form.value = { open: true, mode: "add", id: null, tagName: "" };
@@ -36,8 +42,8 @@ function openEdit(t) {
   form.value = {
     open: true,
     mode: "edit",
-    id: Number(t.ReportTagID),
-    tagName: String(t.TagName ?? ""),
+    id: t.tagId,
+    tagName: t.name,
   };
 }
 function closeForm() {
@@ -53,21 +59,20 @@ function isDuplicate(name, excludeId = null) {
   const n = normalizeName(name).toLowerCase();
   if (!n) return false;
   return items.value.some((t) => {
-    const same = normalizeName(t.TagName).toLowerCase() === n;
-    const notSelf = excludeId == null ? true : Number(t.ReportTagID) !== Number(excludeId);
+    const same = normalizeName(t.name).toLowerCase() === n;
+    const notSelf = excludeId == null ? true : t.tagId !== excludeId;
     return same && notSelf;
   });
 }
 
-/** Filter + alphabetical sort (case-insensitive) */
 const filtered = computed(() => {
   const needle = q.value.trim().toLowerCase();
   const base = needle
-    ? items.value.filter((t) => String(t.TagName ?? "").toLowerCase().includes(needle))
+    ? items.value.filter((t) => t.name.toLowerCase().includes(needle))
     : items.value;
 
   return [...base].sort((a, b) =>
-    String(a.TagName ?? "").localeCompare(String(b.TagName ?? ""), undefined, { sensitivity: "base" })
+    a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
   );
 });
 
@@ -75,15 +80,10 @@ async function loadReportTags() {
   loading.value = true;
   error.value = "";
   try {
-    // client baseURL already includes /api
-    const res = await client.get("/admin/report-tags");
-    const rows = res.data.items || [];
-    items.value = rows.map((r) => ({
-      ReportTagID: Number(r.ReportTagID),
-      TagName: String(r.TagName ?? ""),
-    }));
+    items.value = await getAdminReportTags();
   } catch (e) {
-    error.value = e?.response?.data?.error || e.message || "Failed to load report tags";
+    error.value =
+      e?.response?.data?.error || e.message || "Failed to load report tags";
     items.value = [];
   } finally {
     loading.value = false;
@@ -96,194 +96,176 @@ function requestSave() {
 
   const excludeId = form.value.mode === "edit" ? form.value.id : null;
   if (isDuplicate(name, excludeId)) {
-    return showInfo("Duplicate report tag", "That report tag already exists. Please choose a different name.");
+    return showInfo(
+      "Duplicate report tag",
+      "That report tag already exists. Please choose a different name.",
+    );
   }
 
   if (form.value.mode === "add") {
-    showConfirm("Confirm add report tag?", `Add report tag "${name}"?`, async () => {
-      closeModal();
-      try {
-        await client.post("/admin/report-tags", { tagName: name });
-        closeForm();
-        await loadReportTags();
-        showInfo("Report tag added", `"${name}" was added successfully.`);
-      } catch (e) {
-        showInfo("Failed to add", e?.response?.data?.error || e.message || "Server error");
-      }
-    });
+    showConfirm(
+      "Confirm add report tag?",
+      `Add report tag "${name}"?`,
+      async () => {
+        closeModal();
+        try {
+          await createReportTag(name);
+          closeForm();
+          await loadReportTags();
+          showInfo("Report tag added", `"${name}" was added successfully.`);
+        } catch (e) {
+          showInfo(
+            "Failed to add",
+            e?.response?.data?.error || e.message || "Server error",
+          );
+        }
+      },
+    );
     return;
   }
 
-  const original = items.value.find((t) => Number(t.ReportTagID) === Number(form.value.id));
-  const from = normalizeName(original?.TagName);
+  const original = items.value.find((t) => t.tagId === form.value.id);
+  const from = normalizeName(original?.name);
 
-  showConfirm("Confirm edit report tag?", `Change "${from}" to "${name}"?`, async () => {
-    closeModal();
-    try {
-      await client.patch(`/admin/report-tags/${form.value.id}`, { tagName: name });
-      closeForm();
-      await loadReportTags();
-      showInfo("Report tag updated", `"${from}" was updated to "${name}".`);
-    } catch (e) {
-      showInfo("Failed to update", e?.response?.data?.error || e.message || "Server error");
-    }
-  });
+  showConfirm(
+    "Confirm edit report tag?",
+    `Change "${from}" to "${name}"?`,
+    async () => {
+      closeModal();
+      try {
+        await updateReportTag(form.value.id, name);
+        closeForm();
+        await loadReportTags();
+        showInfo("Report tag updated", `"${from}" was updated to "${name}".`);
+      } catch (e) {
+        showInfo(
+          "Failed to update",
+          e?.response?.data?.error || e.message || "Server error",
+        );
+      }
+    },
+  );
 }
 
 function requestDelete(t) {
-  const id = Number(t.ReportTagID);
-  const name = normalizeName(t.TagName);
+  const id = t.tagId;
+  const name = normalizeName(t.name);
 
-  showConfirm("Confirm delete report tag?", `Delete "${name}"? This cannot be undone.`, async () => {
-    closeModal();
-    try {
-      await client.delete(`/admin/report-tags/${id}`);
-      await loadReportTags();
-      showInfo("Report tag deleted", `"${name}" was deleted successfully.`);
-    } catch (e) {
-      showInfo("Failed to delete", e?.response?.data?.error || e.message || "Server error");
-    }
-  });
+  showConfirm(
+    "Confirm delete report tag?",
+    `Delete "${name}"? This cannot be undone.`,
+    async () => {
+      closeModal();
+      try {
+        await deleteReportTag(id);
+        await loadReportTags();
+        showInfo("Report tag deleted", `"${name}" was deleted successfully.`);
+      } catch (e) {
+        showInfo(
+          "Failed to delete",
+          e?.response?.data?.error || e.message || "Server error",
+        );
+      }
+    },
+  );
 }
 
-/* =========================
-   ACTIVE REPORTS (UPDATED)
-   Uses NEW backend endpoint:
-   GET /api/admin/reports
-   ========================= */
 const router = useRouter();
 
 const reports = ref([]);
 const loadingReports = ref(false);
 const reportsError = ref("");
+const reportPage = ref(1);
+const reportPerPage = ref(25);
+const reportTotal = ref(0);
 
-const sortMode = ref("newest"); // newest | oldest
+const sortMode = ref("newest");
 
-// cache post lookups so we don’t spam the server
-const postCache = new Map(); // postId -> { title, authorId, authorName } | null
-
-async function fetchPostSafe(postId) {
-  if (!postId) return null;
-  if (postCache.has(postId)) return postCache.get(postId);
-
-  try {
-    // PostRoutes.php: GET /api/get-post/{id}
-    const res = await client.get(`/get-post/${postId}`);
-    const post = res?.data?.post;
-
-    if (res?.data?.ok && post) {
-      const mapped = {
-        title: post.title ?? "",
-        authorId: post.authorId ?? null,
-        authorName: post.authorName ?? "",
-      };
-      postCache.set(postId, mapped);
-      return mapped;
-    }
-  } catch (e) {
-    console.error("Failed to fetch post:", e);
-  }
-
-  postCache.set(postId, null);
-  return null;
+function stripHTML(html) {
+  return String(html ?? "").replace(/<[^>]*>/g, "");
 }
 
-/** Normalize report rows from /api/admin/reports */
-function normalizeReport(r) {
-  return {
-    ...r,
-    reportId: r.reportId ?? r.ReportID ?? r.ReportId,
-    postId: r.postId,
-    commentId: r.commentId ?? r.CommentID ?? r.CommentId,
-    reason: r.reason ?? r.Reason ?? "",
-    createdAt: r.createdAt ?? r.CreatedAt ?? "",
-    source: r.source ?? r.Source ?? "Post",
-
-    // New endpoint returns these already
-    reporterId: r.reporterId ?? r.ReporterId ?? r.ReportUserID ?? null,
-    reporterName: r.reporterName ?? r.ReporterName ?? "",
-
-    contentTitle: r.contentTitle ?? r.ContentTitle ?? "",
-    contentAuthorId: r.contentAuthorId ?? r.ContentAuthorId ?? null,
-    contentAuthorName: r.contentAuthorName ?? r.ContentAuthorName ?? "",
-  };
-}
-
-async function enrichReports(list) {
-  const uniquePostIds = [...new Set(list.filter((r) => r?.postId).map((r) => r.postId))];
-  await Promise.all(uniquePostIds.map((pid) => fetchPostSafe(pid)));
-
-  return list.map((r) => {
-    const post = r.postId ? postCache.get(r.postId) : null;
-    return {
-      ...r,
-      contentTitle: r.contentTitle || post?.title || "",
-      contentAuthorId: r.contentAuthorId ?? post?.authorId ?? null,
-      contentAuthorName: r.contentAuthorName || post?.authorName || "",
-    };
-  });
-}
+watch(sortMode, () => {
+  reportPage.value = 1;
+  loadReports();
+});
 
 async function loadReports() {
   loadingReports.value = true;
   reportsError.value = "";
 
   try {
-    // ✅ NEW SAFE ADMIN ENDPOINT
-    // client baseURL already includes /api, so this hits /api/admin/reports
-    const res = await client.get("/admin/reports");
-    const data = res?.data;
-
+    const data = await fetchReports({
+      page: reportPage.value,
+      perPage: reportPerPage.value,
+      sort: sortMode.value,
+    });
     if (data?.ok && Array.isArray(data.reports)) {
-      const normalized = data.reports.map(normalizeReport);
-
-      // keep existing post enrichment so UI still shows titles/authors
-      const withPosts = await enrichReports(normalized);
-
-      reports.value = withPosts;
+      reports.value = data.reports;
+      reportTotal.value =
+        typeof data.total === "number" ? data.total : reports.value.length;
+      if (typeof data.page === "number") reportPage.value = data.page;
+      if (typeof data.perPage === "number") reportPerPage.value = data.perPage;
+      if (
+        reports.value.length === 0 &&
+        reportTotal.value > 0 &&
+        reportPage.value > 1
+      ) {
+        const maxPage = Math.max(
+          1,
+          Math.ceil(reportTotal.value / reportPerPage.value),
+        );
+        reportPage.value = maxPage;
+        await loadReports();
+        return;
+      }
     } else {
       reports.value = [];
+      reportTotal.value = 0;
     }
   } catch (e) {
-    reportsError.value = e?.response?.data?.error || e?.message || "Failed to load reports";
+    reportsError.value =
+      e?.response?.data?.error || e?.message || "Failed to load reports";
     reports.value = [];
+    reportTotal.value = 0;
   } finally {
     loadingReports.value = false;
   }
 }
 
-function toTime(v) {
-  const t = Date.parse(v);
-  return Number.isFinite(t) ? t : 0;
+function onReportPage(p) {
+  reportPage.value = p;
+  loadReports();
 }
 
-const sortedReports = computed(() => {
-  const copy = [...reports.value];
-  copy.sort((a, b) => {
-    const diff = toTime(a.createdAt) - toTime(b.createdAt);
-    return sortMode.value === "oldest" ? diff : -diff;
-  });
-  return copy;
-});
+function onReportPerPage(n) {
+  reportPerPage.value = n;
+  reportPage.value = 1;
+  loadReports();
+}
 
 function goToContent(r) {
-  if (r?.postId) router.push(`/posts/${r.postId}`);
+  if (!r?.postId) return;
+  const path = `/posts/${r.postId}`;
+  if (r.source === "Comment" && r.commentId) {
+    const query = r.parentCommentId ? { parentCommentId: String(r.parentCommentId) } : {};
+    router.push({ path, hash: `#comment-${r.commentId}`, query });
+  } else {
+    router.push(path);
+  }
 }
 
 async function handleResolve(reportId) {
   try {
     const data = await resolveReport(reportId);
     if (data?.ok) {
-      reports.value = reports.value.filter((x) => x.reportId !== reportId);
+      await loadReports();
     }
   } catch (e) {
     console.error("Resolve failed:", e);
   }
 }
 
-/* =========================
-   MOUNT
-   ========================= */
 onMounted(() => {
   loadReportTags();
   loadReports();
@@ -295,7 +277,6 @@ onMounted(() => {
     <!-- Title row -->
     <div class="header-row mb-4">
       <h2 class="page-title m-0">Manage Report Tags</h2>
-      <div class="view-reports-top"></div>
     </div>
 
     <!-- =========================
@@ -322,36 +303,41 @@ onMounted(() => {
 
       <div class="table-wrapper">
         <div class="table-wrapper">
-        <table v-if="!loading && filtered.length" class="admin-table mt-3">
-        <thead>
-          <tr>
-            <th style="width: 90px">#</th>
-            <th>Tag</th>
-            <th style="width: 220px">Actions</th>
-          </tr>
-        </thead>
+          <table v-if="!loading && filtered.length" class="admin-table mt-3">
+            <thead>
+              <tr>
+                <th style="width: 90px">#</th>
+                <th>Tag</th>
+                <th style="width: 220px">Actions</th>
+              </tr>
+            </thead>
 
-        <tbody>
-          <tr v-for="(t, idx) in filtered" :key="t.ReportTagID">
-            <td class="admin-id">{{ idx + 1 }}</td>
-            <td class="admin-name">{{ t.TagName }}</td>
-            <td>
-              <div class="actions">
-                <button class="btn-action" @click="openEdit(t)">
-                  <i class="bi bi-pencil-square"></i> <span class="desktop-only">Edit</span>
-                </button>
-                <button class="btn-action danger" @click="requestDelete(t)">
-                  <i class="bi bi-trash"></i> <span class="desktop-only">Delete</span>
-                </button>
-              </div>
-            </td>
-          </tr>
-        </tbody>
+            <tbody>
+              <tr v-for="(t, idx) in filtered" :key="t.tagId">
+                <td class="admin-id">{{ idx + 1 }}</td>
+                <td class="admin-name">{{ t.name }}</td>
+                <td>
+                  <div class="actions">
+                    <button class="btn-action" @click="openEdit(t)">
+                      <i class="bi bi-pencil-square"></i>
+                      <span class="desktop-only">Edit</span>
+                    </button>
+                    <button class="btn-action danger" @click="requestDelete(t)">
+                      <i class="bi bi-trash"></i>
+                      <span class="desktop-only">Delete</span>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
           </table>
-      </div>
+        </div>
       </div>
 
-      <div v-if="!loading && filtered.length === 0" class="state mt-4 text-center">
+      <div
+        v-if="!loading && filtered.length === 0"
+        class="state mt-4 text-center"
+      >
         No report tags found.
       </div>
     </div>
@@ -370,7 +356,12 @@ onMounted(() => {
             <option value="oldest">Oldest</option>
           </select>
 
-          <button class="btn-refresh" type="button" @click="loadReports" :disabled="loadingReports">
+          <button
+            class="btn-refresh"
+            type="button"
+            @click="loadReports"
+            :disabled="loadingReports"
+          >
             {{ loadingReports ? "Loading..." : "Refresh" }}
           </button>
         </div>
@@ -385,20 +376,24 @@ onMounted(() => {
           <div class="spinner-border"></div>
         </div>
 
-        <div v-else-if="sortedReports.length === 0" class="empty-state">
+        <div v-else-if="reports.length === 0" class="empty-state">
           No active reports (unresolved).
         </div>
 
-        <div v-else class="reports-list">
-          <div v-for="r in sortedReports" :key="r.reportId" class="report-row">
+        <template v-else>
+        <div class="reports-list">
+          <div v-for="r in reports" :key="r.reportId" class="report-row">
             <div class="report-main">
               <div class="report-topline">
-                <span class="badge-source" :class="r.source === 'Comment' ? 'comment' : 'post'">
+                <span
+                  class="badge-source"
+                  :class="r.source === 'Comment' ? 'comment' : 'post'"
+                >
                   {{ r.source }}
                 </span>
 
                 <span class="report-title">
-                  {{ r.contentTitle || "(No title found)" }}
+                  {{ r.source === 'Post' ? r.postTitle || "(No title found)" : stripHTML(r.commentText) || "(No content found)" }}
                 </span>
               </div>
 
@@ -415,7 +410,7 @@ onMounted(() => {
 
                 <div class="meta-item">
                   <span class="meta-label">Created:</span>
-                  <span class="meta-val">{{ r.createdAt }}</span>
+                  <span class="meta-val">{{ timeAgo(r.createdAt) }}</span>
                 </div>
               </div>
 
@@ -435,9 +430,11 @@ onMounted(() => {
                 <div class="meta-item">
                   <span class="meta-label">Posted by:</span>
                   <span class="meta-val">
-                    <template v-if="r.contentAuthorId">
-                      #{{ r.contentAuthorId }}
-                      <template v-if="r.contentAuthorName"> — {{ r.contentAuthorName }}</template>
+                    <template v-if="r.postAuthorId">
+                      #{{ r.postAuthorId }}
+                      <template v-if="r.postAuthor">
+                        — {{ r.postAuthor }}</template
+                      >
                     </template>
                     <template v-else>Unknown</template>
                   </span>
@@ -446,9 +443,11 @@ onMounted(() => {
                 <div class="meta-item">
                   <span class="meta-label">Reported by:</span>
                   <span class="meta-val">
-                    <template v-if="r.reporterId">
-                      #{{ r.reporterId }}
-                      <template v-if="r.reporterName"> — {{ r.reporterName }}</template>
+                    <template v-if="r.reporter?.id">
+                      #{{ r.reporter.id }}
+                      <template v-if="r.reporter.fullName">
+                        — {{ r.reporter.fullName }}</template
+                      >
                       <template v-else> — (no name)</template>
                     </template>
                     <template v-else>Unknown</template>
@@ -458,24 +457,55 @@ onMounted(() => {
             </div>
 
             <div class="report-actions">
-              <button class="btn-outline" type="button" @click="goToContent(r)" :disabled="!r.postId">
+              <button
+                class="btn-outline"
+                type="button"
+                @click="goToContent(r)"
+                :disabled="!r.postId"
+              >
                 Go to
               </button>
-              <button class="btn-solid" type="button" @click="handleResolve(r.reportId)">
+              <button
+                class="btn-solid"
+                type="button"
+                @click="handleResolve(r.reportId)"
+              >
                 Resolve
               </button>
             </div>
           </div>
         </div>
+
+        <AdminPaginationControls
+          v-if="reportTotal > 0"
+          :page="reportPage"
+          :per-page="reportPerPage"
+          :total="reportTotal"
+          :loading="loadingReports"
+          per-page-label="Reports per page"
+          @update:page="onReportPage"
+          @update:per-page="onReportPerPage"
+        />
+        </template>
       </div>
     </div>
 
     <!-- Add/Edit Modal -->
-    <div v-if="form.open" class="inner-warning-overlay" @mousedown.self="closeForm">
+    <div
+      v-if="form.open"
+      class="inner-warning-overlay"
+      @mousedown.self="closeForm"
+    >
       <div class="confirm-card">
-        <h3 class="confirm-title">{{ form.mode === "add" ? "Add Report Tag" : "Edit Report Tag" }}</h3>
+        <h3 class="confirm-title">
+          {{ form.mode === "add" ? "Add Report Tag" : "Edit Report Tag" }}
+        </h3>
         <p class="confirm-subtitle">
-          {{ form.mode === "add" ? "Create a new report tag." : "Update the report tag name." }}
+          {{
+            form.mode === "add"
+              ? "Create a new report tag."
+              : "Update the report tag name."
+          }}
         </p>
 
         <div class="form-field">
@@ -498,13 +528,28 @@ onMounted(() => {
     </div>
 
     <!-- Info/Confirm Modal -->
-    <div v-if="modal.open" class="inner-warning-overlay" @mousedown.self="closeModal">
+    <div
+      v-if="modal.open"
+      class="inner-warning-overlay"
+      @mousedown.self="closeModal"
+    >
       <div class="confirm-card">
         <h3 class="confirm-title">{{ modal.title }}</h3>
         <p class="confirm-subtitle">{{ modal.message }}</p>
         <div class="confirm-actions">
-          <button v-if="modal.type === 'confirm'" class="btn-back" @click="closeModal">Back</button>
-          <button class="btn-confirm" @click="modal.type === 'confirm' ? modal.onConfirm?.() : closeModal()">
+          <button
+            v-if="modal.type === 'confirm'"
+            class="btn-back"
+            @click="closeModal"
+          >
+            Back
+          </button>
+          <button
+            class="btn-confirm"
+            @click="
+              modal.type === 'confirm' ? modal.onConfirm?.() : closeModal()
+            "
+          >
             {{ modal.type === "confirm" ? "Confirm" : "OK" }}
           </button>
         </div>
@@ -519,24 +564,25 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 18px;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .page-title {
   font-size: 24px;
   font-weight: 700;
   color: #004750;
+  min-width: 0;
 }
 
 /* Title row */
 .header-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 16px;
-}
-.view-reports-top {
-  width: 220px;
-  min-width: 220px;
+  min-width: 0;
 }
 
 /* Toolbar */
@@ -604,6 +650,9 @@ onMounted(() => {
 
 .admin-card {
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   background: #ffffff;
   border-radius: 16px;
   padding: 12px;
@@ -627,7 +676,9 @@ onMounted(() => {
 .admin-table tbody tr {
   background: #fff;
   border-radius: 12px;
-  transition: background 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    background 0.15s ease,
+    box-shadow 0.15s ease;
 }
 .admin-table tbody td {
   padding: 12px 10px;
@@ -778,23 +829,33 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  min-width: 0;
+  max-width: 100%;
 }
 .reports-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  flex-wrap: wrap;
+  min-width: 0;
 }
 .section-title {
   margin: 0;
   font-size: 20px;
   font-weight: 800;
   color: #0f172a;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 .reports-controls {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
+  flex: 1 1 auto;
+  justify-content: flex-end;
+  min-width: 0;
 }
 .sort-label {
   font-size: 12px;
@@ -828,6 +889,9 @@ onMounted(() => {
   border-radius: 16px;
   padding: 14px;
   border: 1px solid #e2e8f0;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .alert-error {
@@ -856,6 +920,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  min-width: 0;
 }
 
 .report-row {
@@ -866,6 +931,9 @@ onMounted(() => {
   border-radius: 14px;
   padding: 12px;
   background: #f8fafc;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .report-main {
@@ -878,9 +946,11 @@ onMounted(() => {
   align-items: center;
   gap: 10px;
   margin-bottom: 8px;
+  min-width: 0;
 }
 
 .badge-source {
+  flex-shrink: 0;
   font-size: 12px;
   font-weight: 900;
   padding: 4px 10px;
@@ -896,6 +966,8 @@ onMounted(() => {
 }
 
 .report-title {
+  flex: 1 1 auto;
+  min-width: 0;
   font-weight: 900;
   color: #0f172a;
   overflow: hidden;
@@ -925,13 +997,17 @@ onMounted(() => {
   font-size: 13px;
   font-weight: 800;
   color: #0f172a;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .report-actions {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  min-width: 110px;
+  flex: 0 0 auto;
+  min-width: 0;
   justify-content: center;
 }
 
@@ -956,6 +1032,38 @@ onMounted(() => {
 }
 .desktop-only {
   display: inline;
+}
+
+/* Tablet / collapsed sidebar: avoid horizontal overflow before mobile nav */
+@media (max-width: 1024px) {
+  .reports-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .section-title {
+    flex: none;
+  }
+
+  .reports-controls {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .report-row {
+    flex-direction: column;
+  }
+
+  .report-actions {
+    flex-direction: row;
+    width: 100%;
+  }
+
+  .btn-outline,
+  .btn-solid {
+    flex: 1 1 0;
+    min-width: 0;
+  }
 }
 
 /* Mobile */

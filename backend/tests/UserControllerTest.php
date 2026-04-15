@@ -19,7 +19,7 @@ class UserControllerTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->pdo = $this->createMock(PDO::class);
+        $this->pdo = $this->createStub(PDO::class);
         $this->stmt = $this->createStub(PDOStatement::class);
         $this->controller = new UserController(fn() => $this->pdo);
     }
@@ -30,7 +30,7 @@ class UserControllerTest extends TestCase
 
         $this->stmt->method('execute')->willReturn(true);
         $this->stmt->method('fetch')->willReturn([
-            'User_ID' => 5,
+            'UserID' => 5,
             'FirstName' => 'Alice',
             'LastName' => 'Smith',
             'Avatar' => 'pfp-2.png',
@@ -86,7 +86,7 @@ class UserControllerTest extends TestCase
         $this->assertEquals(401, $response->getStatusCode());
         $body = json_decode((string)$response->getBody(), true);
         $this->assertFalse($body['ok']);
-        $this->assertEquals('Unauthorized', $body['error']);
+        $this->assertEquals('Not Authenticated', $body['error']);
     }
 
     public function test_acceptTerms_returns_ok_when_authenticated(): void

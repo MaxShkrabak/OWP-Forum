@@ -1,13 +1,35 @@
+/**
+ * CommentSection — unit tests.
+ * Covers:
+ * - displays total comment count in the header
+ * - sort dropdown renders with the correct options
+ * - submit button disabled until text is entered
+ * - only one reply box open at a time
+ * - Show More appends the next page of comments
+ * - author can edit their own comment (shows edited label after save)
+ * - refetches comments when sort option changes
+ * - rate limit banner with formatted minutes and seconds remaining
+ * - comments disabled notice shown to regular users
+ * - moderator sees comment box with a disabled-notice instead of full block
+ */
 import { mount, flushPromises, DOMWrapper } from "@vue/test-utils";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { ref } from "vue";
 import CommentSection from "@/components/forum/CommentSection.vue";
+import { userRoleId } from "@/stores/userStore";
 import { fetchComments, submitComment, updateComment } from "@/api/comments";
 import TextEditor from "@/components/forum/TextEditor.vue";
 
 vi.mock("@/stores/userStore", () => ({
-  isLoggedIn: { value: true },
-  uid: { value: 1 }, // Matches the userId: 1 in the mocked comments below
-  userRole: { value: "user" },
+  isLoggedIn: ref(true),
+  uid: ref(1), // Matches the userId: 1 in the mocked comments below
+  userRoleId: ref(1),
+  userRole: ref("user"),
+}));
+
+vi.mock("vue-router", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  useRoute: () => ({ params: {}, query: {} }),
 }));
 
 vi.mock("@/api/auth", () => ({
@@ -25,7 +47,7 @@ vi.mock("@/api/comments", () => ({
     Promise.resolve({
       ok: true,
       total: 15,
-      // We dynamically generate 10 items here so the "Show More" button stays visible
+      // Generate 10 items here so the "Show More" button stays visible
       items: Array.from({ length: 10 }, (_, i) => ({
         commentId: i + 1,
         content: `This is comment ${i + 1}`,
@@ -41,8 +63,8 @@ vi.mock("@/api/comments", () => ({
       comment: {
         commentId: 1,
         content: "Updated comment content",
-        createdAt: 1700000000,
-        updatedAt: 1700001000,
+        createdAt: "2024-11-14 20:53:20",
+        updatedAt: "2024-11-14 20:55:00",
         user: { userId: 1, firstName: "John", lastName: "Rogers" },
       },
     }),
@@ -77,7 +99,7 @@ describe("CommentSection.vue", () => {
         postId: 12,
       },
       global: {
-        stubs: { SingleComment: false },
+        stubs: { SingleComment: false, RouterLink: true },
       },
     });
   });
@@ -93,7 +115,7 @@ describe("CommentSection.vue", () => {
   it("renders a sort dropdown with the correct options", () => {
     const select = wrapper.find("#comment-sort");
     const options = select.findAll("option").map((o) => o.text());
-    expect(options).toEqual(["Newest", "Oldest", "Most Liked"]);
+    expect(options).toEqual(["Newest", "Oldest", "Most Upvoted"]);
   });
 
   it("disables the submit button if there is no data, and enables it when text is entered", async () => {
@@ -164,10 +186,15 @@ describe("CommentSection.vue", () => {
   it("allows the author to edit their own comment and shows edited state", async () => {
     await flushPromises();
 
-    const editButtons = wrapper.findAll(".btn-options");
-    expect(editButtons.length).toBeGreaterThan(0);
+    const menuButtons = wrapper.findAll(".comment-menu-btn");
+    expect(menuButtons.length).toBeGreaterThan(0);
 
-    await editButtons[0].trigger("click");
+    await menuButtons[0].trigger("click");
+    await flushPromises();
+
+    const editItem = wrapper.find(".comment-menu-item");
+    expect(editItem.exists()).toBe(true);
+    await editItem.trigger("click");
     await flushPromises();
 
     const editors = wrapper.findAllComponents(TextEditor);
@@ -191,7 +218,7 @@ describe("CommentSection.vue", () => {
     await new DOMWrapper(confirmButtonEl).trigger("click");
     await flushPromises();
 
-    expect(updateComment).toHaveBeenCalledWith(1, "Updated comment content");
+    expect(updateComment).toHaveBeenCalledWith(1, "<p>Updated comment content</p>");
     const editedLabel = wrapper.find(".edited-label");
     expect(editedLabel.exists()).toBe(true);
   });
@@ -208,7 +235,8 @@ describe("CommentSection.vue", () => {
     expect(lastCallArgs[3]).toBe("mostLiked");
   });
 
-  it("shows a centered rate limit modal with minutes and seconds", async () => {
+  it("shows an inline rate limit banner with minutes and seconds", async () => {
+    Element.prototype.scrollIntoView = vi.fn();
     await flushPromises();
 
     submitComment.mockRejectedValueOnce({
@@ -237,7 +265,65 @@ describe("CommentSection.vue", () => {
     await submitBtn.trigger("click");
     await flushPromises();
 
-    expect(document.body.textContent).toContain("You're commenting too fast");
-    expect(document.body.textContent).toContain("1 minute 15 seconds");
+    expect(wrapper.text()).toContain("You're commenting too fast");
+    expect(wrapper.text()).toContain("1m 15s");
+  });
+
+  it("hides the comment box and shows the disabled notice for a regular user when commentsDisabled is true", async () => {
+    wrapper.unmount();
+    userRoleId.value = 1; // regular user
+
+    wrapper = mount(CommentSection, {
+      props: {
+        postId: 12,
+        commentsDisabled: true,
+      },
+      global: {
+        stubs: { SingleComment: false, RouterLink: true },
+      },
+    });
+    await flushPromises();
+
+    const mainInput = wrapper.find(".main-input-wrapper");
+    expect(mainInput.find(".comments-disabled-notice").exists()).toBe(true);
+    expect(mainInput.text()).toContain("Comments have been disabled on this post");
+    expect(mainInput.find(".reply-box-container").exists()).toBe(false);
+  });
+
+
+  it("shows the comment box with a mod notice when commentsDisabled is true and the user is a moderator", async () => {
+    wrapper.unmount();
+    userRoleId.value = 3; // moderator
+
+    wrapper = mount(CommentSection, {
+      props: {
+        postId: 12,
+        commentsDisabled: true,
+      },
+      global: {
+        stubs: { SingleComment: false, RouterLink: true },
+      },
+    });
+    await flushPromises();
+
+    const mainInput = wrapper.find(".main-input-wrapper");
+    expect(mainInput.find(".comments-disabled-mod-notice").exists()).toBe(true);
+    expect(mainInput.text()).toContain(
+      "Comments are disabled for regular users on this post",
+    );
+    expect(mainInput.find(".reply-box-container").exists()).toBe(true);
+
+    userRoleId.value = 1; // reset for other tests
+  });
+
+  it("keeps a deleted placeholder visible when a comment with replies is removed", async () => {
+    await flushPromises();
+
+    const comment = wrapper.findComponent({ name: "SingleComment" });
+    comment.vm.$emit("deleted", { id: 1, keepPlaceholder: true });
+    await flushPromises();
+
+    expect(wrapper.find(".comments-header").text()).toContain("Comments (14)");
+    expect(wrapper.text()).toContain("[deleted]");
   });
 });

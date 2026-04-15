@@ -13,10 +13,12 @@ return function (Request $request, RequestHandler $handler) use ($makePdo) {
         '/api/login'             => ['POST'],
         '/api/register-new-user' => ['POST'],
         '/api/verify-email'      => ['GET', 'POST'],
+        '/api/request-otp'       => ['POST'],
         '/api/me'                => ['GET'],
         '/api/posts'             => ['GET'],
         '/api/tags/filter'       => ['GET'],
         '/api/posts/pinned'      => ['GET'],
+        '/api/posts/search'      => ['GET'],
     ];
 
     // Check if route is public
@@ -33,13 +35,13 @@ return function (Request $request, RequestHandler $handler) use ($makePdo) {
 
     if ($token) {
         $tokenHash = hash_hmac('sha256', $token, $_ENV['HMAC_KEY']);
-        $stmt = $makePdo()->prepare('SELECT User_ID, Expires FROM dbo.Sessions WHERE Token_Hash = ?');
+        $stmt = $makePdo()->prepare('SELECT UserID, ExpiresAt FROM dbo.Forum_Sessions WHERE TokenHash = ?');
         $stmt->execute([$tokenHash]);
         $session = $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
     // Check if session is still valid
-    $active = $session && (new DateTime() < new DateTime($session['Expires']));
+    $active = $session && (new DateTime() < new DateTime($session['ExpiresAt']));
     if (!$active && !$isPublic) {
         return json(new Response(), [
             'ok'    => false,
@@ -48,7 +50,7 @@ return function (Request $request, RequestHandler $handler) use ($makePdo) {
     }
 
     if ($active) {
-        $request = $request->withAttribute('user_id', $session['User_ID']);
+        $request = $request->withAttribute('user_id', $session['UserID']);
     }
 
     return $handler->handle($request);

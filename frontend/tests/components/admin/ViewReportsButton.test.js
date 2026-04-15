@@ -1,4 +1,10 @@
-/** @vitest-environment jsdom */
+/**
+ * ViewReportsButton — unit tests.
+ * Covers:
+ * - displays all active reports with correct content (title, author, reporter, reason)
+ * - Go to button routes to the correct post (including reply comment with parentCommentId)
+ * - Resolve button calls resolveReport and removes the report from the list
+ */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount, flushPromises } from "@vue/test-utils";
 import { ref } from "vue";
@@ -8,7 +14,6 @@ import ViewReportsButton from "@/components/admin/ViewReportsButton.vue";
 const { mockRouter } = vi.hoisted(() => ({ mockRouter: { push: vi.fn() } }));
 vi.mock("vue-router", () => ({ useRouter: () => mockRouter }));
 
-// sample data
 const sampleReports = [
   {
     reportId: 1,
@@ -23,12 +28,25 @@ const sampleReports = [
   {
     reportId: 2,
     postId: 100,
+    commentId: 30,
     source: "Comment",
     commentText: "This is a bad comment",
     commentAuthor: "charlie Author",
     reporter: { fullName: "Joe Smith" },
     createdAt: "2026-02-28T13:00:00Z",
     reason: "Harassment",
+  },
+  {
+    reportId: 3,
+    postId: 100,
+    commentId: 45,
+    parentCommentId: 30,
+    source: "Comment",
+    commentText: "This is a bad reply",
+    commentAuthor: "dave Author",
+    reporter: { fullName: "Eve Reporter" },
+    createdAt: "2026-02-28T14:00:00Z",
+    reason: "Spam",
   },
 ];
 
@@ -83,14 +101,20 @@ describe("ViewReportsButton.vue", () => {
     });
     await flushPromises();
 
+    // Default sort is "latest" (newest first), so report 3 (createdAt 14:00) comes first
     const goButtons = wrapper
       .findAll(".report-cta-btn")
       .filter((w) => w.text().includes("Go To"));
 
     expect(goButtons.length).toBe(sampleReports.length);
+    // Report 3 is a comment with parentCommentId, so goToReport builds a route object
     await goButtons[0].trigger("click");
 
-    expect(mockRouter.push).toHaveBeenCalledWith("/posts/99");
+    expect(mockRouter.push).toHaveBeenCalledWith({
+      path: "/posts/100",
+      hash: "#comment-45",
+      query: { parentCommentId: "30" },
+    });
   });
 
   it("should resolve the report and clear it from UI",
@@ -100,6 +124,7 @@ describe("ViewReportsButton.vue", () => {
       });
       await flushPromises();
 
+      // Default sort is "latest" (newest first), so report 3 (createdAt 14:00) comes first
       const resolveButtons = wrapper
         .findAll(".report-cta-btn")
         .filter((w) => w.text().includes("Resolve"));
@@ -108,15 +133,16 @@ describe("ViewReportsButton.vue", () => {
       await resolveButtons[0].trigger("click");
       await flushPromises();
 
-      expect(resolveReport).toHaveBeenCalledWith(1);
+      expect(resolveReport).toHaveBeenCalledWith(3);
 
       const remaining = wrapper.findAll("li.list-group-item");
       expect(remaining.length).toBe(sampleReports.length - 1);
 
       remaining.forEach((item) => {
-        expect(item.text()).not.toContain("Ticket: #1");
+        expect(item.text()).not.toContain("Ticket: #3");
       });
     }
   );
+
 });
 

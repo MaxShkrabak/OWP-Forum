@@ -1,9 +1,8 @@
 <script setup>
 import { ref, onMounted, watch } from "vue";
 import { useRoute } from "vue-router";
-import { isLoggedIn, isBanned, banType, bannedUntil } from "@/stores/userStore";
+import { isLoggedIn, isBanned, banType, bannedUntil, termsAccepted, profileLoaded } from "@/stores/userStore";
 import { formatBannedUntilDateTime } from "@/utils/banDate";
-import client from "@/api/client";
 import CSUSHeader from "./components/layout/CSUSHeader.vue";
 import OWPHeader from "./components/layout/OWPHeader.vue";
 import Footer from "./components/layout/Footer.vue";
@@ -14,29 +13,21 @@ const route = useRoute();
 
 const showTermsModal = ref(false);
 
-async function checkTermsAcceptance() {
+function checkTermsAcceptance() {
   if (route.meta?.hideTermsModal) {
     showTermsModal.value = false;
     return;
   }
 
-  try {
-    const res = await client.get("/me");
-    if (res.data?.ok && res.data.user && Number(res.data.user.termsAccepted) === 0) {
-      showTermsModal.value = true;
-    } else {
-      showTermsModal.value = false;
-    }
-  } catch (e) {
-    showTermsModal.value = false;
-  }
+  showTermsModal.value = isLoggedIn.value && !termsAccepted.value;
 }
 
 function handleAcceptedTerms() {
   showTermsModal.value = false;
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await profileLoaded;
   checkTermsAcceptance();
 });
 

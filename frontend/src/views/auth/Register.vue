@@ -1,65 +1,67 @@
 <script setup>
 import { ref } from "vue";
 import { useRouter } from "vue-router";
-import { registerUser } from "@/api/auth";
-import "/src/assets/style.css";
+import { registerUser, requestOtp } from "@/api/auth";
+import "/src/assets/forumAuth.css";
 
 const router = useRouter();
 const first = ref("");
 const last = ref("");
+const ssn = ref("");
 const email = ref("");
 const loading = ref(false);
+const showErrorModal = ref(false);
+const errorMessage = ref("");
+
+const nameRegex = /^[A-Za-z]+$/;
+const ssnRegex = /^\d{4}$/;
+const emailRegex = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
+
+function openErrorModal(message) {
+  errorMessage.value = message;
+  showErrorModal.value = true;
+}
 
 async function createAccount() {
-  if (!first.value || !last.value || !/^\S+@\S+\.\S+$/.test(email.value))
+  if (
+    !nameRegex.test(first.value) ||
+    !nameRegex.test(last.value) ||
+    !ssnRegex.test(ssn.value) ||
+    !emailRegex.test(email.value)
+  )
     return;
 
   loading.value = true;
 
   try {
-    // Load users data into payload for backend
     const payload = {
       first: first.value,
       last: last.value,
       email: email.value,
     };
 
-    // Send the data to backend and store repsonse in res
     const res = await registerUser(payload);
 
-    // User was succesfuly stored in database and routes to OTP page
     if (res.ok) {
-      router.push({ path: "/verify", query: { email: payload.email } });
+      const resOtp = await requestOtp(payload.email);
+      if (resOtp.ok) {
+        router.push({ path: "/verify", query: { email: payload.email } });
+      } else {
+        openErrorModal(resOtp.message || "Failed to send passcode.");
+      }
+    } else {
+      openErrorModal(res.message || "Failed to create account. Please try again.");
     }
   } catch (err) {
-    // User email already exists or something else went wrong
-    if (err.response && err.response.data) {
-      alert(err.response.data.message);
-    } else {
-      alert("Something went wrong. Please try again later.");
-    }
+    const message =
+      err?.response?.data?.message ||
+      err?.response?.data?.error ||
+      "Something went wrong. Please try again later.";
+
+    openErrorModal(message);
   } finally {
     loading.value = false;
   }
-
-  /*
-  loading.value = true;
-  try {
-    // (Optional) Send registration data first
-    // await fetch('/auth/register', { ... });
-
-    const res = await requestOtp(email.value.trim());
-    if (res.ok) {
-      router.push({ path: '/verify', query: { email: email.value.trim() } });
-    } else {
-      alert(res.message || 'Failed to send passcode.');
-    }
-  } catch {
-    alert('Network error.');
-  } finally {
-    loading.value = false;
-  }
-    */
 }
 </script>
 
@@ -100,6 +102,7 @@ async function createAccount() {
           </div>
           <input
             id="ssn"
+            v-model.trim="ssn"
             type="text"
             placeholder="1234"
             maxlength="4"
@@ -122,13 +125,27 @@ async function createAccount() {
             class="btn"
             type="submit"
             :disabled="
-              loading || !first || !last || !/^\S+@\S+\.\S+$/.test(email)
+              loading ||
+              !nameRegex.test(first) ||
+              !nameRegex.test(last) ||
+              !ssnRegex.test(ssn) ||
+              !emailRegex.test(email)
             "
           >
             <span v-if="!loading">Create Account</span>
             <span v-else class="spinner"></span>
           </button>
         </form>
+      </div>
+    </div>
+
+    <div v-if="showErrorModal" class="modal-mask" @click.self="showErrorModal = false">
+      <div class="modal-container">
+        <h3 class="modal-title">Unable to Create Account</h3>
+        <p class="modal-message">{{ errorMessage }}</p>
+        <div class="modal-actions">
+          <button class="modal-btn" @click="showErrorModal = false">OK</button>
+        </div>
       </div>
     </div>
   </div>
@@ -221,10 +238,10 @@ async function createAccount() {
 
 .input {
   width: 100%;
-  height: 32px; /* reduced from 38px */
+  height: 32px;
   border: 1px solid #cfd6dc;
   border-radius: 2px;
-  padding: 4px 8px; /* tighter padding */
+  padding: 4px 8px;
   font-size: 15px;
   background: #fff;
 }
@@ -243,7 +260,7 @@ async function createAccount() {
 /* Button */
 .btn {
   margin-top: 18px;
-  height: 40px; /* slightly smaller button to match inputs */
+  height: 40px;
   width: fit-content;
   background: #007a4c;
   color: #fff;
@@ -274,5 +291,61 @@ async function createAccount() {
   to {
     transform: rotate(360deg);
   }
+}
+
+/* Modal */
+.modal-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.modal-container {
+  width: min(460px, calc(100vw - 32px));
+  background: #fff;
+  border-radius: 10px;
+  padding: 24px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.modal-title {
+  margin: 0 0 12px 0;
+  font-size: 22px;
+  color: #264e44;
+}
+
+.modal-message {
+  margin: 0;
+  font-size: 16px;
+  color: #222;
+  line-height: 1.5;
+}
+
+.modal-actions {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.modal-btn {
+  background: #00573f;
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 10px 24px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.modal-btn:hover {
+  background: #004832;
+}
+
+.modal-btn:hover {
+  opacity: 0.95;
 }
 </style>

@@ -49,12 +49,12 @@ class ReportControllerTest extends TestCase
             'tagID' => 2
         ]);
 
-        $this->pdo->expects($this->exactly(2))
+        $this->pdo->expects($this->exactly(3))
             ->method('prepare')
             ->willReturn($this->stmt);
 
         $this->stmt->method('execute')->willReturn(true);
-        $this->stmt->method('fetch')->willReturn(false);
+        $this->stmt->method('fetch')->willReturnOnConsecutiveCalls(false, false);
 
         $response = $this->controller->submitReport($req, new Response());
 
@@ -75,12 +75,12 @@ class ReportControllerTest extends TestCase
             'tagID' => 2
         ]);
 
-        $this->pdo->expects($this->once())
+        $this->pdo->expects($this->exactly(2))
             ->method('prepare')
             ->willReturn($this->stmt);
 
         $this->stmt->method('execute')->willReturn(true);
-        $this->stmt->method('fetch')->willReturn(['ReportID' => 2]);
+        $this->stmt->method('fetch')->willReturnOnConsecutiveCalls(false, ['ReportID' => 2]);
 
         $response = $this->controller->submitReport($req, new Response());
 
@@ -113,7 +113,7 @@ class ReportControllerTest extends TestCase
 
         $roleStmt = $this->createStub(PDOStatement::class);
         $roleStmt->method('execute')->willReturn(true);
-        $roleStmt->method('fetchColumn')->willReturn('student');
+        $roleStmt->method('fetchColumn')->willReturn(1);
 
         $this->pdo->method('prepare')->willReturn($roleStmt);
 
@@ -133,7 +133,7 @@ class ReportControllerTest extends TestCase
 
         $roleStmt = $this->createStub(PDOStatement::class);
         $roleStmt->method('execute')->willReturn(true);
-        $roleStmt->method('fetchColumn')->willReturn('admin');
+        $roleStmt->method('fetchColumn')->willReturn(4);
 
         $reportStmt = $this->createStub(PDOStatement::class);
         $reportStmt->method('execute')->willReturn(true);
@@ -142,9 +142,12 @@ class ReportControllerTest extends TestCase
                 'ReportID' => 1,
                 'PostID' => 10,
                 'PostTitle' => 'Test Post',
+                'PostAuthorId' => 5,
                 'PostAuthor' => 'John Doe',
                 'CommentID' => null,
+                'CommentParentId' => null,
                 'CommentText' => null,
+                'CommentAuthorId' => null,
                 'CommentAuthor' => null,
                 'CreatedAt' => '2026-03-14 12:00:00',
                 'Reason' => 'Spam',
@@ -155,8 +158,8 @@ class ReportControllerTest extends TestCase
 
         $this->pdo->method('prepare')->willReturnCallback(
             function (string $sql) use ($roleStmt, $reportStmt) {
-                if (str_contains($sql, 'dbo.Roles')) return $roleStmt;
-                return $reportStmt;
+                if (str_contains($sql, 'dbo.Forum_Reports')) return $reportStmt;
+                return $roleStmt;
             }
         );
 
@@ -170,6 +173,56 @@ class ReportControllerTest extends TestCase
         $this->assertEquals('Post', $body['reports'][0]['source']);
         $this->assertEquals('Spam', $body['reports'][0]['reason']);
         $this->assertEquals(2, $body['reports'][0]['reporter']['id']);
+        $this->assertNull($body['reports'][0]['parentCommentId']);
+    }
+
+    #[AllowMockObjectsWithoutExpectations]
+    public function testGetReportsIncludesParentCommentIdForReplies(): void
+    {
+        $req = $this->createStub(Request::class);
+        $req->method('getAttribute')->willReturn(1);
+
+        $roleStmt = $this->createStub(PDOStatement::class);
+        $roleStmt->method('execute')->willReturn(true);
+        $roleStmt->method('fetchColumn')->willReturn(4);
+
+        $reportStmt = $this->createStub(PDOStatement::class);
+        $reportStmt->method('execute')->willReturn(true);
+        $reportStmt->method('fetchAll')->willReturn([
+            [
+                'ReportID' => 5,
+                'PostID' => 20,
+                'PostTitle' => 'Parent Post',
+                'PostAuthorId' => 3,
+                'PostAuthor' => 'Post Author',
+                'CommentID' => 42,
+                'CommentParentId' => 10,
+                'CommentText' => 'Reply comment',
+                'CommentAuthorId' => 7,
+                'CommentAuthor' => 'Reply Author',
+                'CreatedAt' => '2026-03-14 14:00:00',
+                'Reason' => 'Harassment',
+                'ReporterId' => 8,
+                'ReporterName' => 'Reporter User',
+            ],
+        ]);
+
+        $this->pdo->method('prepare')->willReturnCallback(
+            function (string $sql) use ($roleStmt, $reportStmt) {
+                if (str_contains($sql, 'dbo.Forum_Reports')) return $reportStmt;
+                return $roleStmt;
+            }
+        );
+
+        $response = $this->controller->getReports($req, new Response());
+
+        $this->assertEquals(200, $response->getStatusCode());
+        $body = json_decode((string)$response->getBody(), true);
+        $this->assertTrue($body['ok']);
+        $this->assertCount(1, $body['reports']);
+        $this->assertEquals(42, $body['reports'][0]['commentId']);
+        $this->assertEquals(10, $body['reports'][0]['parentCommentId']);
+        $this->assertEquals('Comment', $body['reports'][0]['source']);
     }
 
     public function testGetReportTagsSuccess(): void
@@ -199,9 +252,9 @@ class ReportControllerTest extends TestCase
         $body = json_decode((string)$response->getBody(), true);
         $this->assertTrue($body['ok']);
         $this->assertCount(5, $body['tags']);
-        $this->assertEquals('Spam', $body['tags'][0]['TagName']);
-        $this->assertEquals('Inappropriate', $body['tags'][2]['TagName']);
-        $this->assertEquals('Other', $body['tags'][4]['TagName']);
+        $this->assertEquals('Spam', $body['tags'][0]['name']);
+        $this->assertEquals('Inappropriate', $body['tags'][2]['name']);
+        $this->assertEquals('Other', $body['tags'][4]['name']);
     }
 
     #[AllowMockObjectsWithoutExpectations]
@@ -225,7 +278,7 @@ class ReportControllerTest extends TestCase
 
         $roleStmt = $this->createStub(PDOStatement::class);
         $roleStmt->method('execute')->willReturn(true);
-        $roleStmt->method('fetchColumn')->willReturn('student');
+        $roleStmt->method('fetchColumn')->willReturn(1);
 
         $this->pdo->method('prepare')->willReturn($roleStmt);
 
@@ -242,7 +295,7 @@ class ReportControllerTest extends TestCase
 
         $roleStmt = $this->createStub(PDOStatement::class);
         $roleStmt->method('execute')->willReturn(true);
-        $roleStmt->method('fetchColumn')->willReturn('moderator');
+        $roleStmt->method('fetchColumn')->willReturn(3);
 
         $updateStmt = $this->createStub(PDOStatement::class);
         $updateStmt->method('execute')->willReturn(true);
@@ -250,8 +303,8 @@ class ReportControllerTest extends TestCase
 
         $this->pdo->method('prepare')->willReturnCallback(
             function (string $sql) use ($roleStmt, $updateStmt) {
-                if (str_contains($sql, 'dbo.Roles')) return $roleStmt;
-                return $updateStmt;
+                if (str_contains($sql, 'dbo.Forum_Reports')) return $updateStmt;
+                return $roleStmt;
             }
         );
 
@@ -270,7 +323,7 @@ class ReportControllerTest extends TestCase
 
         $roleStmt = $this->createStub(PDOStatement::class);
         $roleStmt->method('execute')->willReturn(true);
-        $roleStmt->method('fetchColumn')->willReturn('admin');
+        $roleStmt->method('fetchColumn')->willReturn(4);
 
         $updateStmt = $this->createStub(PDOStatement::class);
         $updateStmt->method('execute')->willReturn(true);
@@ -278,8 +331,8 @@ class ReportControllerTest extends TestCase
 
         $this->pdo->method('prepare')->willReturnCallback(
             function (string $sql) use ($roleStmt, $updateStmt) {
-                if (str_contains($sql, 'dbo.Roles')) return $roleStmt;
-                return $updateStmt;
+                if (str_contains($sql, 'dbo.Forum_Reports')) return $updateStmt;
+                return $roleStmt;
             }
         );
 

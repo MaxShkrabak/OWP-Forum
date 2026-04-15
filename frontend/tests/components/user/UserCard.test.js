@@ -1,3 +1,13 @@
+/**
+ * UserCard — unit tests.
+ * Covers:
+ * - displays fetched stats for the logged-in user
+ * - uses userId prop when viewing another user's profile
+ * - re-fetches stats when userId prop changes
+ * - shows Reputation label (not Votes or Likes)
+ * - falls back to zero stats when API call fails
+ * - profile avatar opens the settings modal
+ */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount, flushPromises } from "@vue/test-utils";
 
@@ -9,13 +19,16 @@ vi.mock("@/api/users", () => ({
   fetchUserStats: mockFetchUserStats,
 }));
 
-vi.mock("@/stores/userStore", () => ({
-  isLoggedIn: { value: true },
-  fullName: { value: "Test User" },
-  userAvatar: { value: "" },
-  userRole: { value: "User" },
-  uid: { value: 42 },
-}));
+vi.mock("@/stores/userStore", async () => {
+  const { ref } = await import("vue");
+  return {
+    isLoggedIn: ref(true),
+    fullName: ref("Test User"),
+    userAvatar: ref(""),
+    userRole: ref("User"),
+    uid: ref(42),
+  };
+});
 
 import UserCard from "@/components/user/UserCard.vue";
 
@@ -120,6 +133,7 @@ describe("UserCard.vue — user stats", () => {
 
   it("keeps stats at 0 when the API call fails", async () => {
     mockFetchUserStats.mockRejectedValueOnce(new Error("Network error"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
 
     const wrapper = mount(UserCard, {
       global: {
@@ -132,5 +146,27 @@ describe("UserCard.vue — user stats", () => {
     expect(statValues[0].text()).toBe("0");
     expect(statValues[1].text()).toBe("0");
     expect(statValues[2].text()).toBe("0");
+  });
+
+  it("opens the unified settings modal from profile avatar", async () => {
+    mockFetchUserStats.mockResolvedValueOnce({
+      ok: true,
+      stats: { postCount: 0, voteScore: 0, commentCount: 0 },
+    });
+
+    const wrapper = mount(UserCard, {
+      props: {
+        isProfile: true,
+        isCurrUser: true,
+      },
+      global: {
+        stubs: { RouterLink: true, UserRole: true },
+      },
+    });
+    await flushPromises();
+
+    const avatarButton = wrapper.find(".pfp-wrapper-profile");
+    expect(avatarButton.attributes("data-bs-toggle")).toBe("modal");
+    expect(avatarButton.attributes("data-bs-target")).toBe("#userSettingsModal");
   });
 });

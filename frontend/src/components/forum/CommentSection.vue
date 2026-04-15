@@ -1,6 +1,6 @@
 <script setup>
-import { ref, computed, provide, onMounted, onBeforeUnmount } from "vue";
-import { useRouter } from "vue-router";
+import { ref, provide, onMounted, onBeforeUnmount, nextTick } from "vue";
+import { useRouter, useRoute } from "vue-router";
 import SingleComment from "./SingleComment.vue";
 import CommentEditor from "./TextEditor.vue";
 
@@ -9,16 +9,25 @@ import {
   submitComment as apiSubmitComment,
   formatCommentData,
 } from "@/api/comments";
-import {isLoggedIn } from "@/stores/userStore";
+import {
+  createDeletedCommentPlaceholder,
+  normalizeDeletedCommentEvent,
+} from "@/utils/commentState";
+import { isLoggedIn, userRoleId } from "@/stores/userStore";
 
 const props = defineProps({
   postId: {
     type: [Number, String],
     required: true,
   },
+  commentsDisabled: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const router = useRouter();
+const route = useRoute();
 
 const flatCommentsList = ref([]);
 const commentsTree = ref([]);
@@ -30,149 +39,71 @@ const activeEditDirty = ref(false);
 const pendingEditId = ref(null);
 const showDiscardConfirm = ref(false);
 
-const commentFeedbackModal = ref({
-  open: false,
-  title: "",
-  type: null,
-  limit: null,
-  secondsLeft: null,
-  fallbackMessage: "",
-});
+const rateLimitMsg = ref("");
+const rateLimitBannerRef = ref(null);
+let rateLimitTimer = null;
 
-const countdownSeconds = ref(0);
-let commentFeedbackTimer = null;
-
-const formatWaitTime = (totalSeconds) => {
-  const backendSeconds = Math.max(1, Math.ceil(Number(totalSeconds) || 0));
-  const minutes = Math.floor(backendSeconds / 60);
-  const seconds = backendSeconds % 60;
-
-  if (minutes === 0) {
-    return `${backendSeconds} second${backendSeconds === 1 ?"" : "s"}`;
+const clearRateLimit = () => {
+  rateLimitMsg.value = "";
+  if (rateLimitTimer) {
+    clearInterval(rateLimitTimer);
+    rateLimitTimer = null;
   }
-
-  if (seconds === 0){
-    return `${minutes} minute${minutes === 1 ?"" : "s"}`;
-  }
-  
-  return `${minutes} minute${minutes === 1 ?"" : "s"} ${seconds} second${seconds === 1 ?"" : "s"}`;
 };
 
-const stopCommentFeedbackCountdown=()=> {
-  if (commentFeedbackTimer){
-    clearInterval(commentFeedbackTimer);
-    commentFeedbackTimer = null;
+// helper to format rate limit timer
+const formatTime = (s) => {
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  if (m === 0) return `${s} second${s === 1 ? "" : "s"}`;
+  if (sec === 0) return `${m} minute${m === 1 ? "" : "s"}`;
+  return `${m}m ${sec}s`;
+};
+
+// Banner the user will see when they hit a comment rate limit by posting too fast
+// Calculates remaining time from server data and starts a timer to update the UI
+// Located right above the main comment textarea
+const showRateLimitBanner = (error) => {
+  clearRateLimit();
+  const data = error?.response?.data ?? {};
+  const rateLimit = data.rateLimit ?? {};
+  const secondsLeft = Math.ceil(Number(rateLimit.secondsLeft) || 0);
+
+  if (secondsLeft <= 0) {
+    rateLimitMsg.value = data.error || "Please wait before commenting again.";
+    nextTick(() => rateLimitBannerRef.value?.scrollIntoView({ behavior: "smooth", block: "center" }));
+    return;
   }
 
-  countdownSeconds.value = 0;
-}
-
-const startCommentFeedbackCountdown = (secondsLeft) => {
-  stopCommentFeedbackCountdown();
-  const initialSeconds = Math.max(1, Math.ceil(Number(secondsLeft) || 0));
-  countdownSeconds.value = initialSeconds;
-  const endsAt = Date.now() + initialSeconds *1000;
+  const limitValue = Number(rateLimit.limit) || 50;
+  const isHourly = rateLimit.type === "hourly_limit";
+  const prefix = isHourly
+    ? `You've reached the ${limitValue} comments/hour limit.`
+    : "You're commenting too fast.";
+  const endsAt = Date.now() + secondsLeft * 1000;
 
   const tick = () => {
-    countdownSeconds.value = Math.max(0, Math.ceil((endsAt - Date.now()) / 1000));
-
-    if (countdownSeconds.value <= 0){
-      stopCommentFeedbackCountdown();
+    const remaining = Math.max(0, Math.ceil((endsAt - Date.now()) / 1000));
+    if (remaining <= 0) {
+      clearRateLimit();
+      return;
     }
+    rateLimitMsg.value = `${prefix} Try again in ${formatTime(remaining)}.`;
   };
 
   tick();
-  commentFeedbackTimer = window.setInterval(tick, 250);
+  rateLimitTimer = setInterval(tick, 250);
+  nextTick(() => rateLimitBannerRef.value?.scrollIntoView({ behavior: "smooth", block: "center" }));
 };
 
-const commentFeedbackMessage = computed(() => {
-    const modal = commentFeedbackModal.value;
-    
-  if (!modal.open) {
-    return "";
-  }
-
-    if (modal.type === "cooldown" && modal.secondsLeft !== null) {
-      return countdownSeconds.value > 0
-        ? `Please wait ${formatWaitTime(countdownSeconds.value)} before commenting again.`
-        : "You can try commenting again now.";
-    }
-
-    if (modal.type === "hourly_limit" && modal.secondsLeft !== null) {
-      const limitValue = Number(modal.limit) || 50;
-
-      return countdownSeconds.value > 0
-        ? `You've reached the ${limitValue} comments per hour limit. Try again in ${formatWaitTime(countdownSeconds.value)}.`
-        : `You've reached the ${limitValue} comments per hour limit. You can try again now.`;
-    }
-  
-  return modal.fallbackMessage;
-});
-
-const closeCommentFeedbackModal = () => {
-  stopCommentFeedbackCountdown();
-
-  commentFeedbackModal.value = {
-    open: false,
-    title: "",
-    type: null,
-    limit: null,
-    secondsLeft: null,
-    fallbackMessage: "",
-  };
-};
-
-const openCommentFeedbackModal = (error, isReply = false) => {
-  const response = error ?.response;
-  const data = response ?.data ?? {};
-  const rateLimit = data.rateLimit ?? {};
-  const parseSecondsLeft = Number(rateLimit.secondsLeft);
-  const hasSecondsLeft = Number.isFinite(parseSecondsLeft) && parseSecondsLeft > 0;
-  const secondsLeft = hasSecondsLeft ? Math.ceil(parseSecondsLeft): null;
-  const limitValue = Number(rateLimit.limit) || 50;
-
-  stopCommentFeedbackCountdown();
-
-  let title =  isReply ? "Unable to post reply" : "Unable to post comment";
-  let type =  null;
-  let fallbackMessage = data.error || "Please try again";
-
-  if(response?.status === 429){
-    type = typeof rateLimit.type === "string" ? rateLimit.type: null;
-
-    if (type === "cooldown") {
-      title = "You're commenting too fast";
-      fallbackMessage = secondsLeft !== null
-        ? `Please wait ${formatWaitTime(secondsLeft)} before commenting again.`
-        : "Please wait a moment before commenting again.";
-    } else if (type === "hourly_limit") {
-      title = "Comment limit reached";
-      fallbackMessage = secondsLeft !== null
-        ? `You've reached the ${limitValue} comments per hour limit. Try again in ${formatWaitTime(secondsLeft)}.`
-        : `You've reached the ${limitValue} comments per hour limit. Please try again soon.`;
-    } else {
-      title = "Comment restricted";
-    }
-  }
-
-  commentFeedbackModal.value = {
-    open: true,
-    title,
-    type,
-    limit: limitValue,
-    secondsLeft,
-    fallbackMessage,
-  };
-
-  if (secondsLeft !== null){
-    startCommentFeedbackCountdown(secondsLeft);
-  }
-};
+onBeforeUnmount(clearRateLimit);
 
 const currentBatch = ref(1);
 const commentsPerLoad = 10;
 const hasMore = ref(true);
 const isLoadingMore = ref(false);
+const isSubmittingComment = ref(false);
+const isSubmittingReply = ref(false);
 
 const commentTotalCount = ref(0);
 const isUploading = ref(false);
@@ -181,12 +112,15 @@ const editorRef = ref(null);
 const sortOptions = [
   { label: "Newest", value: "latest" },
   { label: "Oldest", value: "oldest" },
-  { label: "Most Liked", value: "mostLiked" },
+  { label: "Most Upvoted", value: "mostLiked" },
 ];
 const selectedSort = ref("latest");
 
+const autoExpandCommentId = ref(null);
+
 provide("activeReplyId", activeReplyId);
 provide("activeEditId", activeEditId);
+provide("autoExpandCommentId", autoExpandCommentId);
 
 const openEditComment = (commentId) => {
   if (activeEditId.value === commentId) return;
@@ -245,7 +179,7 @@ const buildCommentTree = (flatComments) => {
         parent.replies.push(map.get(comment.id));
       }
     } else {
-      tree.push(map.get(comment.id));
+      tree.push(comment);
     }
   });
 
@@ -309,28 +243,30 @@ const handleLoadMore = async () => {
 };
 
 const submitComment = async () => {
-  const cleanContent = newComment.value.replace(/(<([^>]+)>)/gi, "").trim();
-  if (!cleanContent) return;
+  const hasText = newComment.value.replace(/(<([^>]+)>)/gi, "").trim().length > 0;
+  const hasImage = /<img[^>]+>/i.test(newComment.value);
+  if ((!hasText && !hasImage) || isSubmittingComment.value) return;
 
+  isSubmittingComment.value = true;
   try {
     const data = await apiSubmitComment(props.postId, newComment.value);
     if (data && data.ok) {
       newComment.value = "";
       editorRef.value?.clearContent();
       isFocused.value = false;
-      commentTotalCount.value++;
-
-      const formatted = formatCommentData(data.comment);
-      flatCommentsList.value.unshift(formatted);
-      commentsTree.value = buildCommentTree(flatCommentsList.value);
+      await loadComments(true);
     }
   } catch (error) {
-    openCommentFeedbackModal(error);
+    showRateLimitBanner(error);
+  } finally {
+    isSubmittingComment.value = false;
   }
 };
 
 const submitReply = async (replyContent, parentCommentId) => {
-  if (!replyContent.trim()) return false;
+  if (!replyContent.trim() || isSubmittingReply.value) return false;
+
+  isSubmittingReply.value = true;
   try {
     const data = await apiSubmitComment(
       props.postId,
@@ -344,8 +280,10 @@ const submitReply = async (replyContent, parentCommentId) => {
     }
     return false;
   } catch (error) {
-    openCommentFeedbackModal(error, true);
+    showRateLimitBanner(error);
     return false;
+  } finally {
+    isSubmittingReply.value = false;
   }
 };
 
@@ -357,24 +295,65 @@ const cancelComment = () => {
   isFocused.value = false;
 };
 
-onMounted(() => {
-  loadComments();
+onMounted(async () => {
+  await loadComments();
+
+  const hash = window.location.hash;
+  if (!hash || !hash.startsWith("#comment-")) return;
+
+  // Load more batches until the comment is in the DOM
+  const targetId = hash.slice(1);
+  let el = null;
+  while (!el) {
+    await nextTick();
+    el = document.getElementById(targetId);
+    if (el) break;
+    if (!hasMore.value) break;
+    currentBatch.value++;
+    await loadComments(false);
+  }
+
+  // If not found, it may be a reply hidden inside a collapsed parent
+  if (!el) {
+    const parentId = route.query.parentCommentId;
+    if (parentId) {
+      autoExpandCommentId.value = Number(parentId);
+      // Wait for the parent to fetch and render its replies
+      for (let i = 0; i < 50; i++) {
+        await new Promise((r) => setTimeout(r, 100));
+        el = document.getElementById(targetId);
+        if (el) break;
+      }
+    }
+  }
+
+  await nextTick();
+  el = el || document.getElementById(targetId);
+  if (el) {
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.classList.add("comment-highlight");
+    setTimeout(() => el.classList.remove("comment-highlight"), 3000);
+  }
 });
 
-const handleDeletedComment = (deletedCommentId) => {
-  const before = flatCommentsList.value.length;
+const handleDeletedComment = (payload) => {
+  const { id, keepPlaceholder } = normalizeDeletedCommentEvent(payload);
 
-  flatCommentsList.value = flatCommentsList.value.filter(
-    (comment) =>
-      comment.id !== deletedCommentId &&
-      comment.parentCommentId !== deletedCommentId,
-  );
+  if (keepPlaceholder) {
+    flatCommentsList.value = flatCommentsList.value.map((comment) =>
+      comment.id === id
+        ? createDeletedCommentPlaceholder(comment)
+        : comment,
+    );
+  } else {
+    flatCommentsList.value = flatCommentsList.value.filter(
+      (comment) => comment.id !== id,
+    );
+  }
 
-  const removedCount = before - flatCommentsList.value.length;
-  commentTotalCount.value = Math.max(0, commentTotalCount.value - removedCount);
+  commentTotalCount.value = Math.max(0, commentTotalCount.value - 1);
   commentsTree.value = buildCommentTree(flatCommentsList.value);
 };
-
 </script>
 
 <template>
@@ -395,6 +374,7 @@ const handleDeletedComment = (deletedCommentId) => {
           v-model="selectedSort"
           @change="handleSortChange"
           class="sort-select"
+          :disabled="commentTotalCount <= 1"
         >
           <option
             v-for="option in sortOptions"
@@ -410,11 +390,44 @@ const handleDeletedComment = (deletedCommentId) => {
     <div class="p-3 p-md-4">
       <div class="main-input-wrapper mb-4">
         <div
-          class="reply-box-container border rounded-3 overflow-hidden bg-white"
+          v-if="rateLimitMsg"
+          ref="rateLimitBannerRef"
+          class="rate-limit-banner d-flex align-items-center justify-content-between gap-2 px-3 py-2 mb-2 rounded-3"
+          role="status"
+        >
+          <span class="small fw-bold">{{ rateLimitMsg }}</span>
+          <button
+            class="rate-limit-dismiss border-0 bg-transparent"
+            @click="clearRateLimit"
+            aria-label="Dismiss"
+          >
+            <i class="pi pi-times"></i>
+          </button>
+        </div>
+
+        <div
+          v-if="commentsDisabled && userRoleId < 3"
+          class="comments-disabled-notice border rounded-3 px-4 py-3"
+        >
+          <i class="pi pi-lock me-2"></i>Comments have been disabled on this
+          post.
+        </div>
+
+        <div
+          v-if="commentsDisabled && userRoleId >= 3"
+          class="comments-disabled-mod-notice rounded-3 px-4 py-2 mb-2 justify-content-center d-flex align-items-center gap-2"
+        >
+          <i class="pi pi-lock me-2"></i>Comments are disabled for regular users
+          on this post.
+        </div>
+
+        <div
+          v-if="!commentsDisabled || userRoleId >= 3"
+          class="reply-box-container border rounded-3 overflow-hidden bg-white position-relative"
           :class="{ 'focused-border': isFocused }"
-          :style="{ cursor: !isLoggedIn ? 'pointer' : 'text' }"
           @click="handleCommentBoxClick()"
         >
+          <div v-if="!isLoggedIn" class="guest-overlay"></div>
           <CommentEditor
             ref="editorRef"
             v-model="newComment"
@@ -439,16 +452,25 @@ const handleDeletedComment = (deletedCommentId) => {
             </button>
             <button
               class="btn-submit border-0 rounded-2 fw-bold px-4 py-2"
-              :disabled="!newComment || newComment === '<p></p>' || isUploading"
+              :disabled="!newComment || newComment === '<p></p>' || isUploading || isSubmittingComment"
               @click.stop="submitComment"
             >
-              {{ isUploading ? "Uploading..." : "Comment" }}
+              {{ isUploading ? "Uploading..." : isSubmittingComment ? "Posting..." : "Comment" }}
             </button>
           </div>
         </div>
       </div>
-
       <div class="comments-container">
+        <div
+          v-if="!commentsTree.length && !hasMore && !commentsDisabled"
+          class="text-center"
+        >
+          <span
+            class="no-comments-text"
+            style="font-style: italic; opacity: 0.6"
+            >Be the first to comment!</span
+          >
+        </div>
         <SingleComment
           v-for="comment in commentsTree"
           :key="comment.id"
@@ -468,30 +490,6 @@ const handleDeletedComment = (deletedCommentId) => {
         </button>
       </div>
     </div>
-
-    <Teleport to="body">
-      <Transition name="fade">
-        <div
-          v-if="commentFeedbackModal.open"
-          class="comment-modal-mask d-flex align-items-center justify-content-center"
-          @click.self="closeCommentFeedbackModal"
-        >
-          <div class="comment-modal-card shadow-lg">
-            <p class="fw-bold mb-1">{{ commentFeedbackModal.title }}</p>
-            <p class="small text-muted mb-3">{{ commentFeedbackMessage }}</p>
-            <div class="d-flex justify-content-end">
-              <button
-                type="button"
-                class="btn-submit border-0 rounded-2 fw-bold px-3 py-1 small"
-                @click="closeCommentFeedbackModal"
-              >
-                OK
-              </button>
-            </div>
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
 
     <Teleport to="body">
       <Transition name="fade">
@@ -528,6 +526,45 @@ const handleDeletedComment = (deletedCommentId) => {
   border-bottom: 1px solid #cce3d6;
   font-weight: 800;
   color: #1e4d38;
+}
+
+.rate-limit-banner {
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  color: #991b1b;
+}
+
+.rate-limit-dismiss {
+  color: #991b1b;
+  cursor: pointer;
+  font-size: 0.75rem;
+  opacity: 0.7;
+}
+
+.rate-limit-dismiss:hover {
+  opacity: 1;
+}
+
+.comments-disabled-notice {
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 0.9rem;
+  font-style: italic;
+  text-align: center;
+}
+
+.comments-disabled-mod-notice {
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  color: #92400e;
+  font-size: 0.85rem;
+}
+
+.guest-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  cursor: pointer;
 }
 
 .reply-box-container {
@@ -591,7 +628,7 @@ const handleDeletedComment = (deletedCommentId) => {
 }
 
 .sort-dropdown {
-  background-color: rgba(30, 77, 56, 0.06); /* Subtle green tint */
+  background-color: rgba(30, 77, 56, 0.06);
   border: 1px solid #cce3d6;
   border-radius: 6px;
   padding: 0.35rem 0.5rem 0.35rem 0.75rem;
@@ -626,11 +663,23 @@ const handleDeletedComment = (deletedCommentId) => {
   text-transform: uppercase;
   padding-right: 0.25rem;
 }
+.sort-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
 
-/* Keeps the actual dropdown options legible */
 .sort-select option {
   color: #1f2937;
   text-transform: none;
   font-weight: normal;
+}
+
+:deep(.comment-highlight) {
+  animation: highlightFade 3s ease-out;
+}
+
+@keyframes highlightFade {
+  0%, 30% { background-color: rgba(0, 71, 80, 0.12); border-radius: 12px; }
+  100% { background-color: transparent; }
 }
 </style>

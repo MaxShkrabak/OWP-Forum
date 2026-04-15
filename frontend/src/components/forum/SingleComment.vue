@@ -1,5 +1,6 @@
 <script setup>
-import { ref, inject, computed, watch, provide } from "vue";
+import { ref, inject, computed, watch, provide, onBeforeUnmount } from "vue";
+import DOMPurify from 'dompurify';
 import { useRouter } from "vue-router";
 import UserRole from "@/components/user/UserRole.vue";
 import {
@@ -7,9 +8,13 @@ import {
   fetchCommentReplies,
   updateComment as apiUpdateComment,
   deleteComment as apiDeleteComment,
+  formatCommentData,
 } from "@/api/comments";
-import { isLoggedIn, uid, userRole } from "@/stores/userStore";
-import { timeAgo } from "@/utils/timeAgo";
+import {
+  createDeletedCommentPlaceholder,
+  normalizeDeletedCommentEvent,
+} from "@/utils/commentState";
+import { isLoggedIn, uid, userRole, userRoleId } from "@/stores/userStore";
 import TextEditor from "./TextEditor.vue";
 import ReportingModal from "../user/ReportingModal.vue";
 
@@ -27,6 +32,7 @@ const router = useRouter();
 
 const localReplies = ref([]);
 const isLoadingReplies = ref(false);
+const isSubmittingReply = ref(false);
 const hasFetched = ref(false);
 
 const isVoting = ref(false);
@@ -40,6 +46,8 @@ const isHoveringToggle = ref(false);
 const showReportModal = ref(false);
 const showDeleteConfirm = ref(false);
 const isDeleting = ref(false);
+const showOptionsMenu = ref(false);
+const optionsMenuRef = ref(null);
 
 const activeReplyId = inject("activeReplyId");
 const submitReply = inject("submitReply");
@@ -50,7 +58,11 @@ const closeEditComment = inject("closeEditComment");
 const markEditDirty = inject("markEditDirty");
 
 const maxDepthContext = inject("maxDepthContext", null);
+const autoExpandCommentId = inject("autoExpandCommentId", ref(null));
 
+// Replies are capped at two levels deep (top-level comment + one reply layer).
+// Any reply typed on a depth-2 comment is redirected up to its depth-1 ancestor
+// via maxDepthContext, so the UI stays flat rather than infinitely nesting.
 if (props.depth === 1) {
   provide("maxDepthContext", {
     parentId: props.comment.id,
@@ -80,17 +92,15 @@ const showSaveConfirm = ref(false);
 const editIsUploading = ref(false);
 const replyIsUploading = ref(false);
 
-const linkedImage = computed(() => {
-  return (
-    props.comment.text?.replace(
-      /<img[^>]+src="([^"]+)"[^>]*\/?>/gi,
-      (_, src) => {
-        const name =
-          decodeURIComponent(src.split("/").pop().split("?")[0]) || "image";
-        return `<a href="${src}" target="_blank" rel="noopener noreferrer">${name}</a>`;
-      },
-    ) ?? ""
+const safeContent = computed(() => {
+  const sanitized = DOMPurify.sanitize(props.comment.text ?? '');
+  // Wrap images in an anchor so clicking them opens the full-size URL in a new tab.
+  const withLinks = sanitized.replace(
+    /<img[^>]+src="([^"]+)"[^>]*\/?>/gi,
+    (match, src) =>
+      `<a href="${src}" target="_blank" rel="noopener noreferrer">${match}</a>`,
   );
+  return DOMPurify.sanitize(withLinks);
 });
 
 const isAuthor = computed(() => {
@@ -107,9 +117,12 @@ const currentUserRole = computed(() =>
 
 const isModeratorOrAdmin = computed(() => {
   return (
-    currentUserRole.value === "moderator" ||
-    currentUserRole.value === "admin"
+    currentUserRole.value === "moderator" || currentUserRole.value === "admin"
   );
+});
+
+const canEdit = computed(() => {
+  return isAuthor.value || Number(userRoleId?.value ?? 0) >= 3;
 });
 
 const canDelete = computed(() => {
@@ -195,6 +208,7 @@ const confirmSaveEdit = async () => {
 };
 
 function getAvatarSrc(file) {
+  if (!file) return "";
   return new URL(`../../assets/img/user-pfps-premade/${file}`, import.meta.url)
     .href;
 }
@@ -205,14 +219,7 @@ const toggleRepliesDropdown = async () => {
     try {
       const data = await fetchCommentReplies(props.comment.id);
       if (data && data.ok) {
-        localReplies.value = data.items.map((item) => ({
-          ...item,
-          id: item.commentId,
-          author: `${item.user.firstName} ${item.user.lastName}`,
-          time: timeAgo(item.createdAt * 1000),
-          text: item.content,
-          replies: [],
-        }));
+        localReplies.value = data.items.map(formatCommentData);
         hasFetched.value = true;
       }
     } catch (error) {
@@ -225,12 +232,16 @@ const toggleRepliesDropdown = async () => {
 };
 
 const handleReply = async () => {
+  if (isSubmittingReply.value) return;
+
   const targetParentId =
     props.depth >= 2 && maxDepthContext
       ? maxDepthContext.parentId
       : props.comment.id;
 
+  isSubmittingReply.value = true;
   const newCommentData = await submitReply(replyText.value, targetParentId);
+  isSubmittingReply.value = false;
 
   if (newCommentData) {
     replyText.value = "";
@@ -270,6 +281,35 @@ const askDeleteComment = () => {
   showDeleteConfirm.value = true;
 };
 
+const handleDeletedReply = (payload) => {
+  const { id, keepPlaceholder } = normalizeDeletedCommentEvent(payload);
+
+  if (keepPlaceholder) {
+    localReplies.value = localReplies.value.map((reply) =>
+      reply.id === id
+        ? createDeletedCommentPlaceholder(reply)
+        : reply,
+    );
+  } else {
+    const previousLength = localReplies.value.length;
+    localReplies.value = localReplies.value.filter(
+      (reply) => reply.id !== id,
+    );
+
+    if (localReplies.value.length !== previousLength) {
+      props.comment.replyCount = Math.max(0, (props.comment.replyCount || 0) - 1);
+    }
+  }
+
+  emit("deleted", payload);
+};
+
+const shouldKeepDeletedPlaceholder = () => {
+  return (
+    Number(props.comment.replyCount || 0) > 0 || localReplies.value.length > 0
+  );
+};
+
 const confirmDeleteComment = async () => {
   if (isDeleting.value) return;
 
@@ -277,8 +317,13 @@ const confirmDeleteComment = async () => {
   try {
     const data = await apiDeleteComment(props.comment.id);
     if (data?.ok) {
+      const deletedPayload = {
+        id: props.comment.id,
+        keepPlaceholder: shouldKeepDeletedPlaceholder(),
+      };
+
       showDeleteConfirm.value = false;
-      emit("deleted", props.comment.id);
+      emit("deleted", deletedPayload);
     } else {
       alert(data?.error || "Failed to delete comment.");
     }
@@ -318,6 +363,12 @@ const handleVote = async (direction) => {
   }
 };
 
+watch(autoExpandCommentId, async (id) => {
+  if (id && id === props.comment.id && !showReplies.value) {
+    await toggleRepliesDropdown();
+  }
+});
+
 watch(isLoggedIn, (loggedIn) => {
   if (!loggedIn) myVote.value = 0;
 });
@@ -332,10 +383,38 @@ watch(isEditing, (active) => {
     editText.value = originalText.value;
   }
 });
+
+const hasOptions = computed(
+  () =>
+    !props.comment.isDeleted &&
+    (canDelete.value || canReport.value),
+);
+
+const toggleOptionsMenu = () => {
+  showOptionsMenu.value = !showOptionsMenu.value;
+};
+
+const handleClickOutsideOptions = (e) => {
+  if (optionsMenuRef.value && !optionsMenuRef.value.contains(e.target)) {
+    showOptionsMenu.value = false;
+  }
+};
+
+watch(showOptionsMenu, (val) => {
+  if (val) {
+    document.addEventListener("click", handleClickOutsideOptions, true);
+  } else {
+    document.removeEventListener("click", handleClickOutsideOptions, true);
+  }
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener("click", handleClickOutsideOptions, true);
+});
 </script>
 
 <template>
-  <div class="comment-node mb-3 position-relative">
+  <div class="comment-node mb-3 position-relative" :id="'comment-' + comment.id">
     <div
       v-if="localReplies.length || comment.replyCount > 0"
       class="thread-line"
@@ -349,7 +428,9 @@ watch(isEditing, (active) => {
         class="avatar-col d-flex flex-column align-items-center flex-shrink-0"
       >
         <div class="avatar-box shadow-sm overflow-hidden rounded-circle">
+          <div v-if="comment.isDeleted" class="avatar-box deleted-avatar"></div>
           <img
+            v-else
             :src="getAvatarSrc(comment.user?.avatar)"
             class="avatar-box"
             alt="user"
@@ -358,27 +439,73 @@ watch(isEditing, (active) => {
       </div>
 
       <div class="flex-grow-1 overflow-visible">
-        <div class="d-flex align-items-center mb-1 justify-content-between">
-          <div class="d-flex align-items-center gap-2 flex-wrap">
-            <span class="author-name text-truncate small fw-bold">{{
+        <div class="d-flex align-items-center mb-1 gap-2 flex-wrap">
+          <span
+            v-if="comment.isDeleted"
+            class="author-name text-truncate small fw-bold pe-2 text-muted fst-italic"
+          >
+            [deleted]
+          </span>
+          <RouterLink
+            v-else
+            style="text-decoration: none; color: inherit"
+            :to="`/profile?id=${comment.user?.userId}`"
+          >
+            <span class="author-name text-truncate small fw-bold pe-2">{{
               comment.author
             }}</span>
             <UserRole :role="comment.user?.role" />
-            <span class="timestamp text-muted">
-              {{ comment.time }}
-              <span v-if="comment.wasEdited" class="edited-label ms-1"
-                >(edited)</span
-              >
-            </span>
+          </RouterLink>
+          <span class="timestamp text-muted">
+            {{ comment.time }}
+            <span v-if="comment.wasEdited" class="edited-label ms-1">(edited)</span>
+          </span>
+          <div v-if="hasOptions" class="position-relative" ref="optionsMenuRef">
+            <button
+              class="comment-menu-btn border-0 bg-transparent p-0"
+              type="button"
+              @click.stop="toggleOptionsMenu"
+            >
+              <i class="pi pi-ellipsis-v"></i>
+            </button>
+            <Transition name="comment-menu-fade">
+              <div v-if="showOptionsMenu" class="comment-menu-popup shadow-sm">
+                <button
+                  v-if="canEdit"
+                  class="comment-menu-item d-flex align-items-center gap-2 w-100 border-0 bg-transparent px-3 py-2"
+                  @click="
+                    startEdit();
+                    showOptionsMenu = false;
+                  "
+                >
+                  <i class="pi pi-pencil comment-menu-icon"></i>
+                  <span>Edit</span>
+                </button>
+                <button
+                  v-if="canDelete"
+                  class="comment-menu-item comment-menu-item-delete d-flex align-items-center gap-2 w-100 border-0 bg-transparent px-3 py-2"
+                  @click="
+                    askDeleteComment();
+                    showOptionsMenu = false;
+                  "
+                >
+                  <i class="pi pi-trash comment-menu-icon"></i>
+                  <span>Delete</span>
+                </button>
+                <button
+                  v-if="canReport"
+                  class="comment-menu-item d-flex align-items-center gap-2 w-100 border-0 bg-transparent px-3 py-2"
+                  @click="
+                    openReportModal();
+                    showOptionsMenu = false;
+                  "
+                >
+                  <i class="pi pi-flag comment-menu-icon"></i>
+                  <span>Report</span>
+                </button>
+              </div>
+            </Transition>
           </div>
-          <button
-            v-if="isAuthor"
-            class="btn-options border-0 bg-transparent p-1 ms-2"
-            type="button"
-            @click="startEdit"
-          >
-            <i class="pi pi-ellipsis-h"></i>
-          </button>
         </div>
 
         <div v-if="isEditing" class="comment-body mb-2">
@@ -412,9 +539,18 @@ watch(isEditing, (active) => {
           </div>
         </div>
 
-        <div v-else class="comment-body mb-2 small" v-html="linkedImage"></div>
+        <div
+          v-else-if="comment.isDeleted"
+          class="comment-body mb-2 small text-muted fst-italic"
+        >
+          [deleted]
+        </div>
+        <div v-else class="comment-body mb-2 small" v-html="safeContent"></div>
 
-        <div class="d-flex align-items-center gap-3 gap-sm-2 flex-wrap">
+        <div
+          v-if="!comment.isDeleted"
+          class="d-flex align-items-center gap-3 gap-sm-2 flex-wrap"
+        >
           <div
             class="vote-container d-flex align-items-center rounded-4 px-2 py-1"
           >
@@ -446,22 +582,6 @@ watch(isEditing, (active) => {
           >
             <span>Reply</span>
           </button>
-
-          <button
-            v-if="canDelete"
-            class="action-btn border-0 bg-transparent fw-bold d-flex align-items-center gap-1 p-0"
-            @click="askDeleteComment"
-          >
-            <span>Delete</span>
-          </button>
-
-          <button
-            v-if="canReport"
-            class="action-btn border-0 bg-transparent fw-bold d-flex align-items-center gap-1 p-0"
-            @click="openReportModal"
-          >
-            <span>Report</span>
-          </button>
         </div>
 
         <div v-if="isReplying" class="mt-2">
@@ -487,11 +607,11 @@ watch(isEditing, (active) => {
               <button
                 class="btn-submit border-0 rounded-2 fw-bold px-3 py-1 small"
                 :disabled="
-                  !replyText || replyText === '<p></p>' || replyIsUploading
+                  !replyText || replyText === '<p></p>' || replyIsUploading || isSubmittingReply
                 "
                 @click="handleReply"
               >
-                {{ replyIsUploading ? "Uploading..." : "Reply" }}
+                {{ replyIsUploading ? "Uploading..." : isSubmittingReply ? "Posting..." : "Reply" }}
               </button>
             </div>
           </div>
@@ -517,7 +637,7 @@ watch(isEditing, (active) => {
             :comment="reply"
             :depth="depth + 1"
             :is-last-child="index === localReplies.length - 1"
-            @deleted="emit('deleted', $event)"
+            @deleted="handleDeletedReply"
           />
         </div>
       </div>
@@ -600,9 +720,7 @@ watch(isEditing, (active) => {
         >
           <div class="comment-modal-card shadow-lg">
             <p class="fw-bold mb-1">Delete comment?</p>
-            <p class="small text-muted mb-3">
-              This action cannot be undone.
-            </p>
+            <p class="small text-muted mb-3">This action cannot be undone.</p>
             <div class="d-flex justify-content-end gap-2">
               <button
                 type="button"
@@ -617,7 +735,10 @@ watch(isEditing, (active) => {
                 :disabled="isDeleting"
                 @click="confirmDeleteComment"
               >
-                <span v-if="isDeleting" class="pi pi-spin pi-spinner me-1"></span>
+                <span
+                  v-if="isDeleting"
+                  class="pi pi-spin pi-spinner me-1"
+                ></span>
                 Delete
               </button>
             </div>
@@ -637,6 +758,11 @@ watch(isEditing, (active) => {
 </template>
 
 <style scoped>
+.comment-body :deep(*) {
+  white-space: pre-wrap !important;
+  word-break: break-word !important;
+  overflow-wrap: anywhere !important;
+}
 .avatar-col {
   width: 40px;
   position: relative;
@@ -647,6 +773,16 @@ watch(isEditing, (active) => {
   height: 40px;
   position: relative;
   z-index: 0;
+}
+
+.deleted-avatar {
+  background-color: #91959e;
+}
+
+.author-name:hover {
+  color: #007a4c;
+  transition: color 0.1s;
+  text-decoration: underline;
 }
 
 :deep(.role-pill) {
@@ -660,17 +796,37 @@ watch(isEditing, (active) => {
   word-break: break-word;
 }
 
+.comment-body :deep(a:has(> img)) {
+  display: inline-block;
+}
+
+.comment-body :deep(img) {
+  max-width: 100%;
+  max-height: 400px;
+  border-radius: 6px;
+  display: block;
+  margin-top: 4px;
+  object-fit: contain;
+  cursor: pointer;
+}
+
 .timestamp {
   font-size: 12px;
 }
 
+.edited-label {
+  font-style: italic;
+  opacity: 0.75;
+  font-size: 11px;
+}
+
 /* Menu */
-.btn-options {
+.comment-menu-btn {
   color: #9ca3af;
   transition: color 0.2s;
 }
 
-.btn-options:hover {
+.comment-menu-btn:hover {
   color: #111827;
 }
 
@@ -871,5 +1027,57 @@ watch(isEditing, (active) => {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+
+.comment-menu-popup {
+  position: absolute;
+  top: 100%;
+  margin-top: 8px;
+  right: 0;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  min-width: 140px;
+  z-index: 100;
+  overflow: hidden;
+}
+
+.comment-menu-item {
+  font-size: 0.875rem;
+  color: #374151;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  text-align: left;
+}
+
+.comment-menu-item:hover {
+  background-color: #f3f4f6;
+}
+
+.comment-menu-item-delete {
+  color: #b91c1c;
+}
+
+.comment-menu-item-delete:hover {
+  background-color: #fef2f2;
+}
+
+.comment-menu-icon {
+  font-size: 0.8rem;
+  width: 14px;
+  text-align: center;
+}
+
+.comment-menu-fade-enter-active,
+.comment-menu-fade-leave-active {
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease;
+}
+
+.comment-menu-fade-enter-from,
+.comment-menu-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
 }
 </style>
