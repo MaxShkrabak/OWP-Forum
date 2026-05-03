@@ -17,7 +17,7 @@ const perPageOptions = [5, 10, 25, 50, 100];
 const totalPages = computed(() =>
   props.total <= 0 ? 1 : Math.max(1, Math.ceil(props.total / props.perPage)),
 );
-
+a
 const rangeFrom = computed(() => {
   if (props.total <= 0) return 0;
   return (props.page - 1) * props.perPage + 1;

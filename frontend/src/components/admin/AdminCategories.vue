@@ -667,7 +667,7 @@ onMounted(async () => {
   .admin-name {
     font-size: 0.8rem;
   }
-
+a
   .role-full {
     display: none !important;
   }
