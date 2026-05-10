@@ -593,7 +593,7 @@ We would like to thank:
         <sub><b>Gavin Kabel</b></sub>
       </a><br />
       <sub>Developer</sub><br />
-      <sub>user8@example.com</sub>
+      <sub>gbkabel@yahoo.com</sub>
     </td>
   </tr>
 </table>
