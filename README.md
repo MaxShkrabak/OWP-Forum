@@ -291,7 +291,7 @@ Before you begin, ensure you have the following installed. The versions listed a
 
 * [Node.js and npm](https://nodejs.org/) - **Node.js v24.14.0**, **npm 11.9.0**
 
-* [PHP](https://www.php.net/downloads.php) - **PHP 8.3.26**, Thread-Safe
+* [PHP](https://www.php.net/downloads.php) - **PHP 8.3**, Thread-Safe / VS16 x64 ZIP, tested with **PHP 8.3.27**
 
 * [Composer](https://getcomposer.org/) — **Composer 2.8.12**
 
@@ -322,18 +322,18 @@ Before you begin, ensure you have the following installed. The versions listed a
    ```
 
 ### 2. Backend Setup
-1. Extract PHP to the desired directory and create a new **system environmental variable** for the path to the PHP installation.
-2. From the **SQLSRV512.ZIP** file you downloaded, copy the drivers **php_pdo_sqlsrv_83_ts_x64.dll** & **php_sqlsrv_83_ts_x64.dll** or equivalent drivers for the version of PHP you downloaded and paste them into the **ext** file inside your PHP installation
-3. Make a copy of the file **php.ini-development** inside your PHP installation, paste it inside your PHP installation, and rename it to **php.ini**.
-4. Inside **php.ini**, remove the **;** from in front of **extension=openssl** and paste the follwing extensions below or their equivalents under **;zend_extension=opcache**.
+1. Download the PHP **Thread-Safe / VS16 x64 ZIP** and extract it to a folder on your computer, such as `C:\php-8.3.27-Win32-vs16-x64`. Add the extracted PHP folder (the folder containing `php.exe`) to the system **Path** environment variable.
+2. From the **SQLSRV5.13.1_Windows.zip** file you downloaded, copy the thread-safe x64 drivers **php_pdo_sqlsrv_83_ts_x64.dll** and **php_sqlsrv_83_ts_x64.dll**, or equivalent drivers for the version of PHP you downloaded, and paste them into the **ext** file inside your PHP installation.
+3. Make a copy of **php.ini-development** inside your PHP installation folder and rename the copy to **php.ini**.
+4. Inside **php.ini**, remove the **;** from in front of **extension=openssl** and **extension=mbstring**, then paste the following SQL Server extensions below or their equivalents under **;zend_extension=opcache**.
    ```bash
    extension=php_sqlsrv_83_ts_x64.dll
    extension=php_pdo_sqlsrv_83_ts_x64.dll
    ```
-5. Copy the path of the **ext** file, inside your PHP installation file, and paste it inside the double quotes of the extension directory inside php.ini then save php.ini.
+5. Copy the path of the **ext** folder inside your PHP installation folder and paste it inside the double quotes for `extension_dir` in **php.ini**, then save **php.ini**.
    ```bash
    ; On windows:
-   extension_dir = "paste directory here"
+   extension_dir = "C:\php-8.3.27-Win32-vs16-x64\ext"
    ```
 6. In a **new terminal window**, navigate to the backend directory from the project root:
    ```bash
@@ -341,7 +341,7 @@ Before you begin, ensure you have the following installed. The versions listed a
    ```
 7. Install the required PHP dependencies using Composer:
    ```bash
-   composer require slim/slim slim/psr7 vlucas/phpdotenv
+   composer install
    ```
 8. **Ensure You Have Configured Your Environment Variables:** The backend needs credentials to run.
    * First, copy the example `.env.example` file to create your own local configuration file:
@@ -351,7 +351,7 @@ Before you begin, ensure you have the following installed. The versions listed a
    * Next, open the new `.env` file.
    * Fill in the required parameters (database credentials, application secrets) with your correct development values.
 9. **After creating your .env file and configuring environment variables:** Run your backend **Local** Development Server while in the <em>/backend</em> folder.
-   ```base
+   ```bash
    php -S localhost:8080 -t public
    ```
 
@@ -366,8 +366,8 @@ The database schema is managed through versioned SQL migration scripts in [backe
    ```bash
    DB_SERVER=your-sql-server-host
    DB_DATABASE=your-database-name
-   DB_USERNAME=your-username
-   DB_PASSWORD=your-password
+   DB_USER=your-username
+   DB_PASS=your-password
    ```
 3. Ensure `composer install` has been run so `vendor/autoload.php` exists.
 
@@ -449,7 +449,7 @@ The test suites have been verified against the following environment:
 | **OS** | Windows 11 Pro |
 | **Node.js** | v24.14.0 |
 | **npm** | 11.9.0 |
-| **PHP** | 8.3.26 (ZTS, VC++ 2019, x64) |
+| **PHP** | 8.3.27 (ZTS, VS16, x64) |
 | **Composer** | 2.8.12 |
 | **PHPUnit** | ^12.5 |
 
@@ -584,7 +584,7 @@ We would like to thank:
         <sub><b>Gianni Dumitru</b></sub>
       </a><br />
       <sub>Developer</sub><br />
-      <sub>user7@example.com</sub>
+      <sub>gsdumitru@gmail.com</sub>
     </td>
     <td align="center" width="25%">
       <br>
