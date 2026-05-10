@@ -547,7 +547,7 @@ We would like to thank:
         <sub><b>Jeffrey Sardella</b></sub>
       </a><br />
       <sub>Developer</sub><br />
-      <sub>user3@example.com</sub><br><br>
+      <sub>sardellajeffrey123@gmail.com</sub><br><br>
     </td>
     <td align="center" width="25%">
       <a href="https://github.com/Zamazinga">
