@@ -555,7 +555,7 @@ We would like to thank:
         <sub><b>Oleksii Andriienko</b></sub>
       </a><br />
       <sub>Developer</sub><br />
-      <sub>user4@example.com</sub><br><br>
+      <sub>oandriienko@csus.edu</sub><br><br>
     </td>
   </tr>
 
@@ -566,7 +566,7 @@ We would like to thank:
         <sub><b>Egor Strakhov</b></sub>
       </a><br />
       <sub>Developer</sub><br />
-      <sub>user5@example.com</sub>
+      <sub>estrakhov@csus.edu</sub>
     </td>
     <td align="center" width="25%">
       <br>
@@ -575,7 +575,7 @@ We would like to thank:
         <sub><b>Ruzanna Shomakhova</b></sub>
       </a><br />
       <sub>Developer</sub><br />
-      <sub>user6@example.com</sub>
+      <sub>rshomakhova@csus.edu</sub>
     </td>
     <td align="center" width="25%">
       <br>
