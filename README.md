@@ -516,21 +516,85 @@ We would like to thank:
 
 ---
 
-## 👥 Contributors
-
-- Maksim Shkrabak
-- Daniel Ivanilov
-- Jeffrey Sardella
-- Oleksii Andriienko
-- Egor Strakhov
-- Ruzanna Shomakhova
-- Gianni Dumitru
-- Gavin Kabel
-
----
+## 👥 Meet the Team
 
 <p align="center">
- <img width="120" height="95" alt="Bug Busters Logo" src="https://github.com/user-attachments/assets/e83ab8a5-90ef-4d55-8795-6aac07eb77b2" />
- <br>
- <strong>Team Bug Busters</strong>
+  <img width="175" height="110" alt="Bug Busters Logo" src="https://github.com/user-attachments/assets/e83ab8a5-90ef-4d55-8795-6aac07eb77b2" />
 </p>
+
+<div align="center">
+<table>
+  <tr>
+    <td align="center" width="25%">
+      <a href="https://github.com/MaxShkrabak">
+        <img src="https://github.com/MaxShkrabak.png" width="100px" alt="Maksim Shkrabak"/><br />
+        <sub><b>Maksim Shkrabak</b></sub>
+      </a><br />
+      <sub>Developer</sub><br />
+      <sub>shkrabakmaksim@gmail.com</sub><br><br>
+      </td>
+    <td align="center" width="25%">
+      <a href="https://github.com/DanielIvanilov">
+        <img src="https://github.com/DanielIvanilov.png" width="100px" alt="Daniel Ivanilov"/><br />
+        <sub><b>Daniel Ivanilov</b></sub>
+      </a><br />
+      <sub>Developer</sub><br />
+      <sub>user2@example.com</sub><br><br>
+    </td>
+    <td align="center" width="25%">
+      <a href="https://github.com/JeffreySardella">
+        <img src="https://github.com/JeffreySardella.png" width="100px" alt="Jeffrey Sardella"/><br />
+        <sub><b>Jeffrey Sardella</b></sub>
+      </a><br />
+      <sub>Developer</sub><br />
+      <sub>user3@example.com</sub><br><br>
+    </td>
+    <td align="center" width="25%">
+      <a href="https://github.com/Zamazinga">
+        <img src="https://github.com/Zamazinga.png" width="100px" alt="Oleksii Andriienko"/><br />
+        <sub><b>Oleksii Andriienko</b></sub>
+      </a><br />
+      <sub>Developer</sub><br />
+      <sub>user4@example.com</sub><br><br>
+    </td>
+  </tr>
+
+  <tr>
+    <td align="center" width="25%">
+      <br> <a href="https://github.com/Sillor">
+        <img src="https://github.com/Sillor.png" width="100px" alt="Egor Strakhov"/><br />
+        <sub><b>Egor Strakhov</b></sub>
+      </a><br />
+      <sub>Developer</sub><br />
+      <sub>user5@example.com</sub>
+    </td>
+    <td align="center" width="25%">
+      <br>
+      <a href="https://github.com/Scander3">
+        <img src="https://github.com/Scander3.png" width="100px" alt="Ruzanna Shomakhova"/><br />
+        <sub><b>Ruzanna Shomakhova</b></sub>
+      </a><br />
+      <sub>Developer</sub><br />
+      <sub>user6@example.com</sub>
+    </td>
+    <td align="center" width="25%">
+      <br>
+      <a href="https://github.com/GSD1453">
+        <img src="https://github.com/GSD1453.png" width="100px" alt="Gianni Dumitru"/><br />
+        <sub><b>Gianni Dumitru</b></sub>
+      </a><br />
+      <sub>Developer</sub><br />
+      <sub>user7@example.com</sub>
+    </td>
+    <td align="center" width="25%">
+      <br>
+      <a href="https://github.com/gavinkabelcsus">
+        <img src="https://github.com/gavinkabelcsus.png" width="100px" alt="Gavin Kabel"/><br />
+        <sub><b>Gavin Kabel</b></sub>
+      </a><br />
+      <sub>Developer</sub><br />
+      <sub>user8@example.com</sub>
+    </td>
+  </tr>
+</table>
+</div>
