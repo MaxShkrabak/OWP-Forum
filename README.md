@@ -539,7 +539,7 @@ We would like to thank:
         <sub><b>Daniel Ivanilov</b></sub>
       </a><br />
       <sub>Developer</sub><br />
-      <sub>user2@example.com</sub><br><br>
+      <sub>ivanilovdaniel@gmail.com</sub><br><br>
     </td>
     <td align="center" width="25%">
       <a href="https://github.com/JeffreySardella">
