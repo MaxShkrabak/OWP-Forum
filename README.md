@@ -539,7 +539,7 @@ We would like to thank:
         <sub><b>Daniel Ivanilov</b></sub>
       </a><br />
       <sub>Developer</sub><br />
-      <sub>user2@example.com</sub><br><br>
+      <sub>ivanilovdaniel@gmail.com</sub><br><br>
     </td>
     <td align="center" width="25%">
       <a href="https://github.com/JeffreySardella">
@@ -547,7 +547,7 @@ We would like to thank:
         <sub><b>Jeffrey Sardella</b></sub>
       </a><br />
       <sub>Developer</sub><br />
-      <sub>user3@example.com</sub><br><br>
+      <sub>sardellajeffrey123@gmail.com</sub><br><br>
     </td>
     <td align="center" width="25%">
       <a href="https://github.com/Zamazinga">
@@ -555,7 +555,7 @@ We would like to thank:
         <sub><b>Oleksii Andriienko</b></sub>
       </a><br />
       <sub>Developer</sub><br />
-      <sub>user4@example.com</sub><br><br>
+      <sub>oandriienko@csus.edu</sub><br><br>
     </td>
   </tr>
 
@@ -566,7 +566,7 @@ We would like to thank:
         <sub><b>Egor Strakhov</b></sub>
       </a><br />
       <sub>Developer</sub><br />
-      <sub>user5@example.com</sub>
+      <sub>estrakhov@csus.edu</sub>
     </td>
     <td align="center" width="25%">
       <br>
@@ -575,7 +575,7 @@ We would like to thank:
         <sub><b>Ruzanna Shomakhova</b></sub>
       </a><br />
       <sub>Developer</sub><br />
-      <sub>user6@example.com</sub>
+      <sub>rshomakhova@csus.edu</sub>
     </td>
     <td align="center" width="25%">
       <br>
@@ -593,7 +593,7 @@ We would like to thank:
         <sub><b>Gavin Kabel</b></sub>
       </a><br />
       <sub>Developer</sub><br />
-      <sub>user8@example.com</sub>
+      <sub>gbkabel@yahoo.com</sub>
     </td>
   </tr>
 </table>
