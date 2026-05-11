@@ -343,13 +343,44 @@ Before you begin, ensure you have the following installed. The versions listed a
    ```bash
    composer install
    ```
-8. **Ensure You Have Configured Your Environment Variables:** The backend needs credentials to run.
+8. **Configuring Your Environment Variables:** The backend needs credentials to run.
    * First, copy the example `.env.example` file to create your own local configuration file:
    ```bash
    cp .env.example .env
    ```
    * Next, open the new `.env` file.
    * Fill in the required parameters (database credentials, application secrets) with your correct development values.
+   * **Setting up your emailing service:** This requires at the least these three variables configured with your emailing service in order to generate emails for comments and OTPs.
+   ```bash
+   EMAIL_API_KEY="Email-API-Key"
+   EMAIL_FROM_ADDRESS="some.email@outlook.com"
+   EMAIL_FROM_NAME="EmailName"
+   ```
+   * **Using One-Time Passcode:** For development purposes, set `GLOBAL_OTP` to any 6-digit passcode to bypass generating and emailing OTPs. Otherwise, generating OTPs requires having the email service *already configured* and setting `GLOBAL_OTP` to anything non-6-digit.
+   ```bash
+   GLOBAL_OTP="" # OTP generation with emailing enabled
+   ```
+   * **Connecting your Azure Storage:** In order to store images from posts and comments, you need to configure your `AZURE_STORAGE_CONNECTION_STRING` and `AZURE_STORAGE_ACCOUNT_NAME`.
+    ```bash
+   AZURE_STORAGE_CONNECTION_STRING="YourConnectionString"
+   AZURE_STORAGE_ACCOUNT_NAME="YourAccountName"
+   ```
+   * **Setting your secret Hashing Key:** This key can be anything you want and will be used to generate various tokens.
+    ```bash
+   HMAC_KEY="some-very-secure-key"
+   ```
+   * **Connecting your Database:** These variables will tell the applications where to store and look for data.
+   ```bash
+   DB_SERVER="your-sql-server-host"
+   DB_DATABASE="your-database-name"
+   DB_USER="your-username"
+   DB_PASS="your-password"
+   ```
+   * **Additional configurations:** The `COMMENT_EMAIL_COOLDOWN_MINUTES` can be set to configure how long between comments it takes, in minutes, to send emails to the author.
+   ```bash
+   COMMENT_EMAIL_COOLDOWN_MINUTES="10" # 10 minute cooldown
+   ```
+
 9. **After creating your .env file and configuring environment variables:** Run your backend **Local** Development Server while in the <em>/backend</em> folder.
    ```bash
    php -S localhost:8080 -t public
