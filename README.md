@@ -488,8 +488,70 @@ Other versions may work but have not been validated. If you hit environment-rela
 
 ---
 
-## Deployment
-TBD
+## 🚀 Deployment
+
+The app can be deployed to [Render](https://render.com) as a single Docker web service that builds the Vue frontend and serves both the SPA and the PHP API from one Apache container.
+
+### Prerequisites
+
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running
+- A [Docker Hub](https://hub.docker.com) account
+- A [Render](https://render.com) account
+- An externally accessible Microsoft SQL Server (e.g. Azure SQL) with migrations already applied
+- A [Brevo](https://www.brevo.com) account with a verified sender email and an API key
+
+### Deployment Files
+
+The following files are required locally but are excluded from version control via `.gitignore`:
+
+| File | Purpose |
+| :--- | :--- |
+| `Dockerfile` | Builds the Vue SPA and PHP/Apache image with MSSQL drivers |
+| `backend/public/.htaccess` | Routes `/api/*` to PHP and everything else to the Vue SPA |
+| `.dockerignore` | Excludes `vendor/`, `node_modules/`, `.env` from the Docker build context |
+
+### Steps
+
+**1. Build the Docker image** from the project root:
+```bash
+docker build -t YOURDOCKERHUBUSERNAME/owp-forum .
+```
+
+**2. Push to Docker Hub:**
+```bash
+docker push YOURDOCKERHUBUSERNAME/owp-forum
+```
+
+**3. Create a Render Web Service:**
+- Go to Render → **New → Web Service**
+- Choose **"Deploy an existing image"**
+- Image URL: `YOURDOCKERHUBUSERNAME/owp-forum`
+
+**4. Set environment variables** in Render's dashboard:
+
+| Key | Value |
+| :--- | :--- |
+| `APP_ENV` | `production` |
+| `DB_SERVER` | `your-sql-server.database.windows.net,1433` |
+| `DB_DATABASE` | `your-database-name` |
+| `DB_USER` | `your-db-username` |
+| `DB_PASS` | `your-db-password` |
+| `HMAC_KEY` | any long random secret string |
+| `AZURE_STORAGE_ACCOUNT_NAME` | from Azure Portal |
+| `AZURE_STORAGE_CONNECTION_STRING` | from Azure Portal |
+| `EMAIL_API_KEY` | your Brevo API key |
+| `EMAIL_FROM_ADDRESS` | your verified Brevo sender email |
+| `EMAIL_FROM_NAME` | `OWP Forum` |
+| `EMAIL_SANDBOX` | `false` |
+| `COMMENT_EMAIL_COOLDOWN_MINUTES` | `10` |
+| `GLOBAL_OTP` | leave blank (uses real OTP emails) |
+
+**5. Configure external services:**
+
+- **Azure SQL firewall**: Enable _"Allow Azure services and resources to access this server"_ in the Azure Portal under your SQL Server → Networking. This allows Render's servers to reach the database.
+- **Brevo authorized IPs**: Go to Brevo → Settings → Authorized IPs and add Render's outbound IP. The IP will appear in your Render logs if Brevo rejects a request with a 401 error.
+
+**6. Deploy**: Click **Create Web Service**. On subsequent updates, rebuild and push the image then click **Manual Deploy → Deploy latest image** in Render.
 
 ---
 
