@@ -350,11 +350,12 @@ Before you begin, ensure you have the following installed. The versions listed a
    ```
    * Next, open the new `.env` file.
    * Fill in the required parameters (database credentials, application secrets) with your correct development values.
-   * **Setting up your emailing service:** This requires at the least these three variables configured with your emailing service in order to generate emails for comments and OTPs.
+   * **Setting up your emailing service:** Email delivery uses Brevo for OTPs and comment notifications. `EMAIL_API_KEY` must be a Brevo API key, and `EMAIL_FROM_ADDRESS` must be a sender address that is verified or otherwise allowed in Brevo. `EMAIL_FROM_NAME` is only the display name recipients see, so it can be set to the app/team name you want shown in inboxes.
    ```bash
    EMAIL_API_KEY="Email-API-Key"
-   EMAIL_FROM_ADDRESS="some.email@outlook.com"
-   EMAIL_FROM_NAME="EmailName"
+   EMAIL_FROM_ADDRESS="verified-sender@example.com"
+   EMAIL_FROM_NAME="OWP Forum"
+   EMAIL_SANDBOX="true" # set to "false" to send real emails
    ```
    * **Using One-Time Passcode:** For development purposes, set `GLOBAL_OTP` to any 6-digit passcode to bypass generating and emailing OTPs. Otherwise, generating OTPs requires having the email service *already configured* and setting `GLOBAL_OTP` to anything non-6-digit.
    ```bash
@@ -540,9 +541,9 @@ docker push YOURDOCKERHUBUSERNAME/owp-forum
 | `AZURE_STORAGE_ACCOUNT_NAME` | from Azure Portal |
 | `AZURE_STORAGE_CONNECTION_STRING` | from Azure Portal |
 | `EMAIL_API_KEY` | your Brevo API key |
-| `EMAIL_FROM_ADDRESS` | your verified Brevo sender email |
-| `EMAIL_FROM_NAME` | `OWP Forum` |
-| `EMAIL_SANDBOX` | `false` |
+| `EMAIL_FROM_ADDRESS` | sender email verified or allowed in Brevo |
+| `EMAIL_FROM_NAME` | display name shown to recipients, e.g. `OWP Forum` |
+| `EMAIL_SANDBOX` | `false` to send real emails; `true` drops them in Brevo sandbox mode |
 | `COMMENT_EMAIL_COOLDOWN_MINUTES` | `10` |
 | `GLOBAL_OTP` | leave blank (uses real OTP emails) |
 
